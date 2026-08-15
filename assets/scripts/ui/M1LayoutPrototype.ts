@@ -6,8 +6,11 @@ import {
     HorizontalTextAlignment,
     Label,
     Node,
+    profiler,
+    ResolutionPolicy,
     UITransform,
     VerticalTextAlignment,
+    view,
 } from 'cc';
 
 const { ccclass } = _decorator;
@@ -42,6 +45,8 @@ export class M1LayoutPrototype extends Component {
     private upgradeOverlay: Node | null = null;
 
     protected onLoad(): void {
+        profiler.hideStats();
+        view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
         this.rebuild();
         this.schedule(this.toggleUpgradeOverlay, 6);
     }
