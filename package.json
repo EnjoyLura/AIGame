@@ -5,6 +5,7 @@
     "version": "3.8.8"
   },
   "scripts": {
-    "test:m0": "node tools/m0-smoke-test.mjs"
+    "test:m0": "node tools/m0-smoke-test.mjs",
+    "test:m1": "node tools/m1-layout-test.mjs"
   }
 }
