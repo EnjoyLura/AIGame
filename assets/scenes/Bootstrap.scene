@@ -379,7 +379,7 @@
     "_scale": 5
   },
   {
-    "__type__": "049a3smbvZBOqDGeZHRoIf9",
+    "__type__": "b1e508/NcxGXJx6hhXuCUe8",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -387,6 +387,10 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "_id": "80657d92-b438-4ab1-8a3a-91ef4b58f5f3"
+    "escortDuration": 30,
+    "maxVehicleHp": 100,
+    "enemySpawnInterval": 0.85,
+    "heroAttackInterval": 0.42,
+    "_id": "2acbbc5b-4b63-4a8a-a11c-8405574248b1"
   }
 ]

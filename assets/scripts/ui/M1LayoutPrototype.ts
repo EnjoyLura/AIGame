@@ -13,7 +13,7 @@ import {
     view,
 } from 'cc';
 
-const { ccclass } = _decorator;
+const { ccclass, property } = _decorator;
 
 const DESIGN_WIDTH = 750;
 const DESIGN_HEIGHT = 1334;
@@ -41,6 +41,9 @@ const COLOR = {
 
 @ccclass('M1LayoutPrototype')
 export class M1LayoutPrototype extends Component {
+    @property
+    showUpgradePreview = true;
+
     private root: Node | null = null;
     private upgradeOverlay: Node | null = null;
 
@@ -48,7 +51,9 @@ export class M1LayoutPrototype extends Component {
         profiler.hideStats();
         view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
         this.rebuild();
-        this.schedule(this.toggleUpgradeOverlay, 6);
+        if (this.showUpgradePreview) {
+            this.schedule(this.toggleUpgradeOverlay, 6);
+        }
     }
 
     protected onDestroy(): void {
@@ -95,14 +100,6 @@ export class M1LayoutPrototype extends Component {
         graphics.moveTo(-DESIGN_WIDTH / 2, BATTLE_BOTTOM);
         graphics.lineTo(DESIGN_WIDTH / 2, BATTLE_BOTTOM);
         graphics.stroke();
-
-        const enemyPositions = [
-            [-62, 420], [35, 385], [-8, 320], [83, 272], [-108, 240], [14, 170],
-        ];
-        for (const [x, y] of enemyPositions) {
-            this.fillCircle(graphics, x, y, 20, COLOR.warning);
-            this.fillCircle(graphics, x - 7, y + 6, 5, new Color(245, 189, 95, 255));
-        }
 
         this.fillRect(graphics, 0, BATTLE_TOP - 25, 270, 32, new Color(30, 42, 42, 220));
         this.fillCircle(graphics, 0, BATTLE_TOP - 13, 8, COLOR.warning);
