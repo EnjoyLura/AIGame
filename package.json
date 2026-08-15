@@ -7,6 +7,7 @@
   "scripts": {
     "test:m0": "node tools/m0-smoke-test.mjs",
     "test:m1": "node tools/m1-layout-test.mjs",
-    "test:m2": "node tools/m2-battle-test.mjs"
+    "test:m2": "node tools/m2-battle-test.mjs",
+    "test:m3": "node tools/m3-level-test.mjs"
   }
 }

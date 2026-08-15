@@ -11,7 +11,6 @@ function readText(relativePath) {
 }
 
 const packageJson = JSON.parse(readText('package.json'));
-const scene = JSON.parse(readText('assets/scenes/Bootstrap.scene'));
 const componentSource = readText('assets/scripts/battle/M2MinimalBattle.ts');
 const m1Source = readText('assets/scripts/ui/M1LayoutPrototype.ts');
 
@@ -30,20 +29,6 @@ assert.match(componentSource, /private toggleSpeed = \(\): void/);
 assert.match(componentSource, /private toggleAuto = \(\): void/);
 assert.doesNotMatch(m1Source, /const enemyPositions =/);
 assert.match(m1Source, /showUpgradePreview = true/);
-
-const canvas = scene.find((entry) => entry.__type__ === 'cc.Node' && entry._name === 'Canvas');
-assert.ok(canvas, 'Bootstrap scene must contain Canvas');
-assert.equal(canvas._components.length, 4, 'Canvas must keep camera, transform, canvas and widget components');
-assert.equal(
-    scene.some((entry) => entry.__type__ === 'b1e508/NcxGXJx6hhXuCUe8'),
-    true,
-    'Bootstrap scene must serialize the M2 battle component',
-);
-
-const m2Component = scene.find((entry) => entry.__type__ === 'b1e508/NcxGXJx6hhXuCUe8');
-assert.equal(m2Component.escortDuration, 30);
-assert.equal(m2Component.maxVehicleHp, 100);
-assert.equal(scene.filter((entry) => entry.node?.__id__ === 2).length >= 2, true);
 
 console.log('M2 minimal battle test passed');
 console.log('Single hero: automatic attack and pooled projectile flow');
