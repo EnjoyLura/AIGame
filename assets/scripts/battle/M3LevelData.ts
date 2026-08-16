@@ -41,8 +41,43 @@ export interface UpgradeDefinition {
     color: readonly [number, number, number];
 }
 
+export interface LevelHeroConfig {
+    normalDamage: number;
+    normalInterval: number;
+    projectileSpeed: number;
+    projectiles: number;
+    skillDamage: number;
+    skillCooldown: number;
+    skillTargets: number;
+    ultimateDamage: number;
+    ultimateMaxCharge: number;
+    ultimateChargePerKill: number;
+    ultimateChargePerSecond: number;
+}
+
+export interface LevelXpConfig {
+    firstLevel: number;
+    growth: number;
+}
+
+export interface LevelConfig {
+    id: string;
+    name: string;
+    fixedSeed: number;
+    duration: number;
+    vehicleHp: number;
+    hero: LevelHeroConfig;
+    xp: LevelXpConfig;
+    phases: readonly PhaseDefinition[];
+    enemies: Record<EnemyId, EnemyDefinition>;
+    waves: readonly WaveDefinition[];
+    supports: readonly SupportDefinition[];
+    upgrades: readonly UpgradeDefinition[];
+}
+
 export const M3_LEVEL_CONFIG = {
     id: 'polluted-plain-01',
+    name: '污染平原',
     fixedSeed: 20260815,
     duration: 50,
     vehicleHp: 180,
@@ -108,4 +143,4 @@ export const M3_LEVEL_CONFIG = {
         { id: 'ultimateForce', title: '轨道增幅', detail: '大招伤害 +38', color: [186, 157, 73] },
         { id: 'repair', title: '应急焊接', detail: '载具完整度 +28%', color: [117, 189, 131] },
     ] satisfies readonly UpgradeDefinition[],
-} as const;
+} satisfies LevelConfig;

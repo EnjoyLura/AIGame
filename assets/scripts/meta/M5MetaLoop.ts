@@ -13,6 +13,7 @@ import {
 } from 'cc';
 import { BattleResult } from '../battle/M3CompleteLevel';
 import { M4FourHeroBattle } from '../battle/M4FourHeroBattle';
+import { LevelId, getLevelConfig } from '../battle/M6LevelCatalog';
 import {
     M5Profile,
     M5UpgradeId,
@@ -56,6 +57,7 @@ export class M5MetaLoop extends Component {
     private graphics: Graphics | null = null;
     private screen: MetaScreen = 'home';
     private notice = '';
+    private selectedLevelId: LevelId = 'polluted-plain-01';
 
     protected onLoad(): void {
         view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
@@ -89,7 +91,13 @@ export class M5MetaLoop extends Component {
         this.root = null;
         this.graphics = null;
         this.battle.configureExternalModifiers(getCombatModifiers(this.profile));
+        this.battle.configureLevel(this.selectedLevelId);
         this.battle.startBattle();
+    };
+
+    private selectLevel = (levelId: LevelId): void => {
+        this.selectedLevelId = levelId;
+        this.rebuild();
     };
 
     private handleBattleFinished = (result: BattleResult): void => {
@@ -177,16 +185,21 @@ export class M5MetaLoop extends Component {
     private buildMissions(): void {
         const profile = this.requireProfile();
         const modifiers = getCombatModifiers(profile);
+        const selectedLevel = getLevelConfig(this.selectedLevelId);
+        const secondLevelUnlocked = profile.completedMissions >= 1;
+        const plainSelected = this.selectedLevelId === 'polluted-plain-01';
+        const grasslandSelected = this.selectedLevelId === 'withered-grassland-01';
         this.drawBackground();
         this.drawCircleButton(-320, 600, COLOR.panelAlt, '返回', this.showHome);
         this.addText('行动任务', 0, 598, 30, COLOR.text, 400, 44);
         this.addText('选择运输线后进入护送', 0, 556, 16, COLOR.muted, 420, 28);
         this.fillRect(0, 270, 650, 250, COLOR.panel);
-        this.strokeRect(0, 270, 650, 250, COLOR.success, 2);
+        this.strokeRect(0, 270, 650, 250, plainSelected ? COLOR.action : COLOR.success, plainSelected ? 4 : 2);
         this.addText('01  污染平原 · 净水组件护送', 0, 340, 21, COLOR.text, 570, 34);
         this.addText('威胁：腐甲爬兽 / 精英变异体 / 污蚀巨兽', 0, 300, 16, COLOR.muted, 580, 28);
         this.addText('完成后获得补给与生态样本', 0, 260, 16, COLOR.supply, 560, 28);
         this.addText('已解锁', 0, 206, 15, COLOR.success, 200, 26);
+        this.createHitZone('Mission_PollutedPlain', 0, 270, 650, 250, () => this.selectLevel('polluted-plain-01'));
         this.fillRect(0, -5, 650, 210, COLOR.panelAlt);
         this.addText('护卫编队', 0, 69, 20, COLOR.text, 320, 34);
         const roster = ['巡航者', '风岚', '脉冲者', '霜翎'];
@@ -198,10 +211,14 @@ export class M5MetaLoop extends Component {
             this.addText(roster[index], x, -52, 15, COLOR.text, 118, 26);
         }
         this.addText(`火力 +${Math.round((modifiers.damageMultiplier - 1) * 100)}%  车体完整度 +${modifiers.vehicleHpBonus}`, 0, -125, 16, COLOR.muted, 580, 28);
-        this.fillRect(0, -288, 650, 120, COLOR.locked);
-        this.addText('02  荒化草原运输线', 0, -266, 19, COLOR.muted, 540, 30);
-        this.addText('完成首条运输线后开放', 0, -302, 15, COLOR.muted, 540, 26);
-        this.drawButton(0, -470, 430, 82, COLOR.action, '开始护送', this.startMission);
+        this.fillRect(0, -288, 650, 120, secondLevelUnlocked ? COLOR.panel : COLOR.locked);
+        this.strokeRect(0, -288, 650, 120, grasslandSelected ? COLOR.action : secondLevelUnlocked ? COLOR.line : COLOR.locked, grasslandSelected ? 4 : 2);
+        this.addText('02  荒化草原运输线', 0, -266, 19, secondLevelUnlocked ? COLOR.text : COLOR.muted, 540, 30);
+        this.addText(secondLevelUnlocked ? '风蚀迁徙群与强化首领' : '完成首条运输线后开放', 0, -302, 15, secondLevelUnlocked ? COLOR.supply : COLOR.muted, 540, 26);
+        if (secondLevelUnlocked) {
+            this.createHitZone('Mission_WitheredGrassland', 0, -288, 650, 120, () => this.selectLevel('withered-grassland-01'));
+        }
+        this.drawButton(0, -470, 430, 82, COLOR.action, `开始${selectedLevel.name}护送`, this.startMission);
     }
 
     private requireProfile(): M5Profile {

@@ -12,8 +12,9 @@ import {
     VerticalTextAlignment,
     view,
 } from 'cc';
-import { EnemyDefinition, EnemyId, M3_LEVEL_CONFIG, SupportDefinition, UpgradeDefinition, WaveDefinition } from './M3LevelData';
+import { EnemyDefinition, EnemyId, LevelConfig, SupportDefinition, UpgradeDefinition, WaveDefinition } from './M3LevelData';
 import { HeroDefinition, M4_HERO_ROSTER } from './M4HeroData';
+import { LevelId, M6_LEVEL_CATALOG, getLevelConfig } from './M6LevelCatalog';
 
 const { ccclass, property } = _decorator;
 
@@ -133,10 +134,15 @@ interface BattleStats {
 @ccclass('M3CompleteLevel')
 export class M3CompleteLevel extends Component {
     @property
-    fixedSeed = M3_LEVEL_CONFIG.fixedSeed;
+    fixedSeed = M6_LEVEL_CATALOG['polluted-plain-01'].fixedSeed;
+
+    @property
+    levelId: LevelId = 'polluted-plain-01';
 
     @property
     startOnLoad = true;
+
+    private levelConfig: LevelConfig = getLevelConfig(this.levelId);
 
     private root: Node | null = null;
     private graphics: Graphics | null = null;
@@ -162,11 +168,11 @@ export class M3CompleteLevel extends Component {
     private speed = 1;
     private autoEnabled = true;
     private state: BattleState = 'running';
-    private vehicleHp = M3_LEVEL_CONFIG.vehicleHp;
+    private vehicleHp = this.levelConfig.vehicleHp;
     private xp = 0;
-    private xpToNext = M3_LEVEL_CONFIG.xp.firstLevel;
+    private xpToNext = this.levelConfig.xp.firstLevel;
     private level = 1;
-    private randomState = M3_LEVEL_CONFIG.fixedSeed;
+    private randomState = this.levelConfig.fixedSeed;
     private startedWaves = new Set<number>();
     private readonly spawnTasks: SpawnTask[] = [];
     private readonly enemies: Enemy[] = [];
@@ -221,7 +227,14 @@ export class M3CompleteLevel extends Component {
         this.resultFooter = footer;
     }
 
+    public configureLevel(levelId: LevelId): void {
+        this.levelId = levelId;
+        this.levelConfig = getLevelConfig(levelId);
+        this.fixedSeed = this.levelConfig.fixedSeed;
+    }
+
     public startBattle(): void {
+        this.levelConfig = getLevelConfig(this.levelId);
         this.resetBattle();
         this.rebuild();
         this.bindControls();
@@ -256,7 +269,7 @@ export class M3CompleteLevel extends Component {
 
         if (this.vehicleHp <= 0) {
             this.finish('lost');
-        } else if (this.elapsed >= M3_LEVEL_CONFIG.duration && !this.hasPendingThreats()) {
+        } else if (this.elapsed >= this.levelConfig.duration && !this.hasPendingThreats()) {
             this.finish('won');
         }
 
@@ -274,7 +287,7 @@ export class M3CompleteLevel extends Component {
             normalDamage: Math.round(definition.normalDamage * this.externalModifiers.damageMultiplier),
             normalInterval: definition.normalInterval,
             normalTimer: 0,
-            projectileSpeed: M3_LEVEL_CONFIG.hero.projectileSpeed,
+            projectileSpeed: this.levelConfig.hero.projectileSpeed,
             projectiles: definition.normalProjectiles,
             skillDamage: Math.round(definition.skillDamage * this.externalModifiers.damageMultiplier),
             skillCooldown: definition.skillCooldown,
@@ -282,7 +295,7 @@ export class M3CompleteLevel extends Component {
             skillRemaining: 1.5,
             ultimateDamage: Math.round(definition.ultimateDamage * this.externalModifiers.damageMultiplier),
             ultimateCharge: 0,
-            ultimateMaxCharge: M3_LEVEL_CONFIG.hero.ultimateMaxCharge,
+            ultimateMaxCharge: this.levelConfig.hero.ultimateMaxCharge,
             ultimateChargePerKill: definition.ultimateChargePerKill,
             ultimateChargePerSecond: definition.ultimateChargePerSecond,
         };
@@ -308,11 +321,11 @@ export class M3CompleteLevel extends Component {
         this.speed = 1;
         this.autoEnabled = true;
         this.state = 'running';
-        this.vehicleHp = M3_LEVEL_CONFIG.vehicleHp + this.externalModifiers.vehicleHpBonus;
+        this.vehicleHp = this.levelConfig.vehicleHp + this.externalModifiers.vehicleHpBonus;
         this.xp = 0;
-        this.xpToNext = M3_LEVEL_CONFIG.xp.firstLevel;
+        this.xpToNext = this.levelConfig.xp.firstLevel;
         this.level = 1;
-        this.randomState = this.fixedSeed || M3_LEVEL_CONFIG.fixedSeed;
+        this.randomState = this.fixedSeed || this.levelConfig.fixedSeed;
         this.startedWaves.clear();
         this.spawnTasks.length = 0;
         this.currentUpgrades = [];
@@ -346,7 +359,7 @@ export class M3CompleteLevel extends Component {
             this.skillLabels.push(this.addText('', x - 36, -468, 12, COLOR.text, 50, 40));
             this.ultimateLabels.push(this.addText('', x + 36, -468, 12, COLOR.text, 52, 40));
         }
-        for (let index = 0; index < M3_LEVEL_CONFIG.supports.length; index += 1) {
+        for (let index = 0; index < this.levelConfig.supports.length; index += 1) {
             this.supportLabels.push(this.addText('', 320, 390 - index * 105, 13, COLOR.text, 72, 44));
         }
         this.addText('待命', 320, 180, 13, COLOR.mutedText, 72, 44);
@@ -402,11 +415,11 @@ export class M3CompleteLevel extends Component {
     }
 
     private startScheduledWaves(): void {
-        for (let index = 0; index < M3_LEVEL_CONFIG.waves.length; index += 1) {
+        for (let index = 0; index < this.levelConfig.waves.length; index += 1) {
             if (this.startedWaves.has(index)) {
                 continue;
             }
-            const wave = M3_LEVEL_CONFIG.waves[index];
+            const wave = this.levelConfig.waves[index];
             if (this.elapsed >= wave.at) {
                 this.startedWaves.add(index);
                 this.spawnTasks.push({ wave, remaining: wave.count, nextAt: this.elapsed });
@@ -432,7 +445,7 @@ export class M3CompleteLevel extends Component {
         if (this.enemies.length >= 54) {
             return;
         }
-        const definition = M3_LEVEL_CONFIG.enemies[id];
+        const definition = this.levelConfig.enemies[id];
         const enemy = this.enemyPool.pop() ?? {
             definition,
             x: 0,
@@ -545,7 +558,7 @@ export class M3CompleteLevel extends Component {
             this.addEffect(target.x, target.y, 46, 0.3, this.heroColor(heroIndex));
         }
         if (hero.definition.repairOnSkill > 0) {
-            this.vehicleHp = Math.min(M3_LEVEL_CONFIG.vehicleHp, this.vehicleHp + hero.definition.repairOnSkill);
+            this.vehicleHp = Math.min(this.levelConfig.vehicleHp + this.externalModifiers.vehicleHpBonus, this.vehicleHp + hero.definition.repairOnSkill);
         }
     }
 
@@ -572,7 +585,7 @@ export class M3CompleteLevel extends Component {
         if (this.state !== 'running' || this.supportRemaining[index] > 0) {
             return;
         }
-        const support = M3_LEVEL_CONFIG.supports[index];
+        const support = this.levelConfig.supports[index];
         this.supportRemaining[index] = support.cooldown;
         this.stats.supportCasts += 1;
         if (support.id === 'fireRain') {
@@ -664,7 +677,7 @@ export class M3CompleteLevel extends Component {
         }
         this.xp -= this.xpToNext;
         this.level += 1;
-        this.xpToNext = Math.ceil(this.xpToNext * M3_LEVEL_CONFIG.xp.growth);
+        this.xpToNext = Math.ceil(this.xpToNext * this.levelConfig.xp.growth);
         this.presentUpgradeChoices();
     }
 
@@ -687,7 +700,7 @@ export class M3CompleteLevel extends Component {
     }
 
     private pickUpgrades(): UpgradeDefinition[] {
-        const candidates = [...M3_LEVEL_CONFIG.upgrades];
+        const candidates = [...this.levelConfig.upgrades];
         for (let index = candidates.length - 1; index > 0; index -= 1) {
             const otherIndex = Math.floor(this.random() * (index + 1));
             [candidates[index], candidates[otherIndex]] = [candidates[otherIndex], candidates[index]];
@@ -738,7 +751,7 @@ export class M3CompleteLevel extends Component {
             hero.ultimateDamage += 38;
             break;
         case 'repair':
-            this.vehicleHp = Math.min(M3_LEVEL_CONFIG.vehicleHp, this.vehicleHp + 28);
+            this.vehicleHp = Math.min(this.levelConfig.vehicleHp + this.externalModifiers.vehicleHpBonus, this.vehicleHp + 28);
             break;
         }
     }
@@ -750,7 +763,7 @@ export class M3CompleteLevel extends Component {
     }
 
     private hasPendingThreats(): boolean {
-        return this.spawnTasks.length > 0 || this.enemies.length > 0 || M3_LEVEL_CONFIG.waves.some((_, index) => !this.startedWaves.has(index));
+        return this.spawnTasks.length > 0 || this.enemies.length > 0 || this.levelConfig.waves.some((_, index) => !this.startedWaves.has(index));
     }
 
     private togglePause = (): void => {
@@ -814,12 +827,12 @@ export class M3CompleteLevel extends Component {
     }
 
     private refreshLabels(): void {
-        const phase = [...M3_LEVEL_CONFIG.phases].reverse().find((item) => this.elapsed >= item.at) ?? M3_LEVEL_CONFIG.phases[0];
+        const phase = [...this.levelConfig.phases].reverse().find((item) => this.elapsed >= item.at) ?? this.levelConfig.phases[0];
         if (this.phaseLabel) {
-            this.phaseLabel.string = `污染平原 · ${phase.name}`;
+            this.phaseLabel.string = `${this.levelConfig.name} · ${phase.name}`;
         }
         if (this.timerLabel) {
-            const remaining = Math.max(0, Math.ceil(M3_LEVEL_CONFIG.duration - this.elapsed));
+            const remaining = Math.max(0, Math.ceil(this.levelConfig.duration - this.elapsed));
             this.timerLabel.string = this.hasBoss() ? '首领威胁：清除后撤离' : `护送进度  ${remaining}s`;
         }
         if (this.pauseLabel) {
@@ -835,14 +848,14 @@ export class M3CompleteLevel extends Component {
             this.xpLabel.string = `Lv.${this.level}  经验 ${Math.floor(this.xp)} / ${this.xpToNext}`;
         }
         if (this.hpLabel) {
-            this.hpLabel.string = `防线完整度  ${Math.ceil(this.vehicleHp / M3_LEVEL_CONFIG.vehicleHp * 100)}%`;
+            this.hpLabel.string = `防线完整度  ${Math.ceil(this.vehicleHp / (this.levelConfig.vehicleHp + this.externalModifiers.vehicleHpBonus) * 100)}%`;
         }
         for (let index = 0; index < this.squad.length; index += 1) {
             const hero = this.squad[index];
             this.skillLabels[index].string = hero.skillRemaining <= 0 ? '技\n就绪' : `技\n${Math.ceil(hero.skillRemaining)}`;
             this.ultimateLabels[index].string = `大\n${Math.floor(hero.ultimateCharge)}%`;
         }
-        const supportText = M3_LEVEL_CONFIG.supports.map((support, index) => `${support.name}\n${this.supportRemaining[index] <= 0 ? '就绪' : Math.ceil(this.supportRemaining[index])}`);
+        const supportText = this.levelConfig.supports.map((support, index) => `${support.name}\n${this.supportRemaining[index] <= 0 ? '就绪' : Math.ceil(this.supportRemaining[index])}`);
         for (let index = 0; index < this.supportLabels.length; index += 1) {
             this.supportLabels[index].string = supportText[index] ?? '待命';
         }
@@ -912,7 +925,7 @@ export class M3CompleteLevel extends Component {
             this.fillCircle(graphics, rightX, y, 38, supportColors[index]);
             this.strokeCircle(graphics, rightX, y, 38, COLOR.text, 2);
             if (index < 2) {
-                const support = M3_LEVEL_CONFIG.supports[index];
+                const support = this.levelConfig.supports[index];
                 const ready = this.supportRemaining[index] <= 0;
                 const progress = ready ? Math.PI * 2 : Math.PI * 2 * (1 - this.supportRemaining[index] / support.cooldown);
                 this.strokeArc(graphics, rightX, y, 29, -Math.PI / 2, -Math.PI / 2 + progress, ready ? COLOR.text : COLOR.mutedText, 4);
