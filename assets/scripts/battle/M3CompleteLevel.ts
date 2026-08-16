@@ -77,6 +77,8 @@ interface Enemy {
 interface Projectile {
     x: number;
     y: number;
+    vx: number;
+    vy: number;
     damage: number;
     target: Enemy | null;
     kind: ProjectileKind;
@@ -490,10 +492,15 @@ export class M3CompleteLevel extends Component {
     }
 
     private fireProjectile(target: Enemy, hero: HeroRuntime, heroIndex: number, damage: number, kind: ProjectileKind, offset = 0): void {
-        const projectile = this.projectilePool.pop() ?? { x: 0, y: 0, damage: 0, target: null, kind, heroIndex: 0, speed: 0, active: true };
+        const projectile = this.projectilePool.pop() ?? { x: 0, y: 0, vx: 0, vy: 1, damage: 0, target: null, kind, heroIndex: 0, speed: 0, active: true };
         const heroPositions = [-225, -75, 75, 225];
         projectile.x = heroPositions[heroIndex] + (offset - (hero.projectiles - 1) / 2) * 14;
         projectile.y = -430;
+        const dx = target.x - projectile.x;
+        const dy = target.y - projectile.y;
+        const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+        projectile.vx = dx / distance;
+        projectile.vy = dy / distance;
         projectile.damage = damage;
         projectile.target = target;
         projectile.kind = kind;
@@ -508,7 +515,12 @@ export class M3CompleteLevel extends Component {
             const projectile = this.projectiles[index];
             const target = projectile.target;
             if (!target || !target.active || !this.enemies.includes(target)) {
-                this.recycleProjectile(index);
+                projectile.target = null;
+                projectile.x += projectile.vx * projectile.speed * deltaTime;
+                projectile.y += projectile.vy * projectile.speed * deltaTime;
+                if (this.hasLeftBattlefield(projectile)) {
+                    this.recycleProjectile(index);
+                }
                 continue;
             }
             const dx = target.x - projectile.x;
@@ -521,9 +533,15 @@ export class M3CompleteLevel extends Component {
                 continue;
             }
             const step = Math.min(distance, projectile.speed * deltaTime);
-            projectile.x += (dx / distance) * step;
-            projectile.y += (dy / distance) * step;
+            projectile.vx = dx / distance;
+            projectile.vy = dy / distance;
+            projectile.x += projectile.vx * step;
+            projectile.y += projectile.vy * step;
         }
+    }
+
+    private hasLeftBattlefield(projectile: Projectile): boolean {
+        return projectile.y > BATTLE_TOP + 72 || Math.abs(projectile.x) > DESIGN_WIDTH / 2 + 72 || projectile.y < BATTLE_BOTTOM - 72;
     }
 
     private moveEnemies(deltaTime: number): void {
