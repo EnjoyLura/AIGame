@@ -47,6 +47,22 @@ const COLOR = {
 type BattleState = 'running' | 'paused' | 'upgrade' | 'won' | 'lost';
 type ProjectileKind = 'normal' | 'skill';
 
+export interface BattleResult {
+    outcome: 'won' | 'lost';
+    duration: number;
+    kills: number;
+    eliteKills: number;
+    bossKills: number;
+    damage: number;
+    upgrades: number;
+    supportCasts: number;
+}
+
+export interface BattleExternalModifiers {
+    damageMultiplier: number;
+    vehicleHpBonus: number;
+}
+
 interface Enemy {
     definition: EnemyDefinition;
     x: number;
@@ -119,6 +135,9 @@ export class M3CompleteLevel extends Component {
     @property
     fixedSeed = M3_LEVEL_CONFIG.fixedSeed;
 
+    @property
+    startOnLoad = true;
+
     private root: Node | null = null;
     private graphics: Graphics | null = null;
     private restartZone: Node | null = null;
@@ -159,24 +178,55 @@ export class M3CompleteLevel extends Component {
     private supportRemaining = [0, 0];
     private currentUpgrades: UpgradeDefinition[] = [];
     private currentUpgradeHeroIndex = 0;
+    private externalModifiers: BattleExternalModifiers = { damageMultiplier: 1, vehicleHpBonus: 0 };
     private squad = this.createHeroRuntimes();
     private hero = this.squad[0];
     private stats: BattleStats = this.createStats();
+    private resultFooter = '';
+    private onBattleFinished: ((result: BattleResult) => void) | null = null;
+    private onReturnToHub: (() => void) | null = null;
 
     protected onLoad(): void {
         profiler.hideStats();
         view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, ResolutionPolicy.FIXED_WIDTH);
-        this.resetBattle();
-        this.rebuild();
-        this.bindControls();
-        this.refreshLabels();
-        this.redraw();
+        if (this.startOnLoad) {
+            this.startBattle();
+        } else {
+            this.state = 'paused';
+        }
     }
 
     protected onDestroy(): void {
         this.enemies.length = 0;
         this.projectiles.length = 0;
         this.effects.length = 0;
+    }
+
+    public configureMetaLoop(
+        onBattleFinished: ((result: BattleResult) => void) | null,
+        onReturnToHub: (() => void) | null,
+    ): void {
+        this.onBattleFinished = onBattleFinished;
+        this.onReturnToHub = onReturnToHub;
+    }
+
+    public configureExternalModifiers(modifiers: BattleExternalModifiers): void {
+        this.externalModifiers = {
+            damageMultiplier: Math.max(1, modifiers.damageMultiplier),
+            vehicleHpBonus: Math.max(0, Math.floor(modifiers.vehicleHpBonus)),
+        };
+    }
+
+    public setResultFooter(footer: string): void {
+        this.resultFooter = footer;
+    }
+
+    public startBattle(): void {
+        this.resetBattle();
+        this.rebuild();
+        this.bindControls();
+        this.refreshLabels();
+        this.redraw();
     }
 
     protected update(deltaTime: number): void {
@@ -221,16 +271,16 @@ export class M3CompleteLevel extends Component {
     private createHeroRuntime(definition: HeroDefinition): HeroRuntime {
         return {
             definition,
-            normalDamage: definition.normalDamage,
+            normalDamage: Math.round(definition.normalDamage * this.externalModifiers.damageMultiplier),
             normalInterval: definition.normalInterval,
             normalTimer: 0,
             projectileSpeed: M3_LEVEL_CONFIG.hero.projectileSpeed,
             projectiles: definition.normalProjectiles,
-            skillDamage: definition.skillDamage,
+            skillDamage: Math.round(definition.skillDamage * this.externalModifiers.damageMultiplier),
             skillCooldown: definition.skillCooldown,
             skillTargets: definition.skillTargets,
             skillRemaining: 1.5,
-            ultimateDamage: definition.ultimateDamage,
+            ultimateDamage: Math.round(definition.ultimateDamage * this.externalModifiers.damageMultiplier),
             ultimateCharge: 0,
             ultimateMaxCharge: M3_LEVEL_CONFIG.hero.ultimateMaxCharge,
             ultimateChargePerKill: definition.ultimateChargePerKill,
@@ -258,7 +308,7 @@ export class M3CompleteLevel extends Component {
         this.speed = 1;
         this.autoEnabled = true;
         this.state = 'running';
-        this.vehicleHp = M3_LEVEL_CONFIG.vehicleHp;
+        this.vehicleHp = M3_LEVEL_CONFIG.vehicleHp + this.externalModifiers.vehicleHpBonus;
         this.xp = 0;
         this.xpToNext = M3_LEVEL_CONFIG.xp.firstLevel;
         this.level = 1;
@@ -266,6 +316,7 @@ export class M3CompleteLevel extends Component {
         this.startedWaves.clear();
         this.spawnTasks.length = 0;
         this.currentUpgrades = [];
+        this.resultFooter = '';
         this.supportRemaining = [0, 0];
         this.squad = this.createHeroRuntimes();
         this.hero = this.squad[0];
@@ -305,7 +356,7 @@ export class M3CompleteLevel extends Component {
         this.stateLabel.node.active = false;
         this.resultStatsLabel = this.addText('', 0, 105, 17, COLOR.mutedText, 430, 110);
         this.resultStatsLabel.node.active = false;
-        this.restartLabel = this.addText('重新开始', 0, -80, 22, COLOR.text, 220);
+        this.restartLabel = this.addText(this.onReturnToHub ? '返回基地' : '重新开始', 0, -80, 22, COLOR.text, 220);
         this.restartLabel.node.active = false;
         this.upgradeTitleLabel = this.addText('选择战术强化', 0, 278, 28, COLOR.text, 460);
         this.upgradeTitleLabel.node.active = false;
@@ -724,18 +775,11 @@ export class M3CompleteLevel extends Component {
     };
 
     private restart = (): void => {
-        this.resetBattle();
-        if (this.restartZone) {
-            this.restartZone.active = false;
+        if (this.onReturnToHub) {
+            this.onReturnToHub();
+            return;
         }
-        if (this.restartLabel) {
-            this.restartLabel.node.active = false;
-        }
-        if (this.resultStatsLabel) {
-            this.resultStatsLabel.node.active = false;
-        }
-        this.refreshLabels();
-        this.redraw();
+        this.startBattle();
     };
 
     private finish(nextState: 'won' | 'lost'): void {
@@ -743,6 +787,17 @@ export class M3CompleteLevel extends Component {
             return;
         }
         this.state = nextState;
+        const result: BattleResult = {
+            outcome: nextState,
+            duration: this.elapsed,
+            kills: this.stats.kills,
+            eliteKills: this.stats.eliteKills,
+            bossKills: this.stats.bossKills,
+            damage: this.stats.damage,
+            upgrades: this.stats.upgrades,
+            supportCasts: this.stats.supportCasts,
+        };
+        this.onBattleFinished?.(result);
         if (this.restartZone) {
             this.restartZone.active = true;
         }
@@ -752,7 +807,7 @@ export class M3CompleteLevel extends Component {
         if (this.resultStatsLabel) {
             this.resultStatsLabel.node.active = true;
             const reason = nextState === 'won' ? '任务完成，运输线已接通' : '失败原因：变异群突破防线';
-            this.resultStatsLabel.string = `${reason}\n击杀 ${this.stats.kills}  精英 ${this.stats.eliteKills}  首领 ${this.stats.bossKills}\n伤害 ${Math.ceil(this.stats.damage)}  强化 ${this.stats.upgrades}  支援 ${this.stats.supportCasts}`;
+            this.resultStatsLabel.string = `${reason}\n击杀 ${this.stats.kills}  精英 ${this.stats.eliteKills}  首领 ${this.stats.bossKills}\n伤害 ${Math.ceil(this.stats.damage)}  强化 ${this.stats.upgrades}  支援 ${this.stats.supportCasts}${this.resultFooter ? `\n${this.resultFooter}` : ''}`;
         }
         this.refreshLabels();
         this.redraw();

@@ -9,6 +9,7 @@
     "test:m1": "node tools/m1-layout-test.mjs",
     "test:m2": "node tools/m2-battle-test.mjs",
     "test:m3": "node tools/m3-level-test.mjs",
-    "test:m4": "node tools/m4-four-hero-test.mjs"
+    "test:m4": "node tools/m4-four-hero-test.mjs",
+    "test:m5": "node tools/m5-meta-loop-test.mjs"
   }
 }
