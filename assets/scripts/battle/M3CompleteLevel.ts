@@ -13,6 +13,7 @@ import {
     view,
 } from 'cc';
 import { EnemyDefinition, EnemyId, M3_LEVEL_CONFIG, SupportDefinition, UpgradeDefinition, WaveDefinition } from './M3LevelData';
+import { HeroDefinition, M4_HERO_ROSTER } from './M4HeroData';
 
 const { ccclass, property } = _decorator;
 
@@ -62,6 +63,8 @@ interface Projectile {
     damage: number;
     target: Enemy | null;
     kind: ProjectileKind;
+    heroIndex: number;
+    speed: number;
     active: boolean;
 }
 
@@ -81,8 +84,10 @@ interface Effect {
 }
 
 interface HeroRuntime {
+    definition: HeroDefinition;
     normalDamage: number;
     normalInterval: number;
+    normalTimer: number;
     projectileSpeed: number;
     projectiles: number;
     skillDamage: number;
@@ -125,8 +130,8 @@ export class M3CompleteLevel extends Component {
     private timerLabel: Label | null = null;
     private xpLabel: Label | null = null;
     private hpLabel: Label | null = null;
-    private skillLabel: Label | null = null;
-    private ultimateLabel: Label | null = null;
+    private skillLabels: Label[] = [];
+    private ultimateLabels: Label[] = [];
     private supportLabels: Label[] = [];
     private bossLabel: Label | null = null;
     private stateLabel: Label | null = null;
@@ -135,7 +140,6 @@ export class M3CompleteLevel extends Component {
     private upgradeTitleLabel: Label | null = null;
     private upgradeCardLabels: Label[] = [];
     private elapsed = 0;
-    private attackTimer = 0;
     private speed = 1;
     private autoEnabled = true;
     private state: BattleState = 'running';
@@ -154,7 +158,9 @@ export class M3CompleteLevel extends Component {
     private readonly effectPool: Effect[] = [];
     private supportRemaining = [0, 0];
     private currentUpgrades: UpgradeDefinition[] = [];
-    private hero = this.createHeroRuntime();
+    private currentUpgradeHeroIndex = 0;
+    private squad = this.createHeroRuntimes();
+    private hero = this.squad[0];
     private stats: BattleStats = this.createStats();
 
     protected onLoad(): void {
@@ -180,12 +186,14 @@ export class M3CompleteLevel extends Component {
 
         const scaledDelta = Math.min(deltaTime, 0.1) * this.speed;
         this.elapsed += scaledDelta;
-        this.attackTimer += scaledDelta;
-        this.hero.skillRemaining = Math.max(0, this.hero.skillRemaining - scaledDelta);
-        this.hero.ultimateCharge = Math.min(
-            this.hero.ultimateMaxCharge,
-            this.hero.ultimateCharge + this.hero.ultimateChargePerSecond * scaledDelta,
-        );
+        for (const hero of this.squad) {
+            hero.normalTimer += scaledDelta;
+            hero.skillRemaining = Math.max(0, hero.skillRemaining - scaledDelta);
+            hero.ultimateCharge = Math.min(
+                hero.ultimateMaxCharge,
+                hero.ultimateCharge + hero.ultimateChargePerSecond * scaledDelta,
+            );
+        }
         this.supportRemaining = this.supportRemaining.map((remaining) => Math.max(0, remaining - scaledDelta));
 
         this.startScheduledWaves();
@@ -206,21 +214,27 @@ export class M3CompleteLevel extends Component {
         this.redraw();
     }
 
-    private createHeroRuntime(): HeroRuntime {
+    private createHeroRuntimes(): HeroRuntime[] {
+        return M4_HERO_ROSTER.map((definition) => this.createHeroRuntime(definition));
+    }
+
+    private createHeroRuntime(definition: HeroDefinition): HeroRuntime {
         return {
-            normalDamage: M3_LEVEL_CONFIG.hero.normalDamage,
-            normalInterval: M3_LEVEL_CONFIG.hero.normalInterval,
+            definition,
+            normalDamage: definition.normalDamage,
+            normalInterval: definition.normalInterval,
+            normalTimer: 0,
             projectileSpeed: M3_LEVEL_CONFIG.hero.projectileSpeed,
-            projectiles: M3_LEVEL_CONFIG.hero.projectiles,
-            skillDamage: M3_LEVEL_CONFIG.hero.skillDamage,
-            skillCooldown: M3_LEVEL_CONFIG.hero.skillCooldown,
-            skillTargets: M3_LEVEL_CONFIG.hero.skillTargets,
+            projectiles: definition.normalProjectiles,
+            skillDamage: definition.skillDamage,
+            skillCooldown: definition.skillCooldown,
+            skillTargets: definition.skillTargets,
             skillRemaining: 1.5,
-            ultimateDamage: M3_LEVEL_CONFIG.hero.ultimateDamage,
+            ultimateDamage: definition.ultimateDamage,
             ultimateCharge: 0,
             ultimateMaxCharge: M3_LEVEL_CONFIG.hero.ultimateMaxCharge,
-            ultimateChargePerKill: M3_LEVEL_CONFIG.hero.ultimateChargePerKill,
-            ultimateChargePerSecond: M3_LEVEL_CONFIG.hero.ultimateChargePerSecond,
+            ultimateChargePerKill: definition.ultimateChargePerKill,
+            ultimateChargePerSecond: definition.ultimateChargePerSecond,
         };
     }
 
@@ -241,7 +255,6 @@ export class M3CompleteLevel extends Component {
 
     private resetBattle(): void {
         this.elapsed = 0;
-        this.attackTimer = 0;
         this.speed = 1;
         this.autoEnabled = true;
         this.state = 'running';
@@ -254,7 +267,8 @@ export class M3CompleteLevel extends Component {
         this.spawnTasks.length = 0;
         this.currentUpgrades = [];
         this.supportRemaining = [0, 0];
-        this.hero = this.createHeroRuntime();
+        this.squad = this.createHeroRuntimes();
+        this.hero = this.squad[0];
         this.stats = this.createStats();
         this.recycleAllEntities();
     }
@@ -274,8 +288,13 @@ export class M3CompleteLevel extends Component {
         this.timerLabel = this.addText('', 0, 600, 19, COLOR.mutedText, 480);
         this.xpLabel = this.addText('', 0, -372, 16, COLOR.xp, 300);
         this.hpLabel = this.addText('', 0, BATTLE_BOTTOM - 22, 18, COLOR.text, 300);
-        this.skillLabel = this.addText('', -42, -444, 13, COLOR.text, 52, 42);
-        this.ultimateLabel = this.addText('', 42, -444, 13, COLOR.text, 56, 42);
+        const heroPositions = [-225, -75, 75, 225];
+        for (let index = 0; index < this.squad.length; index += 1) {
+            const x = heroPositions[index];
+            this.addText(this.squad[index].definition.name, x, -585, 16, COLOR.text, 126);
+            this.skillLabels.push(this.addText('', x - 36, -468, 12, COLOR.text, 50, 40));
+            this.ultimateLabels.push(this.addText('', x + 36, -468, 12, COLOR.text, 52, 40));
+        }
         for (let index = 0; index < M3_LEVEL_CONFIG.supports.length; index += 1) {
             this.supportLabels.push(this.addText('', 320, 390 - index * 105, 13, COLOR.text, 72, 44));
         }
@@ -306,8 +325,7 @@ export class M3CompleteLevel extends Component {
 
     private addStaticLabels(): void {
         this.addText('运输载具', 0, -510, 25, COLOR.text, 240);
-        this.addText('远程干员 · 巡航者', 0, -585, 17, COLOR.text, 180);
-        this.addText('完整关卡验证 · 固定战斗种子', 0, -647, 14, COLOR.mutedText, 430);
+        this.addText('四英雄协同 · 固定战斗种子', 0, -647, 14, COLOR.mutedText, 430);
     }
 
     private bindControls(): void {
@@ -316,8 +334,11 @@ export class M3CompleteLevel extends Component {
         this.createHitZone('Auto', -320, 190, 82, 82, this.toggleAuto);
         this.createHitZone('SupportFireRain', 320, 390, 84, 84, () => this.triggerSupport(0));
         this.createHitZone('SupportDroneStrike', 320, 285, 84, 84, () => this.triggerSupport(1));
-        this.createHitZone('HeroSkill', -42, -444, 62, 62, this.castSkill);
-        this.createHitZone('HeroUltimate', 42, -444, 66, 66, this.castUltimate);
+        const heroPositions = [-225, -75, 75, 225];
+        for (let index = 0; index < heroPositions.length; index += 1) {
+            this.createHitZone(`HeroSkill_${index}`, heroPositions[index] - 36, -468, 58, 58, () => this.castHeroSkill(index));
+            this.createHitZone(`HeroUltimate_${index}`, heroPositions[index] + 36, -468, 62, 62, () => this.castHeroUltimate(index));
+        }
     }
 
     private createHitZone(name: string, x: number, y: number, width: number, height: number, handler: () => void): Node {
@@ -357,6 +378,9 @@ export class M3CompleteLevel extends Component {
     }
 
     private spawnEnemy(id: EnemyId): void {
+        if (this.enemies.length >= 54) {
+            return;
+        }
         const definition = M3_LEVEL_CONFIG.enemies[id];
         const enemy = this.enemyPool.pop() ?? {
             definition,
@@ -379,32 +403,38 @@ export class M3CompleteLevel extends Component {
     }
 
     private fireAutomaticAttacks(): void {
-        if (this.autoEnabled && this.attackTimer >= this.hero.normalInterval) {
-            this.attackTimer -= this.hero.normalInterval;
-            this.fireNormalVolley();
-        }
-        if (this.autoEnabled && this.hero.skillRemaining <= 0 && this.enemies.length > 0) {
-            this.castSkill();
-        }
-        if (this.autoEnabled && this.hero.ultimateCharge >= this.hero.ultimateMaxCharge && this.enemies.length >= 3) {
-            this.castUltimate();
+        for (let index = 0; index < this.squad.length; index += 1) {
+            const hero = this.squad[index];
+            if (this.autoEnabled && hero.normalTimer >= hero.normalInterval) {
+                hero.normalTimer -= hero.normalInterval;
+                this.fireNormalVolley(hero, index);
+            }
+            if (this.autoEnabled && hero.skillRemaining <= 0 && this.enemies.length > 0) {
+                this.castHeroSkill(index);
+            }
+            if (this.autoEnabled && hero.ultimateCharge >= hero.ultimateMaxCharge && this.enemies.length >= 3) {
+                this.castHeroUltimate(index);
+            }
         }
     }
 
-    private fireNormalVolley(): void {
-        const targets = this.getThreatTargets(this.hero.projectiles);
+    private fireNormalVolley(hero: HeroRuntime, heroIndex: number): void {
+        const targets = this.getThreatTargets(hero.projectiles);
         for (let index = 0; index < targets.length; index += 1) {
-            this.fireProjectile(targets[index], this.hero.normalDamage, 'normal', index);
+            this.fireProjectile(targets[index], hero, heroIndex, hero.normalDamage, 'normal', index);
         }
     }
 
-    private fireProjectile(target: Enemy, damage: number, kind: ProjectileKind, offset = 0): void {
-        const projectile = this.projectilePool.pop() ?? { x: 0, y: 0, damage: 0, target: null, kind, active: true };
-        projectile.x = (offset - (this.hero.projectiles - 1) / 2) * 18;
-        projectile.y = -392;
+    private fireProjectile(target: Enemy, hero: HeroRuntime, heroIndex: number, damage: number, kind: ProjectileKind, offset = 0): void {
+        const projectile = this.projectilePool.pop() ?? { x: 0, y: 0, damage: 0, target: null, kind, heroIndex: 0, speed: 0, active: true };
+        const heroPositions = [-225, -75, 75, 225];
+        projectile.x = heroPositions[heroIndex] + (offset - (hero.projectiles - 1) / 2) * 14;
+        projectile.y = -430;
         projectile.damage = damage;
         projectile.target = target;
         projectile.kind = kind;
+        projectile.heroIndex = heroIndex;
+        projectile.speed = hero.projectileSpeed;
         projectile.active = true;
         this.projectiles.push(projectile);
     }
@@ -426,7 +456,7 @@ export class M3CompleteLevel extends Component {
                 this.recycleProjectile(index);
                 continue;
             }
-            const step = Math.min(distance, this.hero.projectileSpeed * deltaTime);
+            const step = Math.min(distance, projectile.speed * deltaTime);
             projectile.x += (dx / distance) * step;
             projectile.y += (dy / distance) * step;
         }
@@ -447,31 +477,45 @@ export class M3CompleteLevel extends Component {
     }
 
     private castSkill = (): void => {
-        if (this.state !== 'running' || this.hero.skillRemaining > 0 || this.enemies.length === 0) {
-            return;
-        }
-        this.hero.skillRemaining = this.hero.skillCooldown;
-        this.stats.skillCasts += 1;
-        const targets = this.getThreatTargets(this.hero.skillTargets);
-        for (const target of targets) {
-            this.damageEnemy(target, this.hero.skillDamage);
-            this.addEffect(target.x, target.y, 46, 0.3, COLOR.energy);
-        }
+        this.castHeroSkill(0);
     };
 
-    private castUltimate = (): void => {
-        if (this.state !== 'running' || this.hero.ultimateCharge < this.hero.ultimateMaxCharge) {
+    private castHeroSkill(heroIndex: number): void {
+        const hero = this.squad[heroIndex];
+        if (!hero || this.state !== 'running' || hero.skillRemaining > 0 || this.enemies.length === 0) {
             return;
         }
-        this.hero.ultimateCharge = 0;
+        hero.skillRemaining = hero.skillCooldown;
+        this.stats.skillCasts += 1;
+        const targets = this.getThreatTargets(hero.skillTargets);
+        for (const target of targets) {
+            this.damageEnemy(target, hero.skillDamage);
+            target.slowUntil = Math.max(target.slowUntil, this.elapsed + hero.definition.controlDuration);
+            this.addEffect(target.x, target.y, 46, 0.3, this.heroColor(heroIndex));
+        }
+        if (hero.definition.repairOnSkill > 0) {
+            this.vehicleHp = Math.min(M3_LEVEL_CONFIG.vehicleHp, this.vehicleHp + hero.definition.repairOnSkill);
+        }
+    }
+
+    private castUltimate = (): void => {
+        this.castHeroUltimate(0);
+    };
+
+    private castHeroUltimate(heroIndex: number): void {
+        const hero = this.squad[heroIndex];
+        if (!hero || this.state !== 'running' || hero.ultimateCharge < hero.ultimateMaxCharge) {
+            return;
+        }
+        hero.ultimateCharge = 0;
         this.stats.ultimateCasts += 1;
-        this.addEffect(0, 140, 360, 0.7, new Color(107, 220, 224, 255));
+        this.addEffect(0, 140, 360, 0.7, this.heroColor(heroIndex));
         for (let index = this.enemies.length - 1; index >= 0; index -= 1) {
             const enemy = this.enemies[index];
-            enemy.slowUntil = this.elapsed + 1.4;
-            this.damageEnemy(enemy, this.hero.ultimateDamage);
+            enemy.slowUntil = Math.max(enemy.slowUntil, this.elapsed + hero.definition.controlDuration);
+            this.damageEnemy(enemy, hero.ultimateDamage);
         }
-    };
+    }
 
     private triggerSupport(index: number): void {
         if (this.state !== 'running' || this.supportRemaining[index] > 0) {
@@ -523,10 +567,12 @@ export class M3CompleteLevel extends Component {
         if (enemy.definition.boss) {
             this.stats.bossKills += 1;
         }
-        this.hero.ultimateCharge = Math.min(
-            this.hero.ultimateMaxCharge,
-            this.hero.ultimateCharge + enemy.definition.xp / 2 + this.hero.ultimateChargePerKill,
-        );
+        for (const hero of this.squad) {
+            hero.ultimateCharge = Math.min(
+                hero.ultimateMaxCharge,
+                hero.ultimateCharge + enemy.definition.xp / 2 + hero.ultimateChargePerKill,
+            );
+        }
         this.grantXp(enemy.definition.xp);
     }
 
@@ -573,13 +619,15 @@ export class M3CompleteLevel extends Component {
 
     private presentUpgradeChoices(): void {
         this.state = 'upgrade';
+        this.currentUpgradeHeroIndex = (this.level - 2) % this.squad.length;
         this.currentUpgrades = this.pickUpgrades();
         if (this.upgradeTitleLabel) {
             this.upgradeTitleLabel.node.active = true;
         }
         for (let index = 0; index < this.upgradeCardLabels.length; index += 1) {
             const upgrade = this.currentUpgrades[index];
-            this.upgradeCardLabels[index].string = `${upgrade.title}\n${upgrade.detail}`;
+            const hero = this.squad[this.currentUpgradeHeroIndex];
+            this.upgradeCardLabels[index].string = `${hero.definition.name}\n${upgrade.title}\n${upgrade.detail}`;
             this.upgradeCardLabels[index].node.active = true;
             this.upgradeZones[index].active = true;
         }
@@ -600,7 +648,7 @@ export class M3CompleteLevel extends Component {
         if (this.state !== 'upgrade' || !this.currentUpgrades[index]) {
             return;
         }
-        this.applyUpgrade(this.currentUpgrades[index]);
+        this.applyUpgrade(this.currentUpgrades[index], this.squad[this.currentUpgradeHeroIndex]);
         this.stats.upgrades += 1;
         this.state = 'running';
         if (this.upgradeTitleLabel) {
@@ -614,29 +662,29 @@ export class M3CompleteLevel extends Component {
         this.redraw();
     }
 
-    private applyUpgrade(upgrade: UpgradeDefinition): void {
+    private applyUpgrade(upgrade: UpgradeDefinition, hero: HeroRuntime): void {
         switch (upgrade.id) {
         case 'damage':
-            this.hero.normalDamage += 10;
+            hero.normalDamage += 10;
             break;
         case 'rapidFire':
-            this.hero.normalInterval = Math.max(0.16, this.hero.normalInterval * 0.88);
+            hero.normalInterval = Math.max(0.16, hero.normalInterval * 0.88);
             break;
         case 'splitShot':
-            this.hero.projectiles = Math.min(4, this.hero.projectiles + 1);
+            hero.projectiles = Math.min(4, hero.projectiles + 1);
             break;
         case 'skillForce':
-            this.hero.skillDamage += 25;
+            hero.skillDamage += 25;
             break;
         case 'skillCycle':
-            this.hero.skillCooldown = Math.max(2.8, this.hero.skillCooldown * 0.82);
+            hero.skillCooldown = Math.max(2.8, hero.skillCooldown * 0.82);
             break;
         case 'ultimateCharge':
-            this.hero.ultimateChargePerSecond += 1.8;
-            this.hero.ultimateChargePerKill += 4;
+            hero.ultimateChargePerSecond += 1.8;
+            hero.ultimateChargePerKill += 4;
             break;
         case 'ultimateForce':
-            this.hero.ultimateDamage += 38;
+            hero.ultimateDamage += 38;
             break;
         case 'repair':
             this.vehicleHp = Math.min(M3_LEVEL_CONFIG.vehicleHp, this.vehicleHp + 28);
@@ -734,11 +782,10 @@ export class M3CompleteLevel extends Component {
         if (this.hpLabel) {
             this.hpLabel.string = `防线完整度  ${Math.ceil(this.vehicleHp / M3_LEVEL_CONFIG.vehicleHp * 100)}%`;
         }
-        if (this.skillLabel) {
-            this.skillLabel.string = this.hero.skillRemaining <= 0 ? '技\n就绪' : `技\n${Math.ceil(this.hero.skillRemaining)}`;
-        }
-        if (this.ultimateLabel) {
-            this.ultimateLabel.string = `大\n${Math.floor(this.hero.ultimateCharge)}%`;
+        for (let index = 0; index < this.squad.length; index += 1) {
+            const hero = this.squad[index];
+            this.skillLabels[index].string = hero.skillRemaining <= 0 ? '技\n就绪' : `技\n${Math.ceil(hero.skillRemaining)}`;
+            this.ultimateLabels[index].string = `大\n${Math.floor(hero.ultimateCharge)}%`;
         }
         const supportText = M3_LEVEL_CONFIG.supports.map((support, index) => `${support.name}\n${this.supportRemaining[index] <= 0 ? '就绪' : Math.ceil(this.supportRemaining[index])}`);
         for (let index = 0; index < this.supportLabels.length; index += 1) {
@@ -822,13 +869,19 @@ export class M3CompleteLevel extends Component {
         this.fillRect(graphics, 0, -510, 570, 128, COLOR.vehicle);
         this.fillRect(graphics, 0, -455, 480, 16, COLOR.vehicleTrim);
         this.fillRect(graphics, 0, -570, 640, 28, new Color(20, 29, 31, 255));
-        this.fillCircle(graphics, 0, -525, 34, new Color(239, 122, 61, 255));
-        this.strokeCircle(graphics, 0, -525, 34, COLOR.text, 2);
-        this.fillCircle(graphics, -42, -444, 25, this.hero.skillRemaining <= 0 ? COLOR.energy : new Color(68, 82, 74, 255));
-        this.fillCircle(graphics, 42, -444, 28, this.hero.ultimateCharge >= this.hero.ultimateMaxCharge ? new Color(224, 181, 80, 255) : new Color(55, 107, 112, 255));
-        const skillProgress = 1 - this.hero.skillRemaining / this.hero.skillCooldown;
-        this.strokeArc(graphics, -42, -444, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, skillProgress), COLOR.text, 3);
-        this.strokeArc(graphics, 42, -444, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.hero.ultimateCharge / this.hero.ultimateMaxCharge), COLOR.energy, 4);
+        const heroPositions = [-225, -75, 75, 225];
+        for (let index = 0; index < this.squad.length; index += 1) {
+            const hero = this.squad[index];
+            const x = heroPositions[index];
+            const color = this.heroColor(index);
+            this.fillCircle(graphics, x, -525, 31, color);
+            this.strokeCircle(graphics, x, -525, 31, COLOR.text, 2);
+            this.fillCircle(graphics, x - 36, -468, 23, hero.skillRemaining <= 0 ? color : new Color(68, 82, 74, 255));
+            this.fillCircle(graphics, x + 36, -468, 25, hero.ultimateCharge >= hero.ultimateMaxCharge ? new Color(224, 181, 80, 255) : new Color(55, 107, 112, 255));
+            const skillProgress = 1 - hero.skillRemaining / hero.skillCooldown;
+            this.strokeArc(graphics, x - 36, -468, 19, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, skillProgress), COLOR.text, 3);
+            this.strokeArc(graphics, x + 36, -468, 21, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (hero.ultimateCharge / hero.ultimateMaxCharge), color, 4);
+        }
     }
 
     private drawEnemies(graphics: Graphics): void {
@@ -848,7 +901,7 @@ export class M3CompleteLevel extends Component {
 
     private drawProjectiles(graphics: Graphics): void {
         for (const projectile of this.projectiles) {
-            const color = projectile.kind === 'skill' ? COLOR.energy : COLOR.projectile;
+            const color = projectile.kind === 'skill' ? COLOR.energy : this.heroColor(projectile.heroIndex);
             this.fillCircle(graphics, projectile.x, projectile.y, projectile.kind === 'skill' ? 10 : 7, color);
             this.strokeCircle(graphics, projectile.x, projectile.y, projectile.kind === 'skill' ? 15 : 11, new Color(color.r, color.g, color.b, 130), 2);
         }
@@ -897,6 +950,11 @@ export class M3CompleteLevel extends Component {
 
     private getBoss(): Enemy | null {
         return this.enemies.find((enemy) => enemy.definition.boss) ?? null;
+    }
+
+    private heroColor(index: number): Color {
+        const color = this.squad[index].definition.color;
+        return new Color(color[0], color[1], color[2], 255);
     }
 
     private hasBoss(): boolean {

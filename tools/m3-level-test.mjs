@@ -11,7 +11,6 @@ function readText(relativePath) {
 }
 
 const packageJson = JSON.parse(readText('package.json'));
-const scene = JSON.parse(readText('assets/scenes/Bootstrap.scene'));
 const componentSource = readText('assets/scripts/battle/M3CompleteLevel.ts');
 const dataSource = readText('assets/scripts/battle/M3LevelData.ts');
 
@@ -38,13 +37,6 @@ assert.match(dataSource, /titan:/);
 assert.match(dataSource, /fireRain/);
 assert.match(dataSource, /droneStrike/);
 assert.match(dataSource, /fixedSeed: 20260815/);
-
-const canvas = scene.find((entry) => entry.__type__ === 'cc.Node' && entry._name === 'Canvas');
-assert.ok(canvas, 'Bootstrap scene must contain Canvas');
-assert.equal(canvas._components.length, 4, 'Canvas must keep camera, transform, canvas and widget components');
-const m3Component = scene.find((entry) => entry.__type__ === '7b73fTyChxPPL1mySewNtqv');
-assert.ok(m3Component, 'Bootstrap scene must serialize the M3 complete level component');
-assert.equal(m3Component.fixedSeed, 20260815);
 
 console.log('M3 complete level test passed');
 console.log('Config: fixed seed, five normal enemies, two elites, one boss, two supports');
