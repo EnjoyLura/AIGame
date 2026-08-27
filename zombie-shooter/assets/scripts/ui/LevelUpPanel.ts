@@ -1,0 +1,111 @@
+import { _decorator, Color, Component, Graphics, Label, Node, UITransform } from 'cc';
+const { ccclass } = _decorator;
+import { Design, Palette } from '../config/GameConfig';
+import { createUINode } from '../core/createUINode';
+import { CardOption } from '../battle/UpgradeCard';
+
+/**
+ * 升级三选一面板：暂停战斗 → 展示 3 张随机增益卡 → 点选后由 BattleManager 结算并恢复战斗。
+ * 全部代码动态构建（不依赖预制体）；正式版替换为九宫格图 UI + 弹出动效。
+ */
+@ccclass('LevelUpPanel')
+export class LevelUpPanel extends Component {
+    private static readonly CARD_W = 190;
+    private static readonly CARD_H = 250;
+
+    private _title: Label = null!;
+    private _cards: Node[] = [];
+
+    onLoad(): void {
+        const halfW = Design.WIDTH / 2;
+        const halfH = Design.HEIGHT / 2;
+        this.node.addComponent(UITransform).setContentSize(Design.WIDTH, Design.HEIGHT);
+
+        const g = this.node.addComponent(Graphics);
+        g.fillColor = Palette.overlay;
+        g.rect(-halfW, -halfH, Design.WIDTH, Design.HEIGHT);
+        g.fill();
+
+        this._title = this._makeLabel('团队升级！选择一项强化', 0, 44);
+        this._title.node.setPosition(0, 260);
+
+        this.node.active = false;
+    }
+
+    /** 展示三张卡片；点选回调由 BattleManager 注入 */
+    show(options: CardOption[], onPick: (option: CardOption) => void): void {
+        // 面板置顶：运行中动态生成的怪物节点会排在后面，必须重新排到最上层
+        this.node.setSiblingIndex(this.node.parent.children.length - 1);
+        this._clearCards();
+        this.node.active = true;
+
+        options.forEach((option, i) => {
+            const card = createUINode('Card' + i);
+            this.node.addChild(card);
+            card.addComponent(UITransform).setContentSize(LevelUpPanel.CARD_W, LevelUpPanel.CARD_H);
+            card.setPosition((i - 1) * 210, 20);
+
+            const g = card.addComponent(Graphics);
+            g.fillColor = Palette.cardBg;
+            g.roundRect(-LevelUpPanel.CARD_W / 2, -LevelUpPanel.CARD_H / 2, LevelUpPanel.CARD_W, LevelUpPanel.CARD_H, 12);
+            g.fill();
+            g.strokeColor = Palette.cardBorder;
+            g.lineWidth = 4;
+            g.roundRect(-LevelUpPanel.CARD_W / 2, -LevelUpPanel.CARD_H / 2, LevelUpPanel.CARD_W, LevelUpPanel.CARD_H, 12);
+            g.stroke();
+
+            // 卡面：英雄名 / 强化名 / 数值说明（占位三行文本）
+            const lines = option.title.split('\n');
+            this._makeCardLabel(card, lines[0], 70, 26);
+            this._makeCardLabel(card, lines[1], 0, 30);
+            this._makeCardLabel(card, option.desc, -70, 24);
+
+            card.on(Node.EventType.TOUCH_END, () => {
+                this._clearCards();
+                this.node.active = false;
+                onPick(option);
+            });
+
+            this._cards.push(card);
+        });
+    }
+
+    private _clearCards(): void {
+        for (const card of this._cards) {
+            card.destroy();
+        }
+        this._cards.length = 0;
+    }
+
+    private _makeLabel(text: string, x: number, size: number): Label {
+        const labelNode = createUINode('label');
+        this.node.addChild(labelNode);
+        labelNode.setPosition(x, 0);
+        const label = labelNode.addComponent(Label);
+        label.string = text;
+        label.fontSize = size;
+        label.lineHeight = size + 6;
+        label.isBold = true;
+        label.color = Palette.text;
+        label.enableOutline = true;
+        label.outlineColor = Color.BLACK;
+        label.outlineWidth = 2;
+        return label;
+    }
+
+    private _makeCardLabel(parent: Node, text: string, y: number, size: number): void {
+        const labelNode = createUINode('cardLabel');
+        parent.addChild(labelNode);
+        labelNode.setPosition(0, y);
+        const label = labelNode.addComponent(Label);
+        label.string = text;
+        label.fontSize = size;
+        label.lineHeight = size + 4;
+        label.isBold = true;
+        label.color = Palette.text;
+        label.enableOutline = true;
+        label.outlineColor = Color.BLACK;
+        label.outlineWidth = 2;
+        label.horizontalAlign = Label.HorizontalAlign.CENTER;
+    }
+}
