@@ -68,6 +68,28 @@ export class Hero extends Component {
         this._combat?.resetCooldowns();
     }
 
+    /** GM：开关本英雄「技能无冷却」；开启时技能未解锁则顺手解锁 */
+    gmSetNoSkillCooldown(on: boolean): void {
+        if (!this._combat) {
+            return;
+        }
+        this._combat.gmNoSkillCooldown = on;
+        if (on && !this.hasUpgrade('skill')) {
+            this.applyUpgrade('skill');
+        }
+    }
+
+    /** GM：开关本英雄「无限大招」；开启时大招未解锁则顺手解锁 */
+    gmSetInfUltimate(on: boolean): void {
+        if (!this._combat) {
+            return;
+        }
+        this._combat.gmInfUltimate = on;
+        if (on && !this.hasUpgrade('ultimate')) {
+            this.applyUpgrade('ultimate');
+        }
+    }
+
     update(dt: number): void {
         const bm = this._combat?.battle;
         if (!bm || bm.isPaused || bm.isGameOver) {

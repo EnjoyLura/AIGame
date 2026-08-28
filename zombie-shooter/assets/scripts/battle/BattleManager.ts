@@ -332,6 +332,10 @@ export class BattleManager extends Component {
 
     // ================= GM 调试（浏览器预览专用，GmPanel 调用） =================
 
+    /** GM：号位开关状态（true=该 1~4 号位生效；重开英雄后会自动回填到新英雄） */
+    private _gmNoSkillCd = [false, false, false, false];
+    private _gmInfUlt = [false, false, false, false];
+
     /** GM：立即升一级并弹出三选一 */
     gmLevelUp(): void {
         if (this._gameOver) {
@@ -381,6 +385,35 @@ export class BattleManager extends Component {
     /** GM：载具耐久打空，触发护送失败 */
     gmVehicleFail(): void {
         this._vehicle.takeDamage(this._vehicle.hp);
+    }
+
+    /** GM：切换 1~4 号位「技能无冷却」，返回切换后的开/关；号位非法返回 null */
+    gmToggleNoSkillCooldown(slot: number): boolean | null {
+        const hero = this._gmHeroAt(slot);
+        if (!hero) {
+            return null;
+        }
+        const idx = slot - 1;
+        this._gmNoSkillCd[idx] = !this._gmNoSkillCd[idx];
+        hero.gmSetNoSkillCooldown(this._gmNoSkillCd[idx]);
+        return this._gmNoSkillCd[idx];
+    }
+
+    /** GM：切换 1~4 号位「无限大招」，返回切换后的开/关；号位非法返回 null */
+    gmToggleInfUltimate(slot: number): boolean | null {
+        const hero = this._gmHeroAt(slot);
+        if (!hero) {
+            return null;
+        }
+        const idx = slot - 1;
+        this._gmInfUlt[idx] = !this._gmInfUlt[idx];
+        hero.gmSetInfUltimate(this._gmInfUlt[idx]);
+        return this._gmInfUlt[idx];
+    }
+
+    private _gmHeroAt(slot: number): Hero | null {
+        const idx = slot - 1;
+        return idx >= 0 && idx < this._heroes.length ? this._heroes[idx] : null;
     }
 
     // ================= 内部流程 =================
@@ -578,6 +611,11 @@ export class BattleManager extends Component {
         GameManager.instance.resetRun();
         this._vehicle.resetState();
         this._deployHeroes();
+        // GM 号位开关跨重开保留：重新部署后回填到新英雄，便于反复测试
+        this._heroes.forEach((hero, i) => {
+            hero.gmSetNoSkillCooldown(this._gmNoSkillCd[i] ?? false);
+            hero.gmSetInfUltimate(this._gmInfUlt[i] ?? false);
+        });
         eventCenter.emit(GameEvent.XP_CHANGED, 0, GameManager.instance.xpToNext(1), 1);
         this._startWave(1);
     }

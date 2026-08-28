@@ -4,6 +4,9 @@ import { createUINode } from '../core/createUINode';
 import { BattleManager, EnemyHandle } from './BattleManager';
 import { ABILITY_LEVEL_DMG_BONUS, ABILITY_MAX_LEVEL, AbilityDef, HeroDef } from './HeroDef';
 
+/** GM 无冷却/无限大招模式下的最小施放间隔（秒），避免逐帧刷弹刷伤害 */
+const GM_NO_CD_FLOOR = 0.1;
+
 export interface HeroCombatStats {
     atk: number;
     interval: number;
@@ -109,7 +112,18 @@ class AbilityRuntime {
             return;
         }
         this._cast(target);
-        this._cooldown = this._def.cooldown;
+        this._cooldown = this._cooldownAfterCast();
+    }
+
+    /** GM 开关生效点：对应槽位开着 GM 模式时，施放后只进 0.1s 地板间隔 */
+    private _cooldownAfterCast(): number {
+        if (this._def.slot === 'skill' && this._owner.gmNoSkillCooldown) {
+            return GM_NO_CD_FLOOR;
+        }
+        if (this._def.slot === 'ultimate' && this._owner.gmInfUltimate) {
+            return GM_NO_CD_FLOOR;
+        }
+        return this._def.cooldown;
     }
 
     levelUp(): void {
@@ -182,6 +196,10 @@ class AbilityRuntime {
 
 export class HeroCombatController {
     readonly battle: BattleManager;
+    /** GM：1 号开关——技能无冷却（由 GmPanel 经 BattleManager 设置） */
+    gmNoSkillCooldown = false;
+    /** GM：2 号开关——大招无冷却（无限大招） */
+    gmInfUltimate = false;
     private _basic: BasicAttack;
     private _skill: AbilityRuntime;
     private _ultimate: AbilityRuntime;
