@@ -43,11 +43,21 @@ export class Enemy extends Component {
     private _windupPos = new Vec3();
 
     private _graphics: Graphics = null!;
-    /** 美术立绘子节点（有图时替代 Graphics 占位） */
-    private _artNode: Node | null = null;
+    /** 视觉子节点：占位 Graphics 与美术 Sprite 都在它身上，行走动效作用于它（不影响逻辑坐标） */
+    private _bodyNode: Node = null!;
+    /** 脚下阴影/精英圈层（接地感，不跟随身体摆动） */
+    private _shadowNode: Node | null = null;
+    /** 行走动效参数（按怪型在 init 配置） */
+    private _walkPhase = 0;
+    private _walkFreq = 9;
+    private _swayDeg = 5;
+    private _bobAmp = 2;
+    private _isFlyer = false;
 
     onLoad(): void {
-        this._graphics = this.node.addComponent(Graphics);
+        this._bodyNode = createUINode('Body');
+        this.node.addChild(this._bodyNode);
+        this._graphics = this._bodyNode.addComponent(Graphics);
     }
 
     /** 从池中取出后调用：按波次配置与成长系数初始化；成群刷怪时由外部指定共享车道 */
@@ -70,6 +80,29 @@ export class Enemy extends Component {
         this._laneX = laneX ?? (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH;
         // 蓄力中途被回收的怪会带缩放入池，重置防串状态
         this.node.setScale(1, 1, 1);
+        // 行走动效节奏：疯狗高频碎步 / 野猪沉重小跑 / 熊缓慢沉稳 / 疯鹰悬浮
+        this._walkPhase = Math.random() * Math.PI * 2;
+        switch (info.behavior) {
+            case 'swarm':
+                this._walkFreq = 14; this._swayDeg = 6; this._bobAmp = 2; this._isFlyer = false;
+                break;
+            case 'charger':
+                this._walkFreq = 7; this._swayDeg = 5; this._bobAmp = 2.5; this._isFlyer = false;
+                break;
+            case 'tanker':
+                this._walkFreq = 4; this._swayDeg = 3.5; this._bobAmp = 3; this._isFlyer = false;
+                break;
+            case 'diver':
+                this._walkFreq = 6; this._swayDeg = 0; this._bobAmp = 5; this._isFlyer = true;
+                break;
+            default:
+                this._walkFreq = 9; this._swayDeg = 5; this._bobAmp = 2; this._isFlyer = false;
+                break;
+        }
+        this._bodyNode.setPosition(0, 0);
+        this._bodyNode.angle = 0;
+        this._bodyNode.setScale(1, 1, 1);
+        this._ensureShadow(info);
         this._draw(info);
     }
 
@@ -97,6 +130,7 @@ export class Enemy extends Component {
                 this._chase(dt, bm, this._laneX);
                 break;
         }
+        this._updateWalkAnim(dt);
     }
 
     /** 受击；返回是否已死亡（死亡结算由 BattleManager 处理） */
@@ -168,6 +202,11 @@ export class Enemy extends Component {
         if (this._tryApplyArt(info)) {
             return;
         }
+        // 池节点可能上一代挂过别的怪型立绘，回退占位前清掉残留 Sprite
+        const stale = this._bodyNode.getComponent(Sprite);
+        if (stale) {
+            stale.destroy();
+        }
         const r = this.radius;
         const elite = info.tier === 1;
         const main = elite ? Palette.elite : this._bodyColor(info.behavior);
@@ -192,37 +231,68 @@ export class Enemy extends Component {
         }
     }
 
-    /** 尝试挂美术立绘：成功返回 true（并清掉占位绘制）；缺图返回 false 走占位 */
+    /** 尝试挂美术立绘：成功返回 true（占位 Graphics 已清空）；缺图返回 false 走占位 */
     private _tryApplyArt(info: MonsterInfo): boolean {
         const key = MONSTER_ART[info.behavior];
         const frame = key ? AssetLib.frame(key) : null;
         if (!frame) {
             return false;
         }
-        if (!this._artNode) {
-            this._artNode = createUINode('Art');
-            this.node.addChild(this._artNode);
-        }
-        this._artNode.active = true;
-        let sprite = this._artNode.getComponent(Sprite);
+        let sprite = this._bodyNode.getComponent(Sprite);
         if (!sprite) {
-            sprite = this._artNode.addComponent(Sprite);
+            sprite = this._bodyNode.addComponent(Sprite);
         }
         sprite.spriteFrame = frame;
         sprite.sizeMode = Sprite.SizeMode.CUSTOM;
         sprite.trim = false;
         // 显示高度按碰撞直径的约 1.3 倍取值，保持原图长宽比
-        const ut = this._artNode.getComponent(UITransform) ?? this._artNode.addComponent(UITransform);
+        const ut = this._bodyNode.getComponent(UITransform) ?? this._bodyNode.addComponent(UITransform);
         const dispH = this.radius * 2.6;
         ut.setContentSize(dispH * frame.width / frame.height, dispH);
-        // 精英怪：立绘保留原色，用精英红圈标识
-        if (info.tier === 1) {
-            this._graphics.strokeColor = Palette.elite;
-            this._graphics.lineWidth = 5;
-            this._graphics.circle(0, 0, this.radius * 1.3);
-            this._graphics.stroke();
-        }
         return true;
+    }
+
+    /** 脚下阴影+精英圈：接地感的关键，不跟随身体摆动（画在不动的 Shadow 层） */
+    private _ensureShadow(info: MonsterInfo): void {
+        if (!this._shadowNode) {
+            this._shadowNode = createUINode('Shadow');
+            this.node.addChild(this._shadowNode);
+            this._shadowNode.setSiblingIndex(0);
+        }
+        const g = this._shadowNode.getComponent(Graphics) ?? this._shadowNode.addComponent(Graphics);
+        g.clear();
+        g.fillColor = new Color(0, 0, 0, 70);
+        g.ellipse(0, -this.radius * 0.15, this.radius * 0.95, this.radius * 0.4);
+        g.fill();
+        // 精英怪：立绘保留原色，用脚下精英红圈标识
+        if (info.tier === 1) {
+            g.strokeColor = Palette.elite;
+            g.lineWidth = 5;
+            g.circle(0, -this.radius * 0.15, this.radius * 1.15);
+            g.stroke();
+        }
+    }
+
+    /** 行走动效：摇摆+颠簸作用在 Body 层（逻辑坐标不受影响），暂停时随 update 冻结 */
+    private _updateWalkAnim(dt: number): void {
+        // 野猪蓄力/冲刺切换专属姿态
+        if (this._behavior === 'charger' && this._chargeState !== 'advance') {
+            this._bodyNode.angle = 0;
+            if (this._chargeState === 'dash') {
+                // 扑咬：压扁拉长贴地冲
+                this._bodyNode.setScale(0.94, 1.08, 1);
+            } else {
+                this._bodyNode.setScale(1, 1, 1);
+            }
+            this._bodyNode.setPosition(0, 0);
+            return;
+        }
+        this._walkPhase += dt * this._walkFreq;
+        const sway = Math.sin(this._walkPhase);
+        this._bodyNode.angle = this._isFlyer ? sway * 3 : sway * this._swayDeg;
+        // 飞行怪=悬浮正弦；步行怪=|cos| 双拍迈步颠簸
+        const bob = this._isFlyer ? Math.sin(this._walkPhase) : Math.abs(Math.cos(this._walkPhase));
+        this._bodyNode.setPosition(0, bob * this._bobAmp);
     }
 
     private _bodyColor(behavior: MonsterBehavior): Color {
