@@ -92,6 +92,11 @@ zombie-shooter/
 8. **怪物扩展规矩**：新增怪型=在 `WaveData.ts` 加 MonsterInfo（behavior+参数），确需新行为
    再在 `Enemy.ts` 加分支；行为状态全部在 `init` 重置（池化复用防串状态）；入场位置在
    `BattleManager._spawnEnemy` 按 behavior 分派；波次混编靠 `WaveInfo.monsters` 数组。
+9. **美术接入管线**（缺图自动回退占位，可逐张补图）：
+   - AI 产图后跑 `python tools/process_art.py <输入.png> assets/resources/textures/<分类>/<名>.png`
+     （抠白底+裁剪+缩放，Python+PIL，参数：最大边长、容差）；
+   - 把路径加进 `core/AssetLib.ts` 的 MANIFEST；
+   - 实体侧按 key 取图（参考 `Enemy._tryApplyArt`），没图回退 Graphics 占位、不影响运行。
 
 ## 五、下一步开发路线
 

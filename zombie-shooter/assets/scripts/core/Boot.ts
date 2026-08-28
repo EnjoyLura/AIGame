@@ -1,6 +1,7 @@
 import { director, Director, ResolutionPolicy, UITransform, view } from 'cc';
 import { Design } from '../config/GameConfig';
 import { createUINode } from './createUINode';
+import { AssetLib } from './AssetLib';
 import { BattleManager } from '../battle/BattleManager';
 
 /**
@@ -12,6 +13,9 @@ import { BattleManager } from '../battle/BattleManager';
 director.once(Director.EVENT_AFTER_SCENE_LAUNCH, () => {
     // 强制竖屏设计分辨率：宽度固定 720，高度按屏幕比例自适应（fitWidth）
     view.setDesignResolutionSize(Design.WIDTH, Design.HEIGHT, ResolutionPolicy.FIXED_WIDTH);
+
+    // 美术资源异步预载（缺图自动回退占位，不阻断启动）
+    AssetLib.preload();
 
     const scene = director.getScene();
     const canvas = scene && scene.getChildByName('Canvas');

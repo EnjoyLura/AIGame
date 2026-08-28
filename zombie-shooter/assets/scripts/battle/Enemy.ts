@@ -1,8 +1,15 @@
-import { _decorator, Color, Component, Graphics, tween, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Node, Sprite, tween, UITransform, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Palette } from '../config/GameConfig';
+import { createUINode } from '../core/createUINode';
+import { AssetLib } from '../core/AssetLib';
 import { MonsterBehavior, MonsterInfo } from './WaveData';
 import { BattleManager } from './BattleManager';
+
+/** 已有美术立绘的怪型（key 相对 textures/；缺图的回退 Graphics 占位） */
+const MONSTER_ART: Partial<Record<MonsterBehavior, string>> = {
+    charger: 'monsters/boar',
+};
 
 /**
  * 变异怪物：按 WaveData 的 behavior 分派移动逻辑——
@@ -36,6 +43,8 @@ export class Enemy extends Component {
     private _windupPos = new Vec3();
 
     private _graphics: Graphics = null!;
+    /** 美术立绘子节点（有图时替代 Graphics 占位） */
+    private _artNode: Node | null = null;
 
     onLoad(): void {
         this._graphics = this.node.addComponent(Graphics);
@@ -155,6 +164,10 @@ export class Enemy extends Component {
         const g = this._graphics;
         g.clear();
         g.lineWidth = 4;
+        // 优先用美术立绘；没出图的怪型回退 Graphics 占位
+        if (this._tryApplyArt(info)) {
+            return;
+        }
         const r = this.radius;
         const elite = info.tier === 1;
         const main = elite ? Palette.elite : this._bodyColor(info.behavior);
@@ -177,6 +190,39 @@ export class Enemy extends Component {
                 this._drawCrawler(g, r, elite);
                 break;
         }
+    }
+
+    /** 尝试挂美术立绘：成功返回 true（并清掉占位绘制）；缺图返回 false 走占位 */
+    private _tryApplyArt(info: MonsterInfo): boolean {
+        const key = MONSTER_ART[info.behavior];
+        const frame = key ? AssetLib.frame(key) : null;
+        if (!frame) {
+            return false;
+        }
+        if (!this._artNode) {
+            this._artNode = createUINode('Art');
+            this.node.addChild(this._artNode);
+        }
+        this._artNode.active = true;
+        let sprite = this._artNode.getComponent(Sprite);
+        if (!sprite) {
+            sprite = this._artNode.addComponent(Sprite);
+        }
+        sprite.spriteFrame = frame;
+        sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+        sprite.trim = false;
+        // 显示高度按碰撞直径的约 1.3 倍取值，保持原图长宽比
+        const ut = this._artNode.getComponent(UITransform) ?? this._artNode.addComponent(UITransform);
+        const dispH = this.radius * 2.6;
+        ut.setContentSize(dispH * frame.width / frame.height, dispH);
+        // 精英怪：立绘保留原色，用精英红圈标识
+        if (info.tier === 1) {
+            this._graphics.strokeColor = Palette.elite;
+            this._graphics.lineWidth = 5;
+            this._graphics.circle(0, 0, this.radius * 1.3);
+            this._graphics.stroke();
+        }
+        return true;
     }
 
     private _bodyColor(behavior: MonsterBehavior): Color {
