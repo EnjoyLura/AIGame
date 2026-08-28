@@ -6,12 +6,12 @@ import { NodePool } from '../core/NodePool';
 import { createUINode } from '../core/createUINode';
 import { GameManager } from '../core/GameManager';
 import { Hero } from './Hero';
-import { Bullet } from './Bullet';
+import { Bullet, ProjectileSpec } from './Bullet';
 import { Enemy } from './Enemy';
 import { DamageNumber } from './DamageNumber';
 import { XpGem } from './XpGem';
 import { Vehicle } from './Vehicle';
-import { HERO_DEFS, HeroDef } from './HeroDef';
+import { ABILITY_MAX_LEVEL, HERO_DEFS } from './HeroDef';
 import { CardOption, makeCardOption } from './UpgradeCard';
 import { HUD } from '../ui/HUD';
 import { LevelUpPanel } from '../ui/LevelUpPanel';
@@ -22,6 +22,11 @@ import { MonsterInfo, WaveInfo, WAVES } from './WaveData';
  * 部署运输载具与上阵英雄、四方向刷怪、子弹×怪物结算、经验拾取与升级三选一、胜负流程。
  * 场景中不摆放任何业务节点，全部由 Boot 挂载本组件后动态创建。
  */
+export interface EnemyHandle {
+    enemy: Enemy;
+    spawnId: number;
+}
+
 @ccclass('BattleManager')
 export class BattleManager extends Component {
     static instance: BattleManager = null!;
@@ -135,7 +140,7 @@ export class BattleManager extends Component {
                 if (!this._enemyOnScreen(enemy)) {
                     continue;
                 }
-                if (bullet.hasHit(enemy)) {
+                if (bullet.hasHit(this._handleOf(enemy))) {
                     continue;
                 }
                 const ep = enemy.node.position;
@@ -148,7 +153,7 @@ export class BattleManager extends Component {
                         this.recycleBullet(bullet);
                         break;
                     }
-                    bullet.markHit(enemy);
+                    bullet.markHit(this._handleOf(enemy));
                 }
             }
         }
@@ -156,41 +161,90 @@ export class BattleManager extends Component {
 
     // ================= 对外接口（供 Hero/Enemy/Bullet/XpGem 调用） =================
 
-    /**
-     * 索敌：返回射程内离 from 最近、且已进入屏幕的敌人；没有则返回 null。
-     * 各英雄自动瞄准与"射程内才开火"都依赖这里。
-     */
-    findTarget(from: Vec3, range: number): Enemy | null {
-        let best: Enemy = null!;
-        let bestDistSq = range * range;
-        for (const enemy of this._enemies) {
-            if (!this._enemyOnScreen(enemy)) {
-                continue;
-            }
-            const ep = enemy.node.position;
+    /** 返回射程内最近且已入屏的敌人句柄。 */
+    findTarget(from: Vec3, range: number): EnemyHandle | null {
+        return this.findTargets(from, range, 1)[0] ?? null;
+    }
+
+    /** 构造敌人句柄：缓存目标一律持句柄而非裸组件引用（池化复用防串代） */
+    private _handleOf(enemy: Enemy): EnemyHandle {
+        return { enemy, spawnId: enemy.spawnId };
+    }
+
+    /** 返回按距离排序的有效敌人句柄。 */
+    findTargets(from: Vec3, range: number, count: number): EnemyHandle[] {
+        const rangeSq = range * range;
+        return this._enemies
+            .filter(enemy => this._enemyOnScreen(enemy) && enemy.hp > 0)
+            .map(enemy => {
+                const ep = enemy.node.position;
+                const dx = ep.x - from.x;
+                const dy = ep.y - from.y;
+                return { handle: this._handleOf(enemy), distSq: dx * dx + dy * dy };
+            })
+            .filter(item => item.distSq <= rangeSq)
+            .sort((a, b) => a.distSq - b.distSq)
+            .slice(0, count)
+            .map(item => item.handle);
+    }
+
+    /** 校验池化对象句柄，防止旧引用命中新一轮复用的节点。 */
+    isEnemyHandleValid(handle: EnemyHandle | null, from?: Vec3, range?: number): handle is EnemyHandle {
+        if (!handle || handle.enemy.spawnId !== handle.spawnId
+            || this._enemies.indexOf(handle.enemy) < 0 || handle.enemy.hp <= 0
+            || !this._enemyOnScreen(handle.enemy)) {
+            return false;
+        }
+        if (from && range !== undefined) {
+            const ep = handle.enemy.node.position;
             const dx = ep.x - from.x;
             const dy = ep.y - from.y;
-            const distSq = dx * dx + dy * dy;
-            if (distSq <= bestDistSq) {
-                bestDistSq = distSq;
-                best = enemy;
-            }
+            return dx * dx + dy * dy <= range * range;
         }
-        return best;
+        return true;
     }
 
-    /** 该怪物是否仍在场上：激光锁定等缓存引用的有效性以此为准（回池/死亡即为否） */
-    isEnemyInBattle(enemy: Enemy): boolean {
-        return this._enemies.indexOf(enemy) >= 0;
-    }
-
-    spawnBullet(fromPos: Vec3, dir: Vec3, def: HeroDef): void {
+    spawnProjectile(fromPos: Vec3, dir: Vec3, spec: ProjectileSpec): void {
         const node = this._bulletPool.get();
         this.node.addChild(node);
         node.setPosition(fromPos.x, fromPos.y);
         const bullet = node.getComponent(Bullet)!;
-        bullet.init(this._heroAtkOf(def), dir, def);
+        bullet.init(dir, spec);
         this._bullets.push(bullet);
+    }
+
+    /** 所有战斗伤害的唯一入口。 */
+    applyDamage(handle: EnemyHandle | null, baseDamage: number, canCrit = false): boolean {
+        if (!this.isEnemyHandleValid(handle)) {
+            return false;
+        }
+        const crit = canCrit && Math.random() < BattleConfig.CRIT_CHANCE;
+        const damage = Math.max(1, Math.round(baseDamage * (crit ? BattleConfig.CRIT_MULTI : 1)));
+        const enemy = handle.enemy;
+        this.spawnDamageNumber(enemy.node.worldPosition, damage, crit);
+        if (enemy.takeDamage(damage)) {
+            this.killEnemy(enemy);
+        }
+        return true;
+    }
+
+    applyAreaDamage(center: Vec3, radius: number, damage: number): number {
+        const radiusSq = radius * radius;
+        const targets = this._enemies
+            .filter(enemy => {
+                if (!this._enemyOnScreen(enemy) || enemy.hp <= 0) {
+                    return false;
+                }
+                const ep = enemy.node.position;
+                const dx = ep.x - center.x;
+                const dy = ep.y - center.y;
+                return dx * dx + dy * dy <= radiusSq;
+            })
+            .map(enemy => this._handleOf(enemy));
+        for (const target of targets) {
+            this.applyDamage(target, damage, false);
+        }
+        return targets.length;
     }
 
     recycleBullet(bullet: Bullet): void {
@@ -302,12 +356,6 @@ export class BattleManager extends Component {
         this._heroes.length = 0;
     }
 
-    /** 子弹伤害直接取英雄当前 atk（含卡片强化） */
-    private _heroAtkOf(def: HeroDef): number {
-        const hero = this._heroes.find(h => h.def === def);
-        return hero ? hero.atk : def.atk;
-    }
-
     /** 怪物中心是否已进入屏幕（索敌与击中的统一可见性门槛） */
     private _enemyOnScreen(enemy: Enemy): boolean {
         const ep = enemy.node.position;
@@ -405,13 +453,8 @@ export class BattleManager extends Component {
     }
 
     private _hitEnemy(bullet: Bullet, enemy: Enemy): void {
-        const crit = Math.random() < BattleConfig.CRIT_CHANCE;
-        const dmg = Math.round(bullet.atk * (crit ? BattleConfig.CRIT_MULTI : 1));
-        this.spawnDamageNumber(enemy.node.worldPosition, dmg, crit);
-
-        if (enemy.takeDamage(dmg)) {
-            this.killEnemy(enemy);
-        }
+        // 伤害统一走 applyDamage：暴击/飘字/死亡/掉落全部收口
+        this.applyDamage(this._handleOf(enemy), bullet.damage, bullet.canCrit);
     }
 
     // ================= 升级三选一 =================
@@ -420,18 +463,33 @@ export class BattleManager extends Component {
         this._paused = true;
         const options = this._rollCards(3);
         this._panel.show(options, (card) => {
-            card.hero.applyBuff(card.type);
+            this._applyCard(card);
             this._paused = false;
         });
     }
 
-    /** 从「上阵英雄 × 强化类型」组合中随机抽 count 张 */
+    /** 按 heroId 找到英雄并应用升级（卡片是纯数据，不持有英雄组件） */
+    private _applyCard(card: CardOption): void {
+        const hero = this._heroes.find(h => h.def.id === card.heroId);
+        if (hero) {
+            hero.applyUpgrade(card.upgradeId);
+        }
+    }
+
+    /** 从「上阵英雄 × 强化项」组合中随机抽 count 张；已满级的能力卡不入池 */
     private _rollCards(count: number): CardOption[] {
-        const types: Array<'atk' | 'rate' | 'range'> = ['atk', 'rate', 'range'];
+        const statIds: Array<'atk' | 'rate' | 'range'> = ['atk', 'rate', 'range'];
+        const abilityIds: Array<'skill' | 'ultimate'> = ['skill', 'ultimate'];
         const pool: CardOption[] = [];
         for (const hero of this._heroes) {
-            for (const type of types) {
-                pool.push(makeCardOption(hero, type));
+            for (const id of statIds) {
+                pool.push(makeCardOption(hero.def.id, id));
+            }
+            for (const id of abilityIds) {
+                const level = hero.upgradeLevel(id);
+                if (level < ABILITY_MAX_LEVEL) {
+                    pool.push(makeCardOption(hero.def.id, id, level));
+                }
             }
         }
         // 洗牌取前 count

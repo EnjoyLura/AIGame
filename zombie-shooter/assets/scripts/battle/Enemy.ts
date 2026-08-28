@@ -11,6 +11,8 @@ import { BattleManager } from './BattleManager';
  */
 @ccclass('Enemy')
 export class Enemy extends Component {
+    private static _nextSpawnId = 1;
+    spawnId = 0;
     maxHp = 100;
     hp = 100;
     speed = 100;
@@ -27,6 +29,7 @@ export class Enemy extends Component {
 
     /** 从池中取出后调用：按波次配置与成长系数初始化 */
     init(info: MonsterInfo, hpScale: number): void {
+        this.spawnId = Enemy._nextSpawnId++;
         this.maxHp = Math.round(info.hp * hpScale);
         this.hp = this.maxHp;
         this.speed = info.speed * (info.tier === 1 ? 1.15 : 1);

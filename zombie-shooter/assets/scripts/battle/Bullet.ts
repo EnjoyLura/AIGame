@@ -1,54 +1,48 @@
 import { _decorator, Color, Component, Graphics, Vec3, view } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Design } from '../config/GameConfig';
-import { HeroDef } from './HeroDef';
-import { Enemy } from './Enemy';
-import { BattleManager } from './BattleManager';
+import { EnemyHandle, BattleManager } from './BattleManager';
 
-/**
- * 普攻子弹：沿 init 给定方向飞行，飞出屏幕任意边缘后回收；
- * 辐射枪子弹可穿透（已命中的敌人不重复结算，命中记录在回池时清空）。
- * 命中判定统一在 BattleManager 中做，且只结算已进入屏幕的怪物。
- */
+export interface ProjectileSpec {
+    damage: number;
+    speed: number;
+    radius: number;
+    color: Color;
+    pierce: boolean;
+    canCrit: boolean;
+}
+
 @ccclass('Bullet')
 export class Bullet extends Component {
-    atk = 0;
+    damage = 0;
     radius = BattleConfig.BULLET_RADIUS;
 
     private _speed = BattleConfig.BULLET_SPEED;
     private _dir = new Vec3(0, 1, 0);
     private _pierce = false;
-    private _hitSet: Set<Enemy> = new Set();
+    private _canCrit = false;
+    private _hitSet: Set<number> = new Set();
 
     onLoad(): void {
         this._draw(BattleConfig.BULLET_RADIUS, new Color(255, 238, 88, 255));
     }
 
-    /** 攻击力 + 飞行方向 + 英雄武器外观（弹色/弹径/穿透） */
-    init(atk: number, dir: Vec3, def: HeroDef): void {
-        this.atk = atk;
+    init(dir: Vec3, spec: ProjectileSpec): void {
+        this.damage = spec.damage;
         this._dir = dir.clone().normalize();
-        this._speed = def.bulletSpeed;
-        this._pierce = !!def.pierce;
+        this._speed = spec.speed;
+        this._pierce = spec.pierce;
+        this._canCrit = spec.canCrit;
         this._hitSet.clear();
-        const r = BattleConfig.BULLET_RADIUS * (def.weapon === 'sniper' ? 1.4 : 1);
-        this.radius = r;
-        this._draw(r, def.bulletColor);
+        this.radius = spec.radius;
+        this._draw(spec.radius, spec.color);
         this.node.angle = Math.atan2(-this._dir.x, this._dir.y) * 180 / Math.PI;
     }
 
-    /** 穿透结算记录 */
-    markHit(enemy: Enemy): void {
-        this._hitSet.add(enemy);
-    }
-
-    hasHit(enemy: Enemy): boolean {
-        return this._hitSet.has(enemy);
-    }
-
-    get pierce(): boolean {
-        return this._pierce;
-    }
+    markHit(handle: EnemyHandle): void { this._hitSet.add(handle.spawnId); }
+    hasHit(handle: EnemyHandle): boolean { return this._hitSet.has(handle.spawnId); }
+    get pierce(): boolean { return this._pierce; }
+    get canCrit(): boolean { return this._canCrit; }
 
     update(dt: number): void {
         const bm = BattleManager.instance;
@@ -57,19 +51,16 @@ export class Bullet extends Component {
         }
         const p = this.node.position;
         this.node.setPosition(p.x + this._dir.x * this._speed * dt, p.y + this._dir.y * this._speed * dt);
+        const next = this.node.position;
         const halfW = Design.WIDTH / 2 + 60;
         const halfH = view.getVisibleSize().height / 2 + 60;
-        if (p.x < -halfW || p.x > halfW || p.y < -halfH || p.y > halfH) {
+        if (next.x < -halfW || next.x > halfW || next.y < -halfH || next.y > halfH) {
             bm.recycleBullet(this);
         }
     }
 
-    /** 弹体按英雄配色重绘（回池复用时会再次 init） */
     private _draw(r: number, color: Color): void {
-        let g = this.node.getComponent(Graphics);
-        if (!g) {
-            g = this.node.addComponent(Graphics);
-        }
+        const g = this.node.getComponent(Graphics) ?? this.node.addComponent(Graphics);
         g.clear();
         g.fillColor = color;
         g.ellipse(0, 0, r * 0.7, r * 1.9);

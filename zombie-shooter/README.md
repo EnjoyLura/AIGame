@@ -3,9 +3,9 @@
 > 本项目已立项为**《末日航线》**——末日护送题材竖屏自动战斗微信小游戏，产品设定见《../产品文档.md》，
 > 技术选型见《../技术文档.md》。工程目录暂用 `zombie-shooter/`，可随时整体改名。
 
-Cocos Creator **3.8.8** 竖屏 2D 基础版骨架。打开即可运行：运输载具防守、四英雄自动索敌
-（步枪/狙击/激光/辐射枪四种普攻行为）、四方向刷怪、经验掉落自动拾取、升级三选一强化、
-波次推进与游戏结束重开。占位美术由代码绘制。
+Cocos Creator **3.8.8** 竖屏 2D 骨架。打开即可运行：运输载具防守、四英雄自动索敌
+（步枪/狙击/激光/辐射枪四种普攻行为）+ 每英雄**技能/大招**（升级卡解锁后自动施放）、
+四方向刷怪、经验掉落自动拾取、升级三选一强化、波次推进与游戏结束重开。占位美术由代码绘制。
 
 ## 一、如何打开运行
 
@@ -25,6 +25,10 @@ Cocos Creator **3.8.8** 竖屏 2D 基础版骨架。打开即可运行：运输�
   路面持续后滚营造载具前进感（`ROAD_SCROLL_SPEED` 调滚动速度）
 - **四英雄上阵**：步枪手（单发瞄准）/ 狙击手（高伤长射程）/ 激光手（锁定持续光束伤害）/
   辐射枪手（快速穿透弹），各自独立索敌开火，数值全部在 `HeroDef.ts`
+- **技能/大招框架**（M2）：每名英雄在 `HeroDef.ts` 配置 skill/ultimate 两个能力
+  （4 种通用行为：projectile 弹幕 / multi 多目标直伤 / beam 持续光束 / area 范围爆炸），
+  初始锁定，升级三选一里抽到「解锁·XXX」后自动施放，重复抽到升到 3 级（每级伤害 +30%）；
+  普攻/技能/大招伤害统一走 `BattleManager.applyDamage`（暴击/飘字/死亡/掉落收口）
 - **波次刷怪**（10 波配置表驱动，第 6 波起概率刷精英怪，打完进入无尽模式）
 - **经验升级**：击杀掉落经验晶体 → 自动飞向载具拾取 → 升级暂停弹出**三选一强化卡**
   （攻击/射频/射程 × 随机英雄），点选后恢复战斗
@@ -47,12 +51,13 @@ zombie-shooter/
 │  │  │  ├─ createUINode.ts    动态节点必须走这里（UI_2D 层，防黑屏）
 │  │  │  └─ GameManager.ts     运行时数据（经验/等级）+ 本地存档
 │  │  ├─ battle/
-│  │  │  ├─ BattleManager.ts   战斗总控：部署/刷怪/碰撞/经验/升级/胜负
-│  │  │  ├─ HeroDef.ts         英雄定义表（四类武器行为+数值）
-│  │  │  ├─ Hero.ts            英雄：按 weapon 分派普攻行为（含激光光束）
+│  │  │  ├─ BattleManager.ts   战斗总控：部署/刷怪/碰撞/统一伤害结算/经验/升级/胜负
+│  │  │  ├─ HeroDef.ts         英雄定义表（普攻数值 + 每英雄 skill/ultimate 能力配置）
+│  │  │  ├─ Hero.ts            英雄组件：持有属性与 HeroCombatController，含升级入口
+│  │  │  ├─ HeroCombat.ts      能力运行时：普攻行为类 + 技能/大招（冷却/施放/光束分层/等级）
+│  │  │  ├─ UpgradeCard.ts     三选一卡片（纯数据 heroId+upgradeId，不持有英雄组件）
 │  │  │  ├─ Vehicle.ts         运输载具：耐久载体
 │  │  │  ├─ WaveData.ts        波次配置表（后续接 Excel 导表）
-│  │  │  ├─ UpgradeCard.ts     三选一卡片定义
 │  │  │  ├─ Bullet.ts / Enemy.ts / DamageNumber.ts / XpGem.ts
 │  │  └─ ui/
 │  │     ├─ HUD.ts             战斗 HUD（经验条/载具条/波次/结算）
@@ -73,12 +78,20 @@ zombie-shooter/
 5. **占位美术**：当前视觉全部是 `Graphics` 矢量占位（普通怪=绿圆、精英怪=红三角、
    主角=蓝圆滑板）；替换正式资源时删除各文件里的 `_drawPlaceholder/_draw` 即可，
    逻辑代码不受影响。
+6. **技能系统扩展规矩**：新能力只改 `HeroDef.ts` 配置（AbilityDef：冷却/倍率/行为/目标数），
+   通用行为只有 projectile/multi/beam/area 四种，确实不够再在 `HeroCombat.ts` 加行为分支；
+   能力里**禁止**直接操作敌人数组、对象池和 killEnemy——索敌走 `findTarget(s)`、
+   伤害一律走 `applyDamage/applyAreaDamage`。
+7. **池化目标必须持句柄**：缓存敌人引用一律用 `EnemyHandle{enemy, spawnId}`（Enemy 每次出场
+   spawnId 递增），校验走 `isEnemyHandleValid`，防止回池复用后旧引用打到"新怪"身上。
+   技能/大招是升级卡驱动：卡片纯数据（heroId+upgradeId），选卡后由 BattleManager 找英雄
+   调 `applyUpgrade`；选卡暂停期间所有能力冷却/光束冻结，重开时英雄整体重建、技能回到锁定。
 
 ## 五、下一步开发路线
 
 | 阶段 | 内容 |
 |---|---|
-| ① 玩法扩充 | 技能升级三选一、多种怪物（快/远程/Boss）、金币掉落 |
+| ① 玩法扩充 | 技能效果差异化与手感调优、多种怪物（快/远程/Boss）、金币掉落、超能力者英雄 |
 | ② 画面升级 | Spine 角色替换占位图形、场景底图、序列帧特效、AudioSource 音效 |
 | ③ UI 系统 | 主城界面、弹窗管理器、图集化（TexturePacker / Cocos 自动图集） |
 | ④ 服务端对接 | 登录 `wx.login` → 自有服务器 `code2session` → token；存档云同步（HTTP 上报） |

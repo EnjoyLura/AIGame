@@ -1,12 +1,8 @@
-import { _decorator, Component, Graphics } from 'cc';
+import { _decorator, Component, Graphics, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Palette } from '../config/GameConfig';
 import { BattleManager } from './BattleManager';
 
-/**
- * 经验晶体：怪物死亡掉落，短暂滞留后自动飞向载具（自动拾取），
- * 触达后由 BattleManager 累加经验并触发升级判定。
- */
 @ccclass('XpGem')
 export class XpGem extends Component {
     private _delay = 0;
@@ -15,7 +11,6 @@ export class XpGem extends Component {
     onLoad(): void {
         const g = this.node.addComponent(Graphics);
         g.fillColor = Palette.xpGem;
-        // 菱形晶体
         g.moveTo(0, 12);
         g.lineTo(8, 0);
         g.lineTo(0, -12);
@@ -38,7 +33,6 @@ export class XpGem extends Component {
             this._delay -= dt;
             return;
         }
-        // 加速飞向载具（自动拾取）
         const target = bm.vehiclePos;
         const p = this.node.position;
         const dx = target.x - p.x;

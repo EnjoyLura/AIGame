@@ -56,9 +56,10 @@ export class LevelUpPanel extends Component {
 
             // 卡面：英雄名 / 强化名 / 数值说明（占位三行文本）
             const lines = option.title.split('\n');
-            this._makeCardLabel(card, lines[0], 70, 26);
-            this._makeCardLabel(card, lines[1], 0, 30);
-            this._makeCardLabel(card, option.desc, -70, 24);
+            this._makeCardLabel(card, lines[0], 70, 24);
+            this._makeCardLabel(card, lines[1], 0, 24);
+            // 描述行给两行高度，长说明换行显示
+            this._makeCardLabel(card, option.desc, -70, 18, 54);
 
             card.on(Node.EventType.TOUCH_END, () => {
                 this._clearCards();
@@ -93,7 +94,7 @@ export class LevelUpPanel extends Component {
         return label;
     }
 
-    private _makeCardLabel(parent: Node, text: string, y: number, size: number): void {
+    private _makeCardLabel(parent: Node, text: string, y: number, size: number, boxH?: number): void {
         const labelNode = createUINode('cardLabel');
         parent.addChild(labelNode);
         labelNode.setPosition(0, y);
@@ -107,5 +108,8 @@ export class LevelUpPanel extends Component {
         label.outlineColor = Color.BLACK;
         label.outlineWidth = 2;
         label.horizontalAlign = Label.HorizontalAlign.CENTER;
+        // 技能卡文案较长：限定宽度并 SHRUNK，超长自动缩字/换行，避免溢出卡面
+        label.overflow = Label.Overflow.SHRUNK;
+        labelNode.getComponent(UITransform)!.setContentSize(170, boxH ?? size + 10);
     }
 }
