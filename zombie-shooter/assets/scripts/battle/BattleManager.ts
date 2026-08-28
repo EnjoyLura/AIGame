@@ -16,7 +16,7 @@ import { CardOption, makeCardOption } from './UpgradeCard';
 import { HUD } from '../ui/HUD';
 import { LevelUpPanel } from '../ui/LevelUpPanel';
 import { GmPanel } from '../ui/GmPanel';
-import { MonsterInfo, WaveInfo, WAVES } from './WaveData';
+import { MonsterInfo, WaveInfo, WAVES, MONSTERS } from './WaveData';
 
 /**
  * 《末日航线》战斗总控：
@@ -124,8 +124,10 @@ export class BattleManager extends Component {
             this._spawnTimer -= dt;
             if (this._spawnTimer <= 0 && this._enemies.length < this._currentWave.maxAlive) {
                 this._spawnTimer = this._currentWave.interval;
-                this._spawnLeft--;
-                this._spawnEnemy(this._currentWave.monster, this._currentWave.eliteChance);
+                // 从本波怪物池随机取一种；带 packSize 的怪成群刷新
+                const info = this._pickWaveMonster();
+                const spawned = this._spawnGroup(info, this._currentWave.eliteChance);
+                this._spawnLeft = Math.max(0, this._spawnLeft - spawned);
             }
         } else if (!this._waveCleared && this._enemies.length === 0) {
             this._waveCleared = true;
@@ -387,6 +389,14 @@ export class BattleManager extends Component {
         this._vehicle.takeDamage(this._vehicle.hp);
     }
 
+    /** GM：立即刷一种怪（狗群成刷），不消耗当前波次进度 */
+    gmSpawnMonster(id: string): void {
+        const info = MONSTERS[id];
+        if (info) {
+            this._spawnGroup(info, 0);
+        }
+    }
+
     /** GM：切换 1~4 号位「技能无冷却」，返回切换后的开/关；号位非法返回 null */
     gmToggleNoSkillCooldown(slot: number): boolean | null {
         const hero = this._gmHeroAt(slot);
@@ -516,8 +526,28 @@ export class BattleManager extends Component {
 
     private _hpScale = 1;
 
-    /** 怪物按权重从四个方向入场：前方(追头)/两侧(伏击)/后方(追赶) */
-    private _spawnEnemy(info: MonsterInfo, eliteChance: number): void {
+    /** 本波怪物池随机取一种 */
+    private _pickWaveMonster(): MonsterInfo {
+        const pool = this._currentWave.monsters;
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    /** 刷一组怪（带 packSize 的成群刷新、共享车道），返回实际刷出只数 */
+    private _spawnGroup(info: MonsterInfo, eliteChance: number): number {
+        const pack = Math.max(1, info.packSize ?? 1);
+        const baseLane = (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH;
+        let spawned = 0;
+        for (let i = 0; i < pack && this._enemies.length < this._currentWave.maxAlive; i++) {
+            // 狗群成员围绕基准车道小幅散开，成群感
+            const lane = pack > 1 ? baseLane + (Math.random() * 2 - 1) * 36 : undefined;
+            this._spawnEnemy(info, eliteChance, lane);
+            spawned++;
+        }
+        return spawned;
+    }
+
+    /** 怪物入场：疯鹰从两侧翼俯冲入场，其余主要从上方追车、少量侧伏 */
+    private _spawnEnemy(info: MonsterInfo, eliteChance: number, laneX?: number): void {
         let monster = info;
         if (info.tier === 0 && eliteChance > 0 && Math.random() < eliteChance) {
             monster = { ...info, tier: 1 };
@@ -526,22 +556,28 @@ export class BattleManager extends Component {
         const node = this._enemyPool.get();
         this.node.addChild(node);
         const enemy = node.getComponent(Enemy)!;
-        enemy.init(monster, this._hpScale);
+        enemy.init(monster, this._hpScale, laneX);
 
         const halfW = Design.WIDTH / 2;
-        const roll = Math.random();
-        if (roll < 0.75) {
-            // 主攻：屏幕上方出现，追着向前开的车尾跑
-            enemy.node.setPosition(
-                (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
-                this._visH / 2 + enemy.radius + 10,
-            );
-        } else if (roll < 0.875) {
-            // 少量左侧伏击（上半区入场，抄近路少走一段距离）
-            enemy.node.setPosition(-halfW - enemy.radius - 10, (Math.random() * 0.5 + 0.35) * this._visH);
+        if (monster.behavior === 'diver') {
+            // 疯鹰：左右侧翼上半区入场，斜线俯冲车尾
+            const side = Math.random() < 0.5 ? -1 : 1;
+            enemy.node.setPosition(side * (halfW + enemy.radius + 10), (Math.random() * 0.35 + 0.5) * this._visH);
         } else {
-            // 少量右侧伏击
-            enemy.node.setPosition(halfW + enemy.radius + 10, (Math.random() * 0.5 + 0.35) * this._visH);
+            const roll = Math.random();
+            if (roll < 0.75) {
+                // 主攻：屏幕上方出现，追着向前开的车尾跑
+                enemy.node.setPosition(
+                    (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
+                    this._visH / 2 + enemy.radius + 10,
+                );
+            } else if (roll < 0.875) {
+                // 少量左侧伏击（上半区入场，抄近路少走一段距离）
+                enemy.node.setPosition(-halfW - enemy.radius - 10, (Math.random() * 0.5 + 0.35) * this._visH);
+            } else {
+                // 少量右侧伏击
+                enemy.node.setPosition(halfW + enemy.radius + 10, (Math.random() * 0.5 + 0.35) * this._visH);
+            }
         }
         this._enemies.push(enemy);
     }

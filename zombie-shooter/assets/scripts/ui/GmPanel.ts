@@ -52,6 +52,16 @@ export class GmPanel extends Component {
         this._addButton(body, '车回满', () => this._bm()?.gmVehicleRefill());
         this._addButton(body, '车打空(失败)', () => this._bm()?.gmVehicleFail());
 
+        // ---- 指定怪型刷新（单测行为，不占波次进度） ----
+        const mobRow = document.createElement('div');
+        mobRow.style.cssText = 'display:flex;gap:4px;';
+        body.appendChild(mobRow);
+        this._addButton(mobRow, '小怪', () => this._bm()?.gmSpawnMonster('crawler'));
+        this._addButton(mobRow, '狗群', () => this._bm()?.gmSpawnMonster('dog'));
+        this._addButton(mobRow, '野猪', () => this._bm()?.gmSpawnMonster('boar'));
+        this._addButton(mobRow, '双足熊', () => this._bm()?.gmSpawnMonster('bear'));
+        this._addButton(mobRow, '疯鹰', () => this._bm()?.gmSpawnMonster('eagle'));
+
         // ---- 号位开关：输入 1~4 + 切换按钮（再次点击同一号位即关闭） ----
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:4px;align-items:center;';
