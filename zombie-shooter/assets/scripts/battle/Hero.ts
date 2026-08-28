@@ -63,6 +63,11 @@ export class Hero extends Component {
         return 0;
     }
 
+    /** GM：清空技能/大招冷却 */
+    gmResetCooldowns(): void {
+        this._combat?.resetCooldowns();
+    }
+
     update(dt: number): void {
         const bm = this._combat?.battle;
         if (!bm || bm.isPaused || bm.isGameOver) {

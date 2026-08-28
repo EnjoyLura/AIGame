@@ -120,6 +120,11 @@ class AbilityRuntime {
         this._cooldown = 0;
     }
 
+    /** GM：冷却立即就绪（不打断光束持续） */
+    resetCooldown(): void {
+        this._cooldown = 0;
+    }
+
     reset(): void {
         this.level = 0;
         this._cooldown = 0;
@@ -208,6 +213,12 @@ export class HeroCombatController {
 
     levelUpSkill(): void { this._skill.levelUp(); }
     levelUpUltimate(): void { this._ultimate.levelUp(); }
+
+    /** GM：清空技能/大招冷却 */
+    resetCooldowns(): void {
+        this._skill.resetCooldown();
+        this._ultimate.resetCooldown();
+    }
 
     reset(): void {
         this._basic.reset();

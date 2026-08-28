@@ -15,6 +15,7 @@ import { ABILITY_MAX_LEVEL, HERO_DEFS } from './HeroDef';
 import { CardOption, makeCardOption } from './UpgradeCard';
 import { HUD } from '../ui/HUD';
 import { LevelUpPanel } from '../ui/LevelUpPanel';
+import { GmPanel } from '../ui/GmPanel';
 import { MonsterInfo, WaveInfo, WAVES } from './WaveData';
 
 /**
@@ -99,6 +100,13 @@ export class BattleManager extends Component {
         const panelNode = createUINode('LevelUpPanel');
         this.node.addChild(panelNode);
         this._panel = panelNode.addComponent(LevelUpPanel);
+
+        // GM 调试面板：仅浏览器预览生效（微信端无 DOM 自动跳过）
+        if (typeof document !== 'undefined') {
+            const gmNode = createUINode('GmPanel');
+            this.node.addChild(gmNode);
+            gmNode.addComponent(GmPanel);
+        }
 
         GameManager.instance.load();
         this._startWave(1);
@@ -320,6 +328,59 @@ export class BattleManager extends Component {
         GameManager.instance.bestWave = Math.max(GameManager.instance.bestWave, this._waveNumber);
         GameManager.instance.save();
         eventCenter.emit(GameEvent.GAME_OVER);
+    }
+
+    // ================= GM 调试（浏览器预览专用，GmPanel 调用） =================
+
+    /** GM：立即升一级并弹出三选一 */
+    gmLevelUp(): void {
+        if (this._gameOver) {
+            return;
+        }
+        const gm = GameManager.instance;
+        gm.addXp(gm.xpToNext(gm.level));
+        eventCenter.emit(GameEvent.XP_CHANGED, gm.xp, gm.xpToNext(gm.level), gm.level);
+        this._openLevelUp();
+    }
+
+    /** GM：全体英雄技能+大招各解锁/升一级（连点到满级） */
+    gmUnlockAbilities(): void {
+        for (const hero of this._heroes) {
+            hero.applyUpgrade('skill');
+            hero.applyUpgrade('ultimate');
+        }
+    }
+
+    /** GM：清空全部技能/大招冷却 */
+    gmResetCooldowns(): void {
+        for (const hero of this._heroes) {
+            hero.gmResetCooldowns();
+        }
+    }
+
+    /** GM：击杀场上全部怪物（正常掉落经验） */
+    gmKillAll(): void {
+        for (const enemy of this._enemies.slice()) {
+            if (enemy.takeDamage(enemy.hp)) {
+                this.killEnemy(enemy);
+            }
+        }
+    }
+
+    /** GM：清屏并立即进入下一波 */
+    gmNextWave(): void {
+        this.gmKillAll();
+        this._startWave(this._waveNumber + 1);
+    }
+
+    /** GM：载具耐久回满 */
+    gmVehicleRefill(): void {
+        this._vehicle.resetState();
+    }
+
+    /** GM：载具耐久打空，触发护送失败 */
+    gmVehicleFail(): void {
+        this._vehicle.takeDamage(this._vehicle.hp);
     }
 
     // ================= 内部流程 =================

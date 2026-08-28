@@ -128,6 +128,10 @@ zombie-shooter/
 node tools/serve.mjs "<工程>/build/web-mobile" 7456
 # 打开 http://127.0.0.1:7456
 
+# 3. GM 调试面板（浏览器预览自动出现，屏幕右侧「GM≡」可收起）
+#    升级 / 技能全解锁 / 冷却清零 / 清屏 / 下一波 / 车回满 / 车打空(失败)
+#    微信端无 DOM 自动不生效，无需打包前删除；入口方法在 BattleManager.gm*
+
 # 3. 验证清单（可用浏览器控制台/AI 自动读取 cc.director 状态）
 #    场景名 = game；BattleRoot 存在；波次推进；击杀增长；network 无 404
 ```
