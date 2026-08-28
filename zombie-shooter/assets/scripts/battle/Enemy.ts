@@ -43,8 +43,10 @@ export class Enemy extends Component {
     private _windupPos = new Vec3();
 
     private _graphics: Graphics = null!;
-    /** 视觉子节点：占位 Graphics 与美术 Sprite 都在它身上，行走动效作用于它（不影响逻辑坐标） */
+    /** 视觉子节点：占位 Graphics 画在它本体，行走动效作用于它（不影响逻辑坐标） */
     private _bodyNode: Node = null!;
+    /** 美术立绘子节点：Sprite 必须与 Graphics 分节点（同节点先后挂两个渲染组件会导致 Sprite 不渲染） */
+    private _artNode: Node | null = null;
     /** 脚下阴影/精英圈层（接地感，不跟随身体摆动） */
     private _shadowNode: Node | null = null;
     /** 行走动效参数（按怪型在 init 配置） */
@@ -55,6 +57,9 @@ export class Enemy extends Component {
     private _isFlyer = false;
 
     onLoad(): void {
+        // 根节点必须有 UITransform：2D 渲染靠它逐层计算子节点世界矩阵
+        // （占位 Graphics 移到 Body 后根节点不再自动获得，缺失会导致子孙 Sprite 整体不渲染）
+        this.node.addComponent(UITransform);
         this._bodyNode = createUINode('Body');
         this.node.addChild(this._bodyNode);
         this._graphics = this._bodyNode.addComponent(Graphics);
@@ -199,13 +204,9 @@ export class Enemy extends Component {
         g.clear();
         g.lineWidth = 4;
         // 优先用美术立绘；没出图的怪型回退 Graphics 占位
+        // （_tryApplyArt 失败时已把立绘子节点隐藏，占位直接画在本体 Graphics 上）
         if (this._tryApplyArt(info)) {
             return;
-        }
-        // 池节点可能上一代挂过别的怪型立绘，回退占位前清掉残留 Sprite
-        const stale = this._bodyNode.getComponent(Sprite);
-        if (stale) {
-            stale.destroy();
         }
         const r = this.radius;
         const elite = info.tier === 1;
@@ -236,19 +237,27 @@ export class Enemy extends Component {
         const key = MONSTER_ART[info.behavior];
         const frame = key ? AssetLib.frame(key) : null;
         if (!frame) {
+            if (this._artNode) {
+                this._artNode.active = false;
+            }
             return false;
         }
-        let sprite = this._bodyNode.getComponent(Sprite);
-        if (!sprite) {
-            sprite = this._bodyNode.addComponent(Sprite);
+        if (!this._artNode) {
+            // Sprite 独立子节点：一节点只挂一种渲染组件（Graphics/Sprite 同节点会冲突）
+            this._artNode = createUINode('Art');
+            this._bodyNode.addChild(this._artNode);
         }
+        this._artNode.active = true;
+        const sprite = this._artNode.getComponent(Sprite) ?? this._artNode.addComponent(Sprite);
         sprite.spriteFrame = frame;
         sprite.sizeMode = Sprite.SizeMode.CUSTOM;
         sprite.trim = false;
-        // 显示高度按碰撞直径的约 1.3 倍取值，保持原图长宽比
-        const ut = this._bodyNode.getComponent(UITransform) ?? this._bodyNode.addComponent(UITransform);
+        // 显示高度按碰撞直径的约 1.3 倍取值；宽高比必须用 rect
+        // （frame.width/height 在动态合图后返回整张图集尺寸，不是这张图的实际尺寸）
+        const ut = this._artNode.getComponent(UITransform)!;
+        const rect = frame.rect;
         const dispH = this.radius * 2.6;
-        ut.setContentSize(dispH * frame.width / frame.height, dispH);
+        ut.setContentSize(dispH * rect.width / rect.height, dispH);
         return true;
     }
 

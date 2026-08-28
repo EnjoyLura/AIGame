@@ -85,14 +85,14 @@ zombie-shooter/
    通用行为只有 projectile/multi/beam/area 四种，确实不够再在 `HeroCombat.ts` 加行为分支；
    能力里**禁止**直接操作敌人数组、对象池和 killEnemy——索敌走 `findTarget(s)`、
    伤害一律走 `applyDamage/applyAreaDamage`。
-7. **池化目标必须持句柄**：缓存敌人引用一律用 `EnemyHandle{enemy, spawnId}`（Enemy 每次出场
+8. **池化目标必须持句柄**：缓存敌人引用一律用 `EnemyHandle{enemy, spawnId}`（Enemy 每次出场
    spawnId 递增），校验走 `isEnemyHandleValid`，防止回池复用后旧引用打到"新怪"身上。
    技能/大招是升级卡驱动：卡片纯数据（heroId+upgradeId），选卡后由 BattleManager 找英雄
    调 `applyUpgrade`；选卡暂停期间所有能力冷却/光束冻结，重开时英雄整体重建、技能回到锁定。
-8. **怪物扩展规矩**：新增怪型=在 `WaveData.ts` 加 MonsterInfo（behavior+参数），确需新行为
+9. **怪物扩展规矩**：新增怪型=在 `WaveData.ts` 加 MonsterInfo（behavior+参数），确需新行为
    再在 `Enemy.ts` 加分支；行为状态全部在 `init` 重置（池化复用防串状态）；入场位置在
    `BattleManager._spawnEnemy` 按 behavior 分派；波次混编靠 `WaveInfo.monsters` 数组。
-9. **美术接入管线**（缺图自动回退占位，可逐张补图）：
+10. **美术接入管线**（缺图自动回退占位，可逐张补图）：
    - AI 产图后跑 `python tools/process_art.py <输入.png> assets/resources/textures/<分类>/<名>.png`
      （抠白底+裁剪+缩放，Python+PIL，参数：最大边长、容差）；
    - 把路径加进 `core/AssetLib.ts` 的 MANIFEST；
@@ -127,6 +127,14 @@ zombie-shooter/
    怪物血量/速度/伤害调 `WaveData.ts`，主角攻速/攻击/射程调 `GameConfig.ts`。
 6. **怪物必须在屏幕内才能被索敌和击杀**：索敌（findTarget）与碰撞结算都会跳过
    "中心未越过屏幕顶"的怪物，出生点也控制在屏幕外一点点——不要删这两处可见性判定。
+7. **2D 渲染三条铁律（踩过的暗坑，全部无报错）**：
+   - 同一节点先后挂 Graphics + Sprite 两个渲染组件，后挂的 Sprite 渲染数据会损坏
+     → 整体不可见，增删兄弟节点触发重建时才偶现。占位 Graphics 与立绘 Sprite
+     必须分节点（见 Enemy 的 Body/Art 结构）。
+   - 中间层级节点缺 UITransform 会断掉子树的 UI 世界矩阵 → 子孙 Sprite 整体不渲染。
+     挂渲染节点的链路上每层都要有 UITransform（Enemy 根节点在 onLoad 显式补）。
+   - 动态合图开启时 `spriteFrame.width/height` 返回整张图集尺寸（如 2048×2048），
+     算宽高比必须用 `spriteFrame.rect.width/height`。
 
 ## 八、命令行构建与浏览器验证工作流（无需打开编辑器）
 
