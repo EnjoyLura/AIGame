@@ -134,6 +134,9 @@ class AbilityRuntime {
         this._cooldown = 0;
     }
 
+    /** 当前剩余冷却（图标 HUD 用） */
+    get cdLeft(): number { return this._cooldown; }
+
     /** GM：冷却立即就绪（不打断光束持续） */
     resetCooldown(): void {
         this._cooldown = 0;
@@ -222,6 +225,22 @@ export class HeroCombatController {
     get ultimateUnlocked(): boolean { return this._ultimate.unlocked; }
     get skillLevel(): number { return this._skill.level; }
     get ultimateLevel(): number { return this._ultimate.level; }
+
+    /** 技能/大招运行时信息（技能图标 HUD 与数值浮窗用） */
+    abilityInfo(id: 'skill' | 'ultimate') {
+        const rt = id === 'skill' ? this._skill : this._ultimate;
+        // 未解锁时按 1 级数值展示（level=0 的伤害公式会算出 70% 的错误值）
+        const effLevel = Math.max(1, rt.level);
+        return {
+            def: rt.def,
+            level: rt.level,
+            unlocked: rt.unlocked,
+            cdLeft: rt.cdLeft,
+            cdTotal: rt.def.cooldown,
+            damage: Math.round(this.stats.atk * rt.def.damageScale
+                * (1 + ABILITY_LEVEL_DMG_BONUS * (effLevel - 1))),
+        };
+    }
 
     update(dt: number): void {
         this._basic.update(dt);

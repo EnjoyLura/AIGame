@@ -16,6 +16,7 @@ import { CardOption, makeCardOption } from './UpgradeCard';
 import { HUD } from '../ui/HUD';
 import { LevelUpPanel } from '../ui/LevelUpPanel';
 import { GmPanel } from '../ui/GmPanel';
+import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, WAVES, MONSTERS } from './WaveData';
 
 /**
@@ -44,6 +45,7 @@ export class BattleManager extends Component {
 
     private _hud: HUD = null!;
     private _panel: LevelUpPanel = null!;
+    private _abilityBar: AbilityBar = null!;
 
     private _waveNumber = 0;
     private _currentWave: WaveInfo = null!;
@@ -107,6 +109,12 @@ export class BattleManager extends Component {
             this.node.addChild(gmNode);
             gmNode.addComponent(GmPanel);
         }
+
+        // 技能/大招图标栏（放最后创建=渲染在最上层）
+        const barNode = createUINode('AbilityBar');
+        this.node.addChild(barNode);
+        this._abilityBar = barNode.addComponent(AbilityBar);
+        this._abilityBar.rebind(this._heroes);
 
         GameManager.instance.load();
         this._startWave(1);
@@ -451,6 +459,8 @@ export class BattleManager extends Component {
             hero.init(def);
             this._heroes.push(hero);
         }
+        // 图标栏重新绑定新英雄（重开时英雄整体重建）
+        this._abilityBar?.rebind(this._heroes);
     }
 
     private _clearHeroes(): void {

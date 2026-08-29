@@ -63,6 +63,11 @@ export class Hero extends Component {
         return 0;
     }
 
+    /** 技能/大招运行时信息（技能图标 HUD 与数值浮窗用） */
+    abilityInfo(upgradeId: 'skill' | 'ultimate') {
+        return this._combat ? this._combat.abilityInfo(upgradeId) : null;
+    }
+
     /** GM：清空技能/大招冷却 */
     gmResetCooldowns(): void {
         this._combat?.resetCooldowns();
