@@ -13,7 +13,7 @@ const MONSTER_ART: Partial<Record<MonsterBehavior, string>> = {
 
 /**
  * 变异怪物：按 WaveData 的 behavior 分派移动逻辑——
- * chaser 直线追车 / swarm 疯狗锯齿走位成群 / charger 野猪贴近蓄力再冲刺 /
+ * chaser 直线追车 / swarm 疯狗成群直线快跑 / charger 野猪贴近蓄力再冲刺 /
  * tanker 双足熊高血肉盾 / diver 疯鹰侧翼斜线俯冲。
  * 追到车尾后啃咬一口耐久并消失；被击杀掉落经验晶体。
  * 占位形象由 Graphics 按 behavior 绘制（正式版替换为 sp.Skeleton）。
@@ -30,10 +30,11 @@ export class Enemy extends Component {
     /** 追击车道：怪物沿自己的车道追向车尾 */
     private _laneX = 0;
     private _behavior: MonsterBehavior = 'chaser';
-    /** swarm：锯齿走位参数与相位 */
-    private _weaveAmp = 0;
-    private _weaveFreq = 0;
-    private _weavePhase = 0;
+    /** 行走动效参数（按怪型在 init 配置） */
+    private _walkPhase = 0;
+    private _walkFreq = 9;
+    private _bobAmp = 2;
+    private _isFlyer = false;
     /** charger：蓄力-冲刺状态机（蓄力期间定身，是集火窗口） */
     private _chargeState: 'advance' | 'windup' | 'dash' = 'advance';
     private _windupLeft = 0;
@@ -52,7 +53,6 @@ export class Enemy extends Component {
     /** 行走动效参数（按怪型在 init 配置） */
     private _walkPhase = 0;
     private _walkFreq = 9;
-    private _swayDeg = 5;
     private _bobAmp = 2;
     private _isFlyer = false;
 
@@ -74,9 +74,6 @@ export class Enemy extends Component {
         this.radius = info.radius * (info.tier === 1 ? 1.35 : 1);
         this.touchDamage = info.touchDamage * (info.tier === 1 ? 2 : 1);
         this._behavior = info.behavior;
-        this._weaveAmp = info.weaveAmp ?? 0;
-        this._weaveFreq = info.weaveFreq ?? 0;
-        this._weavePhase = Math.random() * Math.PI * 2;
         this._chargeState = 'advance';
         this._windupLeft = 0;
         this._windupTime = info.windupTime ?? 0.6;
@@ -89,19 +86,19 @@ export class Enemy extends Component {
         this._walkPhase = Math.random() * Math.PI * 2;
         switch (info.behavior) {
             case 'swarm':
-                this._walkFreq = 14; this._swayDeg = 6; this._bobAmp = 2; this._isFlyer = false;
+                this._walkFreq = 14; this._bobAmp = 2; this._isFlyer = false;
                 break;
             case 'charger':
-                this._walkFreq = 7; this._swayDeg = 5; this._bobAmp = 2.5; this._isFlyer = false;
+                this._walkFreq = 7; this._bobAmp = 2.5; this._isFlyer = false;
                 break;
             case 'tanker':
-                this._walkFreq = 4; this._swayDeg = 3.5; this._bobAmp = 3; this._isFlyer = false;
+                this._walkFreq = 4; this._bobAmp = 3; this._isFlyer = false;
                 break;
             case 'diver':
-                this._walkFreq = 6; this._swayDeg = 0; this._bobAmp = 5; this._isFlyer = true;
+                this._walkFreq = 6; this._bobAmp = 5; this._isFlyer = true;
                 break;
             default:
-                this._walkFreq = 9; this._swayDeg = 5; this._bobAmp = 2; this._isFlyer = false;
+                this._walkFreq = 9; this._bobAmp = 2; this._isFlyer = false;
                 break;
         }
         this._bodyNode.setPosition(0, 0);
@@ -123,15 +120,11 @@ export class Enemy extends Component {
             return;
         }
         switch (this._behavior) {
-            case 'swarm':
-                this._weavePhase += dt * this._weaveFreq;
-                this._chase(dt, bm, this._laneX + Math.sin(this._weavePhase) * this._weaveAmp);
-                break;
             case 'charger':
                 this._updateCharger(dt, bm);
                 break;
             default:
-                // chaser/tanker/diver：直线追向车道目标（diver 的斜线俯冲由侧翼入场点形成）
+                // 全部直线追向自己的车道目标（diver 的斜线俯冲由侧翼入场点形成）
                 this._chase(dt, bm, this._laneX);
                 break;
         }
@@ -282,7 +275,7 @@ export class Enemy extends Component {
         }
     }
 
-    /** 行走动效：摇摆+颠簸作用在 Body 层（逻辑坐标不受影响），暂停时随 update 冻结 */
+    /** 行走动效（直走版）：只上下迈步颠簸 + 轻微压扁拉伸的脚感，不做左右摇摆 */
     private _updateWalkAnim(dt: number): void {
         // 野猪蓄力/冲刺切换专属姿态
         if (this._behavior === 'charger' && this._chargeState !== 'advance') {
@@ -297,11 +290,16 @@ export class Enemy extends Component {
             return;
         }
         this._walkPhase += dt * this._walkFreq;
-        const sway = Math.sin(this._walkPhase);
-        this._bodyNode.angle = this._isFlyer ? sway * 3 : sway * this._swayDeg;
         // 飞行怪=悬浮正弦；步行怪=|cos| 双拍迈步颠簸
         const bob = this._isFlyer ? Math.sin(this._walkPhase) : Math.abs(Math.cos(this._walkPhase));
         this._bodyNode.setPosition(0, bob * this._bobAmp);
+        // 落地压扁、腾空拉伸的微弹性（幅度克制，直走也有迈步脚感）
+        if (this._isFlyer) {
+            this._bodyNode.setScale(1, 1, 1);
+        } else {
+            const squash = Math.cos(this._walkPhase * 2) * 0.04;
+            this._bodyNode.setScale(1 + squash, 1 - squash, 1);
+        }
     }
 
     private _bodyColor(behavior: MonsterBehavior): Color {

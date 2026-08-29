@@ -27,10 +27,6 @@ export interface MonsterInfo {
     windupTime?: number;
     /** charger：冲刺速度 */
     dashSpeed?: number;
-    /** swarm：锯齿走位横向摆幅（px） */
-    weaveAmp?: number;
-    /** swarm：锯齿走位频率（rad/s） */
-    weaveFreq?: number;
 }
 
 export interface WaveInfo {
@@ -53,10 +49,10 @@ const crawler = (hp: number, speed: number): MonsterInfo => ({
     id: 'crawler', behavior: 'chaser', hp, speed, radius: 28, touchDamage: 8, tier: 0,
 });
 
-/** 疯狗：低血高速成群，锯齿走位，检验群体技能清场 */
+/** 疯狗：低血高速成群直线快跑，检验群体技能清场 */
 const dog = (hp: number): MonsterInfo => ({
     id: 'dog', behavior: 'swarm', hp, speed: 165, radius: 20, touchDamage: 6, tier: 0,
-    packSize: 4, weaveAmp: 46, weaveFreq: 5,
+    packSize: 4,
 });
 
 /** 獠牙野猪：贴近后蓄力定身（可集火），再高速冲刺车尾，单次伤害高 */
