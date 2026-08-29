@@ -291,16 +291,9 @@ export class Enemy extends Component {
             return;
         }
         this._walkPhase += dt * this._walkFreq;
-        // 飞行怪=悬浮正弦；步行怪=|cos| 双拍迈步颠簸
+        // 直走表现：只保留轻微上下颠簸（不做左右摇摆、不做横向形变）
         const bob = this._isFlyer ? Math.sin(this._walkPhase) : Math.abs(Math.cos(this._walkPhase));
         this._bodyNode.setPosition(0, bob * this._bobAmp);
-        // 落地压扁、腾空拉伸的微弹性（幅度克制，直走也有迈步脚感）
-        if (this._isFlyer) {
-            this._bodyNode.setScale(1, 1, 1);
-        } else {
-            const squash = Math.cos(this._walkPhase * 2) * 0.04;
-            this._bodyNode.setScale(1 + squash, 1 - squash, 1);
-        }
     }
 
     private _bodyColor(behavior: MonsterBehavior): Color {
