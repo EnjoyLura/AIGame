@@ -121,7 +121,8 @@ class AbilityRuntime {
         }
         // 大招：不走时间冷却，击杀充能（水满才自动施放，无目标时保持满充能待机）
         if (this._isUlt) {
-            if (this._charge < ULTIMATE_CHARGE_MAX) {
+            // GM 无限大招：无视充能直接就绪，且施放不消耗水
+            if (!this._owner.gmInfUltimate && this._charge < ULTIMATE_CHARGE_MAX) {
                 return;
             }
             const target = this._owner.battle.findTarget(this._owner.position, this._def.range);
@@ -129,7 +130,9 @@ class AbilityRuntime {
                 return;
             }
             this._cast(target);
-            this._charge = 0;
+            if (!this._owner.gmInfUltimate) {
+                this._charge = 0;
+            }
             return;
         }
         this._cooldown -= dt;
@@ -145,12 +148,13 @@ class AbilityRuntime {
         this._cooldown = this._cooldownAfterCast();
     }
 
-    /** GM 开关生效点：对应槽位开着 GM 模式时，施放后只进 0.1s 地板间隔 */
+    /** GM 开关生效点：对应槽位开着 GM 模式时，施放后只进 0.1s 地板间隔
+     * （注意 AbilityDef 上没有 slot 字段，技能槽用 !this._isUlt 判断） */
     private _cooldownAfterCast(): number {
-        if (this._def.slot === 'skill' && this._owner.gmNoSkillCooldown) {
+        if (!this._isUlt && this._owner.gmNoSkillCooldown) {
             return GM_NO_CD_FLOOR;
         }
-        if (this._def.slot === 'ultimate' && this._owner.gmInfUltimate) {
+        if (this._isUlt && this._owner.gmInfUltimate) {
             return GM_NO_CD_FLOOR;
         }
         return this._def.cooldown;
@@ -296,7 +300,7 @@ export class HeroCombatController {
             cdTotal: rt.def.cooldown,
             damage: Math.round(this.stats.atk * rt.def.damageScale
                 * (1 + ABILITY_LEVEL_DMG_BONUS * (effLevel - 1))),
-            charge: rt.charge,
+            charge: this.gmInfUltimate ? ULTIMATE_CHARGE_MAX : rt.charge,
             chargeMax: id === 'ultimate' ? ULTIMATE_CHARGE_MAX : 0,
         };
     }
