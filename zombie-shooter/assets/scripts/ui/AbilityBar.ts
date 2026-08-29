@@ -28,7 +28,6 @@ const COLOR_BASIC_BG = new Color(58, 72, 88, 235);
 const COLOR_BASIC_EDGE = new Color(176, 190, 197, 255);
 const COLOR_LOCK_BG = new Color(55, 71, 79, 210);
 const COLOR_LOCK_EDGE = new Color(120, 144, 156, 210);
-const COLOR_BADGE = new Color(255, 193, 7, 240);
 const COLOR_RANGE = new Color(79, 195, 247, 150);
 const COLOR_RANGE_FILL = new Color(79, 195, 247, 16);
 const COLOR_RANGE_AREA = new Color(255, 171, 64, 150);
@@ -53,15 +52,14 @@ class AbilityIcon {
     private _hero: Hero;
     private _slot: SlotId;
     private _baseG: Graphics = null!;
+    /** 冷却扇形遮罩层（参考《向僵尸开炮》：暗色饼图随冷却顺时针收缩） */
+    private _maskG: Graphics = null!;
     private _ringG: Graphics = null!;
     private _nameLabel: Label = null!;
-    private _cdLabel: Label = null!;
     private _lvLabel: Label = null!;
-    private _badgeG: Graphics = null!;
     private _opacity: UIOpacity = null!;
     private _lastUnlocked: boolean | null = null;
     private _lastLevel = -1;
-    private _lastCdText = '';
     private _wasCooling = false;
 
     constructor(bar: AbilityBar, hero: Hero, slot: SlotId, index: number) {
@@ -84,18 +82,17 @@ class AbilityIcon {
         this.node.addChild(bgNode);
         this._baseG = bgNode.addComponent(Graphics);
 
+        const maskNode = createUINode('Mask');
+        this.node.addChild(maskNode);
+        this._maskG = maskNode.addComponent(Graphics);
+
         const ringNode = createUINode('Ring');
         this.node.addChild(ringNode);
         this._ringG = ringNode.addComponent(Graphics);
 
         this._nameLabel = this._makeLabel('Name', 0, 0, 30);
-        this._cdLabel = this._makeLabel('Cd', 0, -ICON_R - 16, 20);
-
-        const badge = createUINode('Badge');
-        this.node.addChild(badge);
-        badge.setPosition(ICON_R - 8, -ICON_R + 8);
-        this._badgeG = badge.addComponent(Graphics);
-        this._lvLabel = this._makeLabel('Lv', 0, 0, 18, badge);
+        // 等级角标：右下角大号白字黑描边（参考《向僵尸开炮》样式）
+        this._lvLabel = this._makeLabel('Lv', ICON_R - 6, -ICON_R + 10, 24);
 
         this.node.on(Node.EventType.TOUCH_START, () => this._bar.onPressStart(this), this);
         this.node.on(Node.EventType.TOUCH_END, () => this._bar.onPressEnd(this), this);
@@ -143,29 +140,36 @@ class AbilityIcon {
             // 普攻常亮：无冷却/充能/角标
             return;
         }
+        const cooling = info.unlocked && info.cdLeft > 0;
         if (this._slot === 'skill') {
-            // 技能：冷却中变暗 + 显示剩余秒数
-            const cooling = info.unlocked && info.cdLeft > 0;
-            this._opacity.opacity = cooling ? 130 : 255;
-            const text = cooling ? String(Math.ceil(info.cdLeft)) : '';
-            if (text !== this._lastCdText) {
-                this._lastCdText = text;
-                this._cdLabel.string = text;
-            }
-            if (this._wasCooling && !cooling) {
-                this._punch();
-            }
-            this._wasCooling = cooling;
+            // 技能：参考《向僵尸开炮》扇形冷却遮罩（暗色饼图随冷却顺时针收缩）
+            this._drawCooldownMask(info, cooling);
         } else {
             // 大招：外环充能进度，充满后消失并弹跳提示
-            const cooling = info.unlocked && info.cdLeft > 0;
             this._drawRing(info, cooling);
-            this._opacity.opacity = cooling ? 150 : 255;
-            if (this._wasCooling && !cooling) {
-                this._punch();
-            }
-            this._wasCooling = cooling;
         }
+        if (this._wasCooling && !cooling) {
+            this._punch();
+        }
+        this._wasCooling = cooling;
+    }
+
+    /** 技能冷却遮罩：暗色扇形盖住"未恢复"部分，从顶部顺时针随冷却缩小 */
+    private _drawCooldownMask(info: AbilityInfo, cooling: boolean): void {
+        const g = this._maskG;
+        g.clear();
+        if (!cooling || info.cdTotal <= 0) {
+            return;
+        }
+        const ratio = Math.min(1, Math.max(0, 1 - info.cdLeft / info.cdTotal));
+        const start = -Math.PI / 2;
+        // 已恢复的结束角（顺时针）；扇形盖住 recovered→顶部+整圈 的剩余部分
+        const recoveredEnd = start + Math.max(0.02, ratio) * Math.PI * 2;
+        g.fillColor = new Color(10, 16, 22, 150);
+        g.moveTo(0, 0);
+        g.arc(0, 0, ICON_R + 3, recoveredEnd, start + Math.PI * 2, false);
+        g.close();
+        g.fill();
     }
 
     private _punch(): void {
@@ -218,11 +222,6 @@ class AbilityIcon {
         g.lineWidth = 4;
         g.stroke();
         this._nameLabel.string = info.def.name.slice(0, 1);
-        const badge = this._badgeG;
-        badge.clear();
-        badge.fillColor = COLOR_BADGE;
-        badge.circle(0, 0, 13);
-        badge.fill();
     }
 
     /** 大招充能环：冷却中画进度弧，就绪不画（由 punch 提示） */
