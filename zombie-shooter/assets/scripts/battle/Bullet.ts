@@ -10,12 +10,15 @@ export interface ProjectileSpec {
     color: Color;
     pierce: boolean;
     canCrit: boolean;
+    /** 发射英雄 id（击杀充能归属） */
+    sourceId?: string;
 }
 
 @ccclass('Bullet')
 export class Bullet extends Component {
     damage = 0;
     radius = BattleConfig.BULLET_RADIUS;
+    sourceId = '';
 
     private _speed = BattleConfig.BULLET_SPEED;
     private _dir = new Vec3(0, 1, 0);
@@ -29,6 +32,7 @@ export class Bullet extends Component {
 
     init(dir: Vec3, spec: ProjectileSpec): void {
         this.damage = spec.damage;
+        this.sourceId = spec.sourceId ?? '';
         this._dir = dir.clone().normalize();
         this._speed = spec.speed;
         this._pierce = spec.pierce;

@@ -47,6 +47,7 @@ export class GmPanel extends Component {
         this._addButton(body, '升级', () => this._bm()?.gmLevelUp());
         this._addButton(body, '技能全解锁', () => this._bm()?.gmUnlockAbilities());
         this._addButton(body, '冷却清零', () => this._bm()?.gmResetCooldowns());
+        this._addButton(body, '大招充满', () => this._bm()?.gmFullCharge());
         this._addButton(body, '清屏', () => this._bm()?.gmKillAll());
         this._addButton(body, '下一波', () => this._bm()?.gmNextWave());
         this._addButton(body, '车回满', () => this._bm()?.gmVehicleRefill());

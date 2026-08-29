@@ -15,7 +15,7 @@ import { createUINode } from '../core/createUINode';
 const ICON_R = 32;
 const COL_X = 314;
 /** 每侧 6 行：每英雄占 3 行（普攻/技能/大招），两英雄共 6 行从上到下（避开顶部 HUD） */
-const ROW_YS = [470, 392, 314, 236, 158, 80];
+const ROW_YS = [400, 328, 256, 184, 112, 40];
 const LONG_PRESS_TIME = 0.45;
 const TIP_W = 300;
 const TIP_MAX_ROWS = 6;
@@ -28,6 +28,7 @@ const COLOR_BASIC_BG = new Color(58, 72, 88, 235);
 const COLOR_BASIC_EDGE = new Color(176, 190, 197, 255);
 const COLOR_LOCK_BG = new Color(55, 71, 79, 210);
 const COLOR_LOCK_EDGE = new Color(120, 144, 156, 210);
+const COLOR_CHARGE_WATER = new Color(255, 171, 64, 110);
 const COLOR_RANGE = new Color(79, 195, 247, 150);
 const COLOR_RANGE_FILL = new Color(79, 195, 247, 16);
 const COLOR_RANGE_AREA = new Color(255, 171, 64, 150);
@@ -43,9 +44,12 @@ interface AbilityInfo {
     cdLeft: number;
     cdTotal: number;
     damage: number;
+    /** 大招击杀充能（仅 ultimate） */
+    charge?: number;
+    chargeMax?: number;
 }
 
-/** 单个能力图标：底圆/锁形 + 名字首字 + 等级角标 + 技能冷却秒数/大招充能环 */
+/** 单个能力图标：底圆/锁形 + 名字首字 + 等级角标 + 技能冷却秒数/大招储水充能 */
 class AbilityIcon {
     readonly node: Node;
     private _bar: AbilityBar;
@@ -54,7 +58,8 @@ class AbilityIcon {
     private _baseG: Graphics = null!;
     /** 冷却扇形遮罩层（参考《向僵尸开炮》：暗色饼图随冷却顺时针收缩） */
     private _maskG: Graphics = null!;
-    private _ringG: Graphics = null!;
+    /** 大招"储水"充能层：水位从图标底部往上灌 */
+    private _fillG: Graphics = null!;
     /** 大招充能完成后的呼吸光效层（图标最底层，只画图标外圈） */
     private _glowG: Graphics = null!;
     private _nameLabel: Label = null!;
@@ -62,8 +67,9 @@ class AbilityIcon {
     private _opacity: UIOpacity = null!;
     private _lastUnlocked: boolean | null = null;
     private _lastLevel = -1;
-    private _lastCooling: boolean | null = null;
+    private _lastFull: boolean | null = null;
     private _wasCooling = false;
+    private _wasFull = false;
     private _animTime = 0;
 
     constructor(bar: AbilityBar, hero: Hero, slot: SlotId, index: number) {
@@ -95,9 +101,9 @@ class AbilityIcon {
         this.node.addChild(maskNode);
         this._maskG = maskNode.addComponent(Graphics);
 
-        const ringNode = createUINode('Ring');
-        this.node.addChild(ringNode);
-        this._ringG = ringNode.addComponent(Graphics);
+        const fillNode = createUINode('Fill');
+        this.node.addChild(fillNode);
+        this._fillG = fillNode.addComponent(Graphics);
 
         this._nameLabel = this._makeLabel('Name', 0, 0, 30);
         // 等级角标：右下角大号白字黑描边（参考《向僵尸开炮》样式）
@@ -141,17 +147,19 @@ class AbilityIcon {
         this.node.active = this._slot === 'basic' || info.unlocked;
 
         const cooling = info.unlocked && info.cdLeft > 0;
+        const full = this._slot === 'ultimate' && info.unlocked
+            && (info.charge ?? 0) >= (info.chargeMax || 1);
         // 大招充能状态切换（浅色→点亮）需要重画底色
         const baseDirty = info.unlocked !== this._lastUnlocked
             || info.level !== this._lastLevel
-            || (this._slot === 'ultimate' && cooling !== this._lastCooling);
+            || (this._slot === 'ultimate' && full !== this._lastFull);
         if (baseDirty) {
             this._lastUnlocked = info.unlocked;
             this._lastLevel = info.level;
-            this._drawBase(info, this._slot === 'ultimate' && cooling);
+            this._drawBase(info, this._slot === 'ultimate' && !full);
             this._lvLabel.string = info.unlocked && this._slot !== 'basic' ? String(info.level) : '';
         }
-        this._lastCooling = this._slot === 'ultimate' ? cooling : this._lastCooling;
+        this._lastFull = this._slot === 'ultimate' ? full : this._lastFull;
 
         if (this._slot === 'basic') {
             // 普攻常亮：无冷却/充能/角标
@@ -160,15 +168,51 @@ class AbilityIcon {
         if (this._slot === 'skill') {
             // 技能：参考《向僵尸开炮》扇形冷却遮罩（暗色饼图随冷却顺时针收缩）
             this._drawCooldownMask(info, cooling);
-        } else {
-            // 大招：外环充能进度；充满后点亮并带呼吸光效
-            this._drawRing(info, cooling);
-            this._drawGlow(info.unlocked && !cooling);
+            if (this._wasCooling && !cooling) {
+                this._punch();
+            }
+            this._wasCooling = cooling;
+            return;
         }
-        if (this._wasCooling && !cooling) {
+        // 大招：击杀充能像水位一样从图标底部往上灌；充满点亮并带呼吸光效
+        this._drawUltFill(info.unlocked ? (info.charge ?? 0) / (info.chargeMax || 1) : 0);
+        this._drawGlow(full);
+        if (!this._wasFull && full) {
             this._punch();
         }
-        this._wasCooling = cooling;
+        this._wasFull = full;
+    }
+
+    /** 大招"储水"充能：半透明橙水按充能比例从底部往上灌（圆形弓形填充+水面高光） */
+    private _drawUltFill(fraction: number): void {
+        const g = this._fillG;
+        g.clear();
+        if (!Number.isFinite(fraction) || fraction <= 0.01) {
+            return;
+        }
+        const f = Math.min(1, fraction);
+        const r = ICON_R - 3;
+        if (f >= 0.99) {
+            g.fillColor = COLOR_CHARGE_WATER;
+            g.circle(0, 0, r);
+            g.fill();
+            return;
+        }
+        // 水面高度 yc：f=0 → 底部(-r)，f=1 → 顶部(+r)
+        const yc = -r + 2 * f * r;
+        const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
+        const x = Math.cos(a) * r;
+        // 弓形：沿圆弧从左交点经过底部到右交点，闭合弦线
+        g.fillColor = COLOR_CHARGE_WATER;
+        g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
+        g.close();
+        g.fill();
+        // 水面高光
+        g.strokeColor = new Color(255, 224, 160, 200);
+        g.lineWidth = 2.5;
+        g.moveTo(-x, yc);
+        g.lineTo(x, yc);
+        g.stroke();
     }
 
     /** 大招就绪呼吸光效：两圈不同相位的光环绕图标缓慢脉动 */
@@ -262,27 +306,6 @@ class AbilityIcon {
         g.stroke();
         this._nameLabel.string = info.def.name.slice(0, 1);
     }
-
-    /** 大招充能环：冷却中画进度弧，就绪不画（由 punch 提示） */
-    private _drawRing(info: AbilityInfo, cooling: boolean): void {
-        const g = this._ringG;
-        g.clear();
-        if (!info.unlocked || !cooling || info.cdTotal <= 0) {
-            return;
-        }
-        const ratio = Math.min(1, Math.max(0, 1 - info.cdLeft / info.cdTotal));
-        const r = ICON_R + 5;
-        g.lineWidth = 5;
-        g.strokeColor = new Color(0, 0, 0, 110);
-        g.arc(0, 0, r, 0, Math.PI * 2, false);
-        g.stroke();
-        if (ratio > 0.01) {
-            // 充能中进度弧用浅橙（配浅色底），充满后由呼吸光效接管
-            g.strokeColor = new Color(255, 200, 140, 160);
-            g.arc(0, 0, r, Math.PI / 2, Math.PI / 2 + ratio * Math.PI * 2, false);
-            g.stroke();
-        }
-    }
 }
 
 /** 数值浮窗（点按图标弹出，参照截图样式：标题/属性行/绿色提示） */
@@ -366,7 +389,11 @@ class TipView {
         if (def.kind === 'beam' && def.duration) {
             rows.push(['持续', `${def.duration.toFixed(1)}秒`]);
         }
-        rows.push(['冷却', def.cooldown > 0 ? `${def.cooldown.toFixed(1)}秒` : '常驻']);
+        if (icon.slot === 'ultimate') {
+            rows.push(['充能', `击杀 ${info.charge ?? 0}/${info.chargeMax || 10}`]);
+        } else {
+            rows.push(['冷却', def.cooldown > 0 ? `${def.cooldown.toFixed(1)}秒` : '常驻']);
+        }
         if (def.kind === 'projectile') {
             rows.push(['弹数', String(def.projectileCount ?? 1)]);
             rows.push(['穿透', def.pierce ? '是' : '否']);

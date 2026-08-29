@@ -2,7 +2,7 @@ import { Graphics, Node, Vec3 } from 'cc';
 import { BattleConfig } from '../config/GameConfig';
 import { createUINode } from '../core/createUINode';
 import { BattleManager, EnemyHandle } from './BattleManager';
-import { ABILITY_LEVEL_DMG_BONUS, ABILITY_MAX_LEVEL, AbilityDef, HeroDef } from './HeroDef';
+import { ABILITY_LEVEL_DMG_BONUS, ABILITY_MAX_LEVEL, AbilityDef, HeroDef, ULTIMATE_CHARGE_MAX } from './HeroDef';
 
 /** GM 无冷却/无限大招模式下的最小施放间隔（秒），避免逐帧刷弹刷伤害 */
 const GM_NO_CD_FLOOR = 0.1;
@@ -63,7 +63,7 @@ class LaserBasicAttack implements BasicAttack {
         this._damage += this._owner.stats.atk * dt;
         this._time += dt;
         if (this._time >= 0.5) {
-            this._owner.battle.applyDamage(this._target, Math.round(this._damage), false);
+            this._owner.battle.applyDamage(this._target, Math.round(this._damage), false, this._owner.def.id);
             this._damage = 0;
             this._time = 0;
         }
@@ -80,17 +80,31 @@ class LaserBasicAttack implements BasicAttack {
 /** 技能/大招运行时：解锁=1 级（升级卡再升，满级 ABILITY_MAX_LEVEL），每级伤害 +30% */
 class AbilityRuntime {
     level = 0;
+    /** 大招击杀充能（仅 ultimate 使用，0~ULTIMATE_CHARGE_MAX） */
+    private _charge = 0;
     private _cooldown = 0;
     private _duration = 0;
     private _tickTimer = 0;
     private _target: EnemyHandle | null = null;
 
-    constructor(private _owner: HeroCombatController, private _def: AbilityDef) {}
+    constructor(private _owner: HeroCombatController, private _def: AbilityDef, private _isUlt: boolean) {}
 
     /** 能力定义（图标 HUD/浮窗读取；注意运行时字段名是 _def，直接取 .def 会是 undefined） */
     get def(): AbilityDef { return this._def; }
 
     get unlocked(): boolean { return this.level > 0; }
+
+    /** 大招充能是否已满 */
+    get chargeFull(): boolean { return this._charge >= ULTIMATE_CHARGE_MAX; }
+    get charge(): number { return this._charge; }
+
+    /** 击杀充能：未解锁不充，满后不再累加 */
+    addCharge(n: number = 1): void {
+        if (!this._isUlt || !this.unlocked) {
+            return;
+        }
+        this._charge = Math.min(ULTIMATE_CHARGE_MAX, this._charge + n);
+    }
 
     /** 等级成长后的实际伤害倍率 */
     get damageScale(): number {
@@ -103,6 +117,19 @@ class AbilityRuntime {
         }
         if (this._duration > 0) {
             this._updateBeam(dt);
+            return;
+        }
+        // 大招：不走时间冷却，击杀充能（水满才自动施放，无目标时保持满充能待机）
+        if (this._isUlt) {
+            if (this._charge < ULTIMATE_CHARGE_MAX) {
+                return;
+            }
+            const target = this._owner.battle.findTarget(this._owner.position, this._def.range);
+            if (!target) {
+                return;
+            }
+            this._cast(target);
+            this._charge = 0;
             return;
         }
         this._cooldown -= dt;
@@ -147,6 +174,7 @@ class AbilityRuntime {
 
     reset(): void {
         this.level = 0;
+        this._charge = 0;
         this._cooldown = 0;
         this._duration = 0;
         this._tickTimer = 0;
@@ -167,10 +195,10 @@ class AbilityRuntime {
         } else if (this._def.kind === 'multi') {
             const targets = this._owner.battle.findTargets(this._owner.position, this._def.range, this._def.maxTargets ?? 1);
             for (const item of targets) {
-                this._owner.battle.applyDamage(item, damage, false);
+                this._owner.battle.applyDamage(item, damage, false, this._owner.def.id);
             }
         } else if (this._def.kind === 'area') {
-            this._owner.battle.applyAreaDamage(target.enemy.node.position, this._def.areaRadius ?? 200, damage);
+            this._owner.battle.applyAreaDamage(target.enemy.node.position, this._def.areaRadius ?? 200, damage, this._owner.def.id);
         } else {
             this._target = target;
             this._duration = this._def.duration ?? 1;
@@ -189,7 +217,7 @@ class AbilityRuntime {
             if (this._tickTimer <= 0) {
                 const tick = this._def.tick ?? 0.25;
                 const damage = Math.round(this._owner.stats.atk * this.damageScale * tick);
-                this._owner.battle.applyDamage(this._target, damage, false);
+                this._owner.battle.applyDamage(this._target, damage, false, this._owner.def.id);
                 this._tickTimer = tick;
             }
         }
@@ -219,8 +247,8 @@ export class HeroCombatController {
     ) {
         this.battle = BattleManager.instance;
         this._basic = def.weapon === 'laser' ? new LaserBasicAttack(this) : new ProjectileBasicAttack(this);
-        this._skill = new AbilityRuntime(this, def.skill);
-        this._ultimate = new AbilityRuntime(this, def.ultimate);
+        this._skill = new AbilityRuntime(this, def.skill, false);
+        this._ultimate = new AbilityRuntime(this, def.ultimate, true);
     }
 
     get position(): Vec3 { return this._heroNode.position; }
@@ -268,6 +296,8 @@ export class HeroCombatController {
             cdTotal: rt.def.cooldown,
             damage: Math.round(this.stats.atk * rt.def.damageScale
                 * (1 + ABILITY_LEVEL_DMG_BONUS * (effLevel - 1))),
+            charge: rt.charge,
+            chargeMax: id === 'ultimate' ? ULTIMATE_CHARGE_MAX : 0,
         };
     }
 
@@ -279,6 +309,9 @@ export class HeroCombatController {
 
     levelUpSkill(): void { this._skill.levelUp(); }
     levelUpUltimate(): void { this._ultimate.levelUp(); }
+
+    /** 击杀充能：本英雄大招 +n（仅已解锁时生效） */
+    gainCharge(n: number = 1): void { this._ultimate.addCharge(n); }
 
     /** GM：清空技能/大招冷却 */
     resetCooldowns(): void {
@@ -305,6 +338,7 @@ export class HeroCombatController {
         }
         this.battle.spawnProjectile(from, dir, {
             damage, speed, radius, color: this.def.bulletColor, pierce, canCrit,
+            sourceId: this.def.id,
         });
     }
 

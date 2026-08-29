@@ -73,6 +73,11 @@ export class Hero extends Component {
         this._combat?.resetCooldowns();
     }
 
+    /** 击杀充能：本英雄大招 +n（未解锁不生效） */
+    gainUltimateCharge(n: number = 1): void {
+        this._combat?.gainCharge(n);
+    }
+
     /** GM：开关本英雄「技能无冷却」；开启时技能未解锁则顺手解锁 */
     gmSetNoSkillCooldown(on: boolean): void {
         if (!this._combat) {

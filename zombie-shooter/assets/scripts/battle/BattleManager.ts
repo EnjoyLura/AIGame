@@ -166,7 +166,7 @@ export class BattleManager extends Component {
                 const dy = bp.y - ep.y;
                 const rr = bullet.radius + enemy.radius;
                 if (dx * dx + dy * dy <= rr * rr) {
-                    this._hitEnemy(bullet, enemy);
+                    this._hitEnemy(bullet, enemy, bullet.sourceId);
                     if (!bullet.pierce) {
                         this.recycleBullet(bullet);
                         break;
@@ -231,8 +231,8 @@ export class BattleManager extends Component {
         this._bullets.push(bullet);
     }
 
-    /** 所有战斗伤害的唯一入口。 */
-    applyDamage(handle: EnemyHandle | null, baseDamage: number, canCrit = false): boolean {
+    /** 所有战斗伤害的唯一入口。sourceId=伤害来源英雄 id（击杀充能归属） */
+    applyDamage(handle: EnemyHandle | null, baseDamage: number, canCrit = false, sourceId?: string): boolean {
         if (!this.isEnemyHandleValid(handle)) {
             return false;
         }
@@ -241,12 +241,12 @@ export class BattleManager extends Component {
         const enemy = handle.enemy;
         this.spawnDamageNumber(enemy.node.worldPosition, damage, crit);
         if (enemy.takeDamage(damage)) {
-            this.killEnemy(enemy);
+            this.killEnemy(enemy, sourceId);
         }
         return true;
     }
 
-    applyAreaDamage(center: Vec3, radius: number, damage: number): number {
+    applyAreaDamage(center: Vec3, radius: number, damage: number, sourceId?: string): number {
         const radiusSq = radius * radius;
         const targets = this._enemies
             .filter(enemy => {
@@ -260,7 +260,7 @@ export class BattleManager extends Component {
             })
             .map(enemy => this._handleOf(enemy));
         for (const target of targets) {
-            this.applyDamage(target, damage, false);
+            this.applyDamage(target, damage, false, sourceId);
         }
         return targets.length;
     }
@@ -284,8 +284,8 @@ export class BattleManager extends Component {
         this._enemyPool.put(enemy.node);
     }
 
-    /** 击杀结算：掉落经验晶体（激光等直伤武器也会调用） */
-    killEnemy(enemy: Enemy): void {
+    /** 击杀结算：掉落经验晶体（激光等直伤武器也会调用）；sourceId=击杀来源英雄（大招充能归属） */
+    killEnemy(enemy: Enemy, sourceId?: string): void {
         const idx = this._enemies.indexOf(enemy);
         if (idx < 0) {
             return;
@@ -294,6 +294,12 @@ export class BattleManager extends Component {
         GameManager.instance.kills++;
         GameManager.instance.totalKills++;
         eventCenter.emit(GameEvent.ENEMY_DEAD, GameManager.instance.kills);
+        if (sourceId) {
+            const killer = this._heroes.find(h => h.def.id === sourceId);
+            if (killer) {
+                killer.gainUltimateCharge(1);
+            }
+        }
 
         const gemNode = this._gemPool.get();
         this.node.addChild(gemNode);
@@ -369,6 +375,13 @@ export class BattleManager extends Component {
     gmResetCooldowns(): void {
         for (const hero of this._heroes) {
             hero.gmResetCooldowns();
+        }
+    }
+
+    /** GM：立即充满全部大招充能 */
+    gmFullCharge(): void {
+        for (const hero of this._heroes) {
+            hero.gainUltimateCharge(9999);
         }
     }
 
@@ -602,9 +615,9 @@ export class BattleManager extends Component {
         this._enemies.push(enemy);
     }
 
-    private _hitEnemy(bullet: Bullet, enemy: Enemy): void {
+    private _hitEnemy(bullet: Bullet, enemy: Enemy, sourceId?: string): void {
         // 伤害统一走 applyDamage：暴击/飘字/死亡/掉落全部收口
-        this.applyDamage(this._handleOf(enemy), bullet.damage, bullet.canCrit);
+        this.applyDamage(this._handleOf(enemy), bullet.damage, bullet.canCrit, sourceId);
     }
 
     // ================= 升级三选一 =================

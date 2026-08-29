@@ -41,6 +41,8 @@ export interface HeroDef {
 export const ABILITY_MAX_LEVEL = 3;
 /** 每级伤害增幅（实际倍率 = damageScale × (1 + 每级增幅 × (level-1))） */
 export const ABILITY_LEVEL_DMG_BONUS = 0.3;
+/** 大招充能所需击杀数：击杀来源=英雄自身（普攻/技能/大招击杀都算） */
+export const ULTIMATE_CHARGE_MAX = 10;
 
 export const HERO_DEFS: HeroDef[] = [
     {
