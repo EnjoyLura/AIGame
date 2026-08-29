@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Graphics, Label, Node, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, Tween, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { ABILITY_MAX_LEVEL, AbilityDef } from '../battle/HeroDef';
 import { Hero } from '../battle/Hero';
@@ -30,6 +30,9 @@ const COLOR_BASIC_EDGE = new Color(176, 190, 197, 255);
 const COLOR_LOCK_BG = new Color(55, 71, 79, 210);
 const COLOR_LOCK_EDGE = new Color(120, 144, 156, 210);
 const COLOR_CHARGE_WATER = new Color(255, 171, 64, 110);
+const COLOR_CHARGE_WATER_LINE = new Color(255, 224, 160, 200);
+const COLOR_COOLDOWN_MASK = new Color(10, 16, 22, 150);
+const COLOR_GLOW = new Color(255, 183, 77, 255);
 const COLOR_RANGE = new Color(79, 195, 247, 150);
 const COLOR_RANGE_FILL = new Color(79, 195, 247, 16);
 const COLOR_RANGE_AREA = new Color(255, 171, 64, 150);
@@ -57,12 +60,14 @@ class AbilityIcon {
     private _hero: Hero;
     private _slot: SlotId;
     private _baseG: Graphics = null!;
-    /** 冷却扇形遮罩层（参考《向僵尸开炮》：暗色饼图随冷却顺时针收缩） */
+    /** 冷却扇形遮罩层（仅在冷却刻度变化时重画，不逐帧重画） */
     private _maskG: Graphics = null!;
-    /** 大招"储水"充能层：水位从图标底部往上灌 */
+    /** 大招"储水"充能层（仅在充能刻度变化时重画） */
     private _fillG: Graphics = null!;
-    /** 大招充能完成后的呼吸光效层（图标最底层，只画图标外圈） */
+    /** 大招就绪呼吸光效层（静态绘制一次，脉动用节点缩放/透明度补间，零重画） */
     private _glowG: Graphics = null!;
+    private _glowNode: Node = null!;
+    private _glowOpacity: UIOpacity = null!;
     private _nameLabel: Label = null!;
     private _lvLabel: Label = null!;
     private _opacity: UIOpacity = null!;
@@ -71,7 +76,8 @@ class AbilityIcon {
     private _lastFull: boolean | null = null;
     private _wasCooling = false;
     private _wasFull = false;
-    private _animTime = 0;
+    private _lastMaskStep = -1;
+    private _lastFillStep = -1;
 
     constructor(bar: AbilityBar, hero: Hero, slot: SlotId, index: number) {
         this._bar = bar;
@@ -93,6 +99,8 @@ class AbilityIcon {
         const glowNode = createUINode('Glow');
         this.node.addChild(glowNode);
         this._glowG = glowNode.addComponent(Graphics);
+        this._glowNode = glowNode;
+        this._glowOpacity = glowNode.addComponent(UIOpacity);
 
         const bgNode = createUINode('Base');
         this.node.addChild(bgNode);
@@ -138,18 +146,20 @@ class AbilityIcon {
     }
 
     /** 每帧刷新：等级/解锁/充能状态变化重画底，冷却遮罩与光效按需更新 */
-    refresh(dt: number): void {
-        this._animTime += dt;
+    refresh(): void {
         const info = this._hero.abilityInfo(this._slot);
         if (!info) {
             return;
         }
-        // 未解锁的技能/大招不显示图标（普攻常显）
-        this.node.active = this._slot === 'basic' || info.unlocked;
+        // 未解锁的技能/大招不显示图标（普攻常显）；隐藏后跳过全部绘制工作
+        if (this._slot !== 'basic' && !info.unlocked) {
+            this.node.active = false;
+            return;
+        }
+        this.node.active = true;
 
-        const cooling = info.unlocked && info.cdLeft > 0;
-        const full = this._slot === 'ultimate' && info.unlocked
-            && (info.charge ?? 0) >= (info.chargeMax || 1);
+        const cooling = info.cdLeft > 0;
+        const full = this._slot === 'ultimate' && (info.charge ?? 0) >= (info.chargeMax || 1);
         // 大招充能状态切换（浅色→点亮）需要重画底色
         const baseDirty = info.unlocked !== this._lastUnlocked
             || info.level !== this._lastLevel
@@ -158,7 +168,7 @@ class AbilityIcon {
             this._lastUnlocked = info.unlocked;
             this._lastLevel = info.level;
             this._drawBase(info, this._slot === 'ultimate' && !full);
-            this._lvLabel.string = info.unlocked && this._slot !== 'basic' ? String(info.level) : '';
+            this._lvLabel.string = this._slot !== 'basic' ? String(info.level) : '';
         }
         this._lastFull = this._slot === 'ultimate' ? full : this._lastFull;
 
@@ -167,21 +177,65 @@ class AbilityIcon {
             return;
         }
         if (this._slot === 'skill') {
-            // 技能：参考《向僵尸开炮》扇形冷却遮罩（暗色饼图随冷却顺时针收缩）
-            this._drawCooldownMask(info, cooling);
+            // 技能：扇形冷却遮罩量化为 24 个刻度，刻度变化才重画（Graphics 重绘昂贵）
+            const step = cooling ? Math.max(1, Math.ceil((1 - info.cdLeft / info.cdTotal) * 24)) : 0;
+            if (step !== this._lastMaskStep) {
+                this._lastMaskStep = step;
+                this._drawCooldownMask(step);
+            }
             if (this._wasCooling && !cooling) {
                 this._punch();
             }
             this._wasCooling = cooling;
             return;
         }
-        // 大招：击杀充能像水位一样从图标底部往上灌；充满点亮并带呼吸光效
-        this._drawUltFill(info.unlocked ? (info.charge ?? 0) / (info.chargeMax || 1) : 0);
-        this._drawGlow(full);
-        if (!this._wasFull && full) {
-            this._punch();
+        // 大招：储水刻度（0~10）变化才重画；就绪光效用补间脉动（零重画）
+        const fillStep = Math.round((info.charge ?? 0) / (info.chargeMax || 1) * 10);
+        if (fillStep !== this._lastFillStep) {
+            this._lastFillStep = fillStep;
+            this._drawUltFill(fillStep / 10);
         }
-        this._wasFull = full;
+        if (full !== this._wasFull) {
+            if (full) {
+                this._punch();
+            }
+            this._setGlow(full);
+            this._wasFull = full;
+        }
+    }
+
+    /** 大招就绪呼吸光效：光圈静态绘制一次，脉动由节点缩放+透明度补间驱动 */
+    private _setGlow(on: boolean): void {
+        const g = this._glowG;
+        g.clear();
+        Tween.stopAllByTarget(this._glowNode);
+        Tween.stopAllByTarget(this._glowOpacity);
+        this._glowNode.setScale(1, 1, 1);
+        this._glowOpacity.opacity = 255;
+        if (!on) {
+            return;
+        }
+        g.lineWidth = 6;
+        g.strokeColor = COLOR_GLOW;
+        g.circle(0, 0, ICON_R + 7);
+        g.stroke();
+        g.lineWidth = 4;
+        g.strokeColor = COLOR_GLOW;
+        g.circle(0, 0, ICON_R + 12);
+        g.stroke();
+        this._glowOpacity.opacity = 190;
+        tween(this._glowNode)
+            .repeatForever(
+                tween()
+                    .to(0.38, { scale: new Vec3(1.07, 1.07, 1) })
+                    .to(0.37, { scale: new Vec3(0.97, 0.97, 1) }),
+            )
+            .start();
+        tween(this._glowOpacity)
+            .repeatForever(
+                tween().to(0.38, { opacity: 120 }).to(0.37, { opacity: 210 }),
+            )
+            .start();
     }
 
     /** 大招"储水"充能：半透明橙水按充能比例从底部往上灌（圆形弓形填充+水面高光） */
@@ -208,44 +262,26 @@ class AbilityIcon {
         g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
         g.close();
         g.fill();
-        // 水面高光
-        g.strokeColor = new Color(255, 224, 160, 200);
+        // 水面高光线
+        g.strokeColor = COLOR_CHARGE_WATER_LINE;
         g.lineWidth = 2.5;
         g.moveTo(-x, yc);
         g.lineTo(x, yc);
         g.stroke();
     }
 
-    /** 大招就绪呼吸光效：两圈不同相位的光环绕图标缓慢脉动 */
-    private _drawGlow(ready: boolean): void {
-        const g = this._glowG;
-        g.clear();
-        if (!ready) {
-            return;
-        }
-        const pulse = 0.5 + 0.5 * Math.sin(this._animTime * 4);
-        g.lineWidth = 6;
-        g.strokeColor = new Color(255, 183, 77, Math.round(110 + 90 * pulse));
-        g.circle(0, 0, ICON_R + 5 + pulse * 3);
-        g.stroke();
-        g.lineWidth = 4;
-        g.strokeColor = new Color(255, 183, 77, Math.round(50 + 80 * (1 - pulse)));
-        g.circle(0, 0, ICON_R + 11 + (1 - pulse) * 4);
-        g.stroke();
-    }
-
-    /** 技能冷却遮罩：暗色扇形盖住"未恢复"部分，从顶部顺时针随冷却缩小 */
-    private _drawCooldownMask(info: AbilityInfo, cooling: boolean): void {
+    /** 技能冷却遮罩：按 24 刻度绘制暗色扇形（step=0 清空），只在刻度变化时调用 */
+    private _drawCooldownMask(step: number): void {
         const g = this._maskG;
         g.clear();
-        if (!cooling || info.cdTotal <= 0) {
+        if (step <= 0) {
             return;
         }
-        const ratio = Math.min(1, Math.max(0, 1 - info.cdLeft / info.cdTotal));
+        const ratio = step / 24;
         const start = -Math.PI / 2;
         // 已恢复的结束角（顺时针）；扇形盖住 recovered→顶部+整圈 的剩余部分
         const recoveredEnd = start + Math.max(0.02, ratio) * Math.PI * 2;
-        g.fillColor = new Color(10, 16, 22, 150);
+        g.fillColor = COLOR_COOLDOWN_MASK;
         g.moveTo(0, 0);
         g.arc(0, 0, ICON_R + 3, recoveredEnd, start + Math.PI * 2, false);
         g.close();
@@ -545,7 +581,7 @@ export class AbilityBar extends Component {
     update(dt: number): void {
         this._syncSpeedButton();
         for (const icon of this._icons) {
-            icon.refresh(dt);
+            icon.refresh();
         }
         // 长按计时：超过阈值显示范围圈
         if (this._press && !this._press.fired) {
