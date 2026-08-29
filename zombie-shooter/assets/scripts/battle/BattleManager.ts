@@ -574,22 +574,22 @@ export class BattleManager extends Component {
         return pool[Math.floor(Math.random() * pool.length)];
     }
 
-    /** 刷一组怪（带 packSize 的成群刷新、共享车道），返回实际刷出只数 */
+    /** 刷一组怪（带 packSize 的成群刷新、出生点相邻），返回实际刷出只数 */
     private _spawnGroup(info: MonsterInfo, eliteChance: number): number {
         const pack = Math.max(1, info.packSize ?? 1);
-        const baseLane = (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH;
+        const baseX = (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH;
         let spawned = 0;
         for (let i = 0; i < pack && this._enemies.length < this._currentWave.maxAlive; i++) {
-            // 狗群成员围绕基准车道小幅散开，成群感
-            const lane = pack > 1 ? baseLane + (Math.random() * 2 - 1) * 36 : undefined;
-            this._spawnEnemy(info, eliteChance, lane);
+            // 狗群成员围绕基准横坐标小幅散开，成群感
+            const x = pack > 1 ? baseX + (Math.random() * 2 - 1) * 36 : undefined;
+            this._spawnEnemy(info, eliteChance, x);
             spawned++;
         }
         return spawned;
     }
 
-    /** 怪物入场：疯鹰从两侧翼俯冲入场，其余主要从上方追车、少量侧伏 */
-    private _spawnEnemy(info: MonsterInfo, eliteChance: number, laneX?: number): void {
+    /** 怪物入场：全部垂直下压。顶部为主，道路两侧中段切入（屏内、带缩放提示），疯鹰侧翼上半区入场 */
+    private _spawnEnemy(info: MonsterInfo, eliteChance: number, x?: number): void {
         let monster = info;
         if (info.tier === 0 && eliteChance > 0 && Math.random() < eliteChance) {
             monster = { ...info, tier: 1 };
@@ -598,33 +598,33 @@ export class BattleManager extends Component {
         const node = this._enemyPool.get();
         this.node.addChild(node);
         const enemy = node.getComponent(Enemy)!;
-        enemy.init(monster, this._hpScale, laneX);
+        enemy.init(monster, this._hpScale);
 
-        const halfW = Design.WIDTH / 2;
+        const roadsideX = (): number =>
+            (Math.random() < 0.5 ? -1 : 1) * (BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24);
         if (monster.behavior === 'diver') {
-            // 疯鹰：左右侧翼上半区入场，斜线俯冲车尾
-            const side = Math.random() < 0.5 ? -1 : 1;
-            enemy.node.setPosition(side * (halfW + enemy.radius + 10), (Math.random() * 0.35 + 0.5) * this._visH);
+            // 疯鹰：两侧翼上半区入场，之后同样垂直下压
+            enemy.node.setPosition(roadsideX(), (Math.random() * 0.35 + 0.5) * this._visH);
         } else {
             const roll = Math.random();
-            if (roll < 0.6) {
-                // 主攻：屏幕上方出现，追着向前开的车尾跑
+            if (roll < 0.7) {
+                // 主攻：屏幕上方出现，直着向下压
                 enemy.node.setPosition(
-                    (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
+                    x ?? (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
                     this._visH / 2 + enemy.radius + 10,
                 );
-            } else if (roll < 0.725) {
-                // 少量左侧屏外伏击（上半区入场，抄近路少走一段距离）
-                enemy.node.setPosition(-halfW - enemy.radius - 10, (Math.random() * 0.5 + 0.35) * this._visH);
             } else if (roll < 0.85) {
-                // 少量右侧屏外伏击
-                enemy.node.setPosition(halfW + enemy.radius + 10, (Math.random() * 0.5 + 0.35) * this._visH);
-            } else {
-                // 道路两侧中段切入：在路面边缘、屏幕中段直接现身（比屏外伏击更近，威胁更大）
-                // 带入场缩放提示，避免凭空出现的突兀感
-                const side = Math.random() < 0.5 ? -1 : 1;
+                // 道路左侧中段切入（带入场缩放提示，比屏外伏击更近、威胁更大）
                 enemy.node.setPosition(
-                    side * (BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24),
+                    -(BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24),
+                    (Math.random() * 0.35 + 0.1) * this._visH,
+                );
+                node.setScale(0.2, 0.2, 1);
+                tween(node).to(0.18, { scale: new Vec3(1, 1, 1) }).start();
+            } else {
+                // 道路右侧中段切入
+                enemy.node.setPosition(
+                    BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24,
                     (Math.random() * 0.35 + 0.1) * this._visH,
                 );
                 node.setScale(0.2, 0.2, 1);

@@ -27,8 +27,6 @@ export class Enemy extends Component {
     speed = 100;
     radius = 30;
     touchDamage = 10;
-    /** 追击车道：怪物沿自己的车道追向车尾 */
-    private _laneX = 0;
     private _behavior: MonsterBehavior = 'chaser';
     /** 行走动效参数（按怪型在 init 配置） */
     private _walkPhase = 0;
@@ -65,8 +63,8 @@ export class Enemy extends Component {
         this._graphics = this._bodyNode.addComponent(Graphics);
     }
 
-    /** 从池中取出后调用：按波次配置与成长系数初始化；成群刷怪时由外部指定共享车道 */
-    init(info: MonsterInfo, hpScale: number, laneX?: number): void {
+    /** 从池中取出后调用：按波次配置与成长系数初始化 */
+    init(info: MonsterInfo, hpScale: number): void {
         this.spawnId = Enemy._nextSpawnId++;
         this.maxHp = Math.round(info.hp * hpScale);
         this.hp = this.maxHp;
@@ -79,7 +77,6 @@ export class Enemy extends Component {
         this._windupTime = info.windupTime ?? 0.6;
         this._dashRange = info.dashRange ?? 340;
         this._dashSpeed = info.dashSpeed ?? 430;
-        this._laneX = laneX ?? (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH;
         // 蓄力中途被回收的怪会带缩放入池，重置防串状态
         this.node.setScale(1, 1, 1);
         // 行走动效节奏：疯狗高频碎步 / 野猪沉重小跑 / 熊缓慢沉稳 / 疯鹰悬浮
@@ -125,8 +122,8 @@ export class Enemy extends Component {
                 this._updateCharger(dt, bm);
                 break;
             default:
-                // 全部直线追向自己的车道目标（diver 的斜线俯冲由侧翼入场点形成）
-                this._chase(dt, bm, this._laneX);
+                // 全部垂直下压（像雪一样直落）；疯鹰的"侧翼"只体现在入场位置
+                this._descend(dt);
                 break;
         }
         this._updateWalkAnim(dt);
@@ -148,15 +145,10 @@ export class Enemy extends Component {
 
     // ================= 行为逻辑 =================
 
-    private _chase(dt: number, bm: BattleManager, targetX: number): void {
+    /** 垂直下压：保持出生横坐标直落车尾（车尾横贯全宽，直行必达） */
+    private _descend(dt: number): void {
         const p = this.node.position;
-        const dx = targetX - p.x;
-        const dy = bm.vehicleTopY - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= 0.001) {
-            return;
-        }
-        this.node.setPosition(p.x + (dx / dist) * this.speed * dt, p.y + (dy / dist) * this.speed * dt);
+        this.node.setPosition(p.x, p.y - this.speed * dt);
     }
 
     private _updateCharger(dt: number, bm: BattleManager): void {
@@ -170,7 +162,7 @@ export class Enemy extends Component {
                 this._windupPos.set(p.x, p.y, 0);
                 return;
             }
-            this._chase(dt, bm, this._laneX);
+            this._descend(dt);
             return;
         }
         if (this._chargeState === 'windup') {
