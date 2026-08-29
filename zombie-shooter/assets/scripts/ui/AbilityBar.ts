@@ -55,12 +55,16 @@ class AbilityIcon {
     /** 冷却扇形遮罩层（参考《向僵尸开炮》：暗色饼图随冷却顺时针收缩） */
     private _maskG: Graphics = null!;
     private _ringG: Graphics = null!;
+    /** 大招充能完成后的呼吸光效层（图标最底层，只画图标外圈） */
+    private _glowG: Graphics = null!;
     private _nameLabel: Label = null!;
     private _lvLabel: Label = null!;
     private _opacity: UIOpacity = null!;
     private _lastUnlocked: boolean | null = null;
     private _lastLevel = -1;
+    private _lastCooling: boolean | null = null;
     private _wasCooling = false;
+    private _animTime = 0;
 
     constructor(bar: AbilityBar, hero: Hero, slot: SlotId, index: number) {
         this._bar = bar;
@@ -77,6 +81,11 @@ class AbilityIcon {
         this.node.addComponent(UITransform).setContentSize(ICON_R * 2, ICON_R * 2);
         this.node.setPosition(left ? -COL_X : COL_X, y);
         this._opacity = this.node.addComponent(UIOpacity);
+
+        // 呼吸光效层放最底（只画图标外圈，不影响图标本体）
+        const glowNode = createUINode('Glow');
+        this.node.addChild(glowNode);
+        this._glowG = glowNode.addComponent(Graphics);
 
         const bgNode = createUINode('Base');
         this.node.addChild(bgNode);
@@ -98,7 +107,7 @@ class AbilityIcon {
         this.node.on(Node.EventType.TOUCH_END, () => this._bar.onPressEnd(this), this);
         this.node.on(Node.EventType.TOUCH_CANCEL, () => this._bar.onPressCancel(this), this);
 
-        this.refresh();
+        this.refresh(0);
     }
 
     get hero(): Hero { return this._hero; }
@@ -121,37 +130,63 @@ class AbilityIcon {
         return label;
     }
 
-    /** 每帧刷新：等级/解锁变化重画底，冷却文字与充能环按需更新 */
-    refresh(): void {
+    /** 每帧刷新：等级/解锁/充能状态变化重画底，冷却遮罩与光效按需更新 */
+    refresh(dt: number): void {
+        this._animTime += dt;
         const info = this._hero.abilityInfo(this._slot);
         if (!info) {
             return;
         }
         // 未解锁的技能/大招不显示图标（普攻常显）
         this.node.active = this._slot === 'basic' || info.unlocked;
-        if (info.unlocked !== this._lastUnlocked || info.level !== this._lastLevel) {
+
+        const cooling = info.unlocked && info.cdLeft > 0;
+        // 大招充能状态切换（浅色→点亮）需要重画底色
+        const baseDirty = info.unlocked !== this._lastUnlocked
+            || info.level !== this._lastLevel
+            || (this._slot === 'ultimate' && cooling !== this._lastCooling);
+        if (baseDirty) {
             this._lastUnlocked = info.unlocked;
             this._lastLevel = info.level;
-            this._drawBase(info);
+            this._drawBase(info, this._slot === 'ultimate' && cooling);
             this._lvLabel.string = info.unlocked && this._slot !== 'basic' ? String(info.level) : '';
         }
+        this._lastCooling = this._slot === 'ultimate' ? cooling : this._lastCooling;
 
         if (this._slot === 'basic') {
             // 普攻常亮：无冷却/充能/角标
             return;
         }
-        const cooling = info.unlocked && info.cdLeft > 0;
         if (this._slot === 'skill') {
             // 技能：参考《向僵尸开炮》扇形冷却遮罩（暗色饼图随冷却顺时针收缩）
             this._drawCooldownMask(info, cooling);
         } else {
-            // 大招：外环充能进度，充满后消失并弹跳提示
+            // 大招：外环充能进度；充满后点亮并带呼吸光效
             this._drawRing(info, cooling);
+            this._drawGlow(info.unlocked && !cooling);
         }
         if (this._wasCooling && !cooling) {
             this._punch();
         }
         this._wasCooling = cooling;
+    }
+
+    /** 大招就绪呼吸光效：两圈不同相位的光环绕图标缓慢脉动 */
+    private _drawGlow(ready: boolean): void {
+        const g = this._glowG;
+        g.clear();
+        if (!ready) {
+            return;
+        }
+        const pulse = 0.5 + 0.5 * Math.sin(this._animTime * 4);
+        g.lineWidth = 6;
+        g.strokeColor = new Color(255, 183, 77, Math.round(110 + 90 * pulse));
+        g.circle(0, 0, ICON_R + 5 + pulse * 3);
+        g.stroke();
+        g.lineWidth = 4;
+        g.strokeColor = new Color(255, 183, 77, Math.round(50 + 80 * (1 - pulse)));
+        g.circle(0, 0, ICON_R + 11 + (1 - pulse) * 4);
+        g.stroke();
     }
 
     /** 技能冷却遮罩：暗色扇形盖住"未恢复"部分，从顶部顺时针随冷却缩小 */
@@ -180,7 +215,7 @@ class AbilityIcon {
     }
 
     /** 底圆 + 中央首字/锁形 + 角标底（仅解锁状态或等级变化时重画） */
-    private _drawBase(info: AbilityInfo): void {
+    private _drawBase(info: AbilityInfo, pale: boolean): void {
         const g = this._baseG;
         g.clear();
         if (this._slot === 'basic') {
@@ -192,7 +227,6 @@ class AbilityIcon {
             g.lineWidth = 4;
             g.stroke();
             this._nameLabel.string = this._hero.def.name.slice(0, 1);
-            this._badgeG.clear();
             return;
         }
         const isUlt = this._slot === 'ultimate';
@@ -212,11 +246,16 @@ class AbilityIcon {
             g.roundRect(-11, -10, 22, 16, 3);
             g.fill();
             this._nameLabel.string = '';
-            this._badgeG.clear();
             return;
         }
-        g.fillColor = isUlt ? COLOR_ULT_BG : COLOR_SKILL_BG;
-        g.strokeColor = isUlt ? COLOR_ULT_EDGE : COLOR_SKILL_EDGE;
+        if (isUlt && pale) {
+            // 大招充能未完成：浅色（去饱和）底+描边，充满后点亮
+            g.fillColor = new Color(128, 118, 106, 190);
+            g.strokeColor = new Color(198, 188, 172, 170);
+        } else {
+            g.fillColor = isUlt ? COLOR_ULT_BG : COLOR_SKILL_BG;
+            g.strokeColor = isUlt ? COLOR_ULT_EDGE : COLOR_SKILL_EDGE;
+        }
         g.circle(0, 0, ICON_R);
         g.fill();
         g.lineWidth = 4;
@@ -238,7 +277,8 @@ class AbilityIcon {
         g.arc(0, 0, r, 0, Math.PI * 2, false);
         g.stroke();
         if (ratio > 0.01) {
-            g.strokeColor = COLOR_ULT_EDGE;
+            // 充能中进度弧用浅橙（配浅色底），充满后由呼吸光效接管
+            g.strokeColor = new Color(255, 200, 140, 160);
             g.arc(0, 0, r, Math.PI / 2, Math.PI / 2 + ratio * Math.PI * 2, false);
             g.stroke();
         }
@@ -420,7 +460,7 @@ export class AbilityBar extends Component {
 
     update(dt: number): void {
         for (const icon of this._icons) {
-            icon.refresh();
+            icon.refresh(dt);
         }
         // 长按计时：超过阈值显示范围圈
         if (this._press && !this._press.fired) {
