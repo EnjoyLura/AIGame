@@ -1,9 +1,10 @@
-import { _decorator, Component, Graphics, Node, Tween, tween, UIOpacity, Vec3, view } from 'cc';
+import { _decorator, Component, Graphics, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3, view } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Design, GameEvent, Palette } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
 import { NodePool } from '../core/NodePool';
 import { createUINode } from '../core/createUINode';
+import { AssetLib } from '../core/AssetLib';
 import { GameManager } from '../core/GameManager';
 import { Hero } from './Hero';
 import { Bullet, ProjectileSpec } from './Bullet';
@@ -69,6 +70,10 @@ export class BattleManager extends Component {
     private _visH = Design.HEIGHT;
     /** 路面滚动层（下移=载具前进感） */
     private _bgScroll: Node = null!;
+    /** 美术路面滚动节点（上下两张镜像衔接，无缝循环） */
+    private _bgArtA: Node = null!;
+    private _bgArtB: Node = null!;
+    private _bgArtApplied = false;
 
     get isGameOver(): boolean { return this._gameOver; }
     get isPaused(): boolean { return this._paused; }
@@ -134,6 +139,9 @@ export class BattleManager extends Component {
         }
         dt *= this._timeScale;
         this._elapsed += dt;
+        if (!this._bgArtApplied) {
+            this._applyRoadArt();
+        }
         this._scrollBg(dt);
 
         // ---- 刷怪流程 ----
@@ -711,13 +719,58 @@ export class BattleManager extends Component {
         g.fill();
     }
 
+    /** 路面滚动：有美术路面时滚双镜像节点（无缝循环），否则退回代码虚线层 */
     private _scrollBg(dt: number): void {
+        const speed = BattleConfig.ROAD_SCROLL_SPEED * dt;
+        if (this._bgArtApplied) {
+            const H = this._visH;
+            for (const n of [this._bgArtA, this._bgArtB]) {
+                let y = n.position.y - speed;
+                if (y <= -H * 1.5) {
+                    y += H * 2;
+                }
+                n.setPosition(0, y);
+            }
+            return;
+        }
         const tile = 640;
-        let y = this._bgScroll.position.y - BattleConfig.ROAD_SCROLL_SPEED * dt;
+        let y = this._bgScroll.position.y - speed;
         if (y <= -tile) {
             y += tile;
         }
         this._bgScroll.setPosition(0, y);
+    }
+
+    /** 美术路面就绪后替换代码背景：上下两张镜像 Sprite 循环滚动，压在所有节点最底层 */
+    private _applyRoadArt(): void {
+        const frame = AssetLib.frame('scenes/road');
+        if (!frame) {
+            return;
+        }
+        this._bgArtApplied = true;
+        const H = this._visH;
+        const mk = (y: number, flip: boolean): Node => {
+            const n = createUINode('RoadArt');
+            this.node.addChild(n);
+            n.setSiblingIndex(0);
+            n.setPosition(0, y);
+            if (flip) {
+                n.setScale(1, -1, 1);
+            }
+            n.addComponent(UITransform).setContentSize(Design.WIDTH, H);
+            const sp = n.addComponent(Sprite);
+            sp.spriteFrame = frame;
+            sp.sizeMode = Sprite.SizeMode.CUSTOM;
+            sp.trim = false;
+            return n;
+        };
+        // A 占屏幕，B 在其上方垂直翻转（镜像）：B 的顶边=A 的顶边镜像，接缝无缝
+        this._bgArtA = mk(0, false);
+        this._bgArtB = mk(H, true);
+        // 有美术路面后关闭代码绘制的车道虚线（图里自带标线）
+        if (this._bgScroll) {
+            this._bgScroll.active = false;
+        }
     }
 
     /** 占位背景：底色（车道虚线在滚动层 _bgScroll 上，营造前进感） */

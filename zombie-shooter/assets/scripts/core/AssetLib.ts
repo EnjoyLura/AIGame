@@ -9,8 +9,9 @@ import { resources, SpriteFrame } from 'cc';
 /** 已就绪的美术清单（key 相对 textures/，如 'monsters/boar'） */
 const MANIFEST = [
     'monsters/boar',
+    'scenes/road',
     // 后续逐张加：'monsters/dog', 'monsters/bear', 'monsters/eagle', 'monsters/crawler',
-    // 'characters/hero_rifle', ... 'scenes/road', 'scenes/vehicle_tail', 'ui/...'
+    // 'characters/hero_rifle', ... 'scenes/vehicle_tail', 'ui/...'
 ];
 
 export class AssetLib {
