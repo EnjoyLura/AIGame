@@ -87,6 +87,9 @@ class AbilityRuntime {
 
     constructor(private _owner: HeroCombatController, private _def: AbilityDef) {}
 
+    /** 能力定义（图标 HUD/浮窗读取；注意运行时字段名是 _def，直接取 .def 会是 undefined） */
+    get def(): AbilityDef { return this._def; }
+
     get unlocked(): boolean { return this.level > 0; }
 
     /** 等级成长后的实际伤害倍率 */
@@ -226,8 +229,34 @@ export class HeroCombatController {
     get skillLevel(): number { return this._skill.level; }
     get ultimateLevel(): number { return this._ultimate.level; }
 
-    /** 技能/大招运行时信息（技能图标 HUD 与数值浮窗用） */
-    abilityInfo(id: 'skill' | 'ultimate') {
+    /** 技能/大招/普攻运行时信息（技能图标 HUD 与数值浮窗用） */
+    private _basicDef: AbilityDef | null = null;
+
+    abilityInfo(id: 'skill' | 'ultimate' | 'basic') {
+        if (id === 'basic') {
+            // 普攻常驻：合成一个基础能力定义供图标/浮窗展示
+            if (!this._basicDef) {
+                this._basicDef = {
+                    id: this.def.id + '_basic',
+                    name: '普通攻击',
+                    desc: '自动瞄准射程内最近敌人',
+                    kind: this.def.weapon === 'laser' ? 'beam' : 'projectile',
+                    cooldown: this.stats.interval,
+                    damageScale: 1,
+                    range: this.stats.range,
+                    targetMode: 'nearest',
+                    maxTargets: 1,
+                };
+            }
+            return {
+                def: this._basicDef,
+                level: 1,
+                unlocked: true,
+                cdLeft: 0,
+                cdTotal: 0,
+                damage: Math.round(this.stats.atk),
+            };
+        }
         const rt = id === 'skill' ? this._skill : this._ultimate;
         // 未解锁时按 1 级数值展示（level=0 的伤害公式会算出 70% 的错误值）
         const effLevel = Math.max(1, rt.level);

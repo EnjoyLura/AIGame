@@ -14,7 +14,8 @@ import { createUINode } from '../core/createUINode';
 
 const ICON_R = 32;
 const COL_X = 314;
-const ROW_YS = [516, 432, 348, 264];
+/** 每侧 6 行：每英雄占 3 行（普攻/技能/大招），两英雄共 6 行从上到下 */
+const ROW_YS = [560, 480, 400, 320, 240, 160];
 const LONG_PRESS_TIME = 0.45;
 const TIP_W = 300;
 const TIP_MAX_ROWS = 6;
@@ -23,6 +24,8 @@ const COLOR_SKILL_BG = new Color(31, 58, 95, 235);
 const COLOR_SKILL_EDGE = new Color(79, 195, 247, 255);
 const COLOR_ULT_BG = new Color(95, 58, 31, 235);
 const COLOR_ULT_EDGE = new Color(255, 171, 64, 255);
+const COLOR_BASIC_BG = new Color(58, 72, 88, 235);
+const COLOR_BASIC_EDGE = new Color(176, 190, 197, 255);
 const COLOR_LOCK_BG = new Color(55, 71, 79, 210);
 const COLOR_LOCK_EDGE = new Color(120, 144, 156, 210);
 const COLOR_BADGE = new Color(255, 193, 7, 240);
@@ -30,7 +33,8 @@ const COLOR_RANGE = new Color(79, 195, 247, 150);
 const COLOR_RANGE_FILL = new Color(79, 195, 247, 16);
 const COLOR_RANGE_AREA = new Color(255, 171, 64, 150);
 
-type SlotId = 'skill' | 'ultimate';
+type SlotId = 'basic' | 'skill' | 'ultimate';
+const SLOT_ORDER: SlotId[] = ['basic', 'skill', 'ultimate'];
 
 /** 图标角标/tip 共用的能力运行时信息（Hero.abilityInfo 返回结构） */
 interface AbilityInfo {
@@ -65,10 +69,13 @@ class AbilityIcon {
         this._hero = hero;
         this._slot = slot;
         const left = index < 2;
-        const rowInHero = slot === 'skill' ? 0 : 1;
-        const y = ROW_YS[index * 2 + rowInHero];
+        // 同侧两英雄各占 3 行：普攻/技能/大招从上到下（此前索引越界取到 undefined 导致图标 NaN 坐标不可见）
+        const slotIndex = slot === 'basic' ? 0 : slot === 'skill' ? 1 : 2;
+        const y = ROW_YS[(index % 2) * 3 + slotIndex];
 
         this.node = createUINode(`Icon_${hero.def.id}_${slot}`);
+        // 图标必须挂到图标栏节点上（此前遗漏 addChild，图标成了永不渲染的孤儿节点）
+        bar.node.addChild(this.node);
         this.node.addComponent(UITransform).setContentSize(ICON_R * 2, ICON_R * 2);
         this.node.setPosition(left ? -COL_X : COL_X, y);
         this._opacity = this.node.addComponent(UIOpacity);
@@ -125,9 +132,13 @@ class AbilityIcon {
             this._lastUnlocked = info.unlocked;
             this._lastLevel = info.level;
             this._drawBase(info);
-            this._lvLabel.string = info.unlocked ? String(info.level) : '';
+            this._lvLabel.string = info.unlocked && this._slot !== 'basic' ? String(info.level) : '';
         }
 
+        if (this._slot === 'basic') {
+            // 普攻常亮：无冷却/充能/角标
+            return;
+        }
         if (this._slot === 'skill') {
             // 技能：冷却中变暗 + 显示剩余秒数
             const cooling = info.unlocked && info.cdLeft > 0;
@@ -164,6 +175,18 @@ class AbilityIcon {
     private _drawBase(info: AbilityInfo): void {
         const g = this._baseG;
         g.clear();
+        if (this._slot === 'basic') {
+            // 普攻：中性灰蓝底常亮，中央显示英雄名首字，无角标
+            g.fillColor = COLOR_BASIC_BG;
+            g.strokeColor = COLOR_BASIC_EDGE;
+            g.circle(0, 0, ICON_R);
+            g.fill();
+            g.lineWidth = 4;
+            g.stroke();
+            this._nameLabel.string = this._hero.def.name.slice(0, 1);
+            this._badgeG.clear();
+            return;
+        }
         const isUlt = this._slot === 'ultimate';
         if (!info.unlocked) {
             g.fillColor = COLOR_LOCK_BG;
@@ -279,6 +302,10 @@ class TipView {
         if (!info) {
             return;
         }
+        if (icon.slot === 'basic') {
+            this._showBasic(icon.hero);
+            return;
+        }
         const def = info.def;
         const isUlt = icon.slot === 'ultimate';
         this._title.string = info.unlocked
@@ -300,7 +327,35 @@ class TipView {
             rows.push(['爆炸范围', `${def.areaRadius ?? 200}`]);
         }
         rows.push(['射程', `${def.range}`]);
+        this._fillRows(rows);
+        if (!info.unlocked) {
+            this._hint.string = `选择三选一中的「解锁·${def.name}」卡解锁`;
+        } else if (info.level < ABILITY_MAX_LEVEL) {
+            this._hint.string = `下一级：伤害 +30%（Lv.${info.level}→${info.level + 1}）`;
+        } else {
+            this._hint.string = '已达最高等级';
+        }
+        this.node.active = true;
+    }
 
+    /** 普攻浮窗：数值实时读英雄属性（吃攻击/射频/射程卡） */
+    private _showBasic(hero: Hero): void {
+        this._title.string = `${hero.def.name} · 普通攻击`;
+        const isLaser = hero.def.weapon === 'laser';
+        const rows: Array<[string, string]> = [
+            ['伤害', `${Math.round(hero.atk)}${isLaser ? '/秒' : ''}`],
+            [isLaser ? '持续' : '射速', isLaser ? '常驻' : `${(1 / hero.interval).toFixed(1)}/秒`],
+            ['射程', `${Math.round(hero.range)}`],
+        ];
+        if (hero.def.pierce) {
+            rows.push(['穿透', '是']);
+        }
+        this._fillRows(rows);
+        this._hint.string = '选择该英雄的攻击/射频/射程强化卡可提升数值';
+        this.node.active = true;
+    }
+
+    private _fillRows(rows: Array<[string, string]>): void {
         for (let i = 0; i < TIP_MAX_ROWS; i++) {
             const row = rows[i];
             this._keys[i].node.active = !!row;
@@ -310,14 +365,6 @@ class TipView {
                 this._values[i].string = row[1];
             }
         }
-        if (!info.unlocked) {
-            this._hint.string = `选择三选一中的「解锁·${def.name}」卡解锁`;
-        } else if (info.level < ABILITY_MAX_LEVEL) {
-            this._hint.string = `下一级：伤害 +30%（Lv.${info.level}→${info.level + 1}）`;
-        } else {
-            this._hint.string = '已达最高等级';
-        }
-        this.node.active = true;
     }
 
     hide(): void {
@@ -356,8 +403,9 @@ export class AbilityBar extends Component {
             if (index >= 4) {
                 return;
             }
-            this._icons.push(new AbilityIcon(this, hero, 'skill', index));
-            this._icons.push(new AbilityIcon(this, hero, 'ultimate', index));
+            for (const slot of SLOT_ORDER) {
+                this._icons.push(new AbilityIcon(this, hero, slot, index));
+            }
         });
     }
 
