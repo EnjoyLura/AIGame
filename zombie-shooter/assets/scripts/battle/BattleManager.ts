@@ -74,6 +74,8 @@ export class BattleManager extends Component {
     private _bgArtA: Node = null!;
     private _bgArtB: Node = null!;
     private _bgArtApplied = false;
+    /** 美术路面单张实际高度（等比缩放后，滚动间距/回卷以此为准） */
+    private _bgArtH = 0;
 
     get isGameOver(): boolean { return this._gameOver; }
     get isPaused(): boolean { return this._paused; }
@@ -723,12 +725,12 @@ export class BattleManager extends Component {
     private _scrollBg(dt: number): void {
         const speed = BattleConfig.ROAD_SCROLL_SPEED * dt;
         if (this._bgArtApplied) {
-            const H = this._visH;
+            const h = this._bgArtH;
             for (const n of [this._bgArtA, this._bgArtB]) {
                 let y = n.position.y - speed;
                 // 顶边刚离开屏幕底就回卷到上方（晚了会露出画面空档）
-                if (y <= -H) {
-                    y += H * 2;
+                if (y <= -h) {
+                    y += h * 2;
                 }
                 n.setPosition(0, y);
             }
@@ -750,6 +752,15 @@ export class BattleManager extends Component {
         }
         this._bgArtApplied = true;
         const H = this._visH;
+        const rect = frame.rect;
+        // 等比缩放：高度铺满屏幕，宽度不足 720 时才按宽度铺（另一维度超出屏幕裁掉，不拉伸变形）
+        let w = Design.WIDTH;
+        let h = rect.height * (w / rect.width);
+        if (h < H) {
+            h = H;
+            w = rect.width * (h / rect.height);
+        }
+        this._bgArtH = h;
         const mk = (y: number, flip: boolean): Node => {
             const n = createUINode('RoadArt');
             this.node.addChild(n);
@@ -758,16 +769,18 @@ export class BattleManager extends Component {
             if (flip) {
                 n.setScale(1, -1, 1);
             }
-            n.addComponent(UITransform).setContentSize(Design.WIDTH, H);
+            const ut = n.addComponent(UITransform);
             const sp = n.addComponent(Sprite);
-            sp.spriteFrame = frame;
+            // 先设 CUSTOM 再赋 spriteFrame：默认 TRIMMED 会在赋图时把节点尺寸重置为图片原始尺寸
             sp.sizeMode = Sprite.SizeMode.CUSTOM;
             sp.trim = false;
+            sp.spriteFrame = frame;
+            ut.setContentSize(w, h);
             return n;
         };
-        // A 占屏幕，B 在其上方垂直翻转（镜像）：B 的顶边=A 的顶边镜像，接缝无缝
+        // A 占屏幕，B 在其上方垂直翻转（镜像）：接缝两侧互为镜像，无缝
         this._bgArtA = mk(0, false);
-        this._bgArtB = mk(H, true);
+        this._bgArtB = mk(h, true);
         // 有美术路面后关闭代码绘制的车道虚线（图里自带标线）
         if (this._bgScroll) {
             this._bgScroll.active = false;
