@@ -726,7 +726,8 @@ export class BattleManager extends Component {
             const H = this._visH;
             for (const n of [this._bgArtA, this._bgArtB]) {
                 let y = n.position.y - speed;
-                if (y <= -H * 1.5) {
+                // 顶边刚离开屏幕底就回卷到上方（晚了会露出画面空档）
+                if (y <= -H) {
                     y += H * 2;
                 }
                 n.setPosition(0, y);
