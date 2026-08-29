@@ -1,4 +1,4 @@
-import { _decorator, Component, Graphics, Node, Tween, UIOpacity, Vec3, view } from 'cc';
+import { _decorator, Component, Graphics, Node, Tween, tween, UIOpacity, Vec3, view } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Design, GameEvent, Palette } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
@@ -565,18 +565,28 @@ export class BattleManager extends Component {
             enemy.node.setPosition(side * (halfW + enemy.radius + 10), (Math.random() * 0.35 + 0.5) * this._visH);
         } else {
             const roll = Math.random();
-            if (roll < 0.75) {
+            if (roll < 0.6) {
                 // 主攻：屏幕上方出现，追着向前开的车尾跑
                 enemy.node.setPosition(
                     (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
                     this._visH / 2 + enemy.radius + 10,
                 );
-            } else if (roll < 0.875) {
-                // 少量左侧伏击（上半区入场，抄近路少走一段距离）
+            } else if (roll < 0.725) {
+                // 少量左侧屏外伏击（上半区入场，抄近路少走一段距离）
                 enemy.node.setPosition(-halfW - enemy.radius - 10, (Math.random() * 0.5 + 0.35) * this._visH);
-            } else {
-                // 少量右侧伏击
+            } else if (roll < 0.85) {
+                // 少量右侧屏外伏击
                 enemy.node.setPosition(halfW + enemy.radius + 10, (Math.random() * 0.5 + 0.35) * this._visH);
+            } else {
+                // 道路两侧中段切入：在路面边缘、屏幕中段直接现身（比屏外伏击更近，威胁更大）
+                // 带入场缩放提示，避免凭空出现的突兀感
+                const side = Math.random() < 0.5 ? -1 : 1;
+                enemy.node.setPosition(
+                    side * (BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24),
+                    (Math.random() * 0.35 + 0.1) * this._visH,
+                );
+                node.setScale(0.2, 0.2, 1);
+                tween(node).to(0.18, { scale: new Vec3(1, 1, 1) }).start();
             }
         }
         this._enemies.push(enemy);
