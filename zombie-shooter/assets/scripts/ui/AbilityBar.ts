@@ -14,8 +14,8 @@ import { createUINode } from '../core/createUINode';
 
 const ICON_R = 32;
 const COL_X = 314;
-/** 每侧 6 行：每英雄占 3 行（普攻/技能/大招），两英雄共 6 行从上到下 */
-const ROW_YS = [560, 480, 400, 320, 240, 160];
+/** 每侧 6 行：每英雄占 3 行（普攻/技能/大招），两英雄共 6 行从上到下（避开顶部 HUD） */
+const ROW_YS = [470, 392, 314, 236, 158, 80];
 const LONG_PRESS_TIME = 0.45;
 const TIP_W = 300;
 const TIP_MAX_ROWS = 6;
@@ -112,6 +112,8 @@ class AbilityIcon {
         (parent ?? this.node).addChild(n);
         n.setPosition(x, y);
         const label = n.addComponent(Label);
+        // Label 默认字符串是 "label"，不显式清空会显示占位文字
+        label.string = '';
         label.fontSize = size;
         label.lineHeight = size + 4;
         label.isBold = true;
@@ -128,6 +130,8 @@ class AbilityIcon {
         if (!info) {
             return;
         }
+        // 未解锁的技能/大招不显示图标（普攻常显）
+        this.node.active = this._slot === 'basic' || info.unlocked;
         if (info.unlocked !== this._lastUnlocked || info.level !== this._lastLevel) {
             this._lastUnlocked = info.unlocked;
             this._lastLevel = info.level;
@@ -267,23 +271,24 @@ class TipView {
         g.roundRect(-TIP_W / 2, -130, TIP_W, 260, 10);
         g.stroke();
 
-        this._title = this._makeLabel('Title', -TIP_W / 2 + 18, 100, 24, 'left', new Color(255, 214, 120, 255));
+        this._title = this._makeLabel('Title', -TIP_W / 2 + 18, 100, 24, 'left', new Color(255, 214, 120, 255), 264, 30);
         for (let i = 0; i < TIP_MAX_ROWS; i++) {
             const y = 58 - i * 30;
-            this._keys.push(this._makeLabel('K' + i, -TIP_W / 2 + 18, y, 21, 'left', new Color(214, 222, 228, 255)));
-            this._values.push(this._makeLabel('V' + i, TIP_W / 2 - 18, y, 21, 'right', new Color(240, 244, 247, 255)));
+            this._keys.push(this._makeLabel('K' + i, -TIP_W / 2 + 18, y, 21, 'left', new Color(214, 222, 228, 255), 110, 27));
+            this._values.push(this._makeLabel('V' + i, TIP_W / 2 - 18, y, 21, 'right', new Color(240, 244, 247, 255), 110, 27));
         }
-        this._hint = this._makeLabel('Hint', 0, -104, 19, 'center', new Color(126, 226, 126, 255));
+        this._hint = this._makeLabel('Hint', 0, -100, 19, 'center', new Color(126, 226, 126, 255), 270, 50);
     }
 
     private _makeLabel(name: string, x: number, y: number, size: number,
-        align: 'left' | 'right' | 'center', color: Color): Label {
+        align: 'left' | 'right' | 'center', color: Color, boxW?: number, boxH?: number): Label {
         const n = createUINode('tip_' + name);
         this.node.addChild(n);
         n.setPosition(x, y);
         const ut = n.addComponent(UITransform);
         ut.setAnchorPoint(align === 'right' ? 1 : align === 'left' ? 0 : 0.5, 0.5);
         const label = n.addComponent(Label);
+        label.string = '';
         label.fontSize = size;
         label.lineHeight = size + 6;
         label.isBold = name === 'Title';
@@ -294,6 +299,11 @@ class TipView {
         label.horizontalAlign = align === 'right'
             ? Label.HorizontalAlign.RIGHT
             : align === 'left' ? Label.HorizontalAlign.LEFT : Label.HorizontalAlign.CENTER;
+        // 限定宽度 + SHRUNK：超长文本自动缩字/换行，避免溢出浮窗边框
+        if (boxW) {
+            label.overflow = Label.Overflow.SHRUNK;
+            ut.setContentSize(boxW, boxH ?? size + 6);
+        }
         return label;
     }
 
