@@ -2,6 +2,7 @@ import { _decorator, Color, Component, Graphics, Label, Node, tween, UIOpacity, 
 const { ccclass } = _decorator;
 import { ABILITY_MAX_LEVEL, AbilityDef } from '../battle/HeroDef';
 import { Hero } from '../battle/Hero';
+import { BattleManager } from '../battle/BattleManager';
 import { createUINode } from '../core/createUINode';
 
 /**
@@ -456,6 +457,11 @@ export class AbilityBar extends Component {
     private _rangeG: Graphics = null!;
     private _press: { icon: AbilityIcon; elapsed: number; fired: boolean } | null = null;
     private _rangeIcon: AbilityIcon | null = null;
+    /** x2 倍速开关按钮（左列顶部、1 号位普攻上方） */
+    private _speedNode: Node = null!;
+    private _speedG: Graphics = null!;
+    private _speedLabel: Label = null!;
+    private _lastSpeedOn: boolean | null = null;
 
     onLoad(): void {
         // 范围圈层在图标之下（本组件节点整体位于场景最上层）
@@ -464,6 +470,57 @@ export class AbilityBar extends Component {
         this._rangeG = rangeNode.addComponent(Graphics);
 
         this._tip = new TipView(this.node);
+        this._buildSpeedToggle();
+    }
+
+    /** x2 倍速开关：点击在 1x/2x 间切换（开=青色高亮） */
+    private _buildSpeedToggle(): void {
+        const n = createUINode('SpeedToggle');
+        this.node.addChild(n);
+        n.addComponent(UITransform).setContentSize(56, 56);
+        n.setPosition(-COL_X, ROW_YS[0] + 76);
+        this._speedNode = n;
+        this._speedG = n.addComponent(Graphics);
+        this._speedLabel = this._makeSpeedLabel('x2');
+        n.on(Node.EventType.TOUCH_END, () => {
+            const bm = BattleManager.instance;
+            if (bm) {
+                bm.toggleSpeed();
+            }
+        }, this);
+        this._syncSpeedButton();
+    }
+
+    private _makeSpeedLabel(text: string): Label {
+        const n = createUINode('lb_speed');
+        this._speedNode.addChild(n);
+        n.setPosition(0, 0);
+        const label = n.addComponent(Label);
+        label.string = text;
+        label.fontSize = 22;
+        label.lineHeight = 26;
+        label.isBold = true;
+        label.color = Color.WHITE;
+        label.enableOutline = true;
+        label.outlineColor = Color.BLACK;
+        label.outlineWidth = 2;
+        return label;
+    }
+
+    private _syncSpeedButton(): void {
+        const on = BattleManager.instance?.timeScale === 2;
+        if (on === this._lastSpeedOn) {
+            return;
+        }
+        this._lastSpeedOn = on;
+        const g = this._speedG;
+        g.clear();
+        g.fillColor = on ? new Color(31, 96, 110, 245) : COLOR_BASIC_BG;
+        g.strokeColor = on ? COLOR_SKILL_EDGE : COLOR_BASIC_EDGE;
+        g.circle(0, 0, 27);
+        g.fill();
+        g.lineWidth = 4;
+        g.stroke();
     }
 
     /** 重开/首次部署后重建图标（英雄组件会被整体重建） */
@@ -486,6 +543,7 @@ export class AbilityBar extends Component {
     }
 
     update(dt: number): void {
+        this._syncSpeedButton();
         for (const icon of this._icons) {
             icon.refresh(dt);
         }

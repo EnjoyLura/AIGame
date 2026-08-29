@@ -113,6 +113,7 @@ export class Enemy extends Component {
         if (!bm || bm.isPaused || bm.isGameOver) {
             return;
         }
+        dt *= bm.timeScale;
         const p = this.node.position;
         // 追到车尾：底边触到车尾上沿即啃咬
         if (p.y - this.radius <= bm.vehicleTopY) {

@@ -53,6 +53,7 @@ export class Bullet extends Component {
         if (!bm || bm.isPaused || bm.isGameOver) {
             return;
         }
+        dt *= bm.timeScale;
         const p = this.node.position;
         this.node.setPosition(p.x + this._dir.x * this._speed * dt, p.y + this._dir.y * this._speed * dt);
         const next = this.node.position;

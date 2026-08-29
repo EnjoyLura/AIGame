@@ -106,7 +106,7 @@ export class Hero extends Component {
             this._combat?.clearBeam();
             return;
         }
-        this._combat.update(dt);
+        this._combat.update(dt * bm.timeScale);
     }
 
     private _drawPlaceholder(): void {

@@ -57,6 +57,14 @@ export class BattleManager extends Component {
     private _gameOver = false;
     /** 升级选卡期间暂停整个战斗（各实体 update 自行检查） */
     private _paused = false;
+    /** 战斗倍速（1 或 2，图标栏 x2 按钮切换；重开保留） */
+    private _timeScale = 1;
+    get timeScale(): number { return this._timeScale; }
+    /** 切换 1x/2x 倍速，返回切换后的倍速 */
+    toggleSpeed(): number {
+        this._timeScale = this._timeScale === 1 ? 2 : 1;
+        return this._timeScale;
+    }
     private _elapsed = 0;
     private _visH = Design.HEIGHT;
     /** 路面滚动层（下移=载具前进感） */
@@ -124,6 +132,7 @@ export class BattleManager extends Component {
         if (this._gameOver || this._paused) {
             return;
         }
+        dt *= this._timeScale;
         this._elapsed += dt;
         this._scrollBg(dt);
 

@@ -29,6 +29,7 @@ export class XpGem extends Component {
         if (!bm || bm.isPaused || bm.isGameOver) {
             return;
         }
+        dt *= bm.timeScale;
         if (this._delay > 0) {
             this._delay -= dt;
             return;
