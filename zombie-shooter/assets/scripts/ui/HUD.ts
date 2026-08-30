@@ -127,10 +127,11 @@ export class HUD extends Component {
     }
 
     private _buildTopBar(): void {
-        // 构建版本戳（左下角小字，识别设备构建新旧）
-        const stamp = this._makeLabel(this.node, BUILD_STAMP, -Design.WIDTH / 2 + 70, -this._vh / 2 + 30, 22);
+        // 构建版本戳（左下角小字，识别设备构建新旧）：常量 + 构建时间（postbuild 注入）
+        const buildTime = (typeof window !== 'undefined' && (window as any).__BUILD_TIME) || '';
+        const stamp = this._makeLabel(this.node, BUILD_STAMP + (buildTime ? '·' + buildTime : ''), -Design.WIDTH / 2 + 70, -this._vh / 2 + 30, 22);
         stamp.color = new Color(120, 130, 140, 255);
-        console.log('[末日航线] build', BUILD_STAMP);
+        console.log('[末日航线] build', BUILD_STAMP, buildTime);
         this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 135, this._vh / 2 - 75, 45);
         this._waveLabel = this._makeLabel(this.node, '', 0, this._vh / 2 - 75, 51);
         this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 135, this._vh / 2 - 75, 45);

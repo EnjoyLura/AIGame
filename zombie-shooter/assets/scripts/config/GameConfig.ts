@@ -12,7 +12,7 @@ export const Design = {
 } as const;
 
 /** 构建版本戳：每次发布更新（HUD 角落可见，用于识别设备上的构建是否最新） */
-export const BUILD_STAMP = 'b0830-3';
+export const BUILD_STAMP = 'b0831-1';
 
 /** 战斗核心参数 */
 export const BattleConfig = {
