@@ -30,8 +30,6 @@ const COLOR_BASIC_BG = new Color(58, 72, 88, 235);
 const COLOR_BASIC_EDGE = new Color(176, 190, 197, 255);
 const COLOR_LOCK_BG = new Color(55, 71, 79, 210);
 const COLOR_LOCK_EDGE = new Color(120, 144, 156, 210);
-const COLOR_CHARGE_WATER = new Color(255, 171, 64, 110);
-const COLOR_CHARGE_WATER_LINE = new Color(255, 224, 160, 200);
 const COLOR_COOLDOWN_MASK = new Color(10, 16, 22, 150);
 /** 每英雄元素主题：大招充能填充色 + 就绪元素特效色（原神式） */
 const HERO_ELEMENT: Record<string, { fill: Color; fx: Color }> = {
@@ -256,7 +254,7 @@ class AbilityIcon {
         const fillStep = Math.round((info.charge ?? 0) / (info.chargeMax || 1) * 10);
         if (fillStep !== this._lastFillStep) {
             this._lastFillStep = fillStep;
-            this._drawUltFill(fillStep / 10);
+            this._drawChargeRing(fillStep / 10);
         }
         if (full !== this._wasFull) {
             if (full) {
@@ -266,38 +264,6 @@ class AbilityIcon {
             this._setReadyFx(full);
             this._wasFull = full;
         }
-    }
-
-    /** 大招充能填充：元素色"水位"从图标底部往上灌（圆形弓形填充+水面高光） */
-    private _drawUltFill(fraction: number): void {
-        const g = this._fillG;
-        g.clear();
-        if (!Number.isFinite(fraction) || fraction <= 0.01) {
-            return;
-        }
-        const f = Math.min(1, fraction);
-        const r = ICON_R - 3;
-        const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
-        if (f >= 0.99) {
-            g.fillColor = el.fill;
-            g.circle(0, 0, r);
-            g.fill();
-            return;
-        }
-        // 水面高度 yc：f=0 → 底部(-r)，f=1 → 顶部(+r)
-        const yc = -r + 2 * f * r;
-        const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
-        const x = Math.cos(a) * r;
-        g.fillColor = el.fill;
-        g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
-        g.close();
-        g.fill();
-        // 水面高光线
-        g.strokeColor = new Color(255, 255, 255, 170);
-        g.lineWidth = 2.5;
-        g.moveTo(-x, yc);
-        g.lineTo(x, yc);
-        g.stroke();
     }
 
     /** 大招就绪元素特效：4 颗元素粒子环绕图标（静态绘制一次，旋转+透明度补间驱动，零重画） */
@@ -313,18 +279,14 @@ class AbilityIcon {
             return;
         }
         const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
-        const orbit = ICON_R + 11;
+        const orbit = ICON_R + 9;
         for (let i = 0; i < 4; i++) {
             const ang = (i / 4) * Math.PI * 2;
             const px = Math.cos(ang) * orbit;
             const py = Math.sin(ang) * orbit;
             g.fillColor = el.fx;
-            g.circle(px, py, 5);
+            g.circle(px, py, 3.5);
             g.fill();
-            g.strokeColor = el.fx;
-            g.lineWidth = 2;
-            g.circle(px, py, 8);
-            g.stroke();
         }
         this._fxOpacity.opacity = 210;
         tween(this._fxNode)
@@ -337,36 +299,75 @@ class AbilityIcon {
             .start();
     }
 
-    /** 技能施法进度环：亮色弧随剩余施法时间从满圆顺时针收缩（图标外圈） */
+    /** 技能施法进度环：亮弧占比=剩余时间比例，从 12 点顺时针收缩（图标外圈） */
     private _drawCastRing(frac: number): void {
         const g = this._castG;
         g.clear();
-        if (frac <= 0.005) {
+        const lit = Math.min(1, Math.max(0, frac));
+        if (lit <= 0.005) {
             return;
         }
-        const r = ICON_R + 8;
+        const r = ICON_R + 10;
+        const start = Math.PI / 2;   // 12 点
+        const segs = 48;
         g.lineWidth = 4;
         g.strokeColor = COLOR_SKILL_EDGE;
-        g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.min(1, frac) * Math.PI * 2, false);
+        const n = Math.ceil(segs * lit);
+        let first = true;
+        for (let i = 0; i <= n; i++) {
+            const t = Math.min(lit * segs, i) / segs;
+            const ang = start - t * Math.PI * 2;
+            const px = Math.cos(ang) * r;
+            const py = Math.sin(ang) * r;
+            if (first) {
+                g.moveTo(px, py);
+                first = false;
+            } else {
+                g.lineTo(px, py);
+            }
+        }
         g.stroke();
     }
 
-    /** 大招充能环：底环 + 金色弧随充能从顶部顺时针填充（原神式） */
+    /** 大招充能环：未就绪时图标压暗，元素色细弧随击杀充能从 12 点顺时针填充（原神式） */
     private _drawChargeRing(frac: number): void {
         const g = this._fillG;
         g.clear();
-        if (frac <= 0.005) {
-            return;
-        }
+        const f = Math.min(1, Math.max(0, frac));
+        const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
         const r = ICON_R + 7;
-        g.lineWidth = 4;
-        g.strokeColor = new Color(0, 0, 0, 90);
-        g.circle(0, 0, r);
-        g.stroke();
-        g.lineWidth = 5;
-        g.strokeColor = new Color(255, 214, 120, 235);
-        g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.min(1, frac) * Math.PI * 2, false);
-        g.stroke();
+        const start = Math.PI / 2;   // 12 点
+        const segs = 48;
+        if (f < 0.995) {
+            // 未就绪：压暗图标
+            g.fillColor = new Color(0, 0, 0, 90);
+            g.circle(0, 0, ICON_R - 1);
+            g.fill();
+            // 底环
+            g.lineWidth = 3;
+            g.strokeColor = new Color(0, 0, 0, 90);
+            g.circle(0, 0, r);
+            g.stroke();
+            // 元素色进度弧（12 点顺时针填充）
+            const n = Math.ceil(segs * f);
+            g.lineWidth = 5;
+            g.strokeColor = el.fx;
+            let first = true;
+            for (let i = 0; i <= n; i++) {
+                const t = Math.min(f * segs, i) / segs;
+                const ang = start - t * Math.PI * 2;
+                const px = Math.cos(ang) * r;
+                const py = Math.sin(ang) * r;
+                if (first) {
+                    g.moveTo(px, py);
+                    first = false;
+                } else {
+                    g.lineTo(px, py);
+                }
+            }
+            g.stroke();
+        }
+        // 就绪：不加环——由元素粒子特效 + 点亮的图标表达
     }
 
     /** 大招就绪呼吸光效：光圈静态绘制一次，脉动由节点缩放+透明度补间驱动 */
@@ -404,52 +405,26 @@ class AbilityIcon {
             .start();
     }
 
-    /** 大招"储水"充能：半透明橙水按充能比例从底部往上灌（圆形弓形填充+水面高光） */
-    private _drawUltFill(fraction: number): void {
-        const g = this._fillG;
-        g.clear();
-        if (!Number.isFinite(fraction) || fraction <= 0.01) {
-            return;
-        }
-        const f = Math.min(1, fraction);
-        const r = ICON_R - 3;
-        if (f >= 0.99) {
-            g.fillColor = COLOR_CHARGE_WATER;
-            g.circle(0, 0, r);
-            g.fill();
-            return;
-        }
-        // 水面高度 yc：f=0 → 底部(-r)，f=1 → 顶部(+r)
-        const yc = -r + 2 * f * r;
-        const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
-        const x = Math.cos(a) * r;
-        // 弓形：沿圆弧从左交点经过底部到右交点，闭合弦线
-        g.fillColor = COLOR_CHARGE_WATER;
-        g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
-        g.close();
-        g.fill();
-        // 水面高光线
-        g.strokeColor = COLOR_CHARGE_WATER_LINE;
-        g.lineWidth = 4;
-        g.moveTo(-x, yc);
-        g.lineTo(x, yc);
-        g.stroke();
-    }
-
-    /** 技能冷却遮罩：按 24 刻度绘制暗色扇形（step=0 清空），只在刻度变化时调用 */
+    /** 技能冷却遮罩：暗区从满圆随恢复顺时针缩向 12 点（多边形扇形，方向精确可控） */
     private _drawCooldownMask(step: number): void {
         const g = this._maskG;
         g.clear();
         if (step <= 0) {
             return;
         }
-        const ratio = step / 24;
-        const start = -Math.PI / 2;
-        // 已恢复的结束角（顺时针）；扇形盖住 recovered→顶部+整圈 的剩余部分
-        const recoveredEnd = start + Math.max(0.02, ratio) * Math.PI * 2;
+        const recovered = step / 24;   // 已恢复比例
+        const dark = 1 - recovered;    // 剩余暗区占比
+        if (dark <= 0.005) {
+            return;
+        }
+        const start = Math.PI / 2;     // 12 点
+        const segs = 48;
         g.fillColor = COLOR_COOLDOWN_MASK;
         g.moveTo(0, 0);
-        g.arc(0, 0, ICON_R + 3, recoveredEnd, start + Math.PI * 2, false);
+        for (let i = 0; i <= segs; i++) {
+            const ang = start - (dark * i / segs) * Math.PI * 2;   // 从 12 点顺时针铺暗区
+            g.lineTo(Math.cos(ang) * (ICON_R + 3), Math.sin(ang) * (ICON_R + 3));
+        }
         g.close();
         g.fill();
     }
