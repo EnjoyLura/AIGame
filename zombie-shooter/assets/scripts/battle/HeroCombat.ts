@@ -49,26 +49,16 @@ class LaserBasicAttack implements BasicAttack {
     private _target: EnemyHandle | null = null;
     private _damage = 0;
     private _time = 0;
-    private _retarget = 0;
 
     constructor(private _owner: HeroCombatController) {}
 
     update(dt: number): void {
-        // demo 式索敌：目标失效立即重索；有效时每 0.25s 才重新评估（锁定不抖动），
-        // 且优先选择最靠近车尾（y 最大、威胁最大）的目标
-        this._retarget -= dt;
+        // demo 式粘滞锁定：当前目标活着且在射程内就坚决不打断（不主动换"更靠前"的目标），
+        // 只有目标死亡/被击杀/超出射程时才立即重新索敌——消灭"半路换目标"和"空射"
         if (!this._owner.battle.isEnemyHandleValid(this._target, this._owner.position, this._owner.stats.range)) {
             this._target = this._owner.battle.findFrontTarget(this._owner.position, this._owner.stats.range);
             this._damage = 0;
             this._time = 0;
-        } else if (this._retarget <= 0) {
-            this._retarget = 0.25;
-            const better = this._owner.battle.findFrontTarget(this._owner.position, this._owner.stats.range);
-            if (better && better.enemy !== (this._target && this._target.enemy)) {
-                this._target = better;
-                this._damage = 0;
-                this._time = 0;
-            }
         }
         if (!this._target) {
             this._owner.clearBeam('basic');
