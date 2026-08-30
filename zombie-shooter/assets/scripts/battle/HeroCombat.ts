@@ -53,8 +53,8 @@ class LaserBasicAttack implements BasicAttack {
     constructor(private _owner: HeroCombatController) {}
 
     update(dt: number): void {
-        // demo 式粘滞锁定：当前目标活着且在射程内就坚决不打断（不主动换"更靠前"的目标），
-        // 只有目标死亡/被击杀/超出射程时才立即重新索敌——消灭"半路换目标"和"空射"
+        // demo 式粘滞锁定：当前目标活着且在射程内就坚决不打断，
+        // 只有目标死亡/被击杀/超出射程时才立即重新索敌。
         if (!this._owner.battle.isEnemyHandleValid(this._target, this._owner.position, this._owner.stats.range)) {
             this._target = this._owner.battle.findFrontTarget(this._owner.position, this._owner.stats.range);
             this._damage = 0;
@@ -64,15 +64,27 @@ class LaserBasicAttack implements BasicAttack {
             this._owner.clearBeam('basic');
             return;
         }
-        this._owner.stats.notifyShot?.(this._target.enemy.node.position);
-        this._owner.drawBeam('basic', this._target, 6 * this._owner.battle.uiScale);
+
+        // 先结算伤害（可能击杀目标），再画光束——保证画出来的光束永远指着活目标，
+        // 击杀瞬间同帧重锁重画，不产生"光束挂在尸体/空处"的过渡帧
         this._damage += this._owner.stats.atk * dt;
         this._time += dt;
         if (this._time >= 0.5) {
             this._owner.battle.applyDamage(this._target, Math.round(this._damage), false, this._owner.def.id);
             this._damage = 0;
             this._time = 0;
+            if (!this._owner.battle.isEnemyHandleValid(this._target, this._owner.position, this._owner.stats.range)) {
+                this._target = this._owner.battle.findFrontTarget(this._owner.position, this._owner.stats.range);
+                if (!this._target) {
+                    this._owner.clearBeam('basic');
+                    return;
+                }
+            }
         }
+
+        // demo 语义：激光身体瞬间转向目标（不插值扫过去）
+        this._owner.stats.notifyShot?.(this._target.enemy.node.position, true);
+        this._owner.drawBeam('basic', this._target, 6 * this._owner.battle.uiScale);
     }
 
     reset(): void {

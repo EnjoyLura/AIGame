@@ -37,13 +37,17 @@ export class Hero extends Component {
         this.node.angle = 0;
     }
 
-    /** 射击/施法时由战斗控制器回调：身体朝向目标方向倾斜（代码手段的瞄准表现） */
-    notifyShot(targetPos: Vec3): void {
+    /** 射击/施法时由战斗控制器回调：身体朝向目标方向倾斜；snap=true 瞬间转向（激光） */
+    notifyShot(targetPos: Vec3, snap = false): void {
         const p = this.node.position;
         const dx = targetPos.x - p.x;
         const dy = Math.max(60 * BattleManager.instance.uiScale, targetPos.y - p.y);
         // 侧向偏移比例 → 倾斜角：目标在左（dx<0）身体向左倾（正角度=逆时针）
         this._aimTarget = Math.max(-60, Math.min(60, -(dx / dy) * 60));
+        if (snap) {
+            this._aimLean = this._aimTarget;
+            this.node.angle = this._aimLean;
+        }
         this._recoil = 1;
     }
 
