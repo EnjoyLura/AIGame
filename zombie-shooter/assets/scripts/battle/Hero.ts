@@ -152,8 +152,8 @@ export class Hero extends Component {
 
     /** 瞄准倾斜平滑跟随：射击方向改变时身体平滑转向，停止射击后缓慢回正 */
     private _updateAimPose(dt: number): void {
-        this._aimLean += (this._aimTarget - this._aimLean) * Math.min(1, dt * 10);
-        this._aimTarget += -this._aimTarget * Math.min(1, dt * 0.25);
+        // 秒转身：快速插值朝向目标；不回正——保持朝向最后攻击的目标
+        this._aimLean += (this._aimTarget - this._aimLean) * Math.min(1, dt * 25);
         this.node.angle = this._aimLean;
         this._recoil = Math.max(0, this._recoil - dt * 5);
         const kick = this._recoil * 12 * (BattleManager.instance ? BattleManager.instance.uiScale : 1);
