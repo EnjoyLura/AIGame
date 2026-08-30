@@ -7,8 +7,12 @@ import { MonsterBehavior, MonsterInfo } from './WaveData';
 import { BattleManager } from './BattleManager';
 
 /** 已有美术立绘的怪型（key 相对 textures/；缺图的回退 Graphics 占位） */
-const MONSTER_ART: Partial<Record<MonsterBehavior, string>> = {
-    charger: 'monsters/boar',
+const MONSTER_ART: Record<string, string> = {
+    crawler: 'monsters/crawler',
+    dog: 'monsters/dog',
+    boar: 'monsters/boar',
+    bear: 'monsters/bear',
+    eagle: 'monsters/eagle',
 };
 
 /**
@@ -220,7 +224,7 @@ export class Enemy extends Component {
 
     /** 尝试挂美术立绘：成功返回 true（占位 Graphics 已清空）；缺图返回 false 走占位 */
     private _tryApplyArt(info: MonsterInfo): boolean {
-        const key = MONSTER_ART[info.behavior];
+        const key = MONSTER_ART[info.id];
         const frame = key ? AssetLib.frame(key) : null;
         if (!frame) {
             if (this._artNode) {
@@ -286,6 +290,7 @@ export class Enemy extends Component {
         // 直走表现：只保留轻微上下颠簸（不做左右摇摆、不做横向形变）
         const bob = this._isFlyer ? Math.sin(this._walkPhase) : Math.abs(Math.cos(this._walkPhase));
         this._bodyNode.setPosition(0, bob * this._bobAmp);
+        this._bodyNode.angle = Math.sin(this._walkPhase) * 3;   // 轻微摇摆（立绘活跃感）
     }
 
     private _bodyColor(behavior: MonsterBehavior): Color {

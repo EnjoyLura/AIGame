@@ -1,7 +1,10 @@
-import { _decorator, Component, Graphics } from 'cc';
+import { _decorator, Component, Graphics, Node, Sprite, UITransform, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { Palette } from '../config/GameConfig';
 import { HeroDef } from './HeroDef';
+import { AssetLib } from '../core/AssetLib';
+import { BattleManager } from './BattleManager';
+import { createUINode } from '../core/createUINode';
 import { HeroCombatController } from './HeroCombat';
 
 export type HeroUpgradeId = 'atk' | 'rate' | 'range' | 'skill' | 'ultimate';
@@ -13,15 +16,35 @@ export class Hero extends Component {
     interval = 1;
     range = 800;
     private _combat: HeroCombatController = null!;
+    /** 立绘子节点（AssetLib 就绪后替换代码占位，缺图回退） */
+    private _artNode: Node = null!;
+    private _artApplied = false;
+    /** 瞄准倾斜（跟随射击方向）与后坐状态 */
+    private _aimLean = 0;
+    private _aimTarget = 0;
+    private _recoil = 0;
 
     init(def: HeroDef): void {
         this.def = def;
         this.atk = def.atk;
         this.interval = def.interval || 1;
-        this.range = def.range;
+        this.range = def.range * BattleManager.instance.uiScale;
         this._combat?.reset();
         this._combat = new HeroCombatController(def, this, this.node);
         this._drawPlaceholder();
+        this._aimLean = 0;
+        this._aimTarget = 0;
+        this.node.angle = 0;
+    }
+
+    /** 射击/施法时由战斗控制器回调：身体朝向目标方向倾斜（代码手段的瞄准表现） */
+    notifyShot(targetPos: Vec3): void {
+        const p = this.node.position;
+        const dx = targetPos.x - p.x;
+        const dy = Math.max(60 * BattleManager.instance.uiScale, targetPos.y - p.y);
+        // 侧向偏移比例 → 倾斜角（背视立绘朝上，只做 ±35° 内的倾斜提示）
+        this._aimTarget = Math.max(-35, Math.min(35, (dx / dy) * 45));
+        this._recoil = 1;
     }
 
     applyUpgrade(upgradeId: HeroUpgradeId): void {
@@ -102,14 +125,50 @@ export class Hero extends Component {
 
     update(dt: number): void {
         const bm = this._combat?.battle;
+        // 立绘就绪即替换占位（AssetLib 异步加载，逐帧探测直到成功）
+        if (!this._artApplied) {
+            const frame = AssetLib.frame(`characters/${this.def.id}`);
+            if (frame) {
+                this._artApplied = true;
+                const sp = this._artNode.getComponent(Sprite) ?? this._artNode.addComponent(Sprite);
+                sp.sizeMode = Sprite.SizeMode.CUSTOM;
+                sp.trim = false;
+                sp.spriteFrame = frame;
+                const s = bm ? bm.uiScale : 1;
+                const h = 180 * s;
+                this._artNode.getComponent(UITransform)!.setContentSize(frame.width / frame.height * h, h);
+                for (const g of this.node.getComponents(Graphics)) {
+                    g.clear();
+                }
+            }
+        }
         if (!bm || bm.isPaused || bm.isGameOver) {
             this._combat?.clearBeam();
             return;
         }
         this._combat.update(dt * bm.timeScale);
+        this._updateAimPose(dt);
+    }
+
+    /** 瞄准倾斜平滑跟随 + 无射击时缓慢回正 */
+    private _updateAimPose(dt: number): void {
+        this._aimLean += (this._aimTarget - this._aimLean) * Math.min(1, dt * 10);
+        this._aimTarget += -this._aimTarget * Math.min(1, dt * 1.5);
+        this.node.angle = this._aimLean;
+        this._recoil = Math.max(0, this._recoil - dt * 6);
+        const kick = this._recoil * 5 * (BattleManager.instance ? BattleManager.instance.uiScale : 1);
+        this.node.setPosition(this.node.position.x, this.node.position.y);
+        this._artNode.setPosition(0, -kick);
     }
 
     private _drawPlaceholder(): void {
+        if (!this._artNode) {
+            this._artNode = createUINode('Art');
+            this.node.addChild(this._artNode);
+            this._artNode.addComponent(UITransform);
+            this._artNode.setPosition(0, 0);
+        }
+        this._artNode.active = !this._artApplied;
         const own = this.node.getComponents(Graphics);
         for (const g of own) {
             g.clear();

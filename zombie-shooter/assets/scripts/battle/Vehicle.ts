@@ -1,7 +1,9 @@
-import { _decorator, Component, Graphics } from 'cc';
+import { _decorator, Component, Graphics, Node, Sprite, UITransform, view } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Design, GameEvent, Palette } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
+import { AssetLib } from '../core/AssetLib';
+import { createUINode } from '../core/createUINode';
 import { BattleManager } from './BattleManager';
 
 /**
@@ -13,9 +15,38 @@ import { BattleManager } from './BattleManager';
 export class Vehicle extends Component {
     maxHp = BattleConfig.VEHICLE_MAX_HP;
     hp = BattleConfig.VEHICLE_MAX_HP;
+    /** UI/世界缩放系数（部署时由 BattleManager 注入） */
+    uiScale = 1;
+    private _artTried = false;
 
     onLoad(): void {
         this._drawPlaceholder();
+    }
+
+    /** 美术就绪即替换占位（AssetLib 异步，逐帧探测直到成功） */
+    update(): void {
+        if (this._artTried) {
+            return;
+        }
+        const frame = AssetLib.frame('scenes/vehicle_tail');
+        if (!frame) {
+            return;
+        }
+        this._artTried = true;
+        const s = this.uiScale;
+        const art = createUINode('TailArt');
+        this.node.addChild(art);
+        art.setSiblingIndex(0);
+        const w = view.getVisibleSize().width + 12 * s;
+        const h = w * (frame.height / frame.width);
+        art.addComponent(UITransform).setContentSize(w, h);
+        const sp = art.addComponent(Sprite);
+        sp.sizeMode = Sprite.SizeMode.CUSTOM;
+        sp.trim = false;
+        sp.spriteFrame = frame;
+        for (const g of this.node.getComponents(Graphics)) {
+            g.clear();
+        }
     }
 
     resetState(): void {

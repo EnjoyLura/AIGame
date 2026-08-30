@@ -11,6 +11,8 @@ export interface HeroCombatStats {
     atk: number;
     interval: number;
     range: number;
+    /** 射击/施法瞄准回调（英雄身体朝向表现用） */
+    notifyShot?(targetPos: Vec3): void;
 }
 
 interface BasicAttack {
@@ -59,7 +61,8 @@ class LaserBasicAttack implements BasicAttack {
             this._owner.clearBeam('basic');
             return;
         }
-        this._owner.drawBeam('basic', this._target, 6);
+        this._owner.stats.notifyShot?.(this._target.enemy.node.position);
+        this._owner.drawBeam('basic', this._target, 6 * this._owner.battle.uiScale);
         this._damage += this._owner.stats.atk * dt;
         this._time += dt;
         if (this._time >= 0.5) {
@@ -132,6 +135,7 @@ class AbilityRuntime {
             if (!target) {
                 return;
             }
+            this._owner.stats.notifyShot?.(target.enemy.node.position);
             this._cast(target);
             if (!this._owner.gmInfUltimate) {
                 this._charge = 0;
@@ -147,6 +151,7 @@ class AbilityRuntime {
             this._cooldown = 0;
             return;
         }
+        this._owner.stats.notifyShot?.(target.enemy.node.position);
         this._cast(target);
         this._cooldown = this._cooldownAfterCast();
     }
@@ -220,7 +225,7 @@ class AbilityRuntime {
             this._target = this._owner.battle.findTarget(this._owner.position, this._def.range);
         }
         if (this._target) {
-            this._owner.drawBeam(this._def.id, this._target, 13);
+            this._owner.drawBeam(this._def.id, this._target, 13 * this._owner.battle.uiScale);
             if (this._tickTimer <= 0) {
                 const tick = this._def.tick ?? 0.25;
                 const damage = Math.round(this._owner.stats.atk * this.damageScale * tick);
