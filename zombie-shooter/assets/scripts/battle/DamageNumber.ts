@@ -1,8 +1,10 @@
 import { _decorator, Color, Component, Label, Node, UIOpacity, Vec3, tween } from 'cc';
 const { ccclass } = _decorator;
+import { BattleManager } from './BattleManager';
 
 /**
- * 伤害飘字（对象池管理）：弹出 → 上飘 → 淡出 → 回池。
+ * 伤害飘字（对象池管理）：复刻 demo 效果——
+ * 黑描边保证杂乱背景可读、上飘 + 字号放大 1.15 倍 + 线性渐隐，生命 0.8s。
  * 只负责展示，数值与暴击判定在 BattleManager 中完成。
  */
 @ccclass('DamageNumber')
@@ -14,8 +16,8 @@ export class DamageNumber extends Component {
     onLoad(): void {
         this._label = this.node.addComponent(Label);
         this._label.isBold = true;
-        this._label.fontSize = 48;
-        this._label.lineHeight = 57;
+        this._label.enableOutline = true;
+        this._label.outlineColor = new Color(0, 0, 0, 204);
         this._opacity = this.node.addComponent(UIOpacity);
     }
 
@@ -25,15 +27,24 @@ export class DamageNumber extends Component {
      */
     play(text: string, color: Color, scale: number, onDone: (node: Node) => void): void {
         this._onDone = onDone;
-        this.node.setScale(scale, scale, 1);
+        const s = BattleManager.instance ? BattleManager.instance.uiScale : 1;
+        this.node.setScale(scale * 0.87, scale * 0.87, 1);
+        this._label.fontSize = 30 * s * scale;
+        this._label.lineHeight = 34 * s * scale;
+        this._label.outlineWidth = 5 * s;
         this._label.string = text;
         this._label.color = color;
         this._opacity.opacity = 255;
 
-        tween(this.node).by(0.55, { position: new Vec3(0, 150, 0) }).start();
+        // 复刻 demo：上飘 + 字号放大 1.15 倍 + 线性渐隐，生命 0.8s
+        tween(this.node)
+            .parallel(
+                tween().by(0.8, { position: new Vec3(0, 117 * s, 0) }),
+                tween().to(0.8, { scale: new Vec3(scale * 1.15, scale * 1.15, 1) }),
+            )
+            .start();
         tween(this._opacity)
-            .delay(0.3)
-            .to(0.25, { opacity: 0 })
+            .to(0.8, { opacity: 0 })
             .call(() => this._onDone?.(this.node))
             .start();
     }

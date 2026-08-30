@@ -203,6 +203,20 @@ export class BattleManager extends Component {
     // ================= 对外接口（供 Hero/Enemy/Bullet/XpGem 调用） =================
 
     /** 返回射程内最近且已入屏的敌人句柄。 */
+    /** 激光索敌：射程内最靠近车尾（y 最大）的敌人——威胁最大的目标优先 */
+    findFrontTarget(from: Vec3, range: number): EnemyHandle | null {
+        let best: EnemyHandle | null = null;
+        let bestY = -Infinity;
+        for (const enemy of this._enemies) {
+            if (!this._enemyOnScreen(enemy) || enemy.hp <= 0) continue;
+            const ep = enemy.node.position;
+            const dx = ep.x - from.x, dy = ep.y - from.y;
+            if (dx * dx + dy * dy > range * range) continue;
+            if (ep.y > bestY) { bestY = ep.y; best = this._handleOf(enemy); }
+        }
+        return best;
+    }
+
     findTarget(from: Vec3, range: number): EnemyHandle | null {
         return this.findTargets(from, range, 1)[0] ?? null;
     }
@@ -348,12 +362,15 @@ export class BattleManager extends Component {
     spawnDamageNumber(worldPos: Vec3, value: number, crit: boolean): void {
         const node = this._dmgPool.get();
         this.node.addChild(node);
-        node.setWorldPosition(worldPos.x + (Math.random() * 2 - 1) * 54, worldPos.y + 30, 0);
+        const s = this.uiScale;
+        node.setWorldPosition(worldPos.x + (Math.random() * 2 - 1) * 20 * s, worldPos.y + 10 * s, 0);
         const dmg = node.getComponent(DamageNumber)!;
+        // 大数字缩写（demo fmt）：≥1000 显示 1.2k
+        const txt = value >= 1000 ? (value / 1000).toFixed(1) + 'k' : String(value);
         dmg.play(
-            String(value),
+            txt,
             crit ? Palette.crit : Palette.damage,
-            crit ? 1.35 : 1,
+            crit ? 1.4 : 1,
             (n) => this._dmgPool.put(n),
         );
     }

@@ -52,7 +52,7 @@ export const Palette = {
     vehicleBarFill: new Color(255, 167, 38, 255),
     xpBarFill: new Color(77, 208, 225, 255),
     text: new Color(236, 239, 241, 255),
-    damage: new Color(255, 255, 255, 255),
+    damage: new Color(255, 224, 160, 255),   // 伤害飘字：暖奶油色（demo 风格）
     crit: new Color(255, 112, 67, 255),
     xpGem: new Color(105, 240, 174, 255),
     cardBg: new Color(38, 50, 56, 255),
