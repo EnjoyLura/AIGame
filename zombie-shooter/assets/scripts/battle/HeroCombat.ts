@@ -97,6 +97,9 @@ class AbilityRuntime {
     /** 大招充能是否已满 */
     get chargeFull(): boolean { return this._charge >= ULTIMATE_CHARGE_MAX; }
     get charge(): number { return this._charge; }
+    /** 施法剩余时间（beam 类技能持续期间 >0，图标施法环用） */
+    get durationLeft(): number { return this._duration; }
+    get durationTotal(): number { return this._def.duration ?? 0; }
 
     /** 击杀充能：未解锁不充，满后不再累加 */
     addCharge(n: number = 1): void {
@@ -302,6 +305,8 @@ export class HeroCombatController {
                 * (1 + ABILITY_LEVEL_DMG_BONUS * (effLevel - 1))),
             charge: this.gmInfUltimate ? ULTIMATE_CHARGE_MAX : rt.charge,
             chargeMax: id === 'ultimate' ? ULTIMATE_CHARGE_MAX : 0,
+            durationLeft: rt.durationLeft,
+            durationTotal: rt.durationTotal,
         };
     }
 

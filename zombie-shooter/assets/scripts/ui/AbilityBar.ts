@@ -33,7 +33,13 @@ const COLOR_LOCK_EDGE = new Color(120, 144, 156, 210);
 const COLOR_CHARGE_WATER = new Color(255, 171, 64, 110);
 const COLOR_CHARGE_WATER_LINE = new Color(255, 224, 160, 200);
 const COLOR_COOLDOWN_MASK = new Color(10, 16, 22, 150);
-const COLOR_GLOW = new Color(255, 183, 77, 255);
+/** 每英雄元素主题：大招充能填充色 + 就绪元素特效色（原神式） */
+const HERO_ELEMENT: Record<string, { fill: Color; fx: Color }> = {
+    rifle: { fill: new Color(255, 160, 60, 165), fx: new Color(255, 170, 70, 255) },      // 火
+    sniper: { fill: new Color(178, 132, 255, 165), fx: new Color(205, 165, 255, 255) },   // 雷
+    laser: { fill: new Color(90, 200, 255, 165), fx: new Color(120, 220, 255, 255) },     // 水
+    radiation: { fill: new Color(140, 220, 90, 165), fx: new Color(150, 230, 100, 255) }, // 毒
+};
 const COLOR_RANGE = new Color(79, 195, 247, 150);
 const COLOR_RANGE_FILL = new Color(79, 195, 247, 16);
 const COLOR_RANGE_AREA = new Color(255, 171, 64, 150);
@@ -52,6 +58,9 @@ interface AbilityInfo {
     /** 大招击杀充能（仅 ultimate） */
     charge?: number;
     chargeMax?: number;
+    /** 施法剩余时间（仅 beam 类技能持续期间） */
+    durationLeft?: number;
+    durationTotal?: number;
 }
 
 /** 单个能力图标：底圆/锁形 + 名字首字 + 等级角标 + 技能冷却秒数/大招储水充能 */
@@ -66,8 +75,12 @@ class AbilityIcon {
     private _iconApplied = false;
     /** 冷却扇形遮罩层（仅在冷却刻度变化时重画，不逐帧重画） */
     private _maskG: Graphics = null!;
-    /** 大招"储水"充能层（仅在充能刻度变化时重画） */
+    /** 大招充能填充层（元素色从底部往上灌，原神式；仅在充能刻度变化时重画） */
     private _fillG: Graphics = null!;
+    /** 就绪元素特效层（小粒子环绕，静态绘制一次+补间脉动，零重画） */
+    private _fxG: Graphics = null!;
+    private _fxNode: Node = null!;
+    private _fxOpacity: UIOpacity = null!;
     /** 大招就绪呼吸光效层（静态绘制一次，脉动用节点缩放/透明度补间，零重画） */
     private _glowG: Graphics = null!;
     private _glowNode: Node = null!;
@@ -106,6 +119,12 @@ class AbilityIcon {
         this._glowNode = glowNode;
         this._glowOpacity = glowNode.addComponent(UIOpacity);
 
+        const fxNode = createUINode('ReadyFx');
+        this.node.addChild(fxNode);
+        this._fxG = fxNode.addComponent(Graphics);
+        this._fxNode = fxNode;
+        this._fxOpacity = fxNode.addComponent(UIOpacity);
+
         const bgNode = createUINode('Base');
         this.node.addChild(bgNode);
         this._baseG = bgNode.addComponent(Graphics);
@@ -125,7 +144,12 @@ class AbilityIcon {
         this.node.addChild(fillNode);
         this._fillG = fillNode.addComponent(Graphics);
 
+        const castNode = createUINode('CastRing');
+        this.node.addChild(castNode);
+        this._castG = castNode.addComponent(Graphics);
+
         this._nameLabel = this._makeLabel('Name', 0, 0, 45);
+        this._cdLabel = this._makeLabel('Cd', 0, 0, 26);
         // 等级角标：右下角大号白字黑描边（参考《向僵尸开炮》样式）
         this._lvLabel = this._makeLabel('Lv', ICON_R - 9, -ICON_R + 15, 36);
 
@@ -204,11 +228,23 @@ class AbilityIcon {
             return;
         }
         if (this._slot === 'skill') {
-            // 技能：扇形冷却遮罩量化为 24 个刻度，刻度变化才重画（Graphics 重绘昂贵）
+            // 冷却：扇形遮罩（24 刻度）+ 0.1s 精度倒计时数字
             const step = cooling ? Math.max(1, Math.ceil((1 - info.cdLeft / info.cdTotal) * 24)) : 0;
             if (step !== this._lastMaskStep) {
                 this._lastMaskStep = step;
                 this._drawCooldownMask(step);
+            }
+            const cdText = cooling ? (Math.ceil(info.cdLeft * 10) / 10).toFixed(1) : '';
+            if (cdText !== this._lastCdText) {
+                this._lastCdText = cdText;
+                this._cdLabel.string = cdText;
+            }
+            // 施法中：外圈进度环随剩余施法时间从满圆顺时针收缩
+            const castFrac = info.durationTotal! > 0 && (info.durationLeft ?? 0) > 0
+                ? (info.durationLeft ?? 0) / info.durationTotal! : 0;
+            if (castFrac !== this._lastCastFrac) {
+                this._lastCastFrac = castFrac;
+                this._drawCastRing(castFrac);
             }
             if (this._wasCooling && !cooling) {
                 this._punch();
@@ -216,7 +252,7 @@ class AbilityIcon {
             this._wasCooling = cooling;
             return;
         }
-        // 大招：储水刻度（0~10）变化才重画；就绪光效用补间脉动（零重画）
+        // 大招：原神式充能——元素色从图标底部往上灌（击杀充能），充满点亮并出现元素特效
         const fillStep = Math.round((info.charge ?? 0) / (info.chargeMax || 1) * 10);
         if (fillStep !== this._lastFillStep) {
             this._lastFillStep = fillStep;
@@ -227,8 +263,110 @@ class AbilityIcon {
                 this._punch();
             }
             this._setGlow(full);
+            this._setReadyFx(full);
             this._wasFull = full;
         }
+    }
+
+    /** 大招充能填充：元素色"水位"从图标底部往上灌（圆形弓形填充+水面高光） */
+    private _drawUltFill(fraction: number): void {
+        const g = this._fillG;
+        g.clear();
+        if (!Number.isFinite(fraction) || fraction <= 0.01) {
+            return;
+        }
+        const f = Math.min(1, fraction);
+        const r = ICON_R - 3;
+        const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
+        if (f >= 0.99) {
+            g.fillColor = el.fill;
+            g.circle(0, 0, r);
+            g.fill();
+            return;
+        }
+        // 水面高度 yc：f=0 → 底部(-r)，f=1 → 顶部(+r)
+        const yc = -r + 2 * f * r;
+        const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
+        const x = Math.cos(a) * r;
+        g.fillColor = el.fill;
+        g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
+        g.close();
+        g.fill();
+        // 水面高光线
+        g.strokeColor = new Color(255, 255, 255, 170);
+        g.lineWidth = 2.5;
+        g.moveTo(-x, yc);
+        g.lineTo(x, yc);
+        g.stroke();
+    }
+
+    /** 大招就绪元素特效：4 颗元素粒子环绕图标（静态绘制一次，旋转+透明度补间驱动，零重画） */
+    private _setReadyFx(on: boolean): void {
+        const g = this._fxG;
+        g.clear();
+        Tween.stopAllByTarget(this._fxNode);
+        Tween.stopAllByTarget(this._fxOpacity);
+        this._fxNode.angle = 0;
+        this._fxNode.setScale(1, 1, 1);
+        this._fxOpacity.opacity = 255;
+        if (!on) {
+            return;
+        }
+        const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
+        const orbit = ICON_R + 11;
+        for (let i = 0; i < 4; i++) {
+            const ang = (i / 4) * Math.PI * 2;
+            const px = Math.cos(ang) * orbit;
+            const py = Math.sin(ang) * orbit;
+            g.fillColor = el.fx;
+            g.circle(px, py, 5);
+            g.fill();
+            g.strokeColor = el.fx;
+            g.lineWidth = 2;
+            g.circle(px, py, 8);
+            g.stroke();
+        }
+        this._fxOpacity.opacity = 210;
+        tween(this._fxNode)
+            .repeatForever(tween().by(2.6, { angle: -360 }))
+            .start();
+        tween(this._fxOpacity)
+            .repeatForever(
+                tween().to(0.55, { opacity: 100 }).to(0.55, { opacity: 235 }),
+            )
+            .start();
+    }
+
+    /** 技能施法进度环：亮色弧随剩余施法时间从满圆顺时针收缩（图标外圈） */
+    private _drawCastRing(frac: number): void {
+        const g = this._castG;
+        g.clear();
+        if (frac <= 0.005) {
+            return;
+        }
+        const r = ICON_R + 8;
+        g.lineWidth = 4;
+        g.strokeColor = COLOR_SKILL_EDGE;
+        g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.min(1, frac) * Math.PI * 2, false);
+        g.stroke();
+    }
+
+    /** 大招充能环：底环 + 金色弧随充能从顶部顺时针填充（原神式） */
+    private _drawChargeRing(frac: number): void {
+        const g = this._fillG;
+        g.clear();
+        if (frac <= 0.005) {
+            return;
+        }
+        const r = ICON_R + 7;
+        g.lineWidth = 4;
+        g.strokeColor = new Color(0, 0, 0, 90);
+        g.circle(0, 0, r);
+        g.stroke();
+        g.lineWidth = 5;
+        g.strokeColor = new Color(255, 214, 120, 235);
+        g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.min(1, frac) * Math.PI * 2, false);
+        g.stroke();
     }
 
     /** 大招就绪呼吸光效：光圈静态绘制一次，脉动由节点缩放+透明度补间驱动 */
@@ -242,12 +380,13 @@ class AbilityIcon {
         if (!on) {
             return;
         }
+        const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
         g.lineWidth = 9;
-        g.strokeColor = COLOR_GLOW;
+        g.strokeColor = el.fx;
         g.circle(0, 0, ICON_R + 7);
         g.stroke();
         g.lineWidth = 6;
-        g.strokeColor = COLOR_GLOW;
+        g.strokeColor = el.fx;
         g.circle(0, 0, ICON_R + 18);
         g.stroke();
         this._glowOpacity.opacity = 190;
