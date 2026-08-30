@@ -384,11 +384,11 @@ class AbilityIcon {
             g.stroke();
             return;
         }
-        // 未充满：整图标压暗
-        g.fillColor = new Color(0, 0, 0, 85);
+        // 1) 整图标统一干净黑遮罩（与元素填充分层，不与图标原色混色）
+        g.fillColor = new Color(0, 0, 0, 110);
         g.circle(0, 0, ICON_R - 1);
         g.fill();
-        // 元素色从底部往上填充显示进度（半透明覆盖已充能区域，与暗区对比清晰）
+        // 2) 元素色水位：从底部往上填充，画在黑遮罩上（纯元素色，进度清晰）
         if (f > 0.005) {
             const yc = -r + 2 * f * r;
             const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
@@ -398,7 +398,7 @@ class AbilityIcon {
             g.close();
             g.fill();
             // 水面高光
-            g.strokeColor = new Color(255, 255, 255, 140);
+            g.strokeColor = new Color(255, 255, 255, 150);
             g.lineWidth = 2;
             g.moveTo(-x, yc);
             g.lineTo(x, yc);
