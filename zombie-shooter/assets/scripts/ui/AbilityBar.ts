@@ -252,7 +252,7 @@ class AbilityIcon {
         const fillStep = Math.round((info.charge ?? 0) / (info.chargeMax || 1) * 10);
         if (fillStep !== this._lastFillStep) {
             this._lastFillStep = fillStep;
-            this._drawChargeRing(fillStep / 10);
+            this._drawUltFill(fillStep / 10);
         }
         if (full !== this._wasFull) {
             if (full) {
@@ -327,45 +327,41 @@ class AbilityIcon {
         g.stroke();
     }
 
-    /** 大招充能环：未就绪时图标压暗，元素色细弧随击杀充能从 12 点顺时针填充（原神式） */
-    private _drawChargeRing(frac: number): void {
+    /** 大招充能：未满部分压暗，元素色从图标底部往上填充（原神式）；充满=遮罩消失、图标点亮+元素亮环 */
+    private _drawUltFill(fraction: number): void {
         const g = this._fillG;
         g.clear();
-        const f = Math.min(1, Math.max(0, frac));
+        const f = Math.min(1, Math.max(0, fraction));
         const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
-        const r = ICON_R + 7;
-        const start = Math.PI / 2;   // 12 点
-        const segs = 48;
-        if (f < 0.995) {
-            // 未就绪：压暗图标
-            g.fillColor = new Color(0, 0, 0, 90);
-            g.circle(0, 0, ICON_R - 1);
-            g.fill();
-            // 底环
-            g.lineWidth = 3;
-            g.strokeColor = new Color(0, 0, 0, 90);
-            g.circle(0, 0, r);
-            g.stroke();
-            // 元素色进度弧（12 点顺时针填充）
-            const n = Math.ceil(segs * f);
-            g.lineWidth = 5;
+        const r = ICON_R - 2;
+        if (f >= 0.995) {
+            // 充满：遮罩消失、图标全彩点亮 + 元素色亮环
             g.strokeColor = el.fx;
-            let first = true;
-            for (let i = 0; i <= n; i++) {
-                const t = Math.min(f * segs, i) / segs;
-                const ang = start - t * Math.PI * 2;
-                const px = Math.cos(ang) * r;
-                const py = Math.sin(ang) * r;
-                if (first) {
-                    g.moveTo(px, py);
-                    first = false;
-                } else {
-                    g.lineTo(px, py);
-                }
-            }
+            g.lineWidth = 3.5;
+            g.circle(0, 0, ICON_R + 2);
+            g.stroke();
+            return;
+        }
+        if (f > 0.005) {
+            // 未充满部分压暗
+            g.fillColor = new Color(0, 0, 0, 85);
+            g.circle(0, 0, r);
+            g.fill();
+            // 元素色从底部往上填充（半透明覆盖已充能区域）
+            const yc = -r + 2 * f * r;
+            const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
+            const x = Math.cos(a) * r;
+            g.fillColor = el.fill;
+            g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
+            g.close();
+            g.fill();
+            // 水面高光
+            g.strokeColor = new Color(255, 255, 255, 150);
+            g.lineWidth = 2;
+            g.moveTo(-x, yc);
+            g.lineTo(x, yc);
             g.stroke();
         }
-        // 就绪：不加环——由元素粒子特效 + 点亮的图标表达
     }
 
     /** 大招就绪呼吸光效：光圈静态绘制一次，脉动由节点缩放+透明度补间驱动 */
