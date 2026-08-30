@@ -42,8 +42,8 @@ export class Hero extends Component {
         const p = this.node.position;
         const dx = targetPos.x - p.x;
         const dy = Math.max(60 * BattleManager.instance.uiScale, targetPos.y - p.y);
-        // 侧向偏移比例 → 倾斜角（背视立绘朝上，只做 ±35° 内的倾斜提示）
-        this._aimTarget = Math.max(-35, Math.min(35, (dx / dy) * 45));
+        // 侧向偏移比例 → 倾斜角：目标在左（dx<0）身体向左倾（正角度=逆时针）
+        this._aimTarget = Math.max(-60, Math.min(60, -(dx / dy) * 60));
         this._recoil = 1;
     }
 
@@ -153,7 +153,7 @@ export class Hero extends Component {
     /** 瞄准倾斜平滑跟随：射击方向改变时身体平滑转向，停止射击后缓慢回正 */
     private _updateAimPose(dt: number): void {
         this._aimLean += (this._aimTarget - this._aimLean) * Math.min(1, dt * 10);
-        this._aimTarget += -this._aimTarget * Math.min(1, dt * 0.4);
+        this._aimTarget += -this._aimTarget * Math.min(1, dt * 0.25);
         this.node.angle = this._aimLean;
         this._recoil = Math.max(0, this._recoil - dt * 5);
         const kick = this._recoil * 12 * (BattleManager.instance ? BattleManager.instance.uiScale : 1);
