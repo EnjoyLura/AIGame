@@ -2,9 +2,11 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
-// 零依赖静态服务器：node tools/serve.mjs <root> [port]（默认 7456），仅本地验证用
+// 零依赖静态服务器：node tools/serve.mjs <root> [port] [host]
+// 默认 0.0.0.0：同一 WiFi 下的手机可通过 电脑IP:端口 访问，便于真机预览
 const root = resolve(process.argv[2] ?? '.');
 const port = Number(process.argv[3] ?? 7456);
+const host = process.argv[4] ?? '0.0.0.0';
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -48,6 +50,6 @@ createServer(async (req, res) => {
     } catch {
         res.writeHead(404).end('not found');
     }
-}).listen(port, '127.0.0.1', () => {
+}).listen(port, host, () => {
     console.log(`serving ${root} at http://127.0.0.1:${port}`);
 });
