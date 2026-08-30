@@ -2,7 +2,6 @@ import { _decorator, Component, Graphics } from 'cc';
 const { ccclass } = _decorator;
 import { Palette } from '../config/GameConfig';
 import { HeroDef } from './HeroDef';
-import { BattleManager } from './BattleManager';
 import { HeroCombatController } from './HeroCombat';
 
 export type HeroUpgradeId = 'atk' | 'rate' | 'range' | 'skill' | 'ultimate';
@@ -19,7 +18,7 @@ export class Hero extends Component {
         this.def = def;
         this.atk = def.atk;
         this.interval = def.interval || 1;
-        this.range = def.range * BattleManager.instance.uiScale;
+        this.range = def.range;
         this._combat?.reset();
         this._combat = new HeroCombatController(def, this, this.node);
         this._drawPlaceholder();

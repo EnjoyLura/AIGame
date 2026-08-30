@@ -1,6 +1,5 @@
 import { _decorator, Color, Component, Label, Node, UIOpacity, Vec3, tween } from 'cc';
 const { ccclass } = _decorator;
-import { BattleManager } from './BattleManager';
 
 /**
  * 伤害飘字（对象池管理）：弹出 → 上飘 → 淡出 → 回池。
@@ -15,9 +14,8 @@ export class DamageNumber extends Component {
     onLoad(): void {
         this._label = this.node.addComponent(Label);
         this._label.isBold = true;
-        const s = BattleManager.instance ? BattleManager.instance.uiScale : 1;
-        this._label.fontSize = 48 * s;
-        this._label.lineHeight = 57 * s;
+        this._label.fontSize = 48;
+        this._label.lineHeight = 57;
         this._opacity = this.node.addComponent(UIOpacity);
     }
 
@@ -32,7 +30,7 @@ export class DamageNumber extends Component {
         this._label.color = color;
         this._opacity.opacity = 255;
 
-        tween(this.node).by(0.55, { position: new Vec3(0, 150 * (BattleManager.instance ? BattleManager.instance.uiScale : 1), 0) }).start();
+        tween(this.node).by(0.55, { position: new Vec3(0, 150, 0) }).start();
         tween(this._opacity)
             .delay(0.3)
             .to(0.25, { opacity: 0 })

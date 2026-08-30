@@ -30,9 +30,11 @@ export class HUD extends Component {
     private _failKillLabel: Label = null!;
     private _failLevelLabel: Label = null!;
 
-    /** 1080 设计基准高（HUD 根节点由 BattleManager 按 uiScale 整体缩放，内部一律用基准坐标） */
-    private readonly _vh = 1920;
-    /** 车尾条上沿的基准坐标 Y */
+    /** 实际可见高度（fitWidth 模式下随屏幕长宽比变化），HUD 上下边缘都锚定它 */
+    private get _vh(): number {
+        return view.getVisibleSize().height;
+    }
+    /** 车尾条上沿的 HUD 坐标系 Y（与 BattleManager 部署逻辑同源） */
     private get _vehicleTopY(): number {
         return -this._vh / 2 + BattleConfig.VEHICLE_STRIP_HEIGHT;
     }
@@ -125,14 +127,14 @@ export class HUD extends Component {
     }
 
     private _buildTopBar(): void {
-        this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 135, 885, 45);
-        this._waveLabel = this._makeLabel(this.node, '', 0, 885, 51);
-        this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 135, 885, 45);
+        this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 135, this._vh / 2 - 75, 45);
+        this._waveLabel = this._makeLabel(this.node, '', 0, this._vh / 2 - 75, 51);
+        this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 135, this._vh / 2 - 75, 45);
     }
 
     /** 经验条：顶栏下方细条 + 等级徽标 */
     private _buildXpBar(): void {
-        const barY = 810;
+        const barY = this._vh / 2 - 150;
         this._levelLabel = this._makeLabel(this.node, 'Lv.1', -Design.WIDTH / 2 + 75, barY, 39);
 
         const bg = createUINode('XpBarBg');
@@ -185,7 +187,7 @@ export class HUD extends Component {
     }
 
     private _buildWavePopup(): void {
-        this._popupLabel = this._makeLabel(this.node, '', 0, 307, 84);
+        this._popupLabel = this._makeLabel(this.node, '', 0, this._vh * 0.16, 84);
         this._popupOpacity = this._popupLabel.node.addComponent(UIOpacity);
         this._popupOpacity.opacity = 0;
     }
@@ -194,11 +196,11 @@ export class HUD extends Component {
     private _buildOverPanel(): void {
         const panel = createUINode('FailPanel');
         this.node.addChild(panel);
-        panel.addComponent(UITransform).setContentSize(Design.WIDTH, 1920);
+        panel.addComponent(UITransform).setContentSize(Design.WIDTH, this._vh);
 
         const g = panel.addComponent(Graphics);
         g.fillColor = Palette.overlay;
-        g.rect(-540, -960, 1080, 1920);
+        g.rect(-Design.WIDTH / 2, -this._vh / 2, Design.WIDTH, this._vh);
         g.fill();
 
         // 结算卡片

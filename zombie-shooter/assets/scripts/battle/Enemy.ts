@@ -68,15 +68,15 @@ export class Enemy extends Component {
         this.spawnId = Enemy._nextSpawnId++;
         this.maxHp = Math.round(info.hp * hpScale);
         this.hp = this.maxHp;
-        this.speed = info.speed * (info.tier === 1 ? 1.15 : 1) * uiScale;
-        this.radius = info.radius * (info.tier === 1 ? 1.35 : 1) * uiScale;
+        this.speed = info.speed * (info.tier === 1 ? 1.15 : 1);
+        this.radius = info.radius * (info.tier === 1 ? 1.35 : 1);
         this.touchDamage = info.touchDamage * (info.tier === 1 ? 2 : 1);
         this._behavior = info.behavior;
         this._chargeState = 'advance';
         this._windupLeft = 0;
         this._windupTime = info.windupTime ?? 0.6;
-        this._dashRange = (info.dashRange ?? 510) * uiScale;
-        this._dashSpeed = (info.dashSpeed ?? 645) * uiScale;
+        this._dashRange = info.dashRange ?? 510;
+        this._dashSpeed = info.dashSpeed ?? 645;
         // 蓄力中途被回收的怪会带缩放入池，重置防串状态
         this.node.setScale(1, 1, 1);
         // 行走动效节奏：疯狗高频碎步 / 野猪沉重小跑 / 熊缓慢沉稳 / 疯鹰悬浮
