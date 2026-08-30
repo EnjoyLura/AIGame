@@ -106,7 +106,10 @@ zombie-shooter/
    - 实体侧按 key 取图（参考 `Enemy._tryApplyArt`），没图回退 Graphics 占位、不影响运行。
 - **全自动生图**：`gpt-image2-skill/`（克隆件不入库）+ `tools/gen_image.py` 包装脚本，
   网关与密钥在 `tools/imagegen.local.json`（**不入库，严禁提交**）。
-  生成：`python tools/gen_image.py --prompt "英文提示词" --size 1024x1024 --basename xxx`
+  生成：`python tools/gen_image.py --prompt "英文提示词" --basename xxx`（默认 2K）
+  **提示词背景一律用纯绿幕**（如 `isolated on plain solid pure green background (#00FF00)`），
+  处理时用 `allgreen` 模式抠底——绿幕与图标颜色差距大，不会误伤白色/浅色内容（白底抠图会吃掉内部白色）；
+  图标类入库前可再做 alpha 腐蚀 1~2px 去掉边缘光晕
   （输出到 `../gen-output/`）→ `process_art.py` 抠底（环形/框类加 `allwhite` 参数）→
   放入 `assets/resources/textures/` → AssetLib 清单登记。
 

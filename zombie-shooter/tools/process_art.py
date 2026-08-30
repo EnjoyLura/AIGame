@@ -47,6 +47,20 @@ def remove_background(img: Image.Image, tolerance: int) -> Image.Image:
     return img
 
 
+def remove_all_green(img: Image.Image, tolerance: int) -> Image.Image:
+    """全图移除接近纯绿（#00FF00）的像素——生图提示词改用绿幕背景时的抠底模式，
+    与图标内容颜色差距大，不会误伤内部浅色/白色内容。"""
+    img = img.convert('RGBA')
+    w, h = img.size
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, _ = px[x, y]
+            if g >= 255 - tolerance and r <= tolerance * 2 and b <= tolerance * 2:
+                px[x, y] = (0, 0, 0, 0)
+    return img
+
+
 def remove_all_white(img: Image.Image, tolerance: int) -> Image.Image:
     """全图移除接近纯白的像素（含被前景包围的封闭区域，如环形框的中心）。"""
     img = img.convert('RGBA')
@@ -69,6 +83,8 @@ def main() -> None:
     img = Image.open(src)
     if mode == 'allwhite':
         img = remove_all_white(img, tolerance)
+    elif mode == 'allgreen':
+        img = remove_all_green(img, tolerance)
     else:
         img = remove_background(img, tolerance)
 
