@@ -68,6 +68,10 @@ export class BattleManager extends Component {
     }
     private _elapsed = 0;
     private _visH = Design.HEIGHT;
+    /** 实际可视宽（随窗口比例变化） */
+    private get _visW(): number { return view.getVisibleSize().width; }
+    /** UI/世界统一缩放系数：可视高 / 1080 设计基准高（1920） */
+    get uiScale(): number { return Math.max(0.5, Math.min(2.5, this._visH / 1920)); }
     /** 路面滚动层（下移=载具前进感） */
     private _bgScroll: Node = null!;
     /** 美术路面滚动节点（上下两张镜像衔接，无缝循环） */
