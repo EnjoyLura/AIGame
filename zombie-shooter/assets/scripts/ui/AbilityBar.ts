@@ -209,9 +209,7 @@ class AbilityIcon {
             }
         }
         if (this._iconApplied) {
-            // 大招充能未满：内芯降饱和 tint（浅色），充满点亮
-            const sp = this._artNode.getComponent(Sprite)!;
-            sp.color = this._slot === 'ultimate' && !full ? new Color(150, 138, 124, 255) : Color.WHITE;
+            // 压暗由充能环层的黑遮罩承担，内芯保持全彩
             this._nameLabel.string = '';
         } else if (baseDirty) {
             this._lastUnlocked = info.unlocked;
