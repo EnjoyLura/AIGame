@@ -1,6 +1,7 @@
 import { _decorator, Component } from 'cc';
 const { ccclass } = _decorator;
 import { BattleManager } from '../battle/BattleManager';
+import { SoundFx } from '../core/SoundFx';
 
 /**
  * GM 调试面板（浏览器预览专用）：DOM 覆盖层按钮，免等待快速验证技能/大招/波次/失败流程。
@@ -46,6 +47,17 @@ export class GmPanel extends Component {
         // ---- 常规调试 ----
         this._addButton(body, '升级', () => this._bm()?.gmLevelUp());
         this._addButton(body, '技能全解锁', () => this._bm()?.gmUnlockAbilities());
+        const muteBtn = document.createElement('button');
+        muteBtn.textContent = '♪ 音效:开';
+        this._styleButton(muteBtn);
+        muteBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            const m = !SoundFx.muted;
+            SoundFx.setMuted(m);
+            muteBtn.textContent = m ? '♪ 音效:关' : '♪ 音效:开';
+        };
+        body.appendChild(muteBtn);
         this._addButton(body, '冷却清零', () => this._bm()?.gmResetCooldowns());
         this._addButton(body, '大招充满', () => this._bm()?.gmFullCharge());
         this._addButton(body, '清屏', () => this._bm()?.gmKillAll());

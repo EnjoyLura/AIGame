@@ -19,6 +19,8 @@ export class Bullet extends Component {
     damage = 0;
     radius = BattleConfig.BULLET_RADIUS;
     sourceId = '';
+    /** 弹色（命中火花用） */
+    specColor = new Color(255, 238, 88, 255);
 
     private _speed = BattleConfig.BULLET_SPEED;
     private _dir = new Vec3(0, 1, 0);
@@ -39,6 +41,7 @@ export class Bullet extends Component {
         this._canCrit = spec.canCrit;
         this._hitSet.clear();
         this.radius = spec.radius;
+        this.specColor = spec.color.clone();
         this._draw(spec.radius, spec.color);
         this.node.angle = Math.atan2(-this._dir.x, this._dir.y) * 180 / Math.PI;
     }

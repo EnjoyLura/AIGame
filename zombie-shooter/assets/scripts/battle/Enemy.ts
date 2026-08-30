@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Graphics, Node, Sprite, tween, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Node, Sprite, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Palette } from '../config/GameConfig';
 import { createUINode } from '../core/createUINode';
@@ -139,10 +139,22 @@ export class Enemy extends Component {
             return false;
         }
         this.hp -= dmg;
-        // 受击反馈：轻微放大回弹
+        // 受击反馈：红闪（立绘 tint）+ 轻微放大回弹
+        const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
+        if (sp) {
+            sp.color = new Color(255, 70, 70, 255);
+            tween(sp)
+                .delay(0.06)
+                .call(() => { if (sp.isValid) { sp.color = new Color(255, 255, 255, 255); } })
+                .start();
+        } else {
+            // 占位图形：闪白红混合层
+            const g = this._graphics;
+            g.strokeColor = new Color(255, 90, 90, 255);
+        }
         tween(this.node)
-            .to(0.05, { scale: new Vec3(1.15, 1.15, 1) })
-            .to(0.1, { scale: new Vec3(1, 1, 1) })
+            .to(0.05, { scale: new Vec3(1.12, 1.12, 1) })
+            .to(0.09, { scale: new Vec3(1, 1, 1) })
             .start();
         return this.hp <= 0;
     }

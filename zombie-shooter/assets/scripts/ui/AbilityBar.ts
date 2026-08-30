@@ -4,6 +4,7 @@ import { ABILITY_MAX_LEVEL, AbilityDef } from '../battle/HeroDef';
 import { Hero } from '../battle/Hero';
 import { BattleManager } from '../battle/BattleManager';
 import { AssetLib } from '../core/AssetLib';
+import { SoundFx } from '../core/SoundFx';
 import { createUINode } from '../core/createUINode';
 
 /**
@@ -269,6 +270,7 @@ class AbilityIcon {
             if (full) {
                 this._punch();
                 this._playReadyFlash();
+                SoundFx.play('ready');
             }
             this._setGlow(full);
             this._setReadyFx(full);

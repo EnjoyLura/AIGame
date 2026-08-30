@@ -1,8 +1,9 @@
-import { Graphics, Node, Vec3 } from 'cc';
+import { Color, Graphics, Node, Vec3 } from 'cc';
 import { BattleConfig } from '../config/GameConfig';
 import { createUINode } from '../core/createUINode';
 import { BattleManager, EnemyHandle } from './BattleManager';
 import { ABILITY_LEVEL_DMG_BONUS, ABILITY_MAX_LEVEL, AbilityDef, HeroDef, ULTIMATE_CHARGE_MAX } from './HeroDef';
+import { SoundFx } from '../core/SoundFx';
 
 /** GM 无冷却/无限大招模式下的最小施放间隔（秒），避免逐帧刷弹刷伤害 */
 const GM_NO_CD_FLOOR = 0.1;
@@ -36,6 +37,7 @@ class ProjectileBasicAttack implements BasicAttack {
             return;
         }
         this._owner.stats.notifyShot?.(target.enemy.node.position);
+        SoundFx.play('shoot');
         this._owner.fireProjectile(target, this._owner.stats.atk, this._owner.def.bulletSpeed,
             BattleConfig.BULLET_RADIUS * (this._owner.def.weapon === 'sniper' ? 1.4 : 1),
             !!this._owner.def.pierce, true);
@@ -70,6 +72,8 @@ class LaserBasicAttack implements BasicAttack {
         this._damage += this._owner.stats.atk * dt;
         this._time += dt;
         if (this._time >= 0.5) {
+            SoundFx.play('laser');
+            this._owner.battle.burstHitSparks(this._target.enemy.node.worldPosition, new Color(110, 220, 255, 255));
             this._owner.battle.applyDamage(this._target, Math.round(this._damage), false, this._owner.def.id);
             this._damage = 0;
             this._time = 0;

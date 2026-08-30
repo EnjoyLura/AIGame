@@ -19,6 +19,8 @@ import { LevelUpPanel } from '../ui/LevelUpPanel';
 import { GmPanel } from '../ui/GmPanel';
 import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, WAVES, MONSTERS } from './WaveData';
+import { HitParticle } from './HitParticle';
+import { SoundFx } from '../core/SoundFx';
 
 /**
  * 《末日航线》战斗总控：
@@ -42,6 +44,7 @@ export class BattleManager extends Component {
     private _enemyPool: NodePool = null!;
     private _bulletPool: NodePool = null!;
     private _dmgPool: NodePool = null!;
+    private _particlePool: NodePool = null!;
     private _gemPool: NodePool = null!;
 
     private _hud: HUD = null!;
@@ -92,6 +95,8 @@ export class BattleManager extends Component {
 
     onLoad(): void {
         BattleManager.instance = this;
+        // 首次触摸解锁程序合成音效（浏览器自动播放策略）
+        this.node.on(Node.EventType.TOUCH_START, () => SoundFx.unlock(), this);
         eventCenter.on(GameEvent.GAME_RESTART, this._restart, this);
         this._visH = view.getVisibleSize().height;
         this._drawBackground();
@@ -108,6 +113,7 @@ export class BattleManager extends Component {
         this._bulletPool?.clear();
         this._dmgPool?.clear();
         this._gemPool?.clear();
+        this._particlePool?.clear();
     }
 
     start(): void {
@@ -313,6 +319,7 @@ export class BattleManager extends Component {
 
     /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验） */
     onEnemyReachVehicle(enemy: Enemy): void {
+        SoundFx.play('vehicleHit');
         this._vehicle.takeDamage(enemy.touchDamage);
         const idx = this._enemies.indexOf(enemy);
         if (idx >= 0) {
@@ -328,6 +335,9 @@ export class BattleManager extends Component {
             return;
         }
         this._enemies.splice(idx, 1);
+        const big = enemy.radius >= 55;
+        this.burstKillFx(enemy.node.worldPosition, enemy.radius, big);
+        SoundFx.play(big ? 'bigkill' : 'kill');
         GameManager.instance.kills++;
         GameManager.instance.totalKills++;
         eventCenter.emit(GameEvent.ENEMY_DEAD, GameManager.instance.kills);
@@ -356,6 +366,80 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.XP_CHANGED, gm.xp, gm.xpToNext(gm.level), gm.level);
         if (leveled && !this._gameOver) {
             this._openLevelUp();
+        }
+    }
+
+    // ================= 打击粒子（末日航线风格重设计） =================
+
+    private _emitParticle(cfg: Parameters<HitParticle['init']>[0]): void {
+        const node = this._particlePool.get();
+        this.node.addChild(node);
+        node.getComponent(HitParticle)!.init(cfg);
+    }
+
+    /** 命中火花：弹色锐利短线迸溅（4~7 颗，快速消散） */
+    burstHitSparks(worldPos: Vec3, color: Color): void {
+        const s = this.uiScale;
+        const n = 4 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < n; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const speed = (260 + Math.random() * 340) * s;
+            this._emitParticle({
+                type: 'spark',
+                pos: worldPos.clone(),
+                vel: new Vec3(Math.cos(a) * speed, Math.sin(a) * speed, 0),
+                life: 0.16 + Math.random() * 0.1,
+                size: 3.5 * s,
+                color,
+                onDone: (nd) => this._particlePool.put(nd),
+            });
+        }
+    }
+
+    /** 击杀血雾：暗红膨胀团 + 白色冲击环 + 旋转碎屑（大型怪加倍） */
+    burstKillFx(worldPos: Vec3, radius: number, big: boolean): void {
+        const s = this.uiScale;
+        const n = big ? 10 : 6;
+        for (let i = 0; i < n; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const speed = (60 + Math.random() * 160) * s;
+            this._emitParticle({
+                type: 'blood',
+                pos: worldPos.clone(),
+                vel: new Vec3(Math.cos(a) * speed, Math.sin(a) * speed, 0),
+                life: 0.45 + Math.random() * 0.25,
+                size: (big ? 14 : 9) * s,
+                color: new Color(150, 40, 40, 255),
+                onDone: (nd) => this._particlePool.put(nd),
+            });
+        }
+        // 白色冲击环
+        this._emitParticle({
+            type: 'ring',
+            pos: worldPos.clone(),
+            vel: new Vec3(0, 0, 0),
+            life: 0.32,
+            size: radius * 0.5,
+            r1: radius * 1.6,
+            color: new Color(255, 255, 255, 255),
+            onDone: (nd) => this._particlePool.put(nd),
+        });
+        // 旋转碎屑（2~4 片）
+        for (let i = 0; i < (big ? 4 : 2); i++) {
+            const a = Math.random() * Math.PI * 2;
+            const speed = (200 + Math.random() * 260) * s;
+            this._emitParticle({
+                type: 'shard',
+                pos: worldPos.clone(),
+                vel: new Vec3(Math.cos(a) * speed, Math.sin(a) * speed, 0),
+                life: 0.4 + Math.random() * 0.2,
+                size: 4 * s,
+                color: new Color(90, 70, 55, 255),
+                gravity: -900 * s,
+                rot: Math.random() * 360,
+                vr: (Math.random() * 2 - 1) * 420,
+                onDone: (nd) => this._particlePool.put(nd),
+            });
         }
     }
 
@@ -547,6 +631,16 @@ export class BattleManager extends Component {
                 return n;
             },
         );
+        this._particlePool = new NodePool(
+            () => {
+                const n = createUINode('HitParticle');
+                n.addComponent(HitParticle);
+                return n;
+            },
+            (n) => {
+                Tween.stopAllByTarget(n);
+            },
+        );
         this._dmgPool = new NodePool(
             () => {
                 const n = createUINode('DamageNumber');
@@ -656,6 +750,8 @@ export class BattleManager extends Component {
     }
 
     private _hitEnemy(bullet: Bullet, enemy: Enemy, sourceId?: string): void {
+        SoundFx.play('hit');
+        this.burstHitSparks(enemy.node.worldPosition, bullet.specColor);
         // 伤害统一走 applyDamage：暴击/飘字/死亡/掉落全部收口
         this.applyDamage(this._handleOf(enemy), bullet.damage, bullet.canCrit, sourceId);
     }
