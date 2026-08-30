@@ -64,9 +64,6 @@ class AbilityIcon {
     /** 能力内芯图标层（AssetLib 就绪后替换名字首字，缺图回退） */
     private _artNode: Node = null!;
     private _iconApplied = false;
-    /** 图标框贴图层（AssetLib 就绪后叠加，缺图回退代码圆） */
-    private _frameNode: Node = null!;
-    private _frameApplied = false;
     /** 冷却扇形遮罩层（仅在冷却刻度变化时重画，不逐帧重画） */
     private _maskG: Graphics = null!;
     /** 大招"储水"充能层（仅在充能刻度变化时重画） */
@@ -119,11 +116,6 @@ class AbilityIcon {
         artNode.active = false;
         this._artNode = artNode;
 
-        const frameNode = createUINode('Frame');
-        this.node.addChild(frameNode);
-        frameNode.addComponent(UITransform).setContentSize(ICON_R * 2, ICON_R * 2);
-        frameNode.active = false;
-        this._frameNode = frameNode;
 
         const maskNode = createUINode('Mask');
         this.node.addChild(maskNode);
@@ -176,20 +168,6 @@ class AbilityIcon {
             return;
         }
         this.node.active = true;
-
-        // 图标框贴图：AssetLib 就绪即叠加一次（缺图保持代码圆）
-        if (!this._frameApplied) {
-            const frame = AssetLib.frame('ui/icon_frame');
-            if (frame) {
-                this._frameApplied = true;
-                const sp = this._frameNode.getComponent(Sprite) ?? this._frameNode.addComponent(Sprite);
-                sp.sizeMode = Sprite.SizeMode.CUSTOM;
-                sp.trim = false;
-                sp.spriteFrame = frame;
-                this._frameNode.getComponent(UITransform)!.setContentSize(ICON_R * 2, ICON_R * 2);
-                this._frameNode.active = true;
-            }
-        }
 
         const cooling = info.cdLeft > 0;
         const full = this._slot === 'ultimate' && (info.charge ?? 0) >= (info.chargeMax || 1);

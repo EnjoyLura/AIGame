@@ -90,11 +90,12 @@ export class LevelUpPanel extends Component {
 
             // 卡面：英雄名 / 强化名 / 数值说明（占位三行文本）
             const lines = option.title.split('\n');
-            const textColor = cardFrame ? new Color(62, 46, 32, 255) : Palette.text;
-            this._makeCardLabel(card, lines[0], 70, 24, undefined, textColor);
-            this._makeCardLabel(card, lines[1], 0, 24, undefined, textColor);
+            // 米白卡底配纯黑小字，避免描边糊字
+            const textColor = cardFrame ? Color.BLACK : Palette.text;
+            this._makeCardLabel(card, lines[0], 70, 20, undefined, textColor);
+            this._makeCardLabel(card, lines[1], 0, 19, undefined, textColor);
             // 描述行给两行高度，长说明换行显示
-            this._makeCardLabel(card, option.desc, -70, 18, 54, textColor);
+            this._makeCardLabel(card, option.desc, -70, 16, 54, textColor);
             card.on(Node.EventType.TOUCH_END, () => {
                 this._clearCards();
                 this.node.active = false;
@@ -138,7 +139,8 @@ export class LevelUpPanel extends Component {
         label.lineHeight = size + 4;
         label.isBold = true;
         label.color = color ?? Palette.text;
-        label.enableOutline = true;
+        // 米白卡底配纯黑文字，无需描边
+        label.enableOutline = false;
         label.outlineColor = Color.BLACK;
         label.outlineWidth = 2;
         label.horizontalAlign = Label.HorizontalAlign.CENTER;

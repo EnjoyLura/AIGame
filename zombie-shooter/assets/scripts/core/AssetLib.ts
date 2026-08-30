@@ -10,7 +10,6 @@ import { resources, SpriteFrame } from 'cc';
 const MANIFEST = [
     'monsters/boar',
     'scenes/road',
-    'ui/icon_frame',
     'ui/panel_card',
     'ui/banner',
     'icons/rifle_basic', 'icons/rifle_skill', 'icons/rifle_ultimate',
