@@ -36,7 +36,11 @@ def main() -> int:
 
     out_dir = ROOT.parent / 'gen-output'
     out_dir.mkdir(exist_ok=True)
-    sys.argv = ['gen_image.py', '--output-dir', str(out_dir)] + sys.argv[1:]
+    argv = sys.argv[1:]
+    # 未指定尺寸时默认 2K（同价高分辨率，缩小使用画质更佳）
+    if not any(a in ('--size',) for a in argv):
+        argv = ['--size', '2048x2048'] + argv
+    sys.argv = ['gen_image.py', '--output-dir', str(out_dir)] + argv
     return mod.main()
 
 
