@@ -92,14 +92,14 @@ zombie-shooter/
    通用行为只有 projectile/multi/beam/area 四种，确实不够再在 `HeroCombat.ts` 加行为分支；
    能力里**禁止**直接操作敌人数组、对象池和 killEnemy——索敌走 `findTarget(s)`、
    伤害一律走 `applyDamage/applyAreaDamage`。
-8. **池化目标必须持句柄**：缓存敌人引用一律用 `EnemyHandle{enemy, spawnId}`（Enemy 每次出场
+9. **池化目标必须持句柄**：缓存敌人引用一律用 `EnemyHandle{enemy, spawnId}`（Enemy 每次出场
    spawnId 递增），校验走 `isEnemyHandleValid`，防止回池复用后旧引用打到"新怪"身上。
    技能/大招是升级卡驱动：卡片纯数据（heroId+upgradeId），选卡后由 BattleManager 找英雄
    调 `applyUpgrade`；选卡暂停期间所有能力冷却/光束冻结，重开时英雄整体重建、技能回到锁定。
-9. **怪物扩展规矩**：新增怪型=在 `WaveData.ts` 加 MonsterInfo（behavior+参数），确需新行为
+10. **怪物扩展规矩**：新增怪型=在 `WaveData.ts` 加 MonsterInfo（behavior+参数），确需新行为
    再在 `Enemy.ts` 加分支；行为状态全部在 `init` 重置（池化复用防串状态）；入场位置在
    `BattleManager._spawnEnemy` 按 behavior 分派；波次混编靠 `WaveInfo.monsters` 数组。
-10. **美术接入管线**（缺图自动回退占位，可逐张补图）：
+11. **美术接入管线**（缺图自动回退占位，可逐张补图）：
    - AI 产图后跑 `python tools/process_art.py <输入.png> assets/resources/textures/<分类>/<名>.png`
      （抠白底+裁剪+缩放，Python+PIL，参数：最大边长、容差）；
    - 把路径加进 `core/AssetLib.ts` 的 MANIFEST；
@@ -140,9 +140,12 @@ zombie-shooter/
 4. 浏览器里旧标签页刷新偶发卡在 Cocos 启动页（无报错），**开新页面**即可恢复，不是游戏 bug。
 5. 占位平衡性：单发普攻 0.7s/发、攻击 80，前期约 2 发击杀一只；
    怪物血量/速度/伤害调 `WaveData.ts`，主角攻速/攻击/射程调 `GameConfig.ts`。
-6. **怪物必须在屏幕内才能被索敌和击杀**：索敌（findTarget）与碰撞结算都会跳过
+6. **护送失败与升级选卡的竞态**：选卡暂停期间载具被打空时，点卡回调必须检查
+   `_gameOver`——为真则保持世界冻结并重发 GAME_OVER 把失败面板顶回最前；
+   否则会出现"点卡后世界定格、英雄不再攻击"的假死（已修复，勿回退）。
+7. **怪物必须在屏幕内才能被索敌和击杀**：索敌（findTarget）与碰撞结算都会跳过
    "中心未越过屏幕顶"的怪物，出生点也控制在屏幕外一点点——不要删这两处可见性判定。
-7. **2D 渲染三条铁律（踩过的暗坑，全部无报错）**：
+8. **2D 渲染三条铁律（踩过的暗坑，全部无报错）**：
    - 同一节点先后挂 Graphics + Sprite 两个渲染组件，后挂的 Sprite 渲染数据会损坏
      → 整体不可见，增删兄弟节点触发重建时才偶现。占位 Graphics 与立绘 Sprite
      必须分节点（见 Enemy 的 Body/Art 结构）。

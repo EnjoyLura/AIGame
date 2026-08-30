@@ -75,7 +75,7 @@ const eagle = (hp: number): MonsterInfo => ({
 export const MONSTERS: Record<string, MonsterInfo> = {
     crawler: crawler(100, 135),
     dog: dog(60),
-    boar: boar(450),
+    boar: boar(300),
     bear: bear(1200),
     eagle: eagle(90),
 };
@@ -84,11 +84,11 @@ export const WAVES: WaveInfo[] = [
     { count: 8,  interval: 1.2,  maxAlive: 6,  eliteChance: 0,    monsters: [crawler(100, 135)] },
     { count: 10, interval: 1.05, maxAlive: 7,  eliteChance: 0,    monsters: [crawler(140, 150)] },
     { count: 18, interval: 1.0,  maxAlive: 9,  eliteChance: 0,    monsters: [crawler(160, 158), dog(60)] },
-    { count: 16, interval: 0.95, maxAlive: 9,  eliteChance: 0.1,  monsters: [crawler(200, 158), boar(450)] },
+    { count: 16, interval: 0.95, maxAlive: 9,  eliteChance: 0.1,  monsters: [crawler(200, 158), boar(300)] },
     { count: 22, interval: 0.9,  maxAlive: 10, eliteChance: 0.1,  monsters: [crawler(220, 165), dog(75), eagle(90)] },
-    { count: 20, interval: 0.85, maxAlive: 10, eliteChance: 0.15, monsters: [crawler(260, 165), bear(1200), eagle(100)] },
-    { count: 26, interval: 0.8,  maxAlive: 12, eliteChance: 0.2,  monsters: [dog(90), eagle(110), boar(600)] },
-    { count: 24, interval: 0.75, maxAlive: 12, eliteChance: 0.25, monsters: [crawler(320, 180), bear(1600), eagle(125)] },
-    { count: 30, interval: 0.7,  maxAlive: 13, eliteChance: 0.3,  monsters: [dog(110), boar(800), bear(2000)] },
-    { count: 36, interval: 0.65, maxAlive: 14, eliteChance: 0.4,  monsters: [crawler(400, 195), dog(130), eagle(150), boar(1000), bear(2400)] },
+    { count: 20, interval: 0.85, maxAlive: 10, eliteChance: 0.15, monsters: [crawler(260, 165), bear(700), eagle(100)] },
+    { count: 26, interval: 0.8,  maxAlive: 12, eliteChance: 0.2,  monsters: [dog(90), eagle(110), boar(420)] },
+    { count: 24, interval: 0.75, maxAlive: 12, eliteChance: 0.25, monsters: [crawler(320, 180), bear(950), eagle(125)] },
+    { count: 30, interval: 0.7,  maxAlive: 13, eliteChance: 0.3,  monsters: [dog(110), boar(520), bear(1200)] },
+    { count: 36, interval: 0.65, maxAlive: 14, eliteChance: 0.4,  monsters: [crawler(400, 195), dog(130), eagle(150), boar(640), bear(1400)] },
 ];

@@ -38,7 +38,7 @@ export const BattleConfig = {
     /** 波次 */
     WAVE_REST_TIME: 2.5,
     /** 超出波次表后进入无尽模式，每波怪物血量倍率 */
-    ENDLESS_HP_SCALE: 1.25,
+    ENDLESS_HP_SCALE: 1.15,
 } as const;
 
 /** 占位美术色板：全部替换为正式资源后可整体删除 */

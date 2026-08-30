@@ -764,6 +764,12 @@ export class BattleManager extends Component {
         this._panel.show(options, (card) => {
             this._applyCard(card);
             this._paused = false;
+            // 竞态修复：选卡暂停期间载具被打空（gameOver 已置位）——
+            // 不恢复战斗，重新把护送失败面板顶到最前，避免"点卡后世界定格"的假死
+            if (this._gameOver) {
+                this._paused = true;
+                eventCenter.emit(GameEvent.GAME_OVER);
+            }
         });
     }
 
