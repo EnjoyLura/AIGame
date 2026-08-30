@@ -127,7 +127,7 @@ export class Hero extends Component {
         const bm = this._combat?.battle;
         // 立绘就绪即替换占位（AssetLib 异步加载，逐帧探测直到成功）
         if (!this._artApplied) {
-            const frame = AssetLib.frame(`characters/${this.def.id}`);
+            const frame = AssetLib.frame(`characters/hero_${this.def.id}`);
             if (frame) {
                 this._artApplied = true;
                 const sp = this._artNode.getComponent(Sprite) ?? this._artNode.addComponent(Sprite);
