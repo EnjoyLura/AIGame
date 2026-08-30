@@ -35,6 +35,7 @@ class ProjectileBasicAttack implements BasicAttack {
             this._timer = 0;
             return;
         }
+        this._owner.stats.notifyShot?.(target.enemy.node.position);
         this._owner.fireProjectile(target, this._owner.stats.atk, this._owner.def.bulletSpeed,
             BattleConfig.BULLET_RADIUS * (this._owner.def.weapon === 'sniper' ? 1.4 : 1),
             !!this._owner.def.pierce, true);
