@@ -104,6 +104,11 @@ zombie-shooter/
      （抠白底+裁剪+缩放，Python+PIL，参数：最大边长、容差）；
    - 把路径加进 `core/AssetLib.ts` 的 MANIFEST；
    - 实体侧按 key 取图（参考 `Enemy._tryApplyArt`），没图回退 Graphics 占位、不影响运行。
+- **全自动生图**：`gpt-image2-skill/`（克隆件不入库）+ `tools/gen_image.py` 包装脚本，
+  网关与密钥在 `tools/imagegen.local.json`（**不入库，严禁提交**）。
+  生成：`python tools/gen_image.py --prompt "英文提示词" --size 1024x1024 --basename xxx`
+  （输出到 `../gen-output/`）→ `process_art.py` 抠底（环形/框类加 `allwhite` 参数）→
+  放入 `assets/resources/textures/` → AssetLib 清单登记。
 
 ## 五、下一步开发路线
 

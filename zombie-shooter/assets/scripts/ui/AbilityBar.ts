@@ -1,8 +1,9 @@
-import { _decorator, Color, Component, Graphics, Label, Node, Tween, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { ABILITY_MAX_LEVEL, AbilityDef } from '../battle/HeroDef';
 import { Hero } from '../battle/Hero';
 import { BattleManager } from '../battle/BattleManager';
+import { AssetLib } from '../core/AssetLib';
 import { createUINode } from '../core/createUINode';
 
 /**
@@ -60,6 +61,9 @@ class AbilityIcon {
     private _hero: Hero;
     private _slot: SlotId;
     private _baseG: Graphics = null!;
+    /** 图标框贴图层（AssetLib 就绪后叠加，缺图回退代码圆） */
+    private _frameNode: Node = null!;
+    private _frameApplied = false;
     /** 冷却扇形遮罩层（仅在冷却刻度变化时重画，不逐帧重画） */
     private _maskG: Graphics = null!;
     /** 大招"储水"充能层（仅在充能刻度变化时重画） */
@@ -105,6 +109,12 @@ class AbilityIcon {
         const bgNode = createUINode('Base');
         this.node.addChild(bgNode);
         this._baseG = bgNode.addComponent(Graphics);
+
+        const frameNode = createUINode('Frame');
+        this.node.addChild(frameNode);
+        frameNode.addComponent(UITransform).setContentSize(ICON_R * 2, ICON_R * 2);
+        frameNode.active = false;
+        this._frameNode = frameNode;
 
         const maskNode = createUINode('Mask');
         this.node.addChild(maskNode);
@@ -157,6 +167,20 @@ class AbilityIcon {
             return;
         }
         this.node.active = true;
+
+        // 图标框贴图：AssetLib 就绪即叠加一次（缺图保持代码圆）
+        if (!this._frameApplied) {
+            const frame = AssetLib.frame('ui/icon_frame');
+            if (frame) {
+                this._frameApplied = true;
+                const sp = this._frameNode.getComponent(Sprite) ?? this._frameNode.addComponent(Sprite);
+                sp.sizeMode = Sprite.SizeMode.CUSTOM;
+                sp.trim = false;
+                sp.spriteFrame = frame;
+                this._frameNode.getComponent(UITransform)!.setContentSize(ICON_R * 2, ICON_R * 2);
+                this._frameNode.active = true;
+            }
+        }
 
         const cooling = info.cdLeft > 0;
         const full = this._slot === 'ultimate' && (info.charge ?? 0) >= (info.chargeMax || 1);

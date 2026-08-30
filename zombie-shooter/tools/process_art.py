@@ -1,11 +1,11 @@
 """AI 生成美术的接入预处理：抠白底 -> 裁剪 -> 缩放 -> 输出到工程资源目录。
 
 用法：
-  python tools/process_art.py <输入.png> <输出.png> [最大边长，默认 288] [容差，默认 32]
+  python tools/process_art.py <输入.png> <输出.png> [最大边长，默认 288] [容差，默认 32] [模式]
 
-说明：
-- 从四边向内洪水填充移除接近纯色的背景（AI 图通常白底/浅底）；
-- 深色描边的立绘效果最好；输出 RGBA PNG，已按内容裁剪。
+模式：
+  flood（默认）  从四边向内洪水填充移除背景（适合背景连通的立绘）
+  allwhite      全图移除接近白色的像素（适合环形/框类贴图，中心镂空也要透）
 """
 import sys
 from collections import deque
@@ -47,13 +47,30 @@ def remove_background(img: Image.Image, tolerance: int) -> Image.Image:
     return img
 
 
+def remove_all_white(img: Image.Image, tolerance: int) -> Image.Image:
+    """全图移除接近纯白的像素（含被前景包围的封闭区域，如环形框的中心）。"""
+    img = img.convert('RGBA')
+    w, h = img.size
+    px = img.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, _ = px[x, y]
+            if r >= 255 - tolerance and g >= 255 - tolerance and b >= 255 - tolerance:
+                px[x, y] = (0, 0, 0, 0)
+    return img
+
+
 def main() -> None:
     src, dst = sys.argv[1], sys.argv[2]
     max_dim = int(sys.argv[3]) if len(sys.argv) > 3 else 288
     tolerance = int(sys.argv[4]) if len(sys.argv) > 4 else 32
+    mode = sys.argv[5] if len(sys.argv) > 5 else 'flood'
 
     img = Image.open(src)
-    img = remove_background(img, tolerance)
+    if mode == 'allwhite':
+        img = remove_all_white(img, tolerance)
+    else:
+        img = remove_background(img, tolerance)
 
     # 轻微羽化 alpha 边缘，弱化白边
     alpha = img.getchannel('A').filter(ImageFilter.GaussianBlur(0.8))

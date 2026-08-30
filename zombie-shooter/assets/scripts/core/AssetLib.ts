@@ -10,8 +10,9 @@ import { resources, SpriteFrame } from 'cc';
 const MANIFEST = [
     'monsters/boar',
     'scenes/road',
+    'ui/icon_frame',
     // 后续逐张加：'monsters/dog', 'monsters/bear', 'monsters/eagle', 'monsters/crawler',
-    // 'characters/hero_rifle', ... 'scenes/vehicle_tail', 'ui/...'
+    // 'characters/hero_rifle', ... 'scenes/vehicle_tail', 'ui/panel', 'ui/button', 'icons/...'
 ];
 
 export class AssetLib {
