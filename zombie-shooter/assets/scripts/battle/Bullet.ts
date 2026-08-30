@@ -64,11 +64,22 @@ export class Bullet extends Component {
         }
     }
 
+    /** demo 式三层弹体：柔光晕（additive 观感的浅色大椭圆）+ 主体色椭圆 + 白热弹芯 */
     private _draw(r: number, color: Color): void {
         const g = this.node.getComponent(Graphics) ?? this.node.addComponent(Graphics);
         g.clear();
+        // 外层光晕：同色低透明、约 2.2 倍大
+        const glow = new Color(color.r, color.g, color.b, 60);
+        g.fillColor = glow;
+        g.ellipse(0, 0, r * 1.5, r * 3.6);
+        g.fill();
+        // 主体
         g.fillColor = color;
-        g.ellipse(0, 0, r * 0.7, r * 1.9);
+        g.ellipse(0, 0, r * 0.75, r * 2.0);
+        g.fill();
+        // 白热弹芯
+        g.fillColor = new Color(255, 255, 255, 235);
+        g.ellipse(0, 0, r * 0.34, r * 0.95);
         g.fill();
     }
 }

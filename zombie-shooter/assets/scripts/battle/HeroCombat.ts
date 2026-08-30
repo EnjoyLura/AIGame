@@ -381,13 +381,43 @@ export class HeroCombatController {
         // 光束画在英雄子层会跟随身体瞄准旋转——反向补偿，保证光束始终指向目标
         beam.node.angle = -this._heroNode.angle;
         beam.clear();
-        beam.strokeColor = this.def.bulletColor;
-        beam.lineWidth = width;
         const from = this._heroNode.worldPosition;
         const to = target.enemy.node.worldPosition;
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        // demo 式三层光束：宽柔光晕 → 主色束 → 白热芯
+        const glow = new Color(this.def.bulletColor.r, this.def.bulletColor.g, this.def.bulletColor.b, 70);
+        beam.strokeColor = glow;
+        beam.lineWidth = width * 2.6;
         beam.moveTo(0, 26);
-        beam.lineTo(to.x - from.x, to.y - from.y);
+        beam.lineTo(dx, dy);
         beam.stroke();
+        beam.strokeColor = this.def.bulletColor;
+        beam.lineWidth = width;
+        beam.moveTo(0, 26);
+        beam.lineTo(dx, dy);
+        beam.stroke();
+        beam.strokeColor = new Color(255, 255, 255, 235);
+        beam.lineWidth = Math.max(1.5, width * 0.35);
+        beam.moveTo(0, 26);
+        beam.lineTo(dx, dy);
+        beam.stroke();
+        // 命中点光斑：三层同心圆模拟径向渐变（Graphics 无渐变 API）
+        const spotR = width * 3.2;
+        const spot = [
+            { r: spotR, a: 40 },
+            { r: spotR * 0.62, a: 90 },
+            { r: spotR * 0.3, a: 200 },
+        ];
+        for (const ring of spot) {
+            beam.fillColor = new Color(this.def.bulletColor.r, this.def.bulletColor.g, this.def.bulletColor.b, ring.a);
+            beam.circle(dx, dy, ring.r);
+            beam.fill();
+        }
+        // 白热命中核心
+        beam.fillColor = new Color(255, 255, 255, 220);
+        beam.circle(dx, dy, spotR * 0.16);
+        beam.fill();
     }
 
     /** 清空指定光束层；不传 ownerId 则清空全部（暂停/重置用） */
