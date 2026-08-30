@@ -79,6 +79,10 @@ class AbilityIcon {
     private _fxG: Graphics = null!;
     private _fxNode: Node = null!;
     private _fxOpacity: UIOpacity = null!;
+    /** 充能完成闪光层（一次性爆发，必定可见） */
+    private _flashG: Graphics = null!;
+    private _flashNode: Node = null!;
+    private _flashOpacity: UIOpacity = null!;
     /** 大招就绪呼吸光效层（静态绘制一次，脉动用节点缩放/透明度补间，零重画） */
     private _glowG: Graphics = null!;
     private _glowNode: Node = null!;
@@ -148,6 +152,13 @@ class AbilityIcon {
 
         this._nameLabel = this._makeLabel('Name', 0, 0, 45);
         this._cdLabel = this._makeLabel('Cd', 0, 0, 26);
+
+        const flashNode = createUINode('Flash');
+        this.node.addChild(flashNode);
+        this._flashG = flashNode.addComponent(Graphics);
+        this._flashNode = flashNode;
+        this._flashOpacity = flashNode.addComponent(UIOpacity);
+        this._flashNode.active = false;
         // 等级角标：右下角大号白字黑描边（参考《向僵尸开炮》样式）
         this._lvLabel = this._makeLabel('Lv', ICON_R - 9, -ICON_R + 15, 36);
 
@@ -257,11 +268,42 @@ class AbilityIcon {
         if (full !== this._wasFull) {
             if (full) {
                 this._punch();
+                this._playReadyFlash();
             }
             this._setGlow(full);
             this._setReadyFx(full);
             this._wasFull = full;
         }
+    }
+
+    /** 充满瞬间闪光爆发：元素色亮环扩散淡出（一次性补间，不依赖就绪状态存续） */
+    private _playReadyFlash(): void {
+        const g = this._flashG;
+        g.clear();
+        Tween.stopAllByTarget(this._flashNode);
+        Tween.stopAllByTarget(this._flashOpacity);
+        const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
+        this._flashNode.setScale(1, 1, 1);
+        this._flashOpacity.opacity = 255;
+        this._flashNode.active = true;
+        g.lineWidth = 5;
+        g.strokeColor = el.fx;
+        g.circle(0, 0, ICON_R + 4);
+        g.stroke();
+        g.lineWidth = 3;
+        g.strokeColor = new Color(255, 255, 255, 230);
+        g.circle(0, 0, ICON_R - 2);
+        g.stroke();
+        tween(this._flashNode)
+            .to(0.5, { scale: new Vec3(1.55, 1.55, 1) })
+            .call(() => {
+                this._flashNode.active = false;
+                g.clear();
+            })
+            .start();
+        tween(this._flashOpacity)
+            .to(0.5, { opacity: 0 })
+            .start();
     }
 
     /** 大招就绪元素特效：4 颗元素粒子环绕图标（静态绘制一次，旋转+透明度补间驱动，零重画） */
@@ -327,13 +369,12 @@ class AbilityIcon {
         g.stroke();
     }
 
-    /** 大招充能：未满部分压暗，元素色从图标底部往上填充（原神式）；充满=遮罩消失、图标点亮+元素亮环 */
+    /** 大招充能：干净的黑遮罩压暗（透明度随充能渐亮兼作进度提示）；充满=遮罩消失+图标点亮+元素亮环 */
     private _drawUltFill(fraction: number): void {
         const g = this._fillG;
         g.clear();
         const f = Math.min(1, Math.max(0, fraction));
         const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
-        const r = ICON_R - 2;
         if (f >= 0.995) {
             // 充满：遮罩消失、图标全彩点亮 + 元素色亮环
             g.strokeColor = el.fx;
@@ -342,26 +383,11 @@ class AbilityIcon {
             g.stroke();
             return;
         }
-        if (f > 0.005) {
-            // 未充满部分压暗
-            g.fillColor = new Color(0, 0, 0, 85);
-            g.circle(0, 0, r);
-            g.fill();
-            // 元素色从底部往上填充（半透明覆盖已充能区域）
-            const yc = -r + 2 * f * r;
-            const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
-            const x = Math.cos(a) * r;
-            g.fillColor = el.fill;
-            g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
-            g.close();
-            g.fill();
-            // 水面高光
-            g.strokeColor = new Color(255, 255, 255, 150);
-            g.lineWidth = 2;
-            g.moveTo(-x, yc);
-            g.lineTo(x, yc);
-            g.stroke();
-        }
+        // 充能中：普通干净的半透明黑遮罩，越接近充满越透亮
+        const alpha = Math.round(110 - 65 * f);
+        g.fillColor = new Color(0, 0, 0, alpha);
+        g.circle(0, 0, ICON_R - 1);
+        g.fill();
     }
 
     /** 大招就绪呼吸光效：光圈静态绘制一次，脉动由节点缩放+透明度补间驱动 */
