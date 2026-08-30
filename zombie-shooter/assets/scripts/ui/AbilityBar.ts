@@ -180,6 +180,8 @@ class AbilityIcon {
             const iconFrame = AssetLib.frame(`icons/${this._hero.def.id}_${this._slot}`);
             if (iconFrame) {
                 this._iconApplied = true;
+                // 纯图标填充：清掉此前绘制的代码底色圆（灰圈边缘的来源）
+                this._baseG.clear();
                 const sp = this._artNode.getComponent(Sprite) ?? this._artNode.addComponent(Sprite);
                 sp.sizeMode = Sprite.SizeMode.CUSTOM;
                 sp.trim = false;
