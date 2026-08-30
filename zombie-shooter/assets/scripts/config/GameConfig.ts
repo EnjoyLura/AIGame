@@ -11,6 +11,9 @@ export const Design = {
     HEIGHT: 1920,
 } as const;
 
+/** 构建版本戳：每次发布更新（HUD 角落可见，用于识别设备上的构建是否最新） */
+export const BUILD_STAMP = 'b0830-3';
+
 /** 战斗核心参数 */
 export const BattleConfig = {
     /** 运输载具：车尾横贯屏幕底部的条高 */

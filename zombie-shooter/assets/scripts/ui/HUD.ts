@@ -1,6 +1,6 @@
 import { _decorator, Color, Component, Graphics, Label, Node, UIOpacity, UITransform, Vec3, view, tween } from 'cc';
 const { ccclass } = _decorator;
-import { BattleConfig, Design, GameEvent, Palette } from '../config/GameConfig';
+import { BattleConfig, BUILD_STAMP, Design, GameEvent, Palette } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
 import { createUINode } from '../core/createUINode';
 import { GameManager } from '../core/GameManager';
@@ -127,6 +127,10 @@ export class HUD extends Component {
     }
 
     private _buildTopBar(): void {
+        // 构建版本戳（左下角小字，识别设备构建新旧）
+        const stamp = this._makeLabel(this.node, BUILD_STAMP, -Design.WIDTH / 2 + 70, -this._vh / 2 + 30, 22);
+        stamp.color = new Color(120, 130, 140, 255);
+        console.log('[末日航线] build', BUILD_STAMP);
         this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 135, this._vh / 2 - 75, 45);
         this._waveLabel = this._makeLabel(this.node, '', 0, this._vh / 2 - 75, 51);
         this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 135, this._vh / 2 - 75, 45);
