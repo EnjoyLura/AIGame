@@ -123,9 +123,6 @@ export class LevelUpPanel extends Component {
         label.lineHeight = size + 6;
         label.isBold = true;
         label.color = Palette.text;
-        label.enableOutline = true;
-        label.outlineColor = Color.BLACK;
-        label.outlineWidth = 2;
         return label;
     }
 
@@ -140,9 +137,6 @@ export class LevelUpPanel extends Component {
         label.isBold = true;
         label.color = color ?? Palette.text;
         // 米白卡底配纯黑文字，无需描边
-        label.enableOutline = false;
-        label.outlineColor = Color.BLACK;
-        label.outlineWidth = 2;
         label.horizontalAlign = Label.HorizontalAlign.CENTER;
         // 技能卡文案较长：限定宽度并 SHRUNK，超长自动缩字/换行，避免溢出卡面
         label.overflow = Label.Overflow.SHRUNK;

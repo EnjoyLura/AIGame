@@ -150,9 +150,6 @@ class AbilityIcon {
         label.lineHeight = size + 6;
         label.isBold = true;
         label.color = Color.WHITE;
-        label.enableOutline = true;
-        label.outlineColor = Color.BLACK;
-        label.outlineWidth = 3;
         return label;
     }
 
@@ -422,9 +419,6 @@ class TipView {
         label.lineHeight = size + 6;
         label.isBold = name === 'Title';
         label.color = color;
-        label.enableOutline = true;
-        label.outlineColor = Color.BLACK;
-        label.outlineWidth = 3;
         label.horizontalAlign = align === 'right'
             ? Label.HorizontalAlign.RIGHT
             : align === 'left' ? Label.HorizontalAlign.LEFT : Label.HorizontalAlign.CENTER;
@@ -567,9 +561,6 @@ export class AbilityBar extends Component {
         label.lineHeight = 39;
         label.isBold = true;
         label.color = Color.WHITE;
-        label.enableOutline = true;
-        label.outlineColor = Color.BLACK;
-        label.outlineWidth = 3;
         return label;
     }
 

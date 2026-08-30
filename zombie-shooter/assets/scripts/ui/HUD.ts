@@ -123,9 +123,6 @@ export class HUD extends Component {
         label.lineHeight = size + 9;
         label.isBold = true;
         label.color = Palette.text;
-        label.enableOutline = true;
-        label.outlineColor = Color.BLACK;
-        label.outlineWidth = 3;
         return label;
     }
 
@@ -191,7 +188,6 @@ export class HUD extends Component {
 
     private _buildWavePopup(): void {
         this._popupLabel = this._makeLabel(this.node, '', 0, this._vh * 0.16, 84);
-        this._popupLabel.outlineWidth = 4;
         this._popupOpacity = this._popupLabel.node.addComponent(UIOpacity);
         this._popupOpacity.opacity = 0;
     }

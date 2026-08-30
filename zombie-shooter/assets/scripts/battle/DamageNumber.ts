@@ -16,9 +16,6 @@ export class DamageNumber extends Component {
         this._label.isBold = true;
         this._label.fontSize = 48;
         this._label.lineHeight = 57;
-        this._label.enableOutline = true;
-        this._label.outlineColor = Color.BLACK;
-        this._label.outlineWidth = 4;
         this._opacity = this.node.addComponent(UIOpacity);
     }
 
