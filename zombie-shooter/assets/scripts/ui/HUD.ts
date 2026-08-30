@@ -12,10 +12,10 @@ import { BattleManager } from '../battle/BattleManager';
  */
 @ccclass('HUD')
 export class HUD extends Component {
-    private static readonly XP_BAR_W = 600;
-    private static readonly XP_BAR_H = 14;
-    private static readonly VEHICLE_BAR_W = 320;
-    private static readonly VEHICLE_BAR_H = 22;
+    private static readonly XP_BAR_W = 900;
+    private static readonly XP_BAR_H = 21;
+    private static readonly VEHICLE_BAR_W = 480;
+    private static readonly VEHICLE_BAR_H = 33;
 
     private _waveLabel: Label = null!;
     private _timeLabel: Label = null!;
@@ -120,29 +120,29 @@ export class HUD extends Component {
         const label = node.addComponent(Label);
         label.string = text;
         label.fontSize = size;
-        label.lineHeight = size + 6;
+        label.lineHeight = size + 9;
         label.isBold = true;
         label.color = Palette.text;
         label.enableOutline = true;
         label.outlineColor = Color.BLACK;
-        label.outlineWidth = 2;
+        label.outlineWidth = 3;
         return label;
     }
 
     private _buildTopBar(): void {
-        this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 90, this._vh / 2 - 50, 30);
-        this._waveLabel = this._makeLabel(this.node, '', 0, this._vh / 2 - 50, 34);
-        this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 90, this._vh / 2 - 50, 30);
+        this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 135, this._vh / 2 - 75, 45);
+        this._waveLabel = this._makeLabel(this.node, '', 0, this._vh / 2 - 75, 51);
+        this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 135, this._vh / 2 - 75, 45);
     }
 
     /** 经验条：顶栏下方细条 + 等级徽标 */
     private _buildXpBar(): void {
-        const barY = this._vh / 2 - 100;
-        this._levelLabel = this._makeLabel(this.node, 'Lv.1', -Design.WIDTH / 2 + 50, barY, 26);
+        const barY = this._vh / 2 - 150;
+        this._levelLabel = this._makeLabel(this.node, 'Lv.1', -Design.WIDTH / 2 + 75, barY, 39);
 
         const bg = createUINode('XpBarBg');
         this.node.addChild(bg);
-        bg.setPosition(40, barY);
+        bg.setPosition(60, barY);
         const g = bg.addComponent(Graphics);
         g.fillColor = Palette.hpBarBg;
         g.roundRect(-HUD.XP_BAR_W / 2, -HUD.XP_BAR_H / 2, HUD.XP_BAR_W, HUD.XP_BAR_H, HUD.XP_BAR_H / 2);
@@ -150,14 +150,14 @@ export class HUD extends Component {
 
         const fillNode = createUINode('XpBarFill');
         bg.addChild(fillNode);
-        const fillH = HUD.XP_BAR_H - 4;
+        const fillH = HUD.XP_BAR_H - 6;
         const ut = fillNode.addComponent(UITransform);
         ut.setAnchorPoint(0, 0.5);
-        ut.setContentSize(HUD.XP_BAR_W - 8, fillH);
-        fillNode.setPosition(-HUD.XP_BAR_W / 2 + 4, 0);
+        ut.setContentSize(HUD.XP_BAR_W - 12, fillH);
+        fillNode.setPosition(-HUD.XP_BAR_W / 2 + 6, 0);
         const fg = fillNode.addComponent(Graphics);
         fg.fillColor = Palette.xpBarFill;
-        fg.roundRect(0, -fillH / 2, HUD.XP_BAR_W - 8, fillH, fillH / 2);
+        fg.roundRect(0, -fillH / 2, HUD.XP_BAR_W - 12, fillH, fillH / 2);
         fg.fill();
         fillNode.setScale(0, 1, 1);
         this._xpFill = fillNode;
@@ -165,7 +165,7 @@ export class HUD extends Component {
 
     /** 载具耐久条：悬在车尾护栏上方 */
     private _buildVehicleBar(): void {
-        const barY = this._vehicleTopY + 55;
+        const barY = this._vehicleTopY + 82;
         const bg = createUINode('VehicleBarBg');
         this.node.addChild(bg);
         bg.setPosition(0, barY);
@@ -176,22 +176,22 @@ export class HUD extends Component {
 
         const fillNode = createUINode('VehicleBarFill');
         bg.addChild(fillNode);
-        const fillH = HUD.VEHICLE_BAR_H - 6;
+        const fillH = HUD.VEHICLE_BAR_H - 9;
         const ut = fillNode.addComponent(UITransform);
         ut.setAnchorPoint(0, 0.5);
-        ut.setContentSize(HUD.VEHICLE_BAR_W - 8, fillH);
-        fillNode.setPosition(-HUD.VEHICLE_BAR_W / 2 + 4, 0);
+        ut.setContentSize(HUD.VEHICLE_BAR_W - 12, fillH);
+        fillNode.setPosition(-HUD.VEHICLE_BAR_W / 2 + 6, 0);
         const fg = fillNode.addComponent(Graphics);
         fg.fillColor = Palette.vehicleBarFill;
-        fg.roundRect(0, -fillH / 2, HUD.VEHICLE_BAR_W - 8, fillH, fillH / 2);
+        fg.roundRect(0, -fillH / 2, HUD.VEHICLE_BAR_W - 12, fillH, fillH / 2);
         fg.fill();
         fillNode.setScale(1, 1, 1);
         this._vehicleFill = fillNode;
     }
 
     private _buildWavePopup(): void {
-        this._popupLabel = this._makeLabel(this.node, '', 0, this._vh * 0.16, 56);
-        this._popupLabel.outlineWidth = 3;
+        this._popupLabel = this._makeLabel(this.node, '', 0, this._vh * 0.16, 84);
+        this._popupLabel.outlineWidth = 4;
         this._popupOpacity = this._popupLabel.node.addComponent(UIOpacity);
         this._popupOpacity.opacity = 0;
     }
@@ -210,34 +210,34 @@ export class HUD extends Component {
         // 结算卡片
         const card = createUINode('FailCard');
         panel.addChild(card);
-        const cardW = 560;
-        const cardH = 460;
-        card.setPosition(0, 60);
+        const cardW = 840;
+        const cardH = 690;
+        card.setPosition(0, 90);
         card.addComponent(UITransform).setContentSize(cardW, cardH);
         const cg = card.addComponent(Graphics);
         cg.fillColor = Palette.cardBg;
         cg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
         cg.fill();
         cg.strokeColor = Palette.cardBorder;
-        cg.lineWidth = 4;
+        cg.lineWidth = 6;
         cg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
         cg.stroke();
 
-        this._makeLabel(card, '护送失败', 0, 150, 56);
-        this._failWaveLabel = this._makeLabel(card, '', 0, 60, 30);
-        this._failKillLabel = this._makeLabel(card, '', 0, 10, 30);
-        this._failLevelLabel = this._makeLabel(card, '', 0, -40, 30);
+        this._makeLabel(card, '护送失败', 0, 225, 84);
+        this._failWaveLabel = this._makeLabel(card, '', 0, 90, 45);
+        this._failKillLabel = this._makeLabel(card, '', 0, 15, 45);
+        this._failLevelLabel = this._makeLabel(card, '', 0, -60, 45);
 
         // 重新挑战按钮
         const btn = createUINode('RetryBtn');
         card.addChild(btn);
-        btn.addComponent(UITransform).setContentSize(320, 96);
-        btn.setPosition(0, -150);
+        btn.addComponent(UITransform).setContentSize(480, 144);
+        btn.setPosition(0, -225);
         const bg = btn.addComponent(Graphics);
         bg.fillColor = Palette.vehicleBarFill;
-        bg.roundRect(-160, -48, 320, 96, 48);
+        bg.roundRect(-240, -72, 480, 144, 72);
         bg.fill();
-        const btnLabel = this._makeLabel(btn, '重 新 挑 战', 0, 0, 34);
+        const btnLabel = this._makeLabel(btn, '重 新 挑 战', 0, 0, 51);
         btnLabel.node.setPosition(0, 0);
 
         btn.on(Node.EventType.TOUCH_END, () => {

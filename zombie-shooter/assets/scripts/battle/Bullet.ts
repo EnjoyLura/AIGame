@@ -57,8 +57,8 @@ export class Bullet extends Component {
         const p = this.node.position;
         this.node.setPosition(p.x + this._dir.x * this._speed * dt, p.y + this._dir.y * this._speed * dt);
         const next = this.node.position;
-        const halfW = Design.WIDTH / 2 + 60;
-        const halfH = view.getVisibleSize().height / 2 + 60;
+        const halfW = Design.WIDTH / 2 + 90;
+        const halfH = view.getVisibleSize().height / 2 + 90;
         if (next.x < -halfW || next.x > halfW || next.y < -halfH || next.y > halfH) {
             bm.recycleBullet(this);
         }

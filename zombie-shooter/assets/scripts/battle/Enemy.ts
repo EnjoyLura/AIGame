@@ -75,8 +75,8 @@ export class Enemy extends Component {
         this._chargeState = 'advance';
         this._windupLeft = 0;
         this._windupTime = info.windupTime ?? 0.6;
-        this._dashRange = info.dashRange ?? 340;
-        this._dashSpeed = info.dashSpeed ?? 430;
+        this._dashRange = info.dashRange ?? 510;
+        this._dashSpeed = info.dashSpeed ?? 645;
         // 蓄力中途被回收的怪会带缩放入池，重置防串状态
         this.node.setScale(1, 1, 1);
         // 行走动效节奏：疯狗高频碎步 / 野猪沉重小跑 / 熊缓慢沉稳 / 疯鹰悬浮

@@ -14,11 +14,11 @@ export class DamageNumber extends Component {
     onLoad(): void {
         this._label = this.node.addComponent(Label);
         this._label.isBold = true;
-        this._label.fontSize = 32;
-        this._label.lineHeight = 38;
+        this._label.fontSize = 48;
+        this._label.lineHeight = 57;
         this._label.enableOutline = true;
         this._label.outlineColor = Color.BLACK;
-        this._label.outlineWidth = 3;
+        this._label.outlineWidth = 4;
         this._opacity = this.node.addComponent(UIOpacity);
     }
 
@@ -33,7 +33,7 @@ export class DamageNumber extends Component {
         this._label.color = color;
         this._opacity.opacity = 255;
 
-        tween(this.node).by(0.55, { position: new Vec3(0, 100, 0) }).start();
+        tween(this.node).by(0.55, { position: new Vec3(0, 150, 0) }).start();
         tween(this._opacity)
             .delay(0.3)
             .to(0.25, { opacity: 0 })

@@ -46,34 +46,34 @@ export interface WaveInfo {
 
 /** 爬行者：直线追车的基础怪 */
 const crawler = (hp: number, speed: number): MonsterInfo => ({
-    id: 'crawler', behavior: 'chaser', hp, speed, radius: 28, touchDamage: 8, tier: 0,
+    id: 'crawler', behavior: 'chaser', hp, speed, radius: 42, touchDamage: 8, tier: 0,
 });
 
 /** 疯狗：低血高速成群直线快跑，检验群体技能清场 */
 const dog = (hp: number): MonsterInfo => ({
-    id: 'dog', behavior: 'swarm', hp, speed: 165, radius: 20, touchDamage: 6, tier: 0,
+    id: 'dog', behavior: 'swarm', hp, speed: 248, radius: 30, touchDamage: 6, tier: 0,
     packSize: 4,
 });
 
 /** 獠牙野猪：贴近后蓄力定身（可集火），再高速冲刺车尾，单次伤害高 */
 const boar = (hp: number): MonsterInfo => ({
-    id: 'boar', behavior: 'charger', hp, speed: 80, radius: 30, touchDamage: 32, tier: 0,
-    dashRange: 340, windupTime: 0.6, dashSpeed: 430,
+    id: 'boar', behavior: 'charger', hp, speed: 120, radius: 45, touchDamage: 32, tier: 0,
+    dashRange: 510, windupTime: 0.6, dashSpeed: 645,
 });
 
 /** 双足熊：高血极慢的肉盾，检验持续 DPS */
 const bear = (hp: number): MonsterInfo => ({
-    id: 'bear', behavior: 'tanker', hp, speed: 42, radius: 42, touchDamage: 26, tier: 0,
+    id: 'bear', behavior: 'tanker', hp, speed: 63, radius: 63, touchDamage: 26, tier: 0,
 });
 
 /** 疯鹰：从两侧入场的快速俯冲怪，无视车道斜线直扑车尾 */
 const eagle = (hp: number): MonsterInfo => ({
-    id: 'eagle', behavior: 'diver', hp, speed: 195, radius: 20, touchDamage: 8, tier: 0,
+    id: 'eagle', behavior: 'diver', hp, speed: 293, radius: 30, touchDamage: 8, tier: 0,
 });
 
 /** GM 刷怪基表（数值=首次出现波次的水准） */
 export const MONSTERS: Record<string, MonsterInfo> = {
-    crawler: crawler(100, 90),
+    crawler: crawler(100, 135),
     dog: dog(60),
     boar: boar(450),
     bear: bear(1200),
@@ -81,14 +81,14 @@ export const MONSTERS: Record<string, MonsterInfo> = {
 };
 
 export const WAVES: WaveInfo[] = [
-    { count: 8,  interval: 1.2,  maxAlive: 6,  eliteChance: 0,    monsters: [crawler(100, 90)] },
-    { count: 10, interval: 1.05, maxAlive: 7,  eliteChance: 0,    monsters: [crawler(140, 100)] },
-    { count: 18, interval: 1.0,  maxAlive: 9,  eliteChance: 0,    monsters: [crawler(160, 105), dog(60)] },
-    { count: 16, interval: 0.95, maxAlive: 9,  eliteChance: 0.1,  monsters: [crawler(200, 105), boar(450)] },
-    { count: 22, interval: 0.9,  maxAlive: 10, eliteChance: 0.1,  monsters: [crawler(220, 110), dog(75), eagle(90)] },
-    { count: 20, interval: 0.85, maxAlive: 10, eliteChance: 0.15, monsters: [crawler(260, 110), bear(1200), eagle(100)] },
+    { count: 8,  interval: 1.2,  maxAlive: 6,  eliteChance: 0,    monsters: [crawler(100, 135)] },
+    { count: 10, interval: 1.05, maxAlive: 7,  eliteChance: 0,    monsters: [crawler(140, 150)] },
+    { count: 18, interval: 1.0,  maxAlive: 9,  eliteChance: 0,    monsters: [crawler(160, 158), dog(60)] },
+    { count: 16, interval: 0.95, maxAlive: 9,  eliteChance: 0.1,  monsters: [crawler(200, 158), boar(450)] },
+    { count: 22, interval: 0.9,  maxAlive: 10, eliteChance: 0.1,  monsters: [crawler(220, 165), dog(75), eagle(90)] },
+    { count: 20, interval: 0.85, maxAlive: 10, eliteChance: 0.15, monsters: [crawler(260, 165), bear(1200), eagle(100)] },
     { count: 26, interval: 0.8,  maxAlive: 12, eliteChance: 0.2,  monsters: [dog(90), eagle(110), boar(600)] },
-    { count: 24, interval: 0.75, maxAlive: 12, eliteChance: 0.25, monsters: [crawler(320, 120), bear(1600), eagle(125)] },
+    { count: 24, interval: 0.75, maxAlive: 12, eliteChance: 0.25, monsters: [crawler(320, 180), bear(1600), eagle(125)] },
     { count: 30, interval: 0.7,  maxAlive: 13, eliteChance: 0.3,  monsters: [dog(110), boar(800), bear(2000)] },
-    { count: 36, interval: 0.65, maxAlive: 14, eliteChance: 0.4,  monsters: [crawler(400, 130), dog(130), eagle(150), boar(1000), bear(2400)] },
+    { count: 36, interval: 0.65, maxAlive: 14, eliteChance: 0.4,  monsters: [crawler(400, 195), dog(130), eagle(150), boar(1000), bear(2400)] },
 ];

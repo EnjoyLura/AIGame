@@ -59,7 +59,7 @@ class LaserBasicAttack implements BasicAttack {
             this._owner.clearBeam('basic');
             return;
         }
-        this._owner.drawBeam('basic', this._target, 4);
+        this._owner.drawBeam('basic', this._target, 6);
         this._damage += this._owner.stats.atk * dt;
         this._time += dt;
         if (this._time >= 0.5) {
@@ -217,7 +217,7 @@ class AbilityRuntime {
             this._target = this._owner.battle.findTarget(this._owner.position, this._def.range);
         }
         if (this._target) {
-            this._owner.drawBeam(this._def.id, this._target, 9);
+            this._owner.drawBeam(this._def.id, this._target, 13);
             if (this._tickTimer <= 0) {
                 const tick = this._def.tick ?? 0.25;
                 const damage = Math.round(this._owner.stats.atk * this.damageScale * tick);
@@ -332,7 +332,7 @@ export class HeroCombatController {
 
     fireProjectile(target: EnemyHandle, damage: number, speed: number, radius: number,
         pierce: boolean, canCrit: boolean, angle = 0): void {
-        const from = new Vec3(this.position.x, this.position.y + 36);
+        const from = new Vec3(this.position.x, this.position.y + 54);
         const dir = new Vec3();
         Vec3.subtract(dir, target.enemy.node.position, from);
         if (angle !== 0) {

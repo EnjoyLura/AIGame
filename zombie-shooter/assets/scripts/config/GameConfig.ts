@@ -7,25 +7,25 @@ import { Color } from 'cc';
 
 /** 设计分辨率（竖屏） */
 export const Design = {
-    WIDTH: 720,
-    HEIGHT: 1280,
+    WIDTH: 1080,
+    HEIGHT: 1920,
 } as const;
 
 /** 战斗核心参数 */
 export const BattleConfig = {
     /** 运输载具：车尾横贯屏幕底部的条高 */
-    VEHICLE_STRIP_HEIGHT: 180,
+    VEHICLE_STRIP_HEIGHT: 270,
     VEHICLE_MAX_HP: 3000,
     /** 路面滚动速度（px/s）：世界下移=载具前进 */
-    ROAD_SCROLL_SPEED: 130,
+    ROAD_SCROLL_SPEED: 195,
     /** 路面半宽：怪物车道的横向范围 */
-    ROAD_HALF_WIDTH: 280,
+    ROAD_HALF_WIDTH: 420,
     /** 上阵英雄数与站位间距（横排分散在车尾） */
     DEPLOY_HERO_COUNT: 4,
-    HERO_SLOT_SPACING: 170,
+    HERO_SLOT_SPACING: 255,
     /** 普攻子弹默认参数（英雄个体数值以 HeroDef 为准） */
-    BULLET_RADIUS: 8,
-    BULLET_SPEED: 1500,
+    BULLET_RADIUS: 12,
+    BULLET_SPEED: 2250,
     /** 暴击 */
     CRIT_CHANCE: 0.15,
     CRIT_MULTI: 2,

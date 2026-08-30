@@ -21,7 +21,7 @@ export class XpGem extends Component {
 
     init(): void {
         this._delay = BattleConfig.XP_GEM_COLLECT_DELAY;
-        this._speed = 140;
+        this._speed = 210;
     }
 
     update(dt: number): void {
@@ -39,8 +39,8 @@ export class XpGem extends Component {
         const dx = target.x - p.x;
         const dy = target.y - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        this._speed = Math.min(this._speed + 1100 * dt, 1500);
-        if (dist <= Math.max(40, this._speed * dt)) {
+        this._speed = Math.min(this._speed + 1650 * dt, 2250);
+        if (dist <= Math.max(60, this._speed * dt)) {
             bm.collectXp(this);
             return;
         }

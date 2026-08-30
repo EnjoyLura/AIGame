@@ -11,8 +11,8 @@ import { CardOption } from '../battle/UpgradeCard';
  */
 @ccclass('LevelUpPanel')
 export class LevelUpPanel extends Component {
-    private static readonly CARD_W = 190;
-    private static readonly CARD_H = 250;
+    private static readonly CARD_W = 285;
+    private static readonly CARD_H = 375;
 
     private _title: Label = null!;
     private _cards: Node[] = [];
@@ -28,13 +28,13 @@ export class LevelUpPanel extends Component {
         g.rect(-halfW, -halfH, Design.WIDTH, Design.HEIGHT);
         g.fill();
 
-        this._title = this._makeLabel('团队升级！选择一项强化', 0, 44);
+        this._title = this._makeLabel('团队升级！选择一项强化', 0, 66);
         this._title.node.setPosition(0, 260);
 
         // 标题横幅（参考《向僵尸开炮》撕纸横幅；美术就绪后显示在标题文字下层）
         const banner = createUINode('Banner');
         this.node.addChild(banner);
-        banner.addComponent(UITransform).setContentSize(360, 122);
+        banner.addComponent(UITransform).setContentSize(540, 183);
         banner.setPosition(0, 260);
         banner.addComponent(Sprite);
         banner.active = false;
@@ -65,7 +65,7 @@ export class LevelUpPanel extends Component {
             const card = createUINode('Card' + i);
             this.node.addChild(card);
             card.addComponent(UITransform).setContentSize(LevelUpPanel.CARD_W, LevelUpPanel.CARD_H);
-            card.setPosition((i - 1) * 210, 20);
+            card.setPosition((i - 1) * 315, 20);
 
             const cardFrame = AssetLib.frame('ui/panel_card');
             if (cardFrame) {
@@ -92,10 +92,10 @@ export class LevelUpPanel extends Component {
             const lines = option.title.split('\n');
             // 米白卡底配纯黑小字，避免描边糊字
             const textColor = cardFrame ? Color.BLACK : Palette.text;
-            this._makeCardLabel(card, lines[0], 70, 20, undefined, textColor);
-            this._makeCardLabel(card, lines[1], 0, 19, undefined, textColor);
+            this._makeCardLabel(card, lines[0], 105, 30, undefined, textColor);
+            this._makeCardLabel(card, lines[1], 0, 28, undefined, textColor);
             // 描述行给两行高度，长说明换行显示
-            this._makeCardLabel(card, option.desc, -70, 16, 54, textColor);
+            this._makeCardLabel(card, option.desc, -105, 24, 81, textColor);
             card.on(Node.EventType.TOUCH_END, () => {
                 this._clearCards();
                 this.node.active = false;
@@ -136,7 +136,7 @@ export class LevelUpPanel extends Component {
         const label = labelNode.addComponent(Label);
         label.string = text;
         label.fontSize = size;
-        label.lineHeight = size + 4;
+        label.lineHeight = size + 6;
         label.isBold = true;
         label.color = color ?? Palette.text;
         // 米白卡底配纯黑文字，无需描边
@@ -146,6 +146,6 @@ export class LevelUpPanel extends Component {
         label.horizontalAlign = Label.HorizontalAlign.CENTER;
         // 技能卡文案较长：限定宽度并 SHRUNK，超长自动缩字/换行，避免溢出卡面
         label.overflow = Label.Overflow.SHRUNK;
-        labelNode.getComponent(UITransform)!.setContentSize(170, boxH ?? size + 10);
+        labelNode.getComponent(UITransform)!.setContentSize(255, boxH ?? size + 15);
     }
 }

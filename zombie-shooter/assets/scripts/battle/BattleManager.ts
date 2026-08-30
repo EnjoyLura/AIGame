@@ -344,7 +344,7 @@ export class BattleManager extends Component {
     spawnDamageNumber(worldPos: Vec3, value: number, crit: boolean): void {
         const node = this._dmgPool.get();
         this.node.addChild(node);
-        node.setWorldPosition(worldPos.x + (Math.random() * 2 - 1) * 36, worldPos.y + 20, 0);
+        node.setWorldPosition(worldPos.x + (Math.random() * 2 - 1) * 54, worldPos.y + 30, 0);
         const dmg = node.getComponent(DamageNumber)!;
         dmg.play(
             String(value),
@@ -601,7 +601,7 @@ export class BattleManager extends Component {
         enemy.init(monster, this._hpScale);
 
         const roadsideX = (): number =>
-            (Math.random() < 0.5 ? -1 : 1) * (BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24);
+            (Math.random() < 0.5 ? -1 : 1) * (BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36);
         if (monster.behavior === 'diver') {
             // 疯鹰：两侧翼上半区入场，之后同样垂直下压
             enemy.node.setPosition(roadsideX(), (Math.random() * 0.35 + 0.5) * this._visH);
@@ -611,12 +611,12 @@ export class BattleManager extends Component {
                 // 主攻：屏幕上方出现，直着向下压
                 enemy.node.setPosition(
                     x ?? (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
-                    this._visH / 2 + enemy.radius + 10,
+                    this._visH / 2 + enemy.radius + 15,
                 );
             } else if (roll < 0.85) {
                 // 道路左侧中段切入（带入场缩放提示，比屏外伏击更近、威胁更大）
                 enemy.node.setPosition(
-                    -(BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24),
+                    -(BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36),
                     (Math.random() * 0.35 + 0.1) * this._visH,
                 );
                 node.setScale(0.2, 0.2, 1);
@@ -624,7 +624,7 @@ export class BattleManager extends Component {
             } else {
                 // 道路右侧中段切入
                 enemy.node.setPosition(
-                    BattleConfig.ROAD_HALF_WIDTH + 24 + Math.random() * 24,
+                    BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36,
                     (Math.random() * 0.35 + 0.1) * this._visH,
                 );
                 node.setScale(0.2, 0.2, 1);

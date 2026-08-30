@@ -14,12 +14,12 @@ import { createUINode } from '../core/createUINode';
  * 全部代码动态绘制（占位阶段无图标贴图，正式版替换为圆形图标帧）。
  */
 
-const ICON_R = 32;
-const COL_X = 314;
+const ICON_R = 48;
+const COL_X = 471;
 /** 每侧 6 行：每英雄占 3 行（普攻/技能/大招），两英雄共 6 行从上到下（避开顶部 HUD） */
-const ROW_YS = [400, 328, 256, 184, 112, 40];
+const ROW_YS = [600, 492, 384, 276, 168, 60];
 const LONG_PRESS_TIME = 0.45;
-const TIP_W = 300;
+const TIP_W = 450;
 const TIP_MAX_ROWS = 6;
 
 const COLOR_SKILL_BG = new Color(31, 58, 95, 235);
@@ -125,9 +125,9 @@ class AbilityIcon {
         this.node.addChild(fillNode);
         this._fillG = fillNode.addComponent(Graphics);
 
-        this._nameLabel = this._makeLabel('Name', 0, 0, 30);
+        this._nameLabel = this._makeLabel('Name', 0, 0, 45);
         // 等级角标：右下角大号白字黑描边（参考《向僵尸开炮》样式）
-        this._lvLabel = this._makeLabel('Lv', ICON_R - 6, -ICON_R + 10, 24);
+        this._lvLabel = this._makeLabel('Lv', ICON_R - 9, -ICON_R + 15, 36);
 
         this.node.on(Node.EventType.TOUCH_START, () => this._bar.onPressStart(this), this);
         this.node.on(Node.EventType.TOUCH_END, () => this._bar.onPressEnd(this), this);
@@ -147,12 +147,12 @@ class AbilityIcon {
         // Label 默认字符串是 "label"，不显式清空会显示占位文字
         label.string = '';
         label.fontSize = size;
-        label.lineHeight = size + 4;
+        label.lineHeight = size + 6;
         label.isBold = true;
         label.color = Color.WHITE;
         label.enableOutline = true;
         label.outlineColor = Color.BLACK;
-        label.outlineWidth = 2;
+        label.outlineWidth = 3;
         return label;
     }
 
@@ -245,13 +245,13 @@ class AbilityIcon {
         if (!on) {
             return;
         }
-        g.lineWidth = 6;
+        g.lineWidth = 9;
         g.strokeColor = COLOR_GLOW;
         g.circle(0, 0, ICON_R + 7);
         g.stroke();
-        g.lineWidth = 4;
+        g.lineWidth = 6;
         g.strokeColor = COLOR_GLOW;
-        g.circle(0, 0, ICON_R + 12);
+        g.circle(0, 0, ICON_R + 18);
         g.stroke();
         this._glowOpacity.opacity = 190;
         tween(this._glowNode)
@@ -294,7 +294,7 @@ class AbilityIcon {
         g.fill();
         // 水面高光线
         g.strokeColor = COLOR_CHARGE_WATER_LINE;
-        g.lineWidth = 2.5;
+        g.lineWidth = 4;
         g.moveTo(-x, yc);
         g.lineTo(x, yc);
         g.stroke();
@@ -393,20 +393,20 @@ class TipView {
 
         const g = this.node.addComponent(Graphics);
         g.fillColor = new Color(24, 32, 38, 245);
-        g.roundRect(-TIP_W / 2, -130, TIP_W, 260, 10);
+        g.roundRect(-TIP_W / 2, -195, TIP_W, 390, 15);
         g.fill();
         g.strokeColor = new Color(255, 214, 120, 255);
         g.lineWidth = 3;
-        g.roundRect(-TIP_W / 2, -130, TIP_W, 260, 10);
+        g.roundRect(-TIP_W / 2, -195, TIP_W, 390, 15);
         g.stroke();
 
-        this._title = this._makeLabel('Title', -TIP_W / 2 + 18, 100, 24, 'left', new Color(255, 214, 120, 255), 264, 30);
+        this._title = this._makeLabel('Title', -TIP_W / 2 + 27, 150, 36, 'left', new Color(255, 214, 120, 255), 396, 45);
         for (let i = 0; i < TIP_MAX_ROWS; i++) {
-            const y = 58 - i * 30;
-            this._keys.push(this._makeLabel('K' + i, -TIP_W / 2 + 18, y, 21, 'left', new Color(214, 222, 228, 255), 110, 27));
-            this._values.push(this._makeLabel('V' + i, TIP_W / 2 - 18, y, 21, 'right', new Color(240, 244, 247, 255), 110, 27));
+            const y = 87 - i * 45;
+            this._keys.push(this._makeLabel('K' + i, -TIP_W / 2 + 27, y, 32, 'left', new Color(214, 222, 228, 255), 165, 40));
+            this._values.push(this._makeLabel('V' + i, TIP_W / 2 - 27, y, 32, 'right', new Color(240, 244, 247, 255), 165, 40));
         }
-        this._hint = this._makeLabel('Hint', 0, -100, 19, 'center', new Color(126, 226, 126, 255), 270, 50);
+        this._hint = this._makeLabel('Hint', 0, -150, 28, 'center', new Color(126, 226, 126, 255), 405, 75);
     }
 
     private _makeLabel(name: string, x: number, y: number, size: number,
@@ -424,7 +424,7 @@ class TipView {
         label.color = color;
         label.enableOutline = true;
         label.outlineColor = Color.BLACK;
-        label.outlineWidth = 2;
+        label.outlineWidth = 3;
         label.horizontalAlign = align === 'right'
             ? Label.HorizontalAlign.RIGHT
             : align === 'left' ? Label.HorizontalAlign.LEFT : Label.HorizontalAlign.CENTER;
@@ -543,8 +543,8 @@ export class AbilityBar extends Component {
     private _buildSpeedToggle(): void {
         const n = createUINode('SpeedToggle');
         this.node.addChild(n);
-        n.addComponent(UITransform).setContentSize(56, 56);
-        n.setPosition(-COL_X, ROW_YS[0] + 76);
+        n.addComponent(UITransform).setContentSize(84, 84);
+        n.setPosition(-COL_X, ROW_YS[0] + 114);
         this._speedNode = n;
         this._speedG = n.addComponent(Graphics);
         this._speedLabel = this._makeSpeedLabel('x2');
@@ -563,13 +563,13 @@ export class AbilityBar extends Component {
         n.setPosition(0, 0);
         const label = n.addComponent(Label);
         label.string = text;
-        label.fontSize = 22;
-        label.lineHeight = 26;
+        label.fontSize = 33;
+        label.lineHeight = 39;
         label.isBold = true;
         label.color = Color.WHITE;
         label.enableOutline = true;
         label.outlineColor = Color.BLACK;
-        label.outlineWidth = 2;
+        label.outlineWidth = 3;
         return label;
     }
 
@@ -583,9 +583,9 @@ export class AbilityBar extends Component {
         g.clear();
         g.fillColor = on ? new Color(31, 96, 110, 245) : COLOR_BASIC_BG;
         g.strokeColor = on ? COLOR_SKILL_EDGE : COLOR_BASIC_EDGE;
-        g.circle(0, 0, 27);
+        g.circle(0, 0, 40);
         g.fill();
-        g.lineWidth = 4;
+        g.lineWidth = 6;
         g.stroke();
     }
 
@@ -659,7 +659,7 @@ export class AbilityBar extends Component {
 
     private _placeTip(icon: AbilityIcon): void {
         const left = icon.node.position.x < 0;
-        this._tip.node.setPosition(left ? -COL_X + TIP_W / 2 + 48 : COL_X - TIP_W / 2 - 48, icon.node.position.y - 60);
+        this._tip.node.setPosition(left ? -COL_X + TIP_W / 2 + 72 : COL_X - TIP_W / 2 - 72, icon.node.position.y - 90);
     }
 
     private _drawRange(icon: AbilityIcon): void {
