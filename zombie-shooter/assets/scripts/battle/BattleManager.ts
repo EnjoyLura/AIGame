@@ -1,4 +1,4 @@
-import { _decorator, Component, Graphics, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3, view } from 'cc';
+import { _decorator, Color, Component, Graphics, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3, view } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Design, GameEvent, Palette } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
