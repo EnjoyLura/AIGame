@@ -363,6 +363,8 @@ export class HeroCombatController {
             return;
         }
         const beam = this._beamFor(ownerId);
+        // 光束画在英雄子层会跟随身体瞄准旋转——反向补偿，保证光束始终指向目标
+        beam.node.angle = -this._heroNode.angle;
         beam.clear();
         beam.strokeColor = this.def.bulletColor;
         beam.lineWidth = width;
