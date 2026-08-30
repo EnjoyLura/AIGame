@@ -59,7 +59,7 @@ class LaserBasicAttack implements BasicAttack {
             this._owner.clearBeam('basic');
             return;
         }
-        this._owner.drawBeam('basic', this._target, 6);
+        this._owner.drawBeam('basic', this._target, 6 * this._owner.battle.uiScale);
         this._damage += this._owner.stats.atk * dt;
         this._time += dt;
         if (this._time >= 0.5) {
@@ -125,7 +125,7 @@ class AbilityRuntime {
             if (!this._owner.gmInfUltimate && this._charge < ULTIMATE_CHARGE_MAX) {
                 return;
             }
-            const target = this._owner.battle.findTarget(this._owner.position, this._def.range);
+            const target = this._owner.battle.findTarget(this._owner.position, this._def.range * this._owner.battle.uiScale);
             if (!target) {
                 return;
             }
@@ -139,7 +139,7 @@ class AbilityRuntime {
         if (this._cooldown > 0) {
             return;
         }
-        const target = this._owner.battle.findTarget(this._owner.position, this._def.range);
+        const target = this._owner.battle.findTarget(this._owner.position, this._def.range * this._owner.battle.uiScale);
         if (!target) {
             this._cooldown = 0;
             return;
@@ -197,12 +197,12 @@ class AbilityRuntime {
                     !!this._def.pierce, false, angle);
             }
         } else if (this._def.kind === 'multi') {
-            const targets = this._owner.battle.findTargets(this._owner.position, this._def.range, this._def.maxTargets ?? 1);
+            const targets = this._owner.battle.findTargets(this._owner.position, this._def.range * this._owner.battle.uiScale, this._def.maxTargets ?? 1);
             for (const item of targets) {
                 this._owner.battle.applyDamage(item, damage, false, this._owner.def.id);
             }
         } else if (this._def.kind === 'area') {
-            this._owner.battle.applyAreaDamage(target.enemy.node.position, this._def.areaRadius ?? 200, damage, this._owner.def.id);
+            this._owner.battle.applyAreaDamage(target.enemy.node.position, (this._def.areaRadius ?? 200) * this._owner.battle.uiScale, damage, this._owner.def.id);
         } else {
             this._target = target;
             this._duration = this._def.duration ?? 1;
@@ -213,11 +213,12 @@ class AbilityRuntime {
     private _updateBeam(dt: number): void {
         this._duration -= dt;
         this._tickTimer -= dt;
-        if (!this._owner.battle.isEnemyHandleValid(this._target, this._owner.position, this._def.range)) {
-            this._target = this._owner.battle.findTarget(this._owner.position, this._def.range);
+        const range = this._def.range * this._owner.battle.uiScale;
+        if (!this._owner.battle.isEnemyHandleValid(this._target, this._owner.position, range)) {
+            this._target = this._owner.battle.findTarget(this._owner.position, range);
         }
         if (this._target) {
-            this._owner.drawBeam(this._def.id, this._target, 13);
+            this._owner.drawBeam(this._def.id, this._target, 13 * this._owner.battle.uiScale);
             if (this._tickTimer <= 0) {
                 const tick = this._def.tick ?? 0.25;
                 const damage = Math.round(this._owner.stats.atk * this.damageScale * tick);
@@ -332,7 +333,7 @@ export class HeroCombatController {
 
     fireProjectile(target: EnemyHandle, damage: number, speed: number, radius: number,
         pierce: boolean, canCrit: boolean, angle = 0): void {
-        const from = new Vec3(this.position.x, this.position.y + 54);
+        const from = new Vec3(this.position.x, this.position.y + 36 * this.battle.uiScale);
         const dir = new Vec3();
         Vec3.subtract(dir, target.enemy.node.position, from);
         if (angle !== 0) {

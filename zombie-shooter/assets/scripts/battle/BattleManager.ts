@@ -67,7 +67,12 @@ export class BattleManager extends Component {
         return this._timeScale;
     }
     private _elapsed = 0;
-    private _visH = Design.HEIGHT;
+    /** 实际可视高（动态设计分辨率下实时读取，禁止缓存） */
+    private get _visH(): number { return view.getVisibleSize().height; }
+    /** 实际可视宽 */
+    private get _visW(): number { return view.getVisibleSize().width; }
+    /** UI/世界统一缩放系数：可视高 / 1080 设计基准高（1920），限 0.5~2.5 */
+    get uiScale(): number { return Math.max(0.5, Math.min(2.5, this._visH / 1920)); }
     /** 路面滚动层（下移=载具前进感） */
     private _bgScroll: Node = null!;
     /** 美术路面滚动节点（上下两张镜像衔接，无缝循环） */
@@ -82,14 +87,13 @@ export class BattleManager extends Component {
     /** 战斗用时（HUD 计时显示） */
     get elapsed(): number { return this._elapsed; }
     /** 车尾条的上沿 Y：怪物追到这条线就啃咬载具 */
-    get vehicleTopY(): number { return -this._visH / 2 + BattleConfig.VEHICLE_STRIP_HEIGHT; }
+    get vehicleTopY(): number { return -this._visH / 2 + BattleConfig.VEHICLE_STRIP_HEIGHT * this.uiScale; }
     /** 经验晶体的拾取点（车尾中央） */
     get vehiclePos(): Vec3 { return new Vec3(0, this.vehicleTopY); }
 
     onLoad(): void {
         BattleManager.instance = this;
         eventCenter.on(GameEvent.GAME_RESTART, this._restart, this);
-        this._visH = view.getVisibleSize().height;
         this._drawBackground();
         this._initScrollBg();
         this._initPools();
@@ -113,10 +117,12 @@ export class BattleManager extends Component {
         const hudNode = createUINode('HUD');
         this.node.addChild(hudNode);
         this._hud = hudNode.addComponent(HUD);
+        hudNode.setScale(this.uiScale, this.uiScale, 1);
 
         const panelNode = createUINode('LevelUpPanel');
         this.node.addChild(panelNode);
         this._panel = panelNode.addComponent(LevelUpPanel);
+        panelNode.setScale(this.uiScale, this.uiScale, 1);
 
         // GM 调试面板：仅浏览器预览生效（微信端无 DOM 自动跳过）
         if (typeof document !== 'undefined') {
@@ -129,6 +135,7 @@ export class BattleManager extends Component {
         const barNode = createUINode('AbilityBar');
         this.node.addChild(barNode);
         this._abilityBar = barNode.addComponent(AbilityBar);
+        barNode.setScale(this.uiScale, this.uiScale, 1);
         this._abilityBar.rebind(this._heroes);
 
         GameManager.instance.load();
@@ -344,7 +351,7 @@ export class BattleManager extends Component {
     spawnDamageNumber(worldPos: Vec3, value: number, crit: boolean): void {
         const node = this._dmgPool.get();
         this.node.addChild(node);
-        node.setWorldPosition(worldPos.x + (Math.random() * 2 - 1) * 54, worldPos.y + 30, 0);
+        node.setWorldPosition(worldPos.x + (Math.random() * 2 - 1) * 54 * s, worldPos.y + 30 * s, 0);
         const dmg = node.getComponent(DamageNumber)!;
         dmg.play(
             String(value),
@@ -472,8 +479,9 @@ export class BattleManager extends Component {
     private _deployVehicle(): void {
         const vehicleNode = createUINode('Vehicle');
         this.node.addChild(vehicleNode);
-        vehicleNode.setPosition(0, -this._visH / 2 + BattleConfig.VEHICLE_STRIP_HEIGHT / 2);
+        vehicleNode.setPosition(0, -this._visH / 2 + BattleConfig.VEHICLE_STRIP_HEIGHT * this.uiScale / 2);
         this._vehicle = vehicleNode.addComponent(Vehicle);
+        this._vehicle.uiScale = this.uiScale;
     }
 
     /** 部署上阵英雄（基础版固定前 4 名定义，横排在载具上） */
@@ -507,7 +515,7 @@ export class BattleManager extends Component {
         const ep = enemy.node.position;
         return ep.y < this._visH / 2 + enemy.radius
             && ep.y > -this._visH / 2 - enemy.radius
-            && Math.abs(ep.x) < Design.WIDTH / 2 + enemy.radius;
+            && Math.abs(ep.x) < this._visW / 2 + enemy.radius;
     }
 
     private _initPools(): void {
@@ -577,11 +585,12 @@ export class BattleManager extends Component {
     /** 刷一组怪（带 packSize 的成群刷新、出生点相邻），返回实际刷出只数 */
     private _spawnGroup(info: MonsterInfo, eliteChance: number): number {
         const pack = Math.max(1, info.packSize ?? 1);
-        const baseX = (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH;
+        const baseX = (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH * this.uiScale;
         let spawned = 0;
         for (let i = 0; i < pack && this._enemies.length < this._currentWave.maxAlive; i++) {
             // 狗群成员围绕基准横坐标小幅散开，成群感
-            const x = pack > 1 ? baseX + (Math.random() * 2 - 1) * 36 : undefined;
+            const s = this.uiScale;
+            const x = pack > 1 ? baseX + (Math.random() * 2 - 1) * 36 * s : undefined;
             this._spawnEnemy(info, eliteChance, x);
             spawned++;
         }
@@ -598,10 +607,12 @@ export class BattleManager extends Component {
         const node = this._enemyPool.get();
         this.node.addChild(node);
         const enemy = node.getComponent(Enemy)!;
-        enemy.init(monster, this._hpScale);
+        enemy.init(monster, this._hpScale, this.uiScale);
 
-        const roadsideX = (): number =>
-            (Math.random() < 0.5 ? -1 : 1) * (BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36);
+        const roadsideX = (): number => {
+            const s = this.uiScale;
+            return (Math.random() < 0.5 ? -1 : 1) * (BattleConfig.ROAD_HALF_WIDTH * s + (36 + Math.random() * 36) * s);
+        };
         if (monster.behavior === 'diver') {
             // 疯鹰：两侧翼上半区入场，之后同样垂直下压
             enemy.node.setPosition(roadsideX(), (Math.random() * 0.35 + 0.5) * this._visH);
@@ -610,13 +621,13 @@ export class BattleManager extends Component {
             if (roll < 0.7) {
                 // 主攻：屏幕上方出现，直着向下压
                 enemy.node.setPosition(
-                    x ?? (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
-                    this._visH / 2 + enemy.radius + 15,
+                    x ?? (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH * s,
+                    this._visH / 2 + enemy.radius * this.uiScale + 15 * this.uiScale,
                 );
             } else if (roll < 0.85) {
                 // 道路左侧中段切入（带入场缩放提示，比屏外伏击更近、威胁更大）
                 enemy.node.setPosition(
-                    -(BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36),
+                    -(BattleConfig.ROAD_HALF_WIDTH * s + (36 + Math.random() * 36) * s),
                     (Math.random() * 0.35 + 0.1) * this._visH,
                 );
                 node.setScale(0.2, 0.2, 1);
@@ -624,7 +635,7 @@ export class BattleManager extends Component {
             } else {
                 // 道路右侧中段切入
                 enemy.node.setPosition(
-                    BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36,
+                    BattleConfig.ROAD_HALF_WIDTH * s + (36 + Math.random() * 36) * s,
                     (Math.random() * 0.35 + 0.1) * this._visH,
                 );
                 node.setScale(0.2, 0.2, 1);
