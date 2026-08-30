@@ -11,6 +11,12 @@ const MANIFEST = [
     'monsters/boar',
     'scenes/road',
     'ui/icon_frame',
+    'ui/panel_card',
+    'ui/banner',
+    'icons/rifle_basic', 'icons/rifle_skill', 'icons/rifle_ultimate',
+    'icons/sniper_basic', 'icons/sniper_skill', 'icons/sniper_ultimate',
+    'icons/laser_basic', 'icons/laser_skill', 'icons/laser_ultimate',
+    'icons/radiation_basic', 'icons/radiation_skill', 'icons/radiation_ultimate',
     // 后续逐张加：'monsters/dog', 'monsters/bear', 'monsters/eagle', 'monsters/crawler',
     // 'characters/hero_rifle', ... 'scenes/vehicle_tail', 'ui/panel', 'ui/button', 'icons/...'
 ];

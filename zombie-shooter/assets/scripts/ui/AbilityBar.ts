@@ -61,6 +61,9 @@ class AbilityIcon {
     private _hero: Hero;
     private _slot: SlotId;
     private _baseG: Graphics = null!;
+    /** 能力内芯图标层（AssetLib 就绪后替换名字首字，缺图回退） */
+    private _artNode: Node = null!;
+    private _iconApplied = false;
     /** 图标框贴图层（AssetLib 就绪后叠加，缺图回退代码圆） */
     private _frameNode: Node = null!;
     private _frameApplied = false;
@@ -109,6 +112,12 @@ class AbilityIcon {
         const bgNode = createUINode('Base');
         this.node.addChild(bgNode);
         this._baseG = bgNode.addComponent(Graphics);
+
+        const artNode = createUINode('Art');
+        this.node.addChild(artNode);
+        artNode.addComponent(UITransform).setContentSize(ICON_R * 1.7, ICON_R * 1.7);
+        artNode.active = false;
+        this._artNode = artNode;
 
         const frameNode = createUINode('Frame');
         this.node.addChild(frameNode);
@@ -188,7 +197,24 @@ class AbilityIcon {
         const baseDirty = info.unlocked !== this._lastUnlocked
             || info.level !== this._lastLevel
             || (this._slot === 'ultimate' && full !== this._lastFull);
-        if (baseDirty) {
+        // 内芯图标：美术就绪即应用一次（与图标框相同的就绪探测，缺图回退首字）
+        if (!this._iconApplied) {
+            const iconFrame = AssetLib.frame(`icons/${this._hero.def.id}_${this._slot}`);
+            if (iconFrame) {
+                this._iconApplied = true;
+                const sp = this._artNode.getComponent(Sprite) ?? this._artNode.addComponent(Sprite);
+                sp.sizeMode = Sprite.SizeMode.CUSTOM;
+                sp.trim = false;
+                sp.spriteFrame = iconFrame;
+                this._artNode.active = true;
+            }
+        }
+        if (this._iconApplied) {
+            // 大招充能未满：内芯降饱和 tint（浅色），充满点亮
+            const sp = this._artNode.getComponent(Sprite)!;
+            sp.color = this._slot === 'ultimate' && !full ? new Color(150, 138, 124, 255) : Color.WHITE;
+            this._nameLabel.string = '';
+        } else if (baseDirty) {
             this._lastUnlocked = info.unlocked;
             this._lastLevel = info.level;
             this._drawBase(info, this._slot === 'ultimate' && !full);

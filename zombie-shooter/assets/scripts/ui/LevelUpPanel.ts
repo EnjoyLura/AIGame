@@ -1,6 +1,7 @@
-import { _decorator, Color, Component, Graphics, Label, Node, UITransform } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, Sprite, UITransform } from 'cc';
 const { ccclass } = _decorator;
 import { Design, Palette } from '../config/GameConfig';
+import { AssetLib } from '../core/AssetLib';
 import { createUINode } from '../core/createUINode';
 import { CardOption } from '../battle/UpgradeCard';
 
@@ -15,6 +16,7 @@ export class LevelUpPanel extends Component {
 
     private _title: Label = null!;
     private _cards: Node[] = [];
+    private _banner: Node = null!;
 
     onLoad(): void {
         const halfW = Design.WIDTH / 2;
@@ -29,6 +31,16 @@ export class LevelUpPanel extends Component {
         this._title = this._makeLabel('团队升级！选择一项强化', 0, 44);
         this._title.node.setPosition(0, 260);
 
+        // 标题横幅（参考《向僵尸开炮》撕纸横幅；美术就绪后显示在标题文字下层）
+        const banner = createUINode('Banner');
+        this.node.addChild(banner);
+        banner.addComponent(UITransform).setContentSize(360, 122);
+        banner.setPosition(0, 260);
+        banner.addComponent(Sprite);
+        banner.active = false;
+        this._banner = banner;
+        banner.setSiblingIndex(this._title.node.getSiblingIndex());
+
         this.node.active = false;
     }
 
@@ -39,12 +51,33 @@ export class LevelUpPanel extends Component {
         this._clearCards();
         this.node.active = true;
 
+        // 标题横幅：美术就绪即显示（标题文字压在其上）
+        const bannerFrame = AssetLib.frame('ui/banner');
+        if (bannerFrame && !this._banner.active) {
+            const bsp = this._banner.getComponent(Sprite)!;
+            bsp.sizeMode = Sprite.SizeMode.CUSTOM;
+            bsp.trim = false;
+            bsp.spriteFrame = bannerFrame;
+            this._banner.active = true;
+        }
+
         options.forEach((option, i) => {
             const card = createUINode('Card' + i);
             this.node.addChild(card);
             card.addComponent(UITransform).setContentSize(LevelUpPanel.CARD_W, LevelUpPanel.CARD_H);
             card.setPosition((i - 1) * 210, 20);
 
+            const cardFrame = AssetLib.frame('ui/panel_card');
+            if (cardFrame) {
+                // 正式版卡片底（参考《向僵尸开炮》米白纸质卡）
+                const bgNode = createUINode('CardBg');
+                card.addChild(bgNode);
+                bgNode.addComponent(UITransform).setContentSize(LevelUpPanel.CARD_W, LevelUpPanel.CARD_H);
+                const sp = bgNode.addComponent(Sprite);
+                sp.sizeMode = Sprite.SizeMode.CUSTOM;
+                sp.trim = false;
+                sp.spriteFrame = cardFrame;
+            } else {
             const g = card.addComponent(Graphics);
             g.fillColor = Palette.cardBg;
             g.roundRect(-LevelUpPanel.CARD_W / 2, -LevelUpPanel.CARD_H / 2, LevelUpPanel.CARD_W, LevelUpPanel.CARD_H, 12);
@@ -53,14 +86,15 @@ export class LevelUpPanel extends Component {
             g.lineWidth = 4;
             g.roundRect(-LevelUpPanel.CARD_W / 2, -LevelUpPanel.CARD_H / 2, LevelUpPanel.CARD_W, LevelUpPanel.CARD_H, 12);
             g.stroke();
+            }
 
             // 卡面：英雄名 / 强化名 / 数值说明（占位三行文本）
             const lines = option.title.split('\n');
-            this._makeCardLabel(card, lines[0], 70, 24);
-            this._makeCardLabel(card, lines[1], 0, 24);
+            const textColor = cardFrame ? new Color(62, 46, 32, 255) : Palette.text;
+            this._makeCardLabel(card, lines[0], 70, 24, undefined, textColor);
+            this._makeCardLabel(card, lines[1], 0, 24, undefined, textColor);
             // 描述行给两行高度，长说明换行显示
-            this._makeCardLabel(card, option.desc, -70, 18, 54);
-
+            this._makeCardLabel(card, option.desc, -70, 18, 54, textColor);
             card.on(Node.EventType.TOUCH_END, () => {
                 this._clearCards();
                 this.node.active = false;
@@ -94,7 +128,7 @@ export class LevelUpPanel extends Component {
         return label;
     }
 
-    private _makeCardLabel(parent: Node, text: string, y: number, size: number, boxH?: number): void {
+    private _makeCardLabel(parent: Node, text: string, y: number, size: number, boxH?: number, color?: Color): void {
         const labelNode = createUINode('cardLabel');
         parent.addChild(labelNode);
         labelNode.setPosition(0, y);
@@ -103,7 +137,7 @@ export class LevelUpPanel extends Component {
         label.fontSize = size;
         label.lineHeight = size + 4;
         label.isBold = true;
-        label.color = Palette.text;
+        label.color = color ?? Palette.text;
         label.enableOutline = true;
         label.outlineColor = Color.BLACK;
         label.outlineWidth = 2;
