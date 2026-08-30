@@ -384,26 +384,21 @@ class AbilityIcon {
             g.stroke();
             return;
         }
-        // 1) 整图标统一干净黑遮罩（与元素填充分层，不与图标原色混色）
+        // 充能进度 = 无遮罩区域从底部往上扩张：
+        // 水面线以下（已充能）图标全清晰无遮罩；水面线以上（未充能）盖半透明黑遮罩
+        const yc = -r + 2 * f * r;                     // 水面线高度：f=0 → 底部，f=1 → 顶部
+        const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
         g.fillColor = new Color(0, 0, 0, 110);
-        g.circle(0, 0, ICON_R - 1);
+        g.arc(0, 0, r, a, Math.PI - a, false);         // 水面线以上的弓形区域
+        g.close();
         g.fill();
-        // 2) 元素色水位：从底部往上填充，画在黑遮罩上（纯元素色，进度清晰）
-        if (f > 0.005) {
-            const yc = -r + 2 * f * r;
-            const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
-            const x = Math.cos(a) * r;
-            g.fillColor = el.fill;
-            g.arc(0, 0, r, Math.PI - a, a + Math.PI * 2, false);
-            g.close();
-            g.fill();
-            // 水面高光
-            g.strokeColor = new Color(255, 255, 255, 150);
-            g.lineWidth = 2;
-            g.moveTo(-x, yc);
-            g.lineTo(x, yc);
-            g.stroke();
-        }
+        // 水面分界高光
+        const x = Math.cos(a) * r;
+        g.strokeColor = new Color(255, 255, 255, 140);
+        g.lineWidth = 2;
+        g.moveTo(-x, yc);
+        g.lineTo(x, yc);
+        g.stroke();
     }
 
     /** 大招就绪呼吸光效：光圈静态绘制一次，脉动由节点缩放+透明度补间驱动 */
