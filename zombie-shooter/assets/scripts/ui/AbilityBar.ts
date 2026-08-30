@@ -389,7 +389,13 @@ class AbilityIcon {
         const yc = -r + 2 * f * r;                     // 水面线高度：f=0 → 底部，f=1 → 顶部
         const a = Math.asin(Math.max(-1, Math.min(1, yc / r)));
         g.fillColor = new Color(0, 0, 0, 110);
-        g.arc(0, 0, r, a, Math.PI - a, false);         // 水面线以上的弓形区域
+        // 显式多边形采样（从右侧交点逆时针经顶部到左侧交点），不依赖 arc 的方向约定
+        g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+        const segs = 48;
+        for (let i = 1; i <= segs; i++) {
+            const ang = a + (Math.PI - 2 * a) * (i / segs);
+            g.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+        }
         g.close();
         g.fill();
         // 水面分界高光
