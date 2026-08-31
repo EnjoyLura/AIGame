@@ -598,6 +598,24 @@ class TipView {
             ? `${icon.hero.def.name} · ${isUlt ? '大招' : '技能'}【${def.name}】Lv.${info.level}`
             : `${icon.hero.def.name} · 未解锁【${def.name}】`;
 
+        if (def.kind === 'buff') {
+            // 过载类技能浮窗：强化倍率信息
+            this._title.string = info.unlocked
+                ? `${icon.hero.def.name} · 技能【${def.name}】Lv.${info.level}`
+                : `${icon.hero.def.name} · 未解锁【${def.name}】`;
+            const rowsB: Array<[string, string]> = [
+                ['普攻伤害', `×${def.damageScale}`],
+                ['普攻射程', `+${Math.round(((def.rangeMul ?? 1.3) - 1) * 100)}%`],
+                ['持续', `${def.duration ?? 4}秒`],
+                ['射程', `${def.range}`],
+            ];
+            this._fillRows(rowsB);
+            this._hint.string = info.unlocked
+                ? (info.level < ABILITY_MAX_LEVEL ? `下一级：倍率更高（Lv.${info.level}→${info.level + 1}）` : '已达最高等级')
+                : `选择三选一中的「解锁·${def.name}」卡解锁`;
+            this.node.active = true;
+            return;
+        }
         const suffix = def.kind === 'beam' ? '/秒' : '';
         const rows: Array<[string, string]> = [['伤害', `${info.damage}${suffix}`]];
         if (def.kind === 'beam' && def.duration) {

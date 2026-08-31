@@ -16,6 +16,13 @@ export interface HeroCombatStats {
     notifyShot?(targetPos: Vec3): void;
 }
 
+/** 普攻强化状态（激光过载光束等 buff 类技能驱动） */
+export interface BasicBuff {
+    damageMul: number;
+    rangeMul: number;
+    left: number;
+}
+
 interface BasicAttack {
     update(dt: number): void;
     reset(): void;
@@ -57,8 +64,10 @@ class LaserBasicAttack implements BasicAttack {
     update(dt: number): void {
         // demo 式粘滞锁定：当前目标活着且在射程内就坚决不打断，
         // 只有目标死亡/被击杀/超出射程时才立即重新索敌。
-        if (!this._owner.battle.isEnemyHandleValid(this._target, this._owner.position, this._owner.stats.range)) {
-            this._target = this._owner.battle.findFrontTarget(this._owner.position, this._owner.stats.range);
+        const buff = this._owner.basicBuff;
+        const range = this._owner.stats.range * (buff ? buff.rangeMul : 1);
+        if (!this._owner.battle.isEnemyHandleValid(this._target, this._owner.position, range)) {
+            this._target = this._owner.battle.findFrontTarget(this._owner.position, range);
             this._damage = 0;
             this._time = 0;
         }
@@ -69,11 +78,12 @@ class LaserBasicAttack implements BasicAttack {
 
         // 先结算伤害（可能击杀目标），再画光束——保证画出来的光束永远指着活目标，
         // 击杀瞬间同帧重锁重画，不产生"光束挂在尸体/空处"的过渡帧
-        this._damage += this._owner.stats.atk * dt;
+        this._damage += this._owner.stats.atk * (buff ? buff.damageMul : 1) * dt;
         this._time += dt;
         if (this._time >= 0.5) {
             SoundFx.play('laser');
-            this._owner.battle.burstHitSparks(this._target.enemy.node.worldPosition, new Color(110, 220, 255, 255));
+            this._owner.battle.burstHitSparks(this._target.enemy.node.worldPosition,
+                buff ? new Color(255, 255, 255, 255) : new Color(110, 220, 255, 255));
             this._owner.battle.applyDamage(this._target, Math.round(this._damage), false, this._owner.def.id);
             this._damage = 0;
             this._time = 0;
@@ -88,7 +98,8 @@ class LaserBasicAttack implements BasicAttack {
 
         // demo 语义：激光身体瞬间转向目标（不插值扫过去）
         this._owner.stats.notifyShot?.(this._target.enemy.node.position, true);
-        this._owner.drawBeam('basic', this._target, 6 * this._owner.battle.uiScale);
+        // 过载中：光束加粗（视觉标识强化状态）
+        this._owner.drawBeam('basic', this._target, (buff ? 10 : 6) * this._owner.battle.uiScale);
     }
 
     reset(): void {
@@ -119,8 +130,9 @@ class AbilityRuntime {
     /** 大招充能是否已满 */
     get chargeFull(): boolean { return this._charge >= ULTIMATE_CHARGE_MAX; }
     get charge(): number { return this._charge; }
-    /** 施法剩余时间（beam 类技能持续期间 >0，图标施法环用） */
-    get durationLeft(): number { return this._duration; }
+    /** 施法剩余时间（beam 持续/buff 过载期间 >0，图标施法环用） */
+    private _buffLeft = 0;
+    get durationLeft(): number { return this._buffLeft > 0 ? this._buffLeft : this._duration; }
     get durationTotal(): number { return this._def.duration ?? 0; }
 
     /** 击杀充能：未解锁不充，满后不再累加 */
@@ -229,7 +241,11 @@ class AbilityRuntime {
                 this._owner.battle.applyDamage(item, damage, false, this._owner.def.id);
             }
         } else if (this._def.kind === 'area') {
-            this._owner.battle.applyAreaDamage(target.enemy.node.position, this._def.areaRadius ?? 200, damage, this._owner.def.id);
+            this._owner.battle.applyAreaDamage(target.enemy.node.position, (this._def.areaRadius ?? 200) * this._owner.battle.uiScale, damage, this._owner.def.id);
+        } else if (this._def.kind === 'buff') {
+            // 过载类：强化普攻（伤害/射程倍率，持续 duration 秒）
+            this._owner.applyBasicBuff(this.damageScale, this._def.rangeMul ?? 1.3, this._def.duration ?? 4);
+            this._buffLeft = this._def.duration ?? 4;
         } else {
             this._target = target;
             this._duration = this._def.duration ?? 1;
@@ -335,6 +351,7 @@ export class HeroCombatController {
     }
 
     update(dt: number): void {
+        this._tickBuff(dt);
         this._basic.update(dt);
         this._skill.update(dt);
         this._ultimate.update(dt);
@@ -342,6 +359,21 @@ export class HeroCombatController {
 
     levelUpSkill(): void { this._skill.levelUp(); }
     levelUpUltimate(): void { this._ultimate.levelUp(); }
+
+    /** 普攻强化 buff（buff 类技能驱动；null=未强化） */
+    private _buff: BasicBuff | null = null;
+    get basicBuff(): BasicBuff | null { return this._buff; }
+
+    /** 应用普攻强化：持续时间内普攻伤害/射程乘以倍率 */
+    applyBasicBuff(damageMul: number, rangeMul: number, duration: number): void {
+        this._buff = { damageMul, rangeMul, left: duration };
+    }
+
+    private _tickBuff(dt: number): void {
+        if (this._buff && (this._buff.left -= dt) <= 0) {
+            this._buff = null;
+        }
+    }
 
     /** 击杀充能：本英雄大招 +n（仅已解锁时生效） */
     gainCharge(n: number = 1): void { this._ultimate.addCharge(n); }

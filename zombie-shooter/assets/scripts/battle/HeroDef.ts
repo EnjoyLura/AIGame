@@ -1,7 +1,7 @@
 import { Color } from 'cc';
 
 export type WeaponType = 'rifle' | 'sniper' | 'laser' | 'radiation';
-export type AbilityKind = 'projectile' | 'beam' | 'multi' | 'area';
+export type AbilityKind = 'projectile' | 'beam' | 'multi' | 'area' | 'buff';
 
 export interface AbilityDef {
     id: string;
@@ -17,6 +17,8 @@ export interface AbilityDef {
     pierce?: boolean;
     duration?: number;
     tick?: number;
+    /** buff：强化普攻的射程倍率（kind='buff' 时用） */
+    rangeMul?: number;
     maxTargets?: number;
     areaRadius?: number;
 }
@@ -63,7 +65,7 @@ export const HERO_DEFS: HeroDef[] = [
         id: 'laser', name: '激光手·棱镜', role: '跟踪持续', weapon: 'laser',
         atk: 130, interval: 0, range: 1050, bulletSpeed: 0,
         color: new Color(77, 208, 225, 255), bulletColor: new Color(77, 208, 225, 255),
-        skill: { id: 'laser-focus', name: '聚焦光束', desc: '持续 3 秒的强化激光', kind: 'beam', cooldown: 8, damageScale: 1.8, range: 1275, duration: 3, tick: 0.25 },
+        skill: { id: 'laser-overdrive', name: '过载光束', desc: '过载普攻 4 秒：伤害 ×2.2、射程 +35%', kind: 'buff', cooldown: 8, damageScale: 2.2, range: 1275, rangeMul: 1.35, duration: 4 },
         ultimate: { id: 'laser-nova', name: '棱镜新星', desc: '轰击目标周围大范围敌人', kind: 'area', cooldown: 17, damageScale: 3.2, range: 1350, areaRadius: 390 },
     },
     {
