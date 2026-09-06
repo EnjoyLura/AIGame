@@ -54,17 +54,53 @@ def cycle_length(smalls: list[Image.Image]) -> int:
     return best_lag
 
 
-def key_green(frame: Image.Image, thresh: int) -> Image.Image:
-    """绿优势色键：g 明显高于 r/b 的像素判为背景；右下角水印区直接清零。"""
+def detect_bg(frame: Image.Image) -> tuple[int, int, int]:
+    """四角 7x7 邻域中位色 = 背景底色（绿幕/品红幕/任意纯色幕）。"""
+    w, h = frame.size
+    corners = []
+    for cx, cy in ((4, 4), (w - 5, 4), (4, h - 5), (w - 5, h - 5)):
+        vals = []
+        for dx in range(-3, 4):
+            for dy in range(-3, 4):
+                x = min(w - 1, max(0, cx + dx))
+                y = min(h - 1, max(0, cy + dy))
+                vals.append(frame.getpixel((x, y))[:3])
+        vals.sort(key=lambda c: c[0] + c[1] + c[2])
+        corners.append(vals[len(vals) // 2])
+    n = len(corners)
+    return (sum(p[0] for p in corners) // n,
+            sum(p[1] for p in corners) // n,
+            sum(p[2] for p in corners) // n)
+
+
+def key_bg(frame: Image.Image, bg: tuple[int, int, int], thresh: int) -> Image.Image:
+    """背景色键：按检测到的幕色分派——
+    绿幕：绿优势（g - max(r,b) > 阈值）；品红幕：min(r,b) - g > 阈值；
+    其余纯色幕：到背景色的曼哈顿距离兜底。右下角水印区直接清零。"""
+    r0, g0, b0 = bg
+    if g0 - max(r0, b0) > 25:
+        mode = 'green'
+    elif min(r0, b0) - g0 > 25:
+        mode = 'magenta'
+    else:
+        mode = 'chroma'
     rgba = frame.convert('RGBA')
     w, h = rgba.size
     px = rgba.load()
+    dist_limit = thresh * 3
     for y in range(h):
         for x in range(w):
             r, g, b, _ = px[x, y]
-            if g - max(r, b) > thresh and g > 60:
+            hit = False
+            if mode == 'green':
+                hit = g - max(r, b) > thresh and g > 60
+            elif mode == 'magenta':
+                hit = min(r, b) - g > thresh and r > 60 and b > 60
+            else:
+                hit = abs(r - r0) + abs(g - g0) + abs(b - b0) < dist_limit
+            if hit:
                 px[x, y] = (0, 0, 0, 0)
-    # 豆包水印（右下角）
+    # 生成工具水印（右下角）
     for y in range(int(h * 0.86), h):
         for x in range(int(w * 0.74), w):
             px[x, y] = (0, 0, 0, 0)
@@ -114,12 +150,14 @@ def main() -> None:
 
     frames = list(read_frames(src))
     print(f'decoded {len(frames)} frames')
+    bg = detect_bg(frames[0])
+    print(f'bg color = {bg}')
     smalls = [f.resize((TARGET, TARGET)) for f in frames]
     cycle = cycle_length(smalls)
     print(f'walk cycle ≈ {cycle} frames')
     # 一个周期内均匀取 n_frames 帧（从周期起点开始，覆盖完整循环）
     idxs = [round(i * cycle / n_frames) % len(frames) for i in range(n_frames)]
-    keyed = [key_green(frames[i], thresh) for i in idxs]
+    keyed = [key_bg(frames[i], bg, thresh) for i in idxs]
     cropped = []
     for f in keyed:
         bbox = f.getbbox()
