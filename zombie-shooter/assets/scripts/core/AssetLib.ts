@@ -35,7 +35,10 @@ export class AssetLib {
     private static _mortar: SpriteFrame[] | null = null;
     private static _walkSheets = new Map<string, SpriteFrame[]>();
 
-    /** 怪物行走序列帧：monsters/<id>_walk 横向 6 帧等分切片（tools/slice_walk_sheet.py 打包）。
+    /** 各怪行走序列帧数（tools/slice_walk_sheet.py / video_to_sheet.py 打包时的帧数；缺省 6） */
+    private static readonly WALK_FRAME_COUNT: Record<string, number> = { boar: 12 };
+
+    /** 怪物行走序列帧：monsters/<id>_walk 横向等分切片（帧数见 WALK_FRAME_COUNT）。
      *  未就绪返回 null（调用方逐帧轮询，就绪后缓存切片） */
     static monsterWalkFrames(id: string): SpriteFrame[] | null {
         const cached = this._walkSheets.get(id);
@@ -46,11 +49,11 @@ export class AssetLib {
         if (!sheet?.texture) {
             return null;
         }
-        const N = 6;
+        const n = this.WALK_FRAME_COUNT[id] ?? 6;
         const base = sheet.rect;
-        const cw = base.width / N;
+        const cw = base.width / n;
         const out: SpriteFrame[] = [];
-        for (let i = 0; i < N; i++) {
+        for (let i = 0; i < n; i++) {
             const f = new SpriteFrame();
             f.texture = sheet.texture;
             f.rect = new Rect(base.x + i * cw, base.y, cw, base.height);

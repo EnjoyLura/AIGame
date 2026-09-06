@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """AI 行走视频 → 精灵图：
 ffmpeg 解码 → 64px 灰度帧差自相关检测步态周期 → 均匀取 N 帧 →
-绿幕色键（绿优势通道）→ 水印区擦除 → 内容裁剪 → 底对齐统一帧格横向打包。
+绿幕色键（绿优势通道）→ 水印区擦除 → 帧间颜色匹配（抑制 AI 亮度漂移）→
+内容裁剪 → 帧格高度上限缩放 → 底对齐统一帧格横向打包。
 
 用法：
-  python tools/video_to_sheet.py <in.mp4> <out.png> [帧数=6] [绿优势阈值=30]
+  python tools/video_to_sheet.py <in.mp4> <out.png> [帧数=6] [绿优势阈值=30] [帧格高上限=256]
 依赖：ffmpeg 在 PATH；PIL。
 """
 import math
@@ -72,10 +73,44 @@ def key_green(frame: Image.Image, thresh: int) -> Image.Image:
     return rgba
 
 
+def match_colors(frames: list[Image.Image]) -> None:
+    """帧间颜色匹配：AI 视频存在全局亮度/色度漂移（某帧明显偏暗）。
+    以全部帧主体区域（alpha>128）平均色为基准，对每帧做逐通道增益（限幅 0.82~1.22）。"""
+    means: list[tuple[float, float, float]] = []
+    for f in frames:
+        px = f.load()
+        w, h = f.size
+        rs = gs = bs = cnt = 0
+        for y in range(0, h, 2):
+            for x in range(0, w, 2):
+                r, g, b, a = px[x, y]
+                if a > 128:
+                    rs += r; gs += g; bs += b; cnt += 1
+        means.append((rs / cnt, gs / cnt, bs / cnt) if cnt else (255.0, 255.0, 255.0))
+    ref = tuple(sum(m[c] for m in means) / len(means) for c in range(3))
+    for f, m in zip(frames, means):
+        gains = []
+        for c in range(3):
+            g = ref[c] / max(1.0, m[c])
+            g = max(0.82, min(1.22, g))
+            gains.append(g)
+        px = f.load()
+        w, h = f.size
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                if a == 0:
+                    continue
+                px[x, y] = (min(255, round(r * gains[0])),
+                            min(255, round(g * gains[1])),
+                            min(255, round(b * gains[2])), a)
+
+
 def main() -> None:
     src, dst = sys.argv[1], sys.argv[2]
     n_frames = int(sys.argv[3]) if len(sys.argv) > 3 else 6
     thresh = int(sys.argv[4]) if len(sys.argv) > 4 else 30
+    cell_cap = int(sys.argv[5]) if len(sys.argv) > 5 else 256
 
     frames = list(read_frames(src))
     print(f'decoded {len(frames)} frames')
@@ -91,6 +126,12 @@ def main() -> None:
         if bbox:
             f = f.crop(bbox)
         cropped.append(f)
+    match_colors(cropped)
+    # 帧格高度上限：视频分辨率远高于游戏内显示尺寸，按上限等比缩小省内存
+    cell_h = max(f.height for f in cropped)
+    if cell_cap > 0 and cell_h > cell_cap:
+        k = cell_cap / cell_h
+        cropped = [f.resize((max(1, round(f.width * k)), cell_cap), Image.LANCZOS) for f in cropped]
     cell_w = max(f.width for f in cropped)
     cell_h = max(f.height for f in cropped)
     sheet = Image.new('RGBA', (cell_w * len(cropped), cell_h), (0, 0, 0, 0))
