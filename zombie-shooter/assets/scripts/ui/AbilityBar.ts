@@ -734,6 +734,8 @@ export class AbilityBar extends Component {
     private _tip: TipView = null!;
     private _rangeG: Graphics = null!;
     private _press: { icon: AbilityIcon; elapsed: number; fired: boolean } | null = null;
+    /** 面板/结算期间技能栏隐藏态（只切子节点可见性，根节点保持活跃保证 update 持续驱动） */
+    private _hidden = false;
     private _rangeIcon: AbilityIcon | null = null;
     /** x2 倍速开关按钮（左列顶部、1 号位普攻上方） */
     private _speedNode: Node = null!;
@@ -819,20 +821,24 @@ export class AbilityBar extends Component {
     }
 
     update(dt: number): void {
-        // 升级三选一/护送失败结算期间隐藏整个技能栏：卡片面板较宽，
-        // 左右两列图标会与卡片边缘重叠遮挡（面板无全屏遮罩盖不住两侧）
+        // 升级三选一/护送失败结算期间隐藏技能栏：卡片面板较宽，两侧图标会与卡片重叠。
+        // 注意：根节点绝不能 active=false 自隐藏——节点失活后 update 不再被调用，
+        // 永远没有人再把它显示回来（图标永久消失的 bug）。改为切换各子节点可见性。
         const bm = BattleManager.instance;
-        const shouldShow = !!bm && !bm.isPaused && !bm.isGameOver;
-        if (this.node.active !== shouldShow) {
-            this.node.active = shouldShow;
-            if (!shouldShow) {
+        const show = !!bm && !bm.isPaused && !bm.isGameOver;
+        if (this._hidden !== !show) {
+            this._hidden = !show;
+            for (const icon of this._icons) {
+                icon.node.active = show;
+            }
+            this._speedNode.active = show;
+            if (!show) {
                 this._tip.hide();
                 this._clearRange();
                 this._press = null;
             }
-            return;
         }
-        if (!shouldShow) {
+        if (this._hidden) {
             return;
         }
         this._syncSpeedButton();
