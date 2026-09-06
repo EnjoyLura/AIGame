@@ -15,15 +15,6 @@ const MONSTER_ART: Record<string, string> = {
     eagle: 'monsters/eagle',
 };
 
-/** 分层纸娃娃：body 齐髋截断的上身 + legs 腿部层（缺任一张回退旧整图） */
-const MONSTER_PARTS: Record<string, { body: string; legs: string }> = {
-    crawler: { body: 'monsters/crawler_body', legs: 'monsters/crawler_legs' },
-    dog: { body: 'monsters/dog_body', legs: 'monsters/dog_legs' },
-    boar: { body: 'monsters/boar_body', legs: 'monsters/boar_legs' },
-    bear: { body: 'monsters/bear_body', legs: 'monsters/bear_legs' },
-    eagle: { body: 'monsters/eagle_body', legs: 'monsters/eagle_legs' },
-};
-
 /**
  * 变异怪物：按 WaveData 的 behavior 分派移动逻辑——
  * chaser 直线追车 / swarm 疯狗成群直线快跑 / charger 野猪贴近蓄力再冲刺 /
@@ -59,10 +50,9 @@ export class Enemy extends Component {
     private _bodyNode: Node = null!;
     /** 美术立绘子节点：Sprite 必须与 Graphics 分节点（同节点先后挂两个渲染组件会导致 Sprite 不渲染） */
     private _artNode: Node | null = null;
-    /** 腿部层（分层纸娃娃）：渲染在身体之下，绕髋部枢轴随步频摆动 */
-    private _legsNode: Node | null = null;
-    private _legsApplied = false;
-    private _legSway = 10;
+    /** 行走序列帧（monsters/<id>_walk 6 帧切片）：就绪时逐帧播放取代静态整图 */
+    private _walkFrames: SpriteFrame[] | null = null;
+    private _walkIdx = -1;
     /** 准星/标记：锁定读秒（黄）与存活标记（红）共用一层，随目标移动 */
     private _reticleLeft = 0;
     private _reticleTotal = 1;
@@ -104,23 +94,18 @@ export class Enemy extends Component {
         switch (info.behavior) {
             case 'swarm':
                 this._walkFreq = 14; this._bobAmp = 2; this._isFlyer = false;
-                this._legSway = 13;
                 break;
             case 'charger':
                 this._walkFreq = 7; this._bobAmp = 2.5; this._isFlyer = false;
-                this._legSway = 9;
                 break;
             case 'tanker':
                 this._walkFreq = 4; this._bobAmp = 3; this._isFlyer = false;
-                this._legSway = 6;
                 break;
             case 'diver':
                 this._walkFreq = 6; this._bobAmp = 5; this._isFlyer = true;
-                this._legSway = 3;
                 break;
             default:
                 this._walkFreq = 9; this._bobAmp = 2; this._isFlyer = false;
-                this._legSway = 10;
                 break;
         }
         this._bodyNode.setPosition(0, 0);
@@ -322,21 +307,32 @@ export class Enemy extends Component {
         }
     }
 
-    /** 尝试挂美术立绘：分层 body+legs 优先，缺图回退旧整图，再回退占位 Graphics */
+    /** 尝试挂美术立绘：行走序列帧（6 帧）优先，回退静态整图，再回退占位 Graphics */
     private _tryApplyArt(info: MonsterInfo): boolean {
+        // 序列帧就绪：逐帧播放取代静态图（帧切换在 _updateWalkAnim 按步相推进）
+        const walk = AssetLib.monsterWalkFrames(info.id);
+        if (walk && walk.length > 0) {
+            this._walkFrames = walk;
+            this._walkIdx = -1;
+            this._showArt(walk[0]);
+            return true;
+        }
+        this._walkFrames = null;
         const key = MONSTER_ART[info.id];
-        const fullFrame = key ? AssetLib.frame(key) : null;
-        const parts = MONSTER_PARTS[info.id];
-        const bodyFrame = parts ? AssetLib.frame(parts.body) : null;
-        const legsFrame = parts ? AssetLib.frame(parts.legs) : null;
-        const useParts = !!(bodyFrame && legsFrame);
-        if (!useParts && !fullFrame) {
+        const frame = key ? AssetLib.frame(key) : null;
+        if (!frame) {
             if (this._artNode) {
                 this._artNode.active = false;
             }
-            this._hideLegs();
             return false;
         }
+        this._showArt(frame);
+        return true;
+    }
+
+    /** 立绘 Sprite 装载：显示高度按碰撞直径约 1.3 倍；宽高比必须用 rect
+     *  （frame.width/height 在动态合图后返回整张图集尺寸，不是这张图的实际尺寸） */
+    private _showArt(frame: SpriteFrame): void {
         if (!this._artNode) {
             // Sprite 独立子节点：一节点只挂一种渲染组件（Graphics/Sprite 同节点会冲突）
             this._artNode = createUINode('Art');
@@ -344,50 +340,13 @@ export class Enemy extends Component {
         }
         this._artNode.active = true;
         const sprite = this._artNode.getComponent(Sprite) ?? this._artNode.addComponent(Sprite);
-        sprite.spriteFrame = useParts ? bodyFrame : fullFrame;
-        sprite.sizeMode = Sprite.SizeMode.CUSTOM;
-        sprite.trim = false;
-        // 显示高度按碰撞直径的约 1.3 倍取值；宽高比必须用 rect
-        // （frame.width/height 在动态合图后返回整张图集尺寸，不是这张图的实际尺寸）
-        const ut = this._artNode.getComponent(UITransform)!;
-        const rect = (useParts ? bodyFrame : fullFrame)!.rect;
-        const dispH = this.radius * 2.6;
-        ut.setContentSize(dispH * rect.width / rect.height, dispH);
-        this._applyLegs(useParts, legsFrame!, dispH, info.tier === 1);
-        return true;
-    }
-
-    /** 腿部层：渲染在身体之下（插到 Body 的 sibling 位置），锚点设在髋部接合缘做摆动枢轴 */
-    private _applyLegs(active: boolean, frame: SpriteFrame, dispH: number, elite: boolean): void {
-        this._legsApplied = active;
-        if (!active) {
-            this._hideLegs();
-            return;
-        }
-        if (!this._legsNode) {
-            this._legsNode = createUINode('Legs');
-            this.node.addChild(this._legsNode);
-        }
-        this._legsNode.setSiblingIndex(this._bodyNode.getSiblingIndex());
-        this._legsNode.active = true;
-        const sprite = this._legsNode.getComponent(Sprite) ?? this._legsNode.addComponent(Sprite);
         sprite.spriteFrame = frame;
         sprite.sizeMode = Sprite.SizeMode.CUSTOM;
         sprite.trim = false;
-        const ut = this._legsNode.getComponent(UITransform) ?? this._legsNode.addComponent(UITransform);
-        const legH = dispH * 0.58;
-        ut.setContentSize(legH * frame.rect.width / frame.rect.height, legH);
-        ut.setAnchorPoint(0.5, 0.82);
-        this._legsNode.setPosition(0, -dispH * 0.36);
-        this._legsNode.angle = 0;
-    }
-
-    private _hideLegs(): void {
-        this._legsApplied = false;
-        if (this._legsNode) {
-            this._legsNode.active = false;
-            this._legsNode.angle = 0;
-        }
+        const ut = this._artNode.getComponent(UITransform)!;
+        const rect = frame.rect;
+        const dispH = this.radius * 2.6;
+        ut.setContentSize(dispH * rect.width / rect.height, dispH);
     }
 
     /** 脚下阴影+精英圈：接地感的关键，不跟随身体摆动（画在不动的 Shadow 层） */
@@ -417,9 +376,6 @@ export class Enemy extends Component {
         // 野猪蓄力/冲刺专属姿态
         if (this._behavior === 'charger' && this._chargeState !== 'advance') {
             this._bodyNode.angle = 0;
-            if (this._legsApplied && this._legsNode) {
-                this._legsNode.angle = 0;
-            }
             if (this._chargeState === 'dash') {
                 this._bodyNode.setScale(0.94, 1.08, 1);
             } else {
@@ -432,12 +388,20 @@ export class Enemy extends Component {
         this._walkPhase += dt * this._walkFreq;
         const ph = this._walkPhase;
         const bob = this._isFlyer ? 0.5 + 0.5 * Math.sin(ph) : Math.abs(Math.cos(ph));
+        // 行走序列帧：步相每循环推进一整圈 → 依次切 6 帧（与 bob 同源，脚感一致）
+        if (this._walkFrames && this._walkFrames.length > 0) {
+            const cycle = (ph % (Math.PI * 2)) / (Math.PI * 2);
+            const idx = Math.min(this._walkFrames.length - 1, Math.floor(cycle * this._walkFrames.length));
+            if (idx !== this._walkIdx) {
+                this._walkIdx = idx;
+                const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
+                if (sp) {
+                    sp.spriteFrame = this._walkFrames[idx];
+                }
+            }
+        }
         this._bodyNode.setPosition(0, bob * this._bobAmp);
         this._bodyNode.angle = Math.sin(ph) * 1.6;
-        // 分层纸娃娃：腿层绕髋部枢轴交替摆动（真实的"腿在动"）
-        if (this._legsApplied && this._legsNode) {
-            this._legsNode.angle = Math.sin(ph) * this._legSway;
-        }
         if (this._isFlyer) {
             // 振翅：极轻微的躯干收张（翅膀拍打反作用），幅度压到不可察边界
             const flap = 0.02 * Math.sin(ph * 2);

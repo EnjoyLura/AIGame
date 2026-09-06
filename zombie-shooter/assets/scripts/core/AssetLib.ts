@@ -19,12 +19,8 @@ const MANIFEST = [
     'scenes/vehicle_tail',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'monsters/crawler', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',
-    // 分层纸娃娃（body 齐髋截断 + legs 腿部层，Enemy 腿层摆动驱动）
-    'monsters/crawler_body', 'monsters/crawler_legs',
-    'monsters/dog_body', 'monsters/dog_legs',
-    'monsters/boar_body', 'monsters/boar_legs',
-    'monsters/bear_body', 'monsters/bear_legs',
-    'monsters/eagle_body', 'monsters/eagle_legs',
+    // 怪物行走序列帧（AI 视频抽帧打包，见 tools/gen_walk_sheet.py；缺图回退整图/占位）
+    'monsters/crawler_walk', 'monsters/dog_walk', 'monsters/boar_walk', 'monsters/bear_walk', 'monsters/eagle_walk',
     'icons/rifle_basic', 'icons/rifle_skill', 'icons/rifle_ultimate',
     'icons/sniper_basic', 'icons/sniper_skill', 'icons/sniper_ultimate',
     'icons/laser_basic', 'icons/laser_skill', 'icons/laser_ultimate',
@@ -37,6 +33,35 @@ export class AssetLib {
     private static _frames = new Map<string, SpriteFrame>();
     private static _started = false;
     private static _mortar: SpriteFrame[] | null = null;
+    private static _walkSheets = new Map<string, SpriteFrame[]>();
+
+    /** 怪物行走序列帧：monsters/<id>_walk 横向 6 帧等分切片（tools/slice_walk_sheet.py 打包）。
+     *  未就绪返回 null（调用方逐帧轮询，就绪后缓存切片） */
+    static monsterWalkFrames(id: string): SpriteFrame[] | null {
+        const cached = this._walkSheets.get(id);
+        if (cached) {
+            return cached;
+        }
+        const sheet = this.frame(`monsters/${id}_walk`);
+        if (!sheet?.texture) {
+            return null;
+        }
+        const N = 6;
+        const base = sheet.rect;
+        const cw = base.width / N;
+        const out: SpriteFrame[] = [];
+        for (let i = 0; i < N; i++) {
+            const f = new SpriteFrame();
+            f.texture = sheet.texture;
+            f.rect = new Rect(base.x + i * cw, base.y, cw, base.height);
+            f.originalSize = new Size(cw, base.height);
+            f.offset = new Vec2(0, 0);
+            f.packable = false;
+            out.push(f);
+        }
+        this._walkSheets.set(id, out);
+        return out;
+    }
 
     /** Shared untrimmed atlas slices; retained with the application-wide resource cache. */
     static mortarFrames(): SpriteFrame[] | null {
