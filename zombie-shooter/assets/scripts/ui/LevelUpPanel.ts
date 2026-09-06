@@ -35,13 +35,13 @@ export class LevelUpPanel extends Component {
         this._panelOp = this.node.addComponent(UIOpacity);
 
         this._title = this._makeLabel('团队升级！选择一项强化', 0, 66);
-        this._title.node.setPosition(0, 260);
+        this._title.node.setPosition(0, 310);
 
         // 标题横幅（参考《向僵尸开炮》撕纸横幅；美术就绪后显示在标题文字下层）
         const banner = createUINode('Banner');
         this.node.addChild(banner);
         banner.addComponent(UITransform).setContentSize(540, 183);
-        banner.setPosition(0, 260);
+        banner.setPosition(0, 310);
         banner.addComponent(Sprite);
         banner.addComponent(UIOpacity);
         banner.active = false;
