@@ -6,3 +6,14 @@ gpt-image2-skill/
 gen-output/
 # 工作区根目录的 AI 原始大图（已处理后入库，原图不入库）
 /*.png
+
+# 本地构建/检查临时日志
+zombie-shooter/temp_*.log
+
+# ZCode 工作区配置
+.zcode/
+
+# Python 缓存与本地隧道工具
+zombie-shooter/tools/__pycache__/
+zombie-shooter/tools/cloudflared.exe
+zombie-shooter/tools/tunnel.log

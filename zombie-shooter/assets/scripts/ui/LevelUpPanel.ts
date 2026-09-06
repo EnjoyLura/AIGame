@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Graphics, Label, Node, Sprite, UITransform } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { Design, Palette } from '../config/GameConfig';
 import { AssetLib } from '../core/AssetLib';
@@ -17,6 +17,11 @@ export class LevelUpPanel extends Component {
     private _title: Label = null!;
     private _cards: Node[] = [];
     private _banner: Node = null!;
+    /** 面板/卡片透明度层（入场与选卡动画用） */
+    private _panelOp: UIOpacity = null!;
+    private _cardOps: UIOpacity[] = [];
+    /** 选卡动画进行中：吞掉重复点击 */
+    private _picking = false;
 
     onLoad(): void {
         const halfW = Design.WIDTH / 2;
@@ -27,6 +32,7 @@ export class LevelUpPanel extends Component {
         g.fillColor = Palette.overlay;
         g.rect(-halfW, -halfH, Design.WIDTH, Design.HEIGHT);
         g.fill();
+        this._panelOp = this.node.addComponent(UIOpacity);
 
         this._title = this._makeLabel('团队升级！选择一项强化', 0, 66);
         this._title.node.setPosition(0, 260);
@@ -37,6 +43,7 @@ export class LevelUpPanel extends Component {
         banner.addComponent(UITransform).setContentSize(540, 183);
         banner.setPosition(0, 260);
         banner.addComponent(Sprite);
+        banner.addComponent(UIOpacity);
         banner.active = false;
         this._banner = banner;
         banner.setSiblingIndex(this._title.node.getSiblingIndex());
@@ -49,7 +56,17 @@ export class LevelUpPanel extends Component {
         // 面板置顶：运行中动态生成的怪物节点会排在后面，必须重新排到最上层
         this.node.setSiblingIndex(this.node.parent.children.length - 1);
         this._clearCards();
+        this._picking = false;
         this.node.active = true;
+
+        // 入场：遮罩淡入 + 标题弹跳 + 三卡自下而上错峰滑入（backOut 过冲）
+        Tween.stopAllByTarget(this.node);
+        this._panelOp.opacity = 0;
+        tween(this._panelOp).to(0.15, { opacity: 255 }).start();
+        this._title.node.setScale(0.7, 0.7, 1);
+        tween(this._title.node)
+            .to(0.26, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' })
+            .start();
 
         // 标题横幅：美术就绪即显示（标题文字压在其上）
         const bannerFrame = AssetLib.frame('ui/banner');
@@ -60,16 +77,22 @@ export class LevelUpPanel extends Component {
             bsp.spriteFrame = bannerFrame;
             this._banner.active = true;
         }
+        if (this._banner.active) {
+            const bop = this._banner.getComponent(UIOpacity)!;
+            bop.opacity = 0;
+            tween(bop).to(0.2, { opacity: 255 }).start();
+        }
 
         options.forEach((option, i) => {
             const card = createUINode('Card' + i);
             this.node.addChild(card);
             card.addComponent(UITransform).setContentSize(LevelUpPanel.CARD_W, LevelUpPanel.CARD_H);
             card.setPosition((i - 1) * 315, 20);
-
+            const op = card.addComponent(UIOpacity);
+            this._cardOps.push(op);
             const cardFrame = AssetLib.frame('ui/panel_card');
             if (cardFrame) {
-                // 正式版卡片底（参考《向僵尸开炮》米白纸质卡）
+                // 卡片底：米白纸质卡（参考《向僵尸开炮》）
                 const bgNode = createUINode('CardBg');
                 card.addChild(bgNode);
                 bgNode.addComponent(UITransform).setContentSize(LevelUpPanel.CARD_W, LevelUpPanel.CARD_H);
@@ -96,10 +119,58 @@ export class LevelUpPanel extends Component {
             this._makeCardLabel(card, lines[1], 0, 28, undefined, textColor);
             // 描述行给两行高度，长说明换行显示
             this._makeCardLabel(card, option.desc, -105, 24, 81, textColor);
+
+            // 入场：初始状态压在下方半透明缩小，错峰滑入
+            const targetY = 20;
+            card.setPosition((i - 1) * 315, targetY - 130);
+            op.opacity = 0;
+            card.setScale(0.6, 0.6, 1);
+            tween(card)
+                .delay(i * 0.07)
+                .parallel(
+                    tween(card).to(0.3, { position: new Vec3((i - 1) * 315, targetY, 0) }, { easing: 'backOut' }),
+                    tween(card).to(0.3, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' }),
+                    tween(op).to(0.14, { opacity: 255 }),
+                )
+                .start();
+
             card.on(Node.EventType.TOUCH_END, () => {
-                this._clearCards();
-                this.node.active = false;
-                onPick(option);
+                if (this._picking) {
+                    return;
+                }
+                this._picking = true;
+                // 选卡：中选卡弹跳放大上浮，其余两卡缩小淡出，动画结束后结算并关闭
+                Tween.stopAllByTarget(card);
+                tween(card)
+                    .parallel(
+                        tween(card).to(0.16, { scale: new Vec3(1.12, 1.12, 1) }, { easing: 'backOut' }),
+                        tween(card).to(0.16, { position: new Vec3(card.position.x, targetY + 46, 0) }, { easing: 'quadOut' }),
+                        tween(op).to(0.16, { opacity: 255 }),
+                    )
+                    .start();
+                this._cards.forEach((other, j) => {
+                    if (other === card) {
+                        return;
+                    }
+                    Tween.stopAllByTarget(other);
+                    const otherOp = this._cardOps[j];
+                    tween(other)
+                        .parallel(
+                            tween(other).to(0.18, { scale: new Vec3(0.8, 0.8, 1) }, { easing: 'quadIn' }),
+                            tween(other).to(0.18, { position: new Vec3(other.position.x, targetY - 70, 0) }, { easing: 'quadIn' }),
+                            tween(otherOp).to(0.18, { opacity: 0 }),
+                        )
+                        .start();
+                });
+                tween(this.node)
+                    .delay(0.3)
+                    .call(() => {
+                        this._clearCards();
+                        this.node.active = false;
+                        this._picking = false;
+                        onPick(option);
+                    })
+                    .start();
             });
 
             this._cards.push(card);
@@ -108,9 +179,11 @@ export class LevelUpPanel extends Component {
 
     private _clearCards(): void {
         for (const card of this._cards) {
+            Tween.stopAllByTarget(card);
             card.destroy();
         }
         this._cards.length = 0;
+        this._cardOps.length = 0;
     }
 
     private _makeLabel(text: string, x: number, size: number): Label {
@@ -138,8 +211,8 @@ export class LevelUpPanel extends Component {
         label.color = color ?? Palette.text;
         // 米白卡底配纯黑文字，无需描边
         label.horizontalAlign = Label.HorizontalAlign.CENTER;
-        // 技能卡文案较长：限定宽度并 SHRUNK，超长自动缩字/换行，避免溢出卡面
-        label.overflow = Label.Overflow.SHRUNK;
+        // 技能卡文案较长：限定宽度并 SHRINK，超长自动缩字/换行，避免溢出卡面
+        label.overflow = Label.Overflow.SHRINK;
         labelNode.getComponent(UITransform)!.setContentSize(255, boxH ?? size + 15);
     }
 }

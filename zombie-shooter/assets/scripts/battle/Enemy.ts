@@ -50,6 +50,11 @@ export class Enemy extends Component {
     private _bodyNode: Node = null!;
     /** 美术立绘子节点：Sprite 必须与 Graphics 分节点（同节点先后挂两个渲染组件会导致 Sprite 不渲染） */
     private _artNode: Node | null = null;
+    /** 准星/标记：锁定读秒（黄）与存活标记（红）共用一层，随目标移动 */
+    private _reticleLeft = 0;
+    private _reticleTotal = 1;
+    private _reticleNode: Node | null = null;
+    private _reticleG: Graphics | null = null;
     /** 脚下阴影/精英圈层（接地感，不跟随身体摆动） */
     private _shadowNode: Node | null = null;
     /** 行走动效参数（按怪型在 init 配置） */
@@ -70,9 +75,9 @@ export class Enemy extends Component {
     /** 从池中取出后调用：按波次配置与成长系数初始化 */
     init(info: MonsterInfo, hpScale: number): void {
         this.spawnId = Enemy._nextSpawnId++;
-        this.maxHp = Math.round(info.hp * hpScale);
+        this.maxHp = Math.round(info.hp * hpScale * BattleConfig.MONSTER_HP_SCALE);
         this.hp = this.maxHp;
-        this.speed = info.speed * (info.tier === 1 ? 1.15 : 1);
+        this.speed = info.speed * BattleConfig.MONSTER_SPEED_SCALE * (info.tier === 1 ? 1.15 : 1);
         this.radius = info.radius * (info.tier === 1 ? 1.35 : 1);
         this.touchDamage = info.touchDamage * (info.tier === 1 ? 2 : 1);
         this._behavior = info.behavior;
@@ -83,6 +88,9 @@ export class Enemy extends Component {
         this._dashSpeed = info.dashSpeed ?? 645;
         // 蓄力中途被回收的怪会带缩放入池，重置防串状态
         this.node.setScale(1, 1, 1);
+        // 准星/标记随池化回收清零
+        this._reticleLeft = 0;
+        this._hideReticle();
         // 行走动效节奏：疯狗高频碎步 / 野猪沉重小跑 / 熊缓慢沉稳 / 疯鹰悬浮
         this._walkPhase = Math.random() * Math.PI * 2;
         switch (info.behavior) {
@@ -109,6 +117,72 @@ export class Enemy extends Component {
         this._draw(info);
     }
 
+    /** 在目标头顶挂准星：锁定读秒用黄白色（短时），存活标记用红色（长时）；随目标移动、缓慢自旋 */
+    private _reticleMarked = false;
+    private _reticleColor = new Color();
+
+    showReticle(color: Color, life: number, marked = false): void {
+        if (!this._reticleNode) {
+            this._reticleNode = createUINode('Reticle');
+            this.node.addChild(this._reticleNode);
+            this._reticleG = this._reticleNode.addComponent(Graphics);
+        }
+        this._reticleMarked = marked;
+        this._reticleColor = color.clone();
+        this._reticleLeft = life;
+        this._reticleTotal = life;
+        this._reticleNode.active = true;
+        this._reticleNode.angle = 0;
+        this._reticleNode.setScale(marked ? 1 : 1.35, marked ? 1 : 1.35, 1);
+        this._drawReticle(1);
+    }
+
+    private _hideReticle(): void {
+        this._reticleLeft = 0;
+        if (this._reticleNode) {
+            this._reticleNode.active = false;
+            this._reticleG?.clear();
+        }
+    }
+
+    /** 准星计时：读秒全程从 1.6 倍收缩到 1 倍，自旋随读秒推进不断加速（锁定收紧的紧迫感） */
+    private _updateReticle(dt: number): void {
+        if (this._reticleLeft <= 0 || !this._reticleNode) {
+            return;
+        }
+        this._reticleLeft -= dt;
+        if (this._reticleLeft <= 0) {
+            this._hideReticle();
+            return;
+        }
+        const k = Math.min(1, this._reticleLeft / this._reticleTotal);
+        const scale = this._reticleMarked ? 1 : 1 + 0.35 * k;
+        this._reticleNode.setScale(scale, scale, 1);
+        this._drawReticle(k);
+    }
+
+    private _drawReticle(k: number): void {
+        const g = this._reticleG!;
+        const r = this.radius + 10;
+        g.clear();
+        g.strokeColor = this._reticleColor;
+        g.lineWidth = this._reticleMarked ? 3 : 2;
+        // Fixed orientation brackets; read countdown rather than a noisy spinning wheel.
+        for (let q = 0; q < 4; q++) {
+            const a = q * Math.PI / 2 + Math.PI / 4;
+            g.arc(0, 0, r, a - 0.22, a + 0.22, false); g.stroke();
+        }
+        if (!this._reticleMarked) {
+            g.lineWidth = 1.5;
+            g.arc(0, 0, r * 0.8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k, false); g.stroke();
+            g.fillColor = this._reticleColor;
+            g.circle(0, 0, 2); g.fill();
+        } else {
+            // Unambiguous red chevron above the survivor; does not cover the body.
+            g.moveTo(-6, r + 9); g.lineTo(0, r + 3); g.lineTo(6, r + 9); g.stroke();
+        }
+    }
+
     update(dt: number): void {
         const bm = BattleManager.instance;
         if (!bm || bm.isPaused || bm.isGameOver) {
@@ -130,6 +204,7 @@ export class Enemy extends Component {
                 this._descend(dt);
                 break;
         }
+        this._updateReticle(dt);
         this._updateWalkAnim(dt);
     }
 

@@ -1,4 +1,4 @@
-import { _decorator, Component } from 'cc';
+import { _decorator, Component, profiler } from 'cc';
 const { ccclass } = _decorator;
 import { BattleManager } from '../battle/BattleManager';
 import { SoundFx } from '../core/SoundFx';
@@ -43,6 +43,21 @@ export class GmPanel extends Component {
         body.style.cssText = 'display:flex;flex-direction:column;gap:4px;align-items:flex-end;';
         root.appendChild(body);
         this._body = body;
+
+        // 引擎性能统计与游戏伤害统计独立；使用 Cocos 3.8.8 的实际 profiler API。
+        const statsBtn = document.createElement('button');
+        const syncStats = () => {
+            statsBtn.textContent = `性能统计:${profiler.isShowingStats() ? '开' : '关'}`;
+        };
+        this._styleButton(statsBtn);
+        syncStats();
+        statsBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (profiler.isShowingStats()) profiler.hideStats();
+            else profiler.showStats();
+            syncStats();
+        };
+        body.appendChild(statsBtn);
 
         // ---- 常规调试 ----
         this._addButton(body, '升级', () => this._bm()?.gmLevelUp());

@@ -7,7 +7,9 @@ import { BattleManager } from './BattleManager';
 import { createUINode } from '../core/createUINode';
 import { HeroCombatController } from './HeroCombat';
 
-export type HeroUpgradeId = 'atk' | 'rate' | 'range' | 'skill' | 'ultimate';
+export type HeroUpgradeId = 'atk' | 'rate' | 'range' | 'skill' | 'ultimate'
+    | 'multishot' | 'volley' | 'pierce' | 'boom' | 'split'
+    | 'splitMore' | 'splitDmg' | 'boomRange' | 'boomDmg' | 'secBoom';
 
 @ccclass('Hero')
 export class Hero extends Component {
@@ -22,6 +24,8 @@ export class Hero extends Component {
     /** 瞄准倾斜（跟随射击方向）与后坐状态 */
     private _aimLean = 0;
     private _aimTarget = 0;
+    /** 激光帧末直锁标记：本帧跳过插值直接对准目标 */
+    private _snapAim = false;
     private _recoil = 0;
 
     init(def: HeroDef): void {
@@ -34,10 +38,11 @@ export class Hero extends Component {
         this._drawPlaceholder();
         this._aimLean = 0;
         this._aimTarget = 0;
+        this._snapAim = false;
         this.node.angle = 0;
     }
 
-    /** 射击/施法时由战斗控制器回调：身体朝向目标方向倾斜；snap=true 瞬间转向（激光） */
+    /** 射击/施法时由战斗控制器回调：身体朝向目标方向倾斜；snap=true 瞬间转向（激光每帧调用，跟随目标） */
     notifyShot(targetPos: Vec3, snap = false): void {
         const p = this.node.position;
         const dx = targetPos.x - p.x;
@@ -45,8 +50,8 @@ export class Hero extends Component {
         // 侧向偏移比例 → 倾斜角：目标在左（dx<0）身体向左倾（正角度=逆时针）
         this._aimTarget = Math.max(-60, Math.min(60, -(dx / dy) * 60));
         if (snap) {
-            this._aimLean = this._aimTarget;
-            this.node.angle = this._aimLean;
+            // 激光：标记本帧末直接锁角（在 _updateAimPose 里应用，覆盖插值）
+            this._snapAim = true;
         }
         this._recoil = 1;
     }
@@ -64,6 +69,26 @@ export class Hero extends Component {
             this.range = Math.min(1400, Math.round(this.range * 1.2));
         } else if (upgradeId === 'skill') {
             this._combat.levelUpSkill();
+        } else if (upgradeId === 'multishot') {
+            this._combat.levelUpMultishot();
+        } else if (upgradeId === 'volley') {
+            this._combat.levelUpVolley();
+        } else if (upgradeId === 'pierce') {
+            this._combat.levelUpPierce();
+        } else if (upgradeId === 'boom') {
+            this._combat.levelUpBoom();
+        } else if (upgradeId === 'split') {
+            this._combat.levelUpSplit();
+        } else if (upgradeId === 'splitMore') {
+            this._combat.levelUpSplitMore();
+        } else if (upgradeId === 'splitDmg') {
+            this._combat.levelUpSplitDmg();
+        } else if (upgradeId === 'boomRange') {
+            this._combat.levelUpBoomRange();
+        } else if (upgradeId === 'boomDmg') {
+            this._combat.levelUpBoomDmg();
+        } else if (upgradeId === 'secBoom') {
+            this._combat.levelUpSecBoom();
         } else {
             this._combat.levelUpUltimate();
         }
@@ -79,13 +104,43 @@ export class Hero extends Component {
         return false;
     }
 
-    /** 技能/大招当前等级（普攻三维恒为 0；升级卡用它区分解锁卡/升级卡、过滤满级卡） */
+    /** 技能/大招等级、普攻增益层数（升级卡用它区分解锁卡/升级卡、过滤满级卡） */
     upgradeLevel(upgradeId: HeroUpgradeId): number {
         if (upgradeId === 'skill') {
             return this._combat.skillLevel;
         }
         if (upgradeId === 'ultimate') {
             return this._combat.ultimateLevel;
+        }
+        if (upgradeId === 'multishot') {
+            return this._combat.multishotStacks;
+        }
+        if (upgradeId === 'volley') {
+            return this._combat.volleyStacks;
+        }
+        if (upgradeId === 'pierce') {
+            return this._combat.pierceStacks;
+        }
+        if (upgradeId === 'boom') {
+            return this._combat.boomStacks;
+        }
+        if (upgradeId === 'split') {
+            return this._combat.splitStacks;
+        }
+        if (upgradeId === 'splitMore') {
+            return this._combat.splitMoreStacks;
+        }
+        if (upgradeId === 'splitDmg') {
+            return this._combat.splitDmgStacks;
+        }
+        if (upgradeId === 'boomRange') {
+            return this._combat.boomRangeStacks;
+        }
+        if (upgradeId === 'boomDmg') {
+            return this._combat.boomDmgStacks;
+        }
+        if (upgradeId === 'secBoom') {
+            return this._combat.secBoomStacks;
         }
         return 0;
     }
@@ -103,6 +158,11 @@ export class Hero extends Component {
     /** 击杀充能：本英雄大招 +n（未解锁不生效） */
     gainUltimateCharge(n: number = 1): void {
         this._combat?.gainCharge(n);
+    }
+
+    /** 手动点按大招：充满即可立即释放（跳过 1 秒自动延迟）；返回是否成功起手 */
+    tryManualUltimate(): boolean {
+        return this._combat ? this._combat.tryManualUltimate() : false;
     }
 
     /** GM：开关本英雄「技能无冷却」；开启时技能未解锁则顺手解锁 */
@@ -156,9 +216,15 @@ export class Hero extends Component {
 
     /** 瞄准倾斜平滑跟随：射击方向改变时身体平滑转向，停止射击后缓慢回正 */
     private _updateAimPose(dt: number): void {
-        // 秒转身：快速插值朝向目标；不回正——保持朝向最后攻击的目标
+        // 快速插值朝向目标；不回正——保持朝向最后攻击的目标
         this._aimLean += (this._aimTarget - this._aimLean) * Math.min(1, dt * 25);
         this.node.angle = this._aimLean;
+        // 激光每帧 notifyShot(snap)：身体即时锁死目标角度（照抄 code(3).html rotate(aim)），不做插值
+        if (this._snapAim) {
+            this._aimLean = this._aimTarget;
+            this.node.angle = this._aimLean;
+            this._snapAim = false;
+        }
         this._recoil = Math.max(0, this._recoil - dt * 5);
         const kick = this._recoil * 12 * (BattleManager.instance ? BattleManager.instance.uiScale : 1);
         this._artNode.setPosition(0, -kick);

@@ -36,9 +36,21 @@ export const BattleConfig = {
     XP_GEM_VALUE: 1,
     XP_GEM_COLLECT_DELAY: 0.35,
     /** 波次 */
-    WAVE_REST_TIME: 2.5,
+    WAVE_REST_TIME: 3.5,
+    WAVE_START_DELAY: 0.8,
+    /** 每波前四组渐进进入常态密度；不改变怪物总量与同屏上限 */
+    WAVE_RAMP_GROUPS: 4,
+    /** 自动技能/大招起手错峰（战斗秒），不影响普攻或已发出的多段伤害 */
+    AUTO_CAST_GAP: 0.3,
+    LEVEL_UP_CAST_GRACE: 0.45,
+    /** 怪物整体生命倍率；保留波次曲线与精英相对层级，仅抬高基础耐久 */
+    MONSTER_HP_SCALE: 1.45,
+    /** 怪物移动速度倍率；charger 冲刺速度等行为专属速度保持相对差异 */
+    MONSTER_SPEED_SCALE: 0.68,
     /** 超出波次表后进入无尽模式，每波怪物血量倍率 */
     ENDLESS_HP_SCALE: 1.15,
+    /** 波次总量/同屏上限 ×3；生成密度渐进至 ×3，并受最短间隔保护 */
+    WAVE_SCALE: 3,
 } as const;
 
 /** 占位美术色板：全部替换为正式资源后可整体删除 */
@@ -55,8 +67,8 @@ export const Palette = {
     vehicleBarFill: new Color(255, 167, 38, 255),
     xpBarFill: new Color(77, 208, 225, 255),
     text: new Color(236, 239, 241, 255),
-    damage: new Color(255, 224, 160, 255),   // 伤害飘字：暖奶油色（demo 风格）
-    crit: new Color(255, 112, 67, 255),
+    damage: new Color(255, 255, 255, 255),   // 伤害飘字：白色
+    crit: new Color(255, 58, 58, 255),       // 暴击飘字：红色
     xpGem: new Color(105, 240, 174, 255),
     cardBg: new Color(38, 50, 56, 255),
     cardBorder: new Color(128, 222, 234, 255),

@@ -9,16 +9,17 @@ import { createUINode } from '../core/createUINode';
 
 /**
  * 英雄技能/大招图标栏（参考《向僵尸开炮》）：
- * 1、2 号位英雄图标靠屏幕左列、3、4 号位靠右列，从上到下按号位排列，每英雄技能在上、大招在下。
- * 技能图标=冷却剩余秒数（冷却中变暗）；大招图标=外环充能进度；右下角数字=三选一强化的当前等级，
- * 未解锁显示灰底锁形。点按图标弹出数值浮窗，长按 0.45 秒显示该能力的战场范围圈。
- * 全部代码动态绘制（占位阶段无图标贴图，正式版替换为圆形图标帧）。
+ * 1、2 号位靠左，3、4 号位靠右；每英雄从上到下为普攻/技能/大招，组间留白。
+ * 技能显示冷却秒数与扇形遮罩；大招遮罩随击杀充能从底部消退，充满显示元素亮环。
+ * 未解锁技能/大招隐藏。点按弹出数值浮窗，长按 0.45 秒显示战场范围圈。
+ * 优先使用现有圆形贴图（尺寸与遮罩一致），缺图回退代码底圆与名字首字。
  */
 
-const ICON_R = 48;
+const ICON_R = 46;
 const COL_X = 471;
-/** 每侧 6 行：每英雄占 3 行（普攻/技能/大招），两英雄共 6 行从上到下（避开顶部 HUD） */
-const ROW_YS = [600, 492, 384, 276, 168, 60];
+/** 每侧 6 行：每英雄占 3 行（普攻/技能/大招）为一组，组内行距 100（直径 92 + 8 间隙），
+ *  英雄组之间行距 160 额外拉开约 68px 视觉间隔；顶行避开顶部 HUD 与 x2 按钮 */
+const ROW_YS = [600, 500, 400, 240, 140, 40];
 const LONG_PRESS_TIME = 0.45;
 const TIP_W = 450;
 const TIP_MAX_ROWS = 6;
@@ -45,6 +46,18 @@ const COLOR_RANGE_AREA = new Color(255, 171, 64, 150);
 
 type SlotId = 'basic' | 'skill' | 'ultimate';
 const SLOT_ORDER: SlotId[] = ['basic', 'skill', 'ultimate'];
+
+/** 普攻增益汇总（HeroCombat.abilityInfo('basic').enhances） */
+interface BasicEnhanceInfo {
+    bulletCount: number;
+    pierceBonus: number;
+    boomDmgPct: number;
+    boomRadius: number;
+    splitCount: number;
+    splitDmgPct: number;
+    secBoomDmgPct: number;
+    secBoomRadius: number;
+}
 
 /** 图标角标/tip 共用的能力运行时信息（Hero.abilityInfo 返回结构） */
 interface AbilityInfo {
@@ -98,6 +111,8 @@ class AbilityIcon {
     private _wasFull = false;
     private _lastMaskStep = -1;
     private _lastFillStep = -1;
+    private _lastCooling = false;
+    private _lastFullForFx = false;
 
     constructor(bar: AbilityBar, hero: Hero, slot: SlotId, index: number) {
         this._bar = bar;
@@ -134,7 +149,8 @@ class AbilityIcon {
 
         const artNode = createUINode('Art');
         this.node.addChild(artNode);
-        artNode.addComponent(UITransform).setContentSize(ICON_R * 1.7, ICON_R * 1.7);
+        // 图标贴图铺满整个图标圆（贴图本身是圆形金环+透明四角），冷却/充能遮罩半径与 ICON_R 严格一致
+        artNode.addComponent(UITransform).setContentSize(ICON_R * 2, ICON_R * 2);
         artNode.active = false;
         this._artNode = artNode;
 
@@ -254,8 +270,13 @@ class AbilityIcon {
                 this._lastCastFrac = castFrac;
                 this._drawCastRing(castFrac);
             }
+            // 状态边沿只触发一次；结束/非施法时主动清空进度环，避免重建后残留。
             if (this._wasCooling && !cooling) {
                 this._punch();
+            }
+            if (!cooling && castFrac <= 0) {
+                this._castG.clear();
+                this._lastCastFrac = 0;
             }
             this._wasCooling = cooling;
             return;
@@ -377,7 +398,7 @@ class AbilityIcon {
         g.clear();
         const f = Math.min(1, Math.max(0, fraction));
         const el = HERO_ELEMENT[this._hero.def.id] ?? HERO_ELEMENT.laser;
-        const r = ICON_R - 2;
+        const r = ICON_R;   // 水面遮罩半径=图标半径，充满前不再留出亮边
         if (f >= 0.995) {
             // 充满：遮罩消失、图标全彩点亮 + 元素色亮环
             g.strokeColor = el.fx;
@@ -462,15 +483,16 @@ class AbilityIcon {
         g.moveTo(0, 0);
         for (let i = 0; i <= segs; i++) {
             const ang = start - (dark * i / segs) * Math.PI * 2;   // 从 12 点顺时针铺暗区
-            g.lineTo(Math.cos(ang) * (ICON_R + 3), Math.sin(ang) * (ICON_R + 3));
+            g.lineTo(Math.cos(ang) * ICON_R, Math.sin(ang) * ICON_R);   // 半径=图标半径，与贴图严丝合缝
         }
         g.close();
         g.fill();
     }
 
     private _punch(): void {
+        Tween.stopAllByTarget(this.node);
         tween(this.node)
-            .to(0.08, { scale: new Vec3(1.18, 1.18, 1) })
+            .to(0.08, { scale: new Vec3(1.08, 1.08, 1) })
             .to(0.14, { scale: new Vec3(1, 1, 1) })
             .start();
     }
@@ -575,9 +597,9 @@ class TipView {
         label.horizontalAlign = align === 'right'
             ? Label.HorizontalAlign.RIGHT
             : align === 'left' ? Label.HorizontalAlign.LEFT : Label.HorizontalAlign.CENTER;
-        // 限定宽度 + SHRUNK：超长文本自动缩字/换行，避免溢出浮窗边框
+        // 限定宽度 + SHRINK：超长文本自动缩字/换行，避免溢出浮窗边框
         if (boxW) {
-            label.overflow = Label.Overflow.SHRUNK;
+            label.overflow = Label.Overflow.SHRINK;
             ut.setContentSize(boxW, boxH ?? size + 6);
         }
         return label;
@@ -605,10 +627,12 @@ class TipView {
                 : `${icon.hero.def.name} · 未解锁【${def.name}】`;
             const rowsB: Array<[string, string]> = [
                 ['普攻伤害', `×${def.damageScale}`],
-                ['普攻射程', `+${Math.round(((def.rangeMul ?? 1.3) - 1) * 100)}%`],
                 ['持续', `${def.duration ?? 4}秒`],
                 ['射程', `${def.range}`],
             ];
+            if (def.rangeMul && def.rangeMul !== 1) {
+                rowsB.splice(1, 0, ['普攻射程', `+${Math.round((def.rangeMul - 1) * 100)}%`]);
+            }
             this._fillRows(rowsB);
             this._hint.string = info.unlocked
                 ? (info.level < ABILITY_MAX_LEVEL ? `下一级：倍率更高（Lv.${info.level}→${info.level + 1}）` : '已达最高等级')
@@ -616,9 +640,9 @@ class TipView {
             this.node.active = true;
             return;
         }
-        const suffix = def.kind === 'beam' ? '/秒' : '';
+        const suffix = def.kind === 'beam' || def.kind === 'laserbeam' ? '/秒' : '';
         const rows: Array<[string, string]> = [['伤害', `${info.damage}${suffix}`]];
-        if (def.kind === 'beam' && def.duration) {
+        if ((def.kind === 'beam' || def.kind === 'laserbeam') && def.duration) {
             rows.push(['持续', `${def.duration.toFixed(1)}秒`]);
         }
         if (icon.slot === 'ultimate') {
@@ -633,6 +657,12 @@ class TipView {
             rows.push(['目标数', String(def.maxTargets ?? 1)]);
         } else if (def.kind === 'area') {
             rows.push(['爆炸范围', `${def.areaRadius ?? 200}`]);
+        } else if (def.kind === 'drone') {
+            rows.push(['持续', `${def.duration ?? 5}秒`]);
+            rows.push(['射速', '每0.5秒']);
+        } else if (def.kind === 'lock') {
+            rows.push(['锁定数', String(def.maxTargets ?? 8)]);
+            rows.push(['读秒', `${(def.lockTime ?? 0.5).toFixed(1)}秒`]);
         }
         rows.push(['射程', `${def.range}`]);
         this._fillRows(rows);
@@ -646,20 +676,37 @@ class TipView {
         this.node.active = true;
     }
 
-    /** 普攻浮窗：数值实时读英雄属性（吃攻击/射频/射程卡） */
+    /** 普攻浮窗：数值实时读英雄属性（吃攻击/射频/射程/普攻增益卡） */
     private _showBasic(hero: Hero): void {
         this._title.string = `${hero.def.name} · 普通攻击`;
         const isLaser = hero.def.weapon === 'laser';
+        const info = hero.abilityInfo('basic');
+        const en = info ? (info as { enhances?: BasicEnhanceInfo }).enhances : null;
+        // 伤害显示单发实际值（已含连射/齐射减伤）；多弹时附注每击弹数
+        const dmgText = info && !isLaser && en && en.bulletCount > 1
+            ? `${info.damage} ×${en.bulletCount}发`
+            : `${Math.round(hero.atk)}${isLaser ? '/秒' : ''}`;
         const rows: Array<[string, string]> = [
-            ['伤害', `${Math.round(hero.atk)}${isLaser ? '/秒' : ''}`],
+            ['伤害', dmgText],
             [isLaser ? '持续' : '射速', isLaser ? '常驻' : `${(1 / hero.interval).toFixed(1)}/秒`],
             ['射程', `${Math.round(hero.range)}`],
         ];
-        if (hero.def.pierce) {
-            rows.push(['穿透', '是']);
+        // 穿透：武器特性与穿透+1 层数合并展示
+        const pierceBonus = en ? en.pierceBonus : 0;
+        if (hero.def.pierce || pierceBonus > 0) {
+            rows.push(['穿透', hero.def.pierce ? (pierceBonus > 0 ? `是 +${pierceBonus}` : '是') : `+${pierceBonus}`]);
+        }
+        if (en && en.boomDmgPct > 0) {
+            rows.push(['爆炸', `${en.boomDmgPct}%·R${en.boomRadius}`]);
+        }
+        if (en && en.splitCount > 0) {
+            rows.push(['分裂', `${en.splitCount}颗·${en.splitDmgPct}%`]);
+            if (en.secBoomDmgPct > 0) {
+                rows.push(['次爆', `${en.secBoomDmgPct}%·R${en.secBoomRadius}`]);
+            }
         }
         this._fillRows(rows);
-        this._hint.string = '选择该英雄的攻击/射频/射程强化卡可提升数值';
+        this._hint.string = '选择该英雄的攻击/射频/射程/普攻增益卡可提升数值';
         this.node.active = true;
     }
 
@@ -743,12 +790,13 @@ export class AbilityBar extends Component {
         this._lastSpeedOn = on;
         const g = this._speedG;
         g.clear();
-        g.fillColor = on ? new Color(31, 96, 110, 245) : COLOR_BASIC_BG;
-        g.strokeColor = on ? COLOR_SKILL_EDGE : COLOR_BASIC_EDGE;
-        g.circle(0, 0, 40);
+        g.fillColor = on ? new Color(31, 76, 88, 255) : new Color(38, 52, 63, 255);
+        g.strokeColor = new Color(128, 222, 228, 255);
+        g.roundRect(-42, -42, 84, 84, 18);
         g.fill();
-        g.lineWidth = 6;
+        g.lineWidth = 2;
         g.stroke();
+        this._speedLabel.string = on ? 'x2' : 'x1';
     }
 
     /** 重开/首次部署后重建图标（英雄组件会被整体重建） */
@@ -771,6 +819,22 @@ export class AbilityBar extends Component {
     }
 
     update(dt: number): void {
+        // 升级三选一/护送失败结算期间隐藏整个技能栏：卡片面板较宽，
+        // 左右两列图标会与卡片边缘重叠遮挡（面板无全屏遮罩盖不住两侧）
+        const bm = BattleManager.instance;
+        const shouldShow = !!bm && !bm.isPaused && !bm.isGameOver;
+        if (this.node.active !== shouldShow) {
+            this.node.active = shouldShow;
+            if (!shouldShow) {
+                this._tip.hide();
+                this._clearRange();
+                this._press = null;
+            }
+            return;
+        }
+        if (!shouldShow) {
+            return;
+        }
         this._syncSpeedButton();
         for (const icon of this._icons) {
             icon.refresh();
@@ -797,8 +861,11 @@ export class AbilityBar extends Component {
 
     onPressEnd(icon: AbilityIcon): void {
         if (this._press && this._press.icon === icon && !this._press.fired) {
-            // 短按：切换数值浮窗
-            if (this._tip.node.active && this._tip.boundTo === icon) {
+            // 大招短按：充满即可手动立即释放（跳过 1 秒自动延迟）；
+            // 未起手成功（未充满/无目标/前摇中）则回落到数值浮窗
+            if (icon.slot === 'ultimate' && icon.hero.tryManualUltimate()) {
+                this._tip.hide();
+            } else if (this._tip.node.active && this._tip.boundTo === icon) {
                 this._tip.hide();
             } else {
                 this._tip.show(icon);

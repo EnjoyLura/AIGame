@@ -5,6 +5,7 @@ import { eventCenter } from '../core/EventCenter';
 import { createUINode } from '../core/createUINode';
 import { GameManager } from '../core/GameManager';
 import { BattleManager } from '../battle/BattleManager';
+import { SoundFx } from '../core/SoundFx';
 
 /**
  * 战斗 HUD：计时、波次、击杀、经验条与等级、载具耐久条、波次提示、结算面板。
@@ -23,9 +24,15 @@ export class HUD extends Component {
     private _levelLabel: Label = null!;
     private _xpFill: Node = null!;
     private _vehicleFill: Node = null!;
+    private _vehicleText: Label = null!;
     private _popupLabel: Label = null!;
     private _popupOpacity: UIOpacity = null!;
     private _overPanel: Node = null!;
+    private _pausePanel: Node = null!;
+    private _statsPanel: Node = null!;
+    private _statsTeamLabel: Label = null!;
+    private _statsRows: Array<{ main: Label; sub: Label }> = [];
+    private _statsRefresh = 0;
     private _failWaveLabel: Label = null!;
     private _failKillLabel: Label = null!;
     private _failLevelLabel: Label = null!;
@@ -45,6 +52,10 @@ export class HUD extends Component {
         this._buildVehicleBar();
         this._buildWavePopup();
         this._buildOverPanel();
+        this._buildPauseButton();
+        this._buildPausePanel();
+        this._buildStatsButton();
+        this._buildStatsPanel();
 
         eventCenter.on(GameEvent.WAVE_START, this._onWaveStart, this);
         eventCenter.on(GameEvent.XP_CHANGED, this._onXpChanged, this);
@@ -61,7 +72,7 @@ export class HUD extends Component {
         eventCenter.off(GameEvent.GAME_OVER, this._onGameOver, this);
     }
 
-    update(): void {
+    update(dt: number): void {
         const bm = BattleManager.instance;
         if (!bm) {
             return;
@@ -70,6 +81,14 @@ export class HUD extends Component {
         const m = String(Math.floor(total / 60)).padStart(2, '0');
         const s = String(total % 60).padStart(2, '0');
         this._timeLabel.string = `${m}:${s}`;
+        // 统计浮窗打开期间每 0.5s 实时刷新
+        if (this._statsPanel.active) {
+            this._statsRefresh -= dt;
+            if (this._statsRefresh <= 0) {
+                this._statsRefresh = 0.5;
+                this._refreshStats();
+            }
+        }
     }
 
     // ================= 事件响应 =================
@@ -93,7 +112,8 @@ export class HUD extends Component {
     }
 
     private _onVehicleHpChanged(hp: number, maxHp: number): void {
-        this._vehicleFill.setScale(maxHp > 0 ? Math.max(0, hp / maxHp) : 0, 1, 1);
+        this._vehicleFill.setScale(maxHp > 0 ? Math.min(1, Math.max(0, hp / maxHp)) : 0, 1, 1);
+        this._vehicleText.string = `耐久 ${Math.ceil(Math.max(0, hp))} / ${maxHp}`;
     }
 
     private _onKill(kills: number): void {
@@ -130,11 +150,203 @@ export class HUD extends Component {
         // 构建版本戳（左下角小字，识别设备构建新旧）：常量 + 构建时间（postbuild 注入）
         const buildTime = (typeof window !== 'undefined' && (window as any).__BUILD_TIME) || '';
         const stamp = this._makeLabel(this.node, BUILD_STAMP + (buildTime ? '·' + buildTime : ''), -Design.WIDTH / 2 + 70, -this._vh / 2 + 30, 22);
-        stamp.color = new Color(120, 130, 140, 255);
+        stamp.node.getComponent(UITransform)!.setAnchorPoint(0, 0.5);
+        stamp.node.setPosition(-Design.WIDTH / 2 + 16, -this._vh / 2 + 30);
+        stamp.color = new Color(195, 206, 213, 255);
         console.log('[末日航线] build', BUILD_STAMP, buildTime);
-        this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 135, this._vh / 2 - 75, 45);
+        // 计时右移让位左上角 暂停/统计 按钮排
+        this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 268, this._vh / 2 - 75, 36);
         this._waveLabel = this._makeLabel(this.node, '', 0, this._vh / 2 - 75, 51);
-        this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 135, this._vh / 2 - 75, 45);
+        this._killLabel = this._makeLabel(this.node, '击杀 0', Design.WIDTH / 2 - 135, this._vh / 2 - 75, 36);
+        for (const label of [this._timeLabel, this._killLabel]) {
+            label.isBold = false;
+            label.color = new Color(189, 203, 212, 255);
+        }
+    }
+
+    /** 左上角伤害统计按钮：深色圆角方块 + 柱状图图标 */
+    private _buildStatsButton(): void {
+        const btn = createUINode('StatsBtn');
+        this.node.addChild(btn);
+        btn.addComponent(UITransform).setContentSize(84, 84);
+        btn.setPosition(-Design.WIDTH / 2 + 154, this._vh / 2 - 74);
+        const g = btn.addComponent(Graphics);
+        g.fillColor = new Color(38, 52, 63, 255);
+        g.roundRect(-42, -42, 84, 84, 18);
+        g.fill();
+        g.strokeColor = new Color(128, 222, 228, 255);
+        g.lineWidth = 2;
+        g.roundRect(-42, -42, 84, 84, 18);
+        g.stroke();
+        // 三根高低柱：统计图示意
+        g.fillColor = Palette.text;
+        g.roundRect(-23, -13, 12, 26, 3);
+        g.fill();
+        g.roundRect(-6, -22, 12, 35, 3);
+        g.fill();
+        g.roundRect(11, -4, 12, 17, 3);
+        g.fill();
+        btn.on(Node.EventType.TOUCH_END, () => this._toggleStats());
+    }
+
+    /** 伤害统计浮窗：非模态卡片，展开后每 0.5s 实时刷新 */
+    private _buildStatsPanel(): void {
+        const panel = createUINode('StatsPanel');
+        this.node.addChild(panel);
+        panel.addComponent(UITransform).setContentSize(Design.WIDTH, this._vh);
+
+        const card = createUINode('StatsCard');
+        panel.addChild(card);
+        const cardW = 900;
+        const cardH = 880;
+        card.setPosition(0, 40);
+        card.addComponent(UITransform).setContentSize(cardW, cardH);
+        const cg = card.addComponent(Graphics);
+        cg.fillColor = Palette.cardBg;
+        cg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
+        cg.fill();
+        cg.strokeColor = Palette.cardBorder;
+        cg.lineWidth = 6;
+        cg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
+        cg.stroke();
+
+        this._makeLabel(card, '伤 害 统 计', 0, cardH / 2 - 66, 56);
+        this._statsTeamLabel = this._makeLabel(card, '', 0, cardH / 2 - 138, 40);
+
+        // 每英雄两行：主行（名/伤害/团队占比）+ 副行（普攻/技能/大招占比）
+        const rowTop = cardH / 2 - 236;
+        const rowGap = 128;
+        for (let i = 0; i < 4; i++) {
+            const y = rowTop - i * rowGap;
+            const main = this._makeLabel(card, '', 0, y, 40);
+            const sub = this._makeLabel(card, '', 0, y - 50, 30);
+            sub.color = new Color(120, 130, 140, 255);
+            this._statsRows.push({ main, sub });
+        }
+
+        this._makeMenuButton(card, '关 闭', -cardH / 2 + 84, Palette.hpBarBg, () => this._hideStats());
+        panel.active = false;
+        this._statsPanel = panel;
+    }
+
+    private _toggleStats(): void {
+        SoundFx.play('ui');
+        if (this._statsPanel.active) {
+            this._hideStats();
+            return;
+        }
+        this._statsPanel.setSiblingIndex(this._statsPanel.parent.children.length - 1);
+        this._statsPanel.active = true;
+        this._statsRefresh = 0.5;
+        this._refreshStats();
+    }
+
+    private _hideStats(): void {
+        this._statsPanel.active = false;
+    }
+
+    /** 刷新统计浮窗数值（伤害缩写与飘字同规则：≥1000 → k） */
+    private _refreshStats(): void {
+        const bm = BattleManager.instance;
+        if (!bm) {
+            return;
+        }
+        const stats = bm.getDamageStats();
+        const fmt = (v: number) => (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v));
+        this._statsTeamLabel.string = `团队总伤害：${fmt(stats.teamTotal)}`;
+        stats.byHero.forEach((h, i) => {
+            const row = this._statsRows[i];
+            if (!row) {
+                return;
+            }
+            const pct = stats.teamTotal > 0 ? Math.round((h.total / stats.teamTotal) * 100) : 0;
+            row.main.string = `${h.name}　${fmt(h.total)}　·　${pct}%`;
+            const sp = (v: number) => (h.total > 0 ? Math.round((v / h.total) * 100) : 0);
+            row.sub.string = `普攻 ${sp(h.basic)}% ｜ 技能 ${sp(h.skill)}% ｜ 大招 ${sp(h.ultimate)}%`;
+        });
+    }
+
+    /** 左上角暂停按钮：深色圆角方块 + 双竖条图标 */
+    private _buildPauseButton(): void {
+        const btn = createUINode('PauseBtn');
+        this.node.addChild(btn);
+        btn.addComponent(UITransform).setContentSize(84, 84);
+        btn.setPosition(-Design.WIDTH / 2 + 58, this._vh / 2 - 74);
+        const g = btn.addComponent(Graphics);
+        g.fillColor = new Color(38, 52, 63, 255);
+        g.roundRect(-42, -42, 84, 84, 18);
+        g.fill();
+        g.strokeColor = new Color(128, 222, 228, 255);
+        g.lineWidth = 2;
+        g.roundRect(-42, -42, 84, 84, 18);
+        g.stroke();
+        g.fillColor = Palette.text;
+        g.roundRect(-15, -16, 10, 32, 3);
+        g.fill();
+        g.roundRect(5, -16, 10, 32, 3);
+        g.fill();
+        btn.on(Node.EventType.TOUCH_END, () => this._togglePause());
+    }
+
+    /** 暂停菜单：全屏遮罩 + 「继续游戏 / 重新挑战」 */
+    private _buildPausePanel(): void {
+        const panel = createUINode('PausePanel');
+        this.node.addChild(panel);
+        panel.addComponent(UITransform).setContentSize(Design.WIDTH, this._vh);
+        const g = panel.addComponent(Graphics);
+        g.fillColor = Palette.overlay;
+        g.rect(-Design.WIDTH / 2, -this._vh / 2, Design.WIDTH, this._vh);
+        g.fill();
+        // 吞掉遮罩上的点击，防止穿透到战场
+        panel.on(Node.EventType.TOUCH_END, () => { /* 仅拦截 */ });
+
+        this._makeLabel(panel, '已暂停', 0, 280, 84);
+        this._makeMenuButton(panel, '继 续 游 戏', 80, Palette.xpBarFill, () => {
+            this._hidePausePanel();
+            BattleManager.instance?.togglePause();
+        });
+        this._makeMenuButton(panel, '重 新 挑 战', -110, Palette.vehicleBarFill, () => {
+            this._hidePausePanel();
+            eventCenter.emit(GameEvent.GAME_RESTART);
+        });
+        panel.active = false;
+        this._pausePanel = panel;
+    }
+
+    /** 暂停菜单按钮：圆角胶囊 + 文案 */
+    private _makeMenuButton(parent: Node, text: string, y: number, bgColor: Color, onClick: () => void): void {
+        const btn = createUINode('MenuBtn_' + text);
+        parent.addChild(btn);
+        btn.addComponent(UITransform).setContentSize(480, 132);
+        btn.setPosition(0, y);
+        const g = btn.addComponent(Graphics);
+        g.fillColor = bgColor;
+        g.roundRect(-240, -66, 480, 132, 66);
+        g.fill();
+        g.strokeColor = Palette.cardBorder;
+        g.lineWidth = 5;
+        g.roundRect(-240, -66, 480, 132, 66);
+        g.stroke();
+        this._makeLabel(btn, text, 0, 0, 48);
+        btn.on(Node.EventType.TOUCH_END, onClick);
+    }
+
+    private _togglePause(): void {
+        const bm = BattleManager.instance;
+        if (!bm) {
+            return;
+        }
+        SoundFx.play('ui');
+        const paused = bm.togglePause();
+        if (paused) {
+            // 置顶：运行中动态生成的节点会排在 HUD 之后
+            this._pausePanel.setSiblingIndex(this._pausePanel.parent.children.length - 1);
+        }
+        this._pausePanel.active = paused;
+    }
+
+    private _hidePausePanel(): void {
+        this._pausePanel.active = false;
     }
 
     /** 经验条：顶栏下方细条 + 等级徽标 */
@@ -189,6 +401,7 @@ export class HUD extends Component {
         fg.fill();
         fillNode.setScale(1, 1, 1);
         this._vehicleFill = fillNode;
+        this._vehicleText = this._makeLabel(bg, `耐久 ${BattleConfig.VEHICLE_MAX_HP} / ${BattleConfig.VEHICLE_MAX_HP}`, 0, 0, 23);
     }
 
     private _buildWavePopup(): void {

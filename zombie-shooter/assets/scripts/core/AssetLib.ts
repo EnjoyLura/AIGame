@@ -1,4 +1,4 @@
-import { resources, SpriteFrame } from 'cc';
+import { Rect, resources, Size, SpriteFrame, Vec2 } from 'cc';
 
 /**
  * 美术资源库：启动时按清单异步预载 resources/textures 下的图，
@@ -8,6 +8,10 @@ import { resources, SpriteFrame } from 'cc';
 
 /** 已就绪的美术清单（key 相对 textures/，如 'monsters/boar'） */
 const MANIFEST = [
+    'fx/mortar',
+    'fx/rifle_muzzle_flash', 'fx/rifle_grenade_explosion', 'fx/rifle_grenade_ring',
+    'weapons/rifle_bullet', 'weapons/rifle_grenade',
+    'weapons/sniper_bullet', 'weapons/laser_beam', 'weapons/radiation_bullet',
     'monsters/boar',
     'scenes/road',
     'ui/panel_card',
@@ -26,6 +30,25 @@ const MANIFEST = [
 export class AssetLib {
     private static _frames = new Map<string, SpriteFrame>();
     private static _started = false;
+    private static _mortar: SpriteFrame[] | null = null;
+
+    /** Shared untrimmed atlas slices; retained with the application-wide resource cache. */
+    static mortarFrames(): SpriteFrame[] | null {
+        if (this._mortar) return this._mortar;
+        const atlas = this.frame('fx/mortar');
+        if (!atlas?.texture || atlas.texture.width !== 512 || atlas.texture.height !== 512) return null;
+        this._mortar = [];
+        for (let i = 0; i < 16; i++) {
+            const frame = new SpriteFrame();
+            frame.texture = atlas.texture;
+            frame.rect = new Rect((i % 4) * 128, Math.floor(i / 4) * 128, 128, 128);
+            frame.originalSize = new Size(128, 128);
+            frame.offset = new Vec2(0, 0);
+            frame.packable = false;
+            this._mortar.push(frame);
+        }
+        return this._mortar;
+    }
 
     /** 启动时调用一次；加载失败/缺图只跳过，不阻断游戏启动 */
     static preload(): void {
