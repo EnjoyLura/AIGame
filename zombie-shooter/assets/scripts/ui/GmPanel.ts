@@ -40,7 +40,7 @@ export class GmPanel extends Component {
         root.appendChild(toggle);
 
         const body = document.createElement('div');
-        body.style.cssText = 'display:flex;flex-direction:column;gap:4px;align-items:flex-end;';
+        body.style.cssText = 'display:none;flex-direction:column;gap:4px;align-items:flex-end;';
         root.appendChild(body);
         this._body = body;
 
