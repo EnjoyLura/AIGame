@@ -675,8 +675,8 @@ export class DomHud extends Component {
 #domHud .levelBadge { flex: none; min-width: calc(96px * var(--s,1)); height: calc(46px * var(--s,1));
   padding: 0 calc(18px * var(--s,1)); border-radius: calc(999px * var(--s,1));
   display: flex; align-items: center; justify-content: center; font-size: calc(30px * var(--s,1)); font-weight: 800;
-  color: #0e1620; background: linear-gradient(180deg, #9be7ff, #4dd0e9);
-  border: calc(3px * var(--s,1)) solid #d9f6ff; box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
+  color: #ffffff; background: linear-gradient(180deg, #2aa7cc, #1e88a8);
+  border: calc(3px * var(--s,1)) solid #9be7ff; box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
 #domHud .xpBar { flex: 1; height: calc(24px * var(--s,1)); border-radius: calc(999px * var(--s,1));
   background: rgba(8,14,20,.8); border: calc(2px * var(--s,1)) solid rgba(128,222,228,.28);
   overflow: hidden; box-shadow: inset 0 calc(3px * var(--s,1)) calc(6px * var(--s,1)) rgba(0,0,0,.5); }

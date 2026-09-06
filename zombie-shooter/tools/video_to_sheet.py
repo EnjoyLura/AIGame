@@ -188,7 +188,31 @@ def main() -> None:
     smalls = [f.resize((TARGET, TARGET)) for f in frames]
     cycle = cycle_length(smalls)
     cycle = refine_cycle(smalls, cycle)
-    print(f'walk cycle ≈ {cycle} frames')
+    # 接环寻优：在候选周期里选“末帧→首帧落差 + 相邻帧落差”最小的——
+    # 直接优化玩家看到的循环顺滑度（自相关/整倍校验只保证周期近似正确，不保证接环最小）
+    n = len(smalls)
+
+    def smoothness(L: int):
+        idxs = [round(k * L / n_frames) % n for k in range(n_frames)]
+        cells = [list(smalls[i].convert('L').getdata()) for i in idxs]
+        def d(a: int, b: int) -> float:
+            return sum(abs(x - y) for x, y in zip(cells[a], cells[b])) / len(cells[a])
+        interior = sum(d(k, k + 1) for k in range(n_frames - 1)) / (n_frames - 1)
+        wrap = d(n_frames - 1, 0)
+        return interior + wrap * 1.5, interior, wrap
+
+    cands = sorted({max(6, cycle + d) for d in (-2, -1, 0, 1, 2)} | {cycle * 2})
+    best_c, best_i, best_w = cycle, *smoothness(cycle)[1:]
+    print(f'baseline L={cycle}: 相邻={best_i:.1f} 接环={best_w:.1f}')
+    for cand in cands:
+        if cand == cycle:
+            continue
+        s, i_, w_ = smoothness(cand)
+        if s < best_i + best_w * 1.5:
+            best_c, best_i, best_w = cand, i_, w_
+            print(f'  更优 L={cand}: 相邻={i_:.1f} 接环={w_:.1f}')
+    cycle = best_c
+    print(f'walk cycle ≈ {cycle} frames (相邻={best_i:.1f} 接环={best_w:.1f})')
     # 一个周期内均匀取 n_frames 帧（从周期起点开始，覆盖完整循环）
     idxs = [round(i * cycle / n_frames) % len(frames) for i in range(n_frames)]
     keyed = [key_bg(frames[i], bg, thresh) for i in idxs]
