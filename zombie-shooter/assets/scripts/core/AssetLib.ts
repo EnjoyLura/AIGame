@@ -20,7 +20,7 @@ const MANIFEST = [
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'monsters/crawler', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',
     // 怪物行走序列帧（AI 视频抽帧打包，见 tools/gen_walk_sheet.py；缺图回退整图/占位）
-    'monsters/crawler_walk', 'monsters/dog_walk', 'monsters/boar_walk', 'monsters/bear_walk', 'monsters/eagle_walk',
+    'monsters/boar_walk',
     'icons/rifle_basic', 'icons/rifle_skill', 'icons/rifle_ultimate',
     'icons/sniper_basic', 'icons/sniper_skill', 'icons/sniper_ultimate',
     'icons/laser_basic', 'icons/laser_skill', 'icons/laser_ultimate',

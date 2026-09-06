@@ -302,7 +302,7 @@ export class Enemy extends Component {
                 this._drawEagle(g, r);
                 break;
             default:
-                this._drawCrawler(g, r, elite);
+                this._drawApe(g, r, elite);
                 break;
         }
     }
@@ -430,21 +430,23 @@ export class Enemy extends Component {
             case 'charger': return new Color(178, 115, 80, 255); // 野猪：棕
             case 'tanker': return new Color(66, 56, 49, 255);    // 熊：深褐
             case 'diver': return new Color(149, 117, 205, 255);  // 疯鹰：紫
-            default: return Palette.monster;                     // 爬行者：绿
+            default: return new Color(122, 138, 116, 255);       // 巨石猿：苔藓灰绿
         }
     }
 
-    /** 爬行者：圆身+双眼（原有形态） */
-    private _drawCrawler(g: Graphics, r: number, elite: boolean): void {
-        g.circle(0, 0, r);
+    /** 巨石猿占位：圆钝巨躯+前伸长臂+小头（苔藓灰绿） */
+    private _drawApe(g: Graphics, r: number, elite: boolean): void {
+        g.ellipse(0, 0, r * 1.05, r * 0.95);
         g.fill();
         g.stroke();
-        if (!elite) {
-            g.fillColor = Palette.bg;
-            g.circle(-r * 0.35, r * 0.2, 5);
-            g.circle(r * 0.35, r * 0.2, 5);
-            g.fill();
-        }
+        g.circle(-r * 0.95, r * 0.25, r * 0.34);
+        g.fill();
+        g.circle(r * 0.95, r * 0.25, r * 0.34);
+        g.fill();
+        g.fillColor = Palette.bg;
+        g.circle(-r * 0.22, -r * 0.35, r * 0.09);
+        g.circle(r * 0.22, -r * 0.35, r * 0.09);
+        g.fill();
     }
 
     /** 疯狗：横向椭圆身+前伸头+翘尾 */

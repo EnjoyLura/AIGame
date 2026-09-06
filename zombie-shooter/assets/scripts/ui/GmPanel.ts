@@ -84,7 +84,7 @@ export class GmPanel extends Component {
         const mobRow = document.createElement('div');
         mobRow.style.cssText = 'display:flex;gap:4px;';
         body.appendChild(mobRow);
-        this._addButton(mobRow, '小怪', () => this._bm()?.gmSpawnMonster('crawler'));
+        this._addButton(mobRow, '小怪', () => this._bm()?.gmSpawnMonster('stoneape'));
         this._addButton(mobRow, '狗群', () => this._bm()?.gmSpawnMonster('dog'));
         this._addButton(mobRow, '野猪', () => this._bm()?.gmSpawnMonster('boar'));
         this._addButton(mobRow, '双足熊', () => this._bm()?.gmSpawnMonster('bear'));
