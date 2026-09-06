@@ -142,6 +142,35 @@ def match_colors(frames: list[Image.Image]) -> None:
                             min(255, round(b * gains[2])), a)
 
 
+def refine_cycle(smalls: list[Image.Image], lag: int) -> int:
+    """半周期校验：交替步态（左/右脚）的自相关常锁在真实周期的一半，
+    接环时姿态镜像错开产生跳帧。直接比较 帧[i] 与 帧[i+L] 的灰度平均绝对差，
+    若 2 倍/3 倍周期显著（>15%）更相似则翻倍。"""
+    def sim(L: int) -> float:
+        n = len(smalls)
+        m = n - L
+        if m < 4:
+            return 1e9
+        step = max(1, m // 24)
+        tot = cnt = 0
+        for i in range(0, m, step):
+            a = list(smalls[i].convert('L').getdata())
+            b = list(smalls[i + L].convert('L').getdata())
+            tot += sum(abs(x - y) for x, y in zip(a, b)) / len(a)
+            cnt += 1
+        return tot / max(1, cnt)
+
+    best, best_s = lag, sim(lag)
+    for k in (2, 3):
+        L2 = lag * k
+        if L2 >= len(smalls) - 4:
+            break
+        s = sim(L2)
+        if s < best_s * 0.85:
+            best, best_s = L2, s
+    return best
+
+
 def main() -> None:
     src, dst = sys.argv[1], sys.argv[2]
     n_frames = int(sys.argv[3]) if len(sys.argv) > 3 else 6
@@ -158,6 +187,7 @@ def main() -> None:
     print(f'bg color = {bg}')
     smalls = [f.resize((TARGET, TARGET)) for f in frames]
     cycle = cycle_length(smalls)
+    cycle = refine_cycle(smalls, cycle)
     print(f'walk cycle ≈ {cycle} frames')
     # 一个周期内均匀取 n_frames 帧（从周期起点开始，覆盖完整循环）
     idxs = [round(i * cycle / n_frames) % len(frames) for i in range(n_frames)]
