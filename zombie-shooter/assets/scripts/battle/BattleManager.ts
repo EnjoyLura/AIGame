@@ -817,8 +817,19 @@ export class BattleManager extends Component {
     private _flashPool: Node[] = [];
 
     muzzleFlashFx(worldPos: Vec3, color: Color, angle = 0): void {
+        // 粒子枪焰（渲染有保证的主层）：中心白热闪光 + 主色光斑
+        const s = this.uiScale;
+        this._emitParticle({
+            type: 'flash',
+            pos: worldPos.clone(),
+            vel: new Vec3(0, 0, 0),
+            life: 0.12,
+            size: 30 * s,
+            color: new Color(255, 243, 200, 255),
+            onDone: (nd) => this._particlePool.put(nd),
+        });
         this.precisionFlash(worldPos, 6, color);
-        // 正式枪口火焰贴图：资源未就绪时只保留粒子光斑
+        // 正式火焰贴图：资源就绪时叠加在粒子之上，未就绪仅粒子
         const frame = AssetLib.frame('fx/rifle_muzzle_flash');
         if (!frame) {
             return;
@@ -839,7 +850,6 @@ export class BattleManager extends Component {
         node.active = true;
         const sp = node.getComponent(Sprite)!;
         sp.spriteFrame = frame;
-        const s = this.uiScale;
         const h = 150 * s;
         node.getComponent(UITransform)!.setContentSize(h * (frame.width / frame.height), h);
         node.setWorldPosition(worldPos.x, worldPos.y, 0);

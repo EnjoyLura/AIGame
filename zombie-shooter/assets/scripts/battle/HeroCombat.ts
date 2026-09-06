@@ -857,12 +857,14 @@ export class HeroCombatController {
 
     get position(): Vec3 { return this._heroNode.position; }
 
-    /** Shared muzzle used by basic fire and abilities; stays in UnitsLayer coordinates. */
+    /** Shared muzzle used by basic fire and abilities; stays in UnitsLayer coordinates.
+     *  枪口偏移随身体瞄准角旋转（立绘绕英雄原点倾斜时枪管尖端跟着转，正角度=逆时针） */
     muzzleWorldPosition(): Vec3 {
         const s = this.battle.uiScale;
         const p = this._heroNode.position;
-        // 枪口偏移由英雄定义驱动（正式立绘的出膛点在枪管顶端），缺省 54 为占位立绘高度
-        return new Vec3(p.x, p.y + (this.def.muzzleY ?? 54) * s, 0);
+        const d = (this.def.muzzleY ?? 54) * s;
+        const rad = this._heroNode.angle * Math.PI / 180;
+        return new Vec3(p.x - Math.sin(rad) * d, p.y + Math.cos(rad) * d, 0);
     }
     get skillUnlocked(): boolean { return this._skill.unlocked; }
     get ultimateUnlocked(): boolean { return this._ultimate.unlocked; }
