@@ -38,6 +38,10 @@ export class DomHud extends Component {
     private _xpFill: HTMLDivElement | null = null;
     private _vehicleFill: HTMLDivElement | null = null;
     private _vehicleText: HTMLDivElement | null = null;
+    /** 载具耐久条容器（warn/danger/hit 状态类挂载点） */
+    private _vehBarEl: HTMLDivElement | null = null;
+    /** 低耐久红色边缘晕（危险预警） */
+    private _vignette: HTMLDivElement | null = null;
     private _popupEl: HTMLDivElement | null = null;
     private _pauseMenu: HTMLDivElement | null = null;
     private _statsOverlay: HTMLDivElement | null = null;
@@ -107,7 +111,7 @@ export class DomHud extends Component {
 
     private _onWaveStart(wave: number, total: number): void {
         if (this._waveEl) {
-            this._waveEl.textContent = wave > total ? `第 ${wave} 波 · 无尽` : `第 ${wave} / ${total} 波`;
+            this._waveEl.textContent = wave > total ? '无尽' : `${wave} / ${total}`;
         }
         if (this._failPanel) {
             this._failPanel.style.display = 'none';
@@ -131,17 +135,30 @@ export class DomHud extends Component {
     }
 
     private _onVehicleHpChanged(hp: number, maxHp: number): void {
+        const ratio = maxHp > 0 ? Math.min(1, Math.max(0, hp / maxHp)) : 0;
         if (this._vehicleFill) {
-            this._vehicleFill.style.width = `${(maxHp > 0 ? Math.min(1, Math.max(0, hp / maxHp)) : 0) * 100}%`;
+            this._vehicleFill.style.width = `${(ratio * 100).toFixed(1)}%`;
         }
         if (this._vehicleText) {
-            this._vehicleText.textContent = `耐久 ${Math.ceil(Math.max(0, hp))} / ${maxHp}`;
+            this._vehicleText.textContent = `${Math.ceil(Math.max(0, hp))} / ${maxHp}`;
+        }
+        if (this._vehBarEl) {
+            // 阈值状态：>50% 常规 / ≤50% 预警 / ≤25% 危险（红条+脉冲+边缘红晕）+ 受击抖动
+            this._vehBarEl.classList.toggle('warn', ratio <= 0.5 && ratio > 0.25);
+            this._vehBarEl.classList.toggle('danger', ratio <= 0.25);
+            this._vehBarEl.classList.remove('hit');
+            void (this._vehBarEl as HTMLElement).offsetWidth;
+            this._vehBarEl.classList.add('hit');
+        }
+        if (this._vignette) {
+            this._vignette.style.display = ratio <= 0.25 ? 'block' : 'none';
+            this._vignette.classList.toggle('crit', ratio <= 0.12);
         }
     }
 
     private _onKill(kills: number): void {
         if (this._killEl) {
-            this._killEl.textContent = `击杀 ${kills}`;
+            this._killEl.textContent = String(kills);
         }
     }
 
@@ -339,20 +356,39 @@ export class DomHud extends Component {
         stamp.textContent = BUILD_STAMP + (bt ? '·' + bt : '');
         root.appendChild(stamp);
 
+        // 顶部信息板：深色渐变横条 + 左按钮组 / 中央波次 / 右侧时间·击杀 chips
         const top = document.createElement('div');
         top.className = 'topbar';
         root.appendChild(top);
-        top.appendChild(this._button('暂停', () => this._togglePause(), 'pauseBtn'));
-        top.appendChild(this._button('统计', () => this._toggleStats(), 'statsBtn'));
-        this._timeEl = this._label(top, 'timeLabel', '00:00');
-        this._waveEl = this._label(top, 'waveLabel', '');
-        this._killEl = this._label(top, 'killLabel', '击杀 0');
+        const topLeft = document.createElement('div');
+        topLeft.className = 'topLeft';
+        top.appendChild(topLeft);
+        topLeft.appendChild(this._button('暂停', () => this._togglePause(), 'pauseBtn'));
+        topLeft.appendChild(this._button('统计', () => this._toggleStats(), 'statsBtn'));
+        const waveChip = document.createElement('div');
+        waveChip.className = 'chip waveChip';
+        waveChip.appendChild(this._chipLab('波次'));
+        this._waveEl = this._chipVal(waveChip, '3 / 10');
+        top.appendChild(waveChip);
+        const topRight = document.createElement('div');
+        topRight.className = 'topRight';
+        top.appendChild(topRight);
+        const timeChip = document.createElement('div');
+        timeChip.className = 'chip';
+        timeChip.appendChild(this._chipLab('时间'));
+        this._timeEl = this._chipVal(timeChip, '00:00');
+        topRight.appendChild(timeChip);
+        const killChip = document.createElement('div');
+        killChip.className = 'chip killChip';
+        killChip.appendChild(this._chipLab('击杀'));
+        this._killEl = this._chipVal(killChip, '0');
+        topRight.appendChild(killChip);
 
-        // 经验条 + 等级
+        // 经验条：等级徽章 + 渐变发光条
         const xpRow = document.createElement('div');
         xpRow.className = 'xpRow';
         root.appendChild(xpRow);
-        this._levelEl = this._label(xpRow, 'levelLabel', 'Lv.1');
+        this._levelEl = this._label(xpRow, 'levelBadge', 'Lv.1');
         const xpBar = document.createElement('div');
         xpBar.className = 'xpBar';
         this._xpFill = document.createElement('div');
@@ -361,15 +397,30 @@ export class DomHud extends Component {
         xpBar.appendChild(this._xpFill);
         xpRow.appendChild(xpBar);
 
-        // 载具耐久条
+        // 载具耐久：标签 + 轨道条 + 数值（warn/danger/hit 状态）+ 低耐久红晕
         const vBar = document.createElement('div');
         vBar.className = 'vehicleBar';
+        this._vehBarEl = vBar;
+        const vLab = document.createElement('div');
+        vLab.className = 'vehLab';
+        vLab.textContent = '载具';
+        vBar.appendChild(vLab);
+        const track = document.createElement('div');
+        track.className = 'vehTrack';
         this._vehicleFill = document.createElement('div');
         this._vehicleFill.className = 'vehicleFill';
         this._vehicleFill.style.width = '100%';
-        vBar.appendChild(this._vehicleFill);
-        this._vehicleText = this._label(vBar, 'vehicleText', `耐久 ${BattleConfig.VEHICLE_MAX_HP} / ${BattleConfig.VEHICLE_MAX_HP}`);
+        track.appendChild(this._vehicleFill);
+        vBar.appendChild(track);
+        this._vehicleText = this._label(vBar, 'vehicleText', `${BattleConfig.VEHICLE_MAX_HP} / ${BattleConfig.VEHICLE_MAX_HP}`);
         root.appendChild(vBar);
+
+        // 低耐久红色边缘晕
+        const vig = document.createElement('div');
+        vig.className = 'vignette';
+        vig.style.display = 'none';
+        root.appendChild(vig);
+        this._vignette = vig;
 
         // 中央波次提示
         this._popupEl = document.createElement('div');
@@ -525,6 +576,21 @@ export class DomHud extends Component {
         return btn;
     }
 
+    private _chipLab(text: string): HTMLSpanElement {
+        const el = document.createElement('span');
+        el.className = 'chipLab';
+        el.textContent = text;
+        return el;
+    }
+
+    private _chipVal(parent: HTMLElement, text: string): HTMLDivElement {
+        const el = document.createElement('div');
+        el.className = 'chipVal';
+        el.textContent = text;
+        parent.appendChild(el);
+        return el;
+    }
+
     private _label(parent: HTMLElement, cls: string, text: string): HTMLDivElement {
         const el = document.createElement('div');
         el.className = 'hudLabel ' + cls;
@@ -582,37 +648,69 @@ export class DomHud extends Component {
 #domHud button { pointer-events: auto; cursor: pointer; font: inherit;
   transition: transform .06s ease, filter .06s ease; }
 #domHud button:active { transform: translateY(calc(4px * var(--s,1))) scale(.98); filter: brightness(.92); }
-#domHud .topbar { position: absolute; top: 0; left: 0; right: 0; height: calc(120px * var(--s, 1)); }
+#domHud .topbar { position: absolute; top: 0; left: 0; right: 0; height: calc(120px * var(--s, 1));
+  background: linear-gradient(180deg, rgba(9,14,20,.92) 0%, rgba(13,22,31,.75) 62%, rgba(13,22,31,0) 100%); }
+#domHud .topLeft { position: absolute; left: calc(16px * var(--s,1)); top: calc(30px * var(--s,1)); display: flex; gap: calc(12px * var(--s,1)); }
+#domHud .topRight { position: absolute; right: calc(16px * var(--s,1)); top: calc(40px * var(--s,1)); display: flex; align-items: center; gap: calc(14px * var(--s,1)); }
+#domHud .chip { display: flex; align-items: baseline; gap: calc(8px * var(--s,1)); padding: calc(10px * var(--s,1)) calc(22px * var(--s,1));
+  border-radius: calc(999px * var(--s,1)); background: rgba(10,18,26,.62);
+  border: calc(2px * var(--s,1)) solid rgba(128,222,228,.25);
+  box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.4); }
+#domHud .chipLab { font-size: calc(22px * var(--s,1)); color: #8fa0ab; letter-spacing: 1px; }
+#domHud .chipVal { font-size: calc(34px * var(--s,1)); color: #ecf1f1; font-variant-numeric: tabular-nums; }
+#domHud .waveChip { position: absolute; left: 50%; transform: translateX(-50%); top: calc(34px * var(--s,1));
+  border-color: rgba(255,204,85,.4); }
+#domHud .waveChip .chipVal { color: #ffd76a; font-weight: 800; }
+#domHud .killChip .chipVal { color: #ff8f9a; font-weight: 800; }
 #domHud .buildStamp { position: absolute; left: calc(16px * var(--s,1)); bottom: calc(10px * var(--s,1));
   font-size: calc(22px * var(--s,1)); color: #c3ced5; letter-spacing: .5px;
   padding: 2px 4px; border-radius: 3px; background: rgba(15,22,30,.75); }
-#domHud .hudBtn { position: absolute; top: calc(32px * var(--s,1)); width: calc(84px * var(--s,1));
-  height: calc(84px * var(--s,1)); border-radius: calc(18px * var(--s,1)); border: calc(2px * var(--s,1)) solid #80dee4;
+#domHud .hudBtn { border-radius: calc(18px * var(--s,1)); border: calc(2px * var(--s,1)) solid #80dee4;
+  width: calc(84px * var(--s,1)); height: calc(84px * var(--s,1));
   background: linear-gradient(180deg, #344652 0%, #26343f 55%, #1b2630 100%);
   color: #ecf1f1; font-size: calc(27px * var(--s,1)); line-height: 1;
   box-shadow: 0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.45), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.28); }
-#domHud .pauseBtn { left: calc(16px * var(--s,1)); }
-#domHud .statsBtn { left: calc(112px * var(--s,1)); }
-#domHud .timeLabel { position: absolute; top: calc(30px * var(--s,1)); left: calc(226px * var(--s,1));
-  font-size: calc(36px * var(--s,1)); font-weight: 500; color: #bdcbd4; font-variant-numeric: tabular-nums; }
-#domHud .waveLabel { position: absolute; top: calc(28px * var(--s,1)); left: 50%; transform: translateX(-50%);
-  font-size: calc(51px * var(--s,1)); }
-#domHud .killLabel { position: absolute; top: calc(30px * var(--s,1)); right: calc(93px * var(--s,1));
-  font-size: calc(36px * var(--s,1)); font-weight: 500; color: #bdcbd4; font-variant-numeric: tabular-nums; }
-#domHud .xpRow { position: absolute; top: calc(128px * var(--s,1)); left: 0; right: 0; height: calc(46px * var(--s,1)); }
-#domHud .levelLabel { position: absolute; top: 0; left: calc(34px * var(--s,1)); font-size: calc(39px * var(--s,1)); }
-#domHud .xpBar { position: absolute; top: calc(8px * var(--s,1)); left: calc(120px * var(--s,1));
-  width: calc(900px * var(--s,1)); height: calc(21px * var(--s,1)); border-radius: calc(12px * var(--s,1));
-  background: rgba(55,71,79,.86); overflow: hidden; }
-#domHud .xpFill { height: 100%; border-radius: calc(12px * var(--s,1)); background: #4dd0e9; }
+#domHud .xpRow { position: absolute; top: calc(128px * var(--s,1)); left: calc(34px * var(--s,1));
+  right: calc(34px * var(--s,1)); height: calc(46px * var(--s,1)); display: flex; align-items: center; gap: calc(16px * var(--s,1)); }
+#domHud .levelBadge { flex: none; min-width: calc(96px * var(--s,1)); height: calc(46px * var(--s,1));
+  padding: 0 calc(18px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(30px * var(--s,1)); font-weight: 800;
+  color: #0e1620; background: linear-gradient(180deg, #9be7ff, #4dd0e9);
+  border: calc(3px * var(--s,1)) solid #d9f6ff; box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
+#domHud .xpBar { flex: 1; height: calc(24px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+  background: rgba(8,14,20,.8); border: calc(2px * var(--s,1)) solid rgba(128,222,228,.28);
+  overflow: hidden; box-shadow: inset 0 calc(3px * var(--s,1)) calc(6px * var(--s,1)) rgba(0,0,0,.5); }
+#domHud .xpFill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1e88a8, #4dd0e9 60%, #a5f3ff);
+  box-shadow: 0 0 calc(12px * var(--s,1)) rgba(77,208,233,.55); transition: width .25s ease; }
 #domHud .vehicleBar { position: absolute; left: 50%;
-  transform: translateX(-50%); width: calc(480px * var(--s,1)); height: calc(33px * var(--s,1));
-  border-radius: calc(18px * var(--s,1)); background: rgba(55,71,79,.86); overflow: hidden; }
-#domHud .vehicleFill { height: 100%; border-radius: calc(18px * var(--s,1)); background: #d99b42; }
+  transform: translateX(-50%); width: calc(480px * var(--s,1)); height: calc(40px * var(--s,1));
+  display: flex; align-items: center; gap: calc(12px * var(--s,1)); padding: 0 calc(20px * var(--s,1));
+  border-radius: calc(999px * var(--s,1)); background: rgba(8,14,20,.72);
+  border: calc(2px * var(--s,1)) solid rgba(217,155,66,.35); }
+#domHud .vehLab { flex: none; font-size: calc(22px * var(--s,1)); color: #d9b06a; letter-spacing: 1px; }
+#domHud .vehTrack { flex: 1; height: calc(20px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+  background: rgba(0,0,0,.45); overflow: hidden; box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5); }
+#domHud .vehicleFill { height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #8a5a1e, #d99b42 60%, #ffcf7d); transition: width .25s ease; }
+#domHud .vehicleBar.warn .vehicleFill { background: linear-gradient(90deg, #a05a12, #ff8f3d 60%, #ffc37d); }
+#domHud .vehicleBar.danger .vehicleFill { background: linear-gradient(90deg, #8f1d1d, #ff4d4d 60%, #ff9d9d); }
+#domHud .vehicleBar.danger { border-color: rgba(255,77,77,.6); animation: vehPulse 1s ease-in-out infinite; }
+#domHud .vehicleBar.hit { animation: vehShake .28s ease; }
+@keyframes vehPulse { 50% { box-shadow: 0 0 calc(24px * var(--s,1)) rgba(255,77,77,.55); } }
+@keyframes vehShake { 0%, 100% { transform: translateX(-50%); }
+  25% { transform: translateX(calc(-50% + 5px * var(--s,1))); }
+  75% { transform: translateX(calc(-50% - 5px * var(--s,1))); } }
+#domHud .vignette { position: absolute; inset: 0; pointer-events: none; opacity: .8;
+  box-shadow: inset 0 0 calc(160px * var(--s,1)) rgba(255,45,45,.36); transition: opacity .4s ease; }
+#domHud .vignette.crit { animation: vinPulse .8s ease-in-out infinite; }
+@keyframes vinPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 #domHud .vehicleText { position: absolute; inset: 0; text-align: center;
-  font-size: calc(23px * var(--s,1)); line-height: calc(33px * var(--s,1)); font-variant-numeric: tabular-nums; }
-#domHud .popup { position: absolute; top: 16%; left: 50%; transform: translateX(-50%);
-  font-size: calc(84px * var(--s,1)); opacity: 0; }
+  font-size: calc(23px * var(--s,1)); line-height: calc(40px * var(--s,1)); font-variant-numeric: tabular-nums; }
+#domHud .popup { position: absolute; top: 16%; left: 50%; transform: translateX(-50%); opacity: 0;
+  font-size: calc(88px * var(--s,1)); font-weight: 800;
+  background: linear-gradient(180deg, #ffe9a8 0%, #ffcc55 52%, #e8a027 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.6)) drop-shadow(0 0 calc(18px * var(--s,1)) rgba(255,204,85,.35)); }
 #domHud .popup.play { animation: domPop 1.2s ease-out forwards; }
 @keyframes domPop { 0% { opacity: 0; transform: translateX(-50%) scale(.6); }
   15% { opacity: 1; transform: translateX(-50%) scale(1); }
