@@ -192,6 +192,12 @@ def main() -> None:
     # 一个周期内均匀取 n_frames 帧（从周期起点开始，覆盖完整循环）
     idxs = [round(i * cycle / n_frames) % len(frames) for i in range(n_frames)]
     keyed = [key_bg(frames[i], bg, thresh) for i in idxs]
+    # 出画检测：采样帧的主体 bbox 触到视频边缘 = 源视频把角色裁掉了（翅膀/肢体缺失）
+    for k, f in zip(idxs, keyed):
+        b = f.getbbox()
+        if b and (b[0] <= 2 or b[1] <= 2 or b[2] >= f.width - 2 or b[3] >= f.height - 2):
+            print(f'警告: 帧 {k} 主体触到画面边缘（bbox={b}），源视频可能把肢体裁掉了——'
+                  f'建议重新生成视频：角色缩小、四周留白')
     cropped = []
     for f in keyed:
         bbox = f.getbbox()
