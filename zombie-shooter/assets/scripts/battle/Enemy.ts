@@ -50,9 +50,16 @@ export class Enemy extends Component {
     private _bodyNode: Node = null!;
     /** 美术立绘子节点：Sprite 必须与 Graphics 分节点（同节点先后挂两个渲染组件会导致 Sprite 不渲染） */
     private _artNode: Node | null = null;
-    /** 行走序列帧（monsters/<id>_walk 6 帧切片）：就绪时逐帧播放取代静态整图 */
-    private _walkFrames: SpriteFrame[] | null = null;
-    private _walkIdx = -1;
+    /** 三态动作状态机：walk 循环 / attack 单次回 walk / die 单次播完回调回池 */
+    private _mid = '';
+    private _dying = false;
+    private _animState: 'walk' | 'attack' | 'die' = 'walk';
+    private _animFrames: SpriteFrame[] | null = null;
+    private _animIdx = -1;
+    private _animT = 0;
+    private _animDur = 0;
+    private _onAnimDone: (() => void) | null = null;
+    private _bodyOp: UIOpacity = null!;
     /** 准星/标记：锁定读秒（黄）与存活标记（红）共用一层，随目标移动 */
     private _reticleLeft = 0;
     private _reticleTotal = 1;
@@ -68,6 +75,7 @@ export class Enemy extends Component {
         this._bodyNode = createUINode('Body');
         this.node.addChild(this._bodyNode);
         this._graphics = this._bodyNode.addComponent(Graphics);
+        this._bodyOp = this._bodyNode.addComponent(UIOpacity);
     }
 
     /** 从池中取出后调用：按波次配置与成长系数初始化 */
@@ -86,6 +94,15 @@ export class Enemy extends Component {
         this._dashSpeed = info.dashSpeed ?? 645;
         // 蓄力中途被回收的怪会带缩放入池，重置防串状态
         this.node.setScale(1, 1, 1);
+        // 动作状态机复位
+        this._mid = info.id;
+        this._dying = false;
+        this._animState = 'walk';
+        this._animFrames = AssetLib.monsterFrames(info.id, 'walk');
+        this._animIdx = -1;
+        this._animT = 0;
+        this._onAnimDone = null;
+        this._bodyOp.opacity = 255;
         // 准星/标记随池化回收清零
         this._reticleLeft = 0;
         this._hideReticle();
@@ -187,6 +204,10 @@ export class Enemy extends Component {
             return;
         }
         dt *= bm.timeScale;
+        if (this._dying) {
+            this._updateDeathAnim(dt);
+            return;
+        }
         const p = this.node.position;
         // 追到车尾：底边触到车尾上沿即啃咬
         if (p.y - this.radius <= bm.vehicleTopY) {
@@ -264,6 +285,7 @@ export class Enemy extends Component {
             if (this._windupLeft <= 0) {
                 this._chargeState = 'dash';
                 this.node.setScale(1, 1, 1);
+                this.playAttack();
             }
             return;
         }
@@ -310,14 +332,14 @@ export class Enemy extends Component {
     /** 尝试挂美术立绘：行走序列帧（6 帧）优先，回退静态整图，再回退占位 Graphics */
     private _tryApplyArt(info: MonsterInfo): boolean {
         // 序列帧就绪：逐帧播放取代静态图（帧切换在 _updateWalkAnim 按步相推进）
-        const walk = AssetLib.monsterWalkFrames(info.id);
+        const walk = AssetLib.monsterFrames(info.id, 'walk');
         if (walk && walk.length > 0) {
-            this._walkFrames = walk;
-            this._walkIdx = -1;
+            this._animFrames = walk;
+            this._animIdx = -1;
             this._showArt(walk[0]);
             return true;
         }
-        this._walkFrames = null;
+        this._animFrames = null;
         const key = MONSTER_ART[info.id];
         const frame = key ? AssetLib.frame(key) : null;
         if (!frame) {
@@ -384,22 +406,16 @@ export class Enemy extends Component {
             }
             this._bodyNode.setPosition(0, 0);
             this._updateShadow(0.4);
+            this._tickOnceAnim(dt);
             return;
         }
         this._walkPhase += dt * this._walkFreq;
         const ph = this._walkPhase;
         const bob = this._isFlyer ? 0.5 + 0.5 * Math.sin(ph) : Math.abs(Math.cos(ph));
-        // 行走序列帧：步相每循环推进一整圈 → 依次切 6 帧（与 bob 同源，脚感一致）
-        if (this._walkFrames && this._walkFrames.length > 0) {
+        // 行走循环帧：步相每循环推进一整圈 → 依次切帧（与 bob 同源，脚感一致）
+        if (this._animState === 'walk' && this._animFrames && this._animFrames.length > 0) {
             const cycle = (ph % (Math.PI * 2)) / (Math.PI * 2);
-            const idx = Math.min(this._walkFrames.length - 1, Math.floor(cycle * this._walkFrames.length));
-            if (idx !== this._walkIdx) {
-                this._walkIdx = idx;
-                const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
-                if (sp) {
-                    sp.spriteFrame = this._walkFrames[idx];
-                }
-            }
+            this._applyFrame(Math.min(this._animFrames.length - 1, Math.floor(cycle * this._animFrames.length)));
         }
         this._bodyNode.setPosition(0, bob * this._bobAmp);
         this._bodyNode.angle = Math.sin(ph) * 1.6;
@@ -412,6 +428,94 @@ export class Enemy extends Component {
         }
         // 阴影联动：身体越贴近地面影子越大越实，腾空则小而淡
         this._updateShadow(this._isFlyer ? 1 - bob * 0.5 : 1 - bob);
+        this._tickOnceAnim(dt);
+    }
+
+    /** 单次动作（attack）帧轨推进：播完自动回 walk */
+    private _tickOnceAnim(dt: number): void {
+        if (this._animState !== 'attack' || !this._animFrames) {
+            return;
+        }
+        this._animT += dt;
+        const k = Math.min(1, this._animT / Math.max(0.01, this._animDur));
+        this._applyFrame(Math.min(this._animFrames.length - 1, Math.floor(k * this._animFrames.length)));
+        if (k >= 1 && this._onAnimDone) {
+            const cb = this._onAnimDone;
+            this._onAnimDone = null;
+            cb();
+        }
+    }
+
+    /** 应用序列帧（同帧跳过，避免重复赋值） */
+    private _applyFrame(idx: number): void {
+        if (idx === this._animIdx) {
+            return;
+        }
+        this._animIdx = idx;
+        const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
+        if (sp && this._animFrames) {
+            sp.spriteFrame = this._animFrames[idx];
+        }
+    }
+
+    /** 播放攻击动作：有 attack 序列帧才生效，播完自动回 walk；无图静默（骨架预留） */
+    playAttack(): void {
+        if (this._dying || this._animState === 'attack') {
+            return;
+        }
+        const frames = AssetLib.monsterFrames(this._mid, 'attack');
+        if (!frames) {
+            return;
+        }
+        this._animState = 'attack';
+        this._animFrames = frames;
+        this._animIdx = -1;
+        this._animT = 0;
+        this._animDur = frames.length / 14;
+        this._onAnimDone = () => {
+            this._animState = 'walk';
+            this._animFrames = AssetLib.monsterFrames(this._mid, 'walk');
+            this._animIdx = -1;
+        };
+    }
+
+    /** 死亡表演：有 die 序列帧才进入（返回 true=节点延迟回池，播完回调回收）；无图返回 false 立即回收 */
+    playDieAnim(onRecycle: () => void): boolean {
+        if (this._dying) {
+            return true;
+        }
+        const frames = AssetLib.monsterFrames(this._mid, 'die');
+        if (!frames) {
+            return false;
+        }
+        this._dying = true;
+        this._animState = 'die';
+        this._animFrames = frames;
+        this._animIdx = -1;
+        this._animT = 0;
+        this._animDur = Math.max(0.4, frames.length / 12);
+        this._onAnimDone = onRecycle;
+        this._hideReticle();
+        this._bodyNode.setPosition(0, 0);
+        this._bodyNode.angle = 0;
+        return true;
+    }
+
+    /** 死亡表演推进：帧轨单次播放 + 末段 30% 淡出，播完回调回收 */
+    private _updateDeathAnim(dt: number): void {
+        this._animT += dt;
+        const k = Math.min(1, this._animT / Math.max(0.01, this._animDur));
+        if (this._animFrames && this._animFrames.length > 0) {
+            this._applyFrame(Math.min(this._animFrames.length - 1, Math.floor(k * this._animFrames.length)));
+        }
+        if (this._bodyOp) {
+            this._bodyOp.opacity = Math.round(255 * (k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3));
+        }
+        if (k >= 1 && this._onAnimDone) {
+            const cb = this._onAnimDone;
+            this._onAnimDone = null;
+            cb();
+        }
     }
 
     /** 阴影联动：airK 0=贴地（影子大而实）→ 1=腾空（影子小而淡） */

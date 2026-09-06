@@ -33,23 +33,27 @@ export class AssetLib {
     private static _frames = new Map<string, SpriteFrame>();
     private static _started = false;
     private static _mortar: SpriteFrame[] | null = null;
-    private static _walkSheets = new Map<string, SpriteFrame[]>();
+    /** 动作序列帧缓存（key = '<id>:<action>'） */
+    private static _animSheets = new Map<string, SpriteFrame[]>();
 
-    /** 各怪行走序列帧数（tools/slice_walk_sheet.py / video_to_sheet.py 打包时的帧数；缺省 6） */
-    private static readonly WALK_FRAME_COUNT: Record<string, number> = { boar: 12, bear: 12, eagle: 12, stoneape: 12 };
+    /** 各怪各动作的帧数（打包脚本产出；缺省：walk 6 / attack、die 8） */
+    private static readonly ANIM_FRAME_COUNT: Record<string, number> = {
+        'boar:walk': 12, 'bear:walk': 12, 'eagle:walk': 12, 'stoneape:walk': 12,
+    };
 
-    /** 怪物行走序列帧：monsters/<id>_walk 横向等分切片（帧数见 WALK_FRAME_COUNT）。
+    /** 怪物动作序列帧：monsters/<id>_<action> 横向等分切片（video_to_sheet.py / slice_walk_sheet.py 打包）。
      *  未就绪返回 null（调用方逐帧轮询，就绪后缓存切片） */
-    static monsterWalkFrames(id: string): SpriteFrame[] | null {
-        const cached = this._walkSheets.get(id);
+    static monsterFrames(id: string, action: 'walk' | 'attack' | 'die'): SpriteFrame[] | null {
+        const key = `${id}:${action}`;
+        const cached = this._animSheets.get(key);
         if (cached) {
             return cached;
         }
-        const sheet = this.frame(`monsters/${id}_walk`);
+        const sheet = this.frame(`monsters/${id}_${action}`);
         if (!sheet?.texture) {
             return null;
         }
-        const n = this.WALK_FRAME_COUNT[id] ?? 6;
+        const n = this.ANIM_FRAME_COUNT[key] ?? (action === 'walk' ? 6 : 8);
         const base = sheet.rect;
         const cw = base.width / n;
         const out: SpriteFrame[] = [];
@@ -62,8 +66,13 @@ export class AssetLib {
             f.packable = false;
             out.push(f);
         }
-        this._walkSheets.set(id, out);
+        this._animSheets.set(key, out);
         return out;
+    }
+
+    /** 怪物行走序列帧（兼容旧调用） */
+    static monsterWalkFrames(id: string): SpriteFrame[] | null {
+        return this.monsterFrames(id, 'walk');
     }
 
     /** Shared untrimmed atlas slices; retained with the application-wide resource cache. */

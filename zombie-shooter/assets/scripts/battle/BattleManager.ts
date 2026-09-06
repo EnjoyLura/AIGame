@@ -602,8 +602,10 @@ export class BattleManager extends Component {
         const gem = gemNode.getComponent(XpGem)!;
         gem.init();
 
-        // 尸体回池（漏掉会导致死亡节点常驻场景树）
-        this._enemyPool.put(enemy.node);
+        // 尸体处理：有死亡序列帧则先表演（节点延迟回池），否则立即回池
+        if (!enemy.playDieAnim(() => this._enemyPool.put(enemy.node))) {
+            this._enemyPool.put(enemy.node);
+        }
     }
 
     /** 经验晶体飞抵载具：累加经验，满级则暂停战斗弹出三选一 */
