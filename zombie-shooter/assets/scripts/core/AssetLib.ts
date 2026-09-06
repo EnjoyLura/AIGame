@@ -16,6 +16,10 @@ const MANIFEST = [
     'scenes/road',
     'ui/panel_card',
     'ui/banner',
+    // 主城 UI 贴图套件（九宫格面板/按钮/横幅/图标，video_to_sheet 同源管线产出）
+    'ui/panel_metal', 'ui/banner_orange', 'ui/btn_gold', 'ui/btn_cyan', 'ui/chip_dark', 'ui/chest',
+    'ui/nav_mall', 'ui/nav_heroes', 'ui/nav_battle', 'ui/nav_core', 'ui/nav_base',
+    'ui/res_gold', 'ui/res_diamond', 'ui/res_stamina',
     'scenes/vehicle_tail',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'monsters/stoneape', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',

@@ -25,6 +25,31 @@ export class HomeUi extends Component {
     private _rows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLSpanElement; eff: HTMLDivElement; cost: HTMLDivElement; btn: HTMLButtonElement }> = [];
     private _pages: Record<string, HTMLDivElement> = {};
     private _navBtns: Record<string, HTMLButtonElement> = {};
+    /** 贴图挂起队列：AssetLib 异步就绪后补挂（_refresh 轮询消化） */
+    private _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
+
+    private _tex(key: string, apply: (url: string) => void): void {
+        const url = this._frameUrl(key);
+        if (url) {
+            apply(url);
+            return;
+        }
+        this._pendingTex.push({ key, apply });
+    }
+
+    private _applyPendingTex(): void {
+        if (!this._pendingTex.length) {
+            return;
+        }
+        this._pendingTex = this._pendingTex.filter(p => {
+            const url = this._frameUrl(p.key);
+            if (url) {
+                p.apply(url);
+                return false;
+            }
+            return true;
+        });
+    }
 
     /** 章节名（随最远波次推进展示位） */
     private static readonly CHAPTERS = ['1.末日公路', '2.跨海大桥', '3.雨夜废墟', '4.炼钢厂', '5.尸潮深谷'];
@@ -144,6 +169,7 @@ export class HomeUi extends Component {
         if (startBtn) {
             startBtn.style.opacity = gm.canStartRun() ? '1' : '0.45';
         }
+        this._applyPendingTex();
     }
 
     // ================= 构建 =================
@@ -162,9 +188,15 @@ export class HomeUi extends Component {
         // 顶部：金币 / 最远波次
         const statsRow = document.createElement('div');
         statsRow.className = 'homeStats';
-        const mkStat = (lab: string, val: string): HTMLDivElement => {
+        const mkStat = (lab: string, val: string, iconKey?: string): HTMLDivElement => {
             const chip = document.createElement('div');
             chip.className = 'homeStat';
+            if (iconKey) {
+                const ico = document.createElement('i');
+                ico.className = 'statIco';
+                chip.appendChild(ico);
+                this._tex(iconKey, u => { ico.style.backgroundImage = u; });
+            }
             const v = document.createElement('div');
             v.className = 'homeStatVal';
             v.textContent = val;
@@ -176,8 +208,8 @@ export class HomeUi extends Component {
             statsRow.appendChild(chip);
             return v;
         };
-        this._goldEl = mkStat('金币', '0');
-        this._staminaEl = mkStat('体力', '30/30');
+        this._goldEl = mkStat('金币', '0', 'ui/res_gold');
+        this._staminaEl = mkStat('体力', '30/30', 'ui/res_stamina');
         this._bestEl = mkStat('最远波次', '0');
         battle.appendChild(statsRow);
 
@@ -199,6 +231,11 @@ export class HomeUi extends Component {
         chapterSkull.textContent = '☠';
         chapter.appendChild(chapterName);
         chapter.appendChild(chapterSkull);
+        this._tex('ui/banner_orange', u => {
+            chapter.style.backgroundImage = u;
+            chapter.style.backgroundSize = '100% 100%';
+            chapter.style.padding = 'calc(26px * var(--hs,1)) calc(80px * var(--hs,1))';
+        });
         battle.appendChild(chapter);
 
         // 难度切换：普通 / 精英（精英暂锁定）
@@ -229,6 +266,11 @@ export class HomeUi extends Component {
         if (vehUrl) {
             vehicle.style.backgroundImage = vehUrl;
         }
+        this._tex('ui/panel_metal', u => {
+            platform.style.backgroundImage = u;
+            platform.style.backgroundSize = '100% 100%';
+            platform.style.border = 'none';
+        });
         platform.appendChild(vehicle);
         const arrowR = document.createElement('div');
         arrowR.className = 'stageArrow dim';
@@ -251,6 +293,14 @@ export class HomeUi extends Component {
             cl.textContent = lab;
             chest.appendChild(box);
             chest.appendChild(cl);
+            this._tex('ui/chest', u => {
+                box.classList.add('tex');
+                box.style.backgroundImage = u;
+                box.style.backgroundSize = 'contain';
+                box.style.backgroundRepeat = 'no-repeat';
+                box.style.backgroundPosition = 'center';
+                box.style.border = 'none';
+            });
             chests.appendChild(chest);
         }
         battle.appendChild(chests);
@@ -263,6 +313,13 @@ export class HomeUi extends Component {
             e.stopPropagation();
             this._startBattle();
         };
+        this._tex('ui/btn_gold', u => {
+            start.style.backgroundImage = u;
+            start.style.backgroundSize = '100% 100%';
+            start.style.borderRadius = 'calc(18px * var(--hs,1))';
+            start.style.border = 'none';
+            start.style.boxShadow = '0 calc(6px * var(--hs,1)) 0 rgba(0,0,0,.4)';
+        });
         battle.appendChild(start);
 
         // 基地强化（过渡期挂在战斗页底部，基地页实装后迁走）
@@ -299,6 +356,13 @@ export class HomeUi extends Component {
                     this._refresh();
                 }
             };
+            this._tex('ui/btn_cyan', u => {
+                btn.style.backgroundImage = u;
+                btn.style.backgroundSize = '100% 100%';
+                btn.style.borderRadius = 'calc(10px * var(--hs,1))';
+                btn.style.boxShadow = '0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.4)';
+                btn.style.color = '#0e1620';
+            });
             right.appendChild(cost);
             right.appendChild(btn);
             row.appendChild(info);
@@ -359,6 +423,13 @@ export class HomeUi extends Component {
                 e.stopPropagation();
                 this._switchPage(item.key);
             };
+            this._tex(`ui/nav_${item.key}`, u => {
+                icon.style.backgroundImage = u;
+                icon.style.backgroundSize = 'contain';
+                icon.style.backgroundRepeat = 'no-repeat';
+                icon.style.backgroundPosition = 'center';
+                icon.textContent = '';
+            });
             nav.appendChild(btn);
             this._navBtns[item.key] = btn;
         }
@@ -392,9 +463,15 @@ export class HomeUi extends Component {
 #homeUi .phHint { font-size: calc(28px * var(--hs,1)); color: #8fa0ab; margin-top: calc(14px * var(--hs,1)); }
 
 #homeUi .homeStats { display: flex; gap: calc(24px * var(--hs,1)); margin-top: calc(10px * var(--hs,1)); }
-#homeUi .homeStat { min-width: calc(280px * var(--hs,1)); padding: calc(16px * var(--hs,1)) calc(30px * var(--hs,1));
+#homeUi .homeStat { min-width: calc(280px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(26px * var(--hs,1));
   border-radius: calc(20px * var(--hs,1)); background: rgba(255,255,255,.04);
-  border: calc(2px * var(--hs,1)) solid rgba(128,222,228,.22); text-align: center; }
+  border: calc(2px * var(--hs,1)) solid rgba(128,222,228,.22); text-align: center;
+  display: flex; align-items: center; gap: calc(12px * var(--hs,1)); }
+#homeUi .statIco { width: calc(44px * var(--hs,1)); height: calc(44px * var(--hs,1)); flex: none;
+  background-size: contain; background-repeat: no-repeat; background-position: center; }
+#homeUi .homeStatVal, #homeUi .homeStatLab { text-align: left; }
+#homeUi .homeStatVal { line-height: 1.05; }
+#homeUi .chestBox.tex::before { display: none; }
 #homeUi .homeStatVal { font-size: calc(52px * var(--hs,1)); color: #ffd76a; font-variant-numeric: tabular-nums; }
 #homeUi .homeStatLab { font-size: calc(24px * var(--hs,1)); color: #8fa0ab; letter-spacing: 2px; margin-top: calc(4px * var(--hs,1)); }
 #homeUi .homeReward { margin-top: calc(24px * var(--hs,1)); font-size: calc(32px * var(--hs,1)); color: #9be7ff;
