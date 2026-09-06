@@ -20,7 +20,7 @@ const MANIFEST = [
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'monsters/stoneape', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',
     // 怪物行走序列帧（AI 视频抽帧打包，见 tools/video_to_sheet.py；缺图回退整图/占位）
-    'monsters/boar_walk', 'monsters/bear_walk',
+    'monsters/boar_walk', 'monsters/bear_walk', 'monsters/eagle_walk', 'monsters/stoneape_walk',
     'icons/rifle_basic', 'icons/rifle_skill', 'icons/rifle_ultimate',
     'icons/sniper_basic', 'icons/sniper_skill', 'icons/sniper_ultimate',
     'icons/laser_basic', 'icons/laser_skill', 'icons/laser_ultimate',
@@ -36,7 +36,7 @@ export class AssetLib {
     private static _walkSheets = new Map<string, SpriteFrame[]>();
 
     /** 各怪行走序列帧数（tools/slice_walk_sheet.py / video_to_sheet.py 打包时的帧数；缺省 6） */
-    private static readonly WALK_FRAME_COUNT: Record<string, number> = { boar: 12, bear: 12 };
+    private static readonly WALK_FRAME_COUNT: Record<string, number> = { boar: 12, bear: 12, eagle: 12, stoneape: 12 };
 
     /** 怪物行走序列帧：monsters/<id>_walk 横向等分切片（帧数见 WALK_FRAME_COUNT）。
      *  未就绪返回 null（调用方逐帧轮询，就绪后缓存切片） */

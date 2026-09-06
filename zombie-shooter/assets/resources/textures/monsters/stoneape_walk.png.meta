@@ -1,0 +1,134 @@
+{
+  "ver": "1.0.27",
+  "importer": "image",
+  "imported": true,
+  "uuid": "13372d61-fe49-4c40-be88-d6ab4ad8fc1c",
+  "files": [
+    ".json",
+    ".png"
+  ],
+  "subMetas": {
+    "6c48a": {
+      "importer": "texture",
+      "uuid": "13372d61-fe49-4c40-be88-d6ab4ad8fc1c@6c48a",
+      "displayName": "stoneape_walk",
+      "id": "6c48a",
+      "name": "texture",
+      "userData": {
+        "wrapModeS": "clamp-to-edge",
+        "wrapModeT": "clamp-to-edge",
+        "imageUuidOrDatabaseUri": "13372d61-fe49-4c40-be88-d6ab4ad8fc1c",
+        "isUuid": true,
+        "visible": false,
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "f9941": {
+      "importer": "sprite-frame",
+      "uuid": "13372d61-fe49-4c40-be88-d6ab4ad8fc1c@f9941",
+      "displayName": "stoneape_walk",
+      "id": "f9941",
+      "name": "spriteFrame",
+      "userData": {
+        "trimThreshold": 1,
+        "rotated": false,
+        "offsetX": 6.5,
+        "offsetY": 0,
+        "trimX": 13,
+        "trimY": 0,
+        "width": 3263,
+        "height": 256,
+        "rawWidth": 3276,
+        "rawHeight": 256,
+        "borderTop": 0,
+        "borderBottom": 0,
+        "borderLeft": 0,
+        "borderRight": 0,
+        "packable": true,
+        "pixelsToUnit": 100,
+        "pivotX": 0.5,
+        "pivotY": 0.5,
+        "meshType": 0,
+        "vertices": {
+          "rawPosition": [
+            -1631.5,
+            -128,
+            0,
+            1631.5,
+            -128,
+            0,
+            -1631.5,
+            128,
+            0,
+            1631.5,
+            128,
+            0
+          ],
+          "indexes": [
+            0,
+            1,
+            2,
+            2,
+            1,
+            3
+          ],
+          "uv": [
+            13,
+            256,
+            3276,
+            256,
+            13,
+            0,
+            3276,
+            0
+          ],
+          "nuv": [
+            0.003968253968253968,
+            0,
+            1,
+            0,
+            0.003968253968253968,
+            1,
+            1,
+            1
+          ],
+          "minPos": [
+            -1631.5,
+            -128,
+            0
+          ],
+          "maxPos": [
+            1631.5,
+            128,
+            0
+          ]
+        },
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "13372d61-fe49-4c40-be88-d6ab4ad8fc1c@6c48a",
+        "atlasUuid": "",
+        "trimType": "auto"
+      },
+      "ver": "1.0.12",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "type": "sprite-frame",
+    "fixAlphaTransparencyArtifacts": false,
+    "hasAlpha": true,
+    "redirect": "13372d61-fe49-4c40-be88-d6ab4ad8fc1c@6c48a"
+  }
+}
