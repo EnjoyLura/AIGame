@@ -22,6 +22,7 @@ import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, WAVES, MONSTERS } from './WaveData';
 import { HitParticle } from './HitParticle';
 import { MortarFx, MORTAR_FX } from './MortarFx';
+import { HomeUi } from '../ui/HomeUi';
 import { SoundFx } from '../core/SoundFx';
 
 /**
@@ -128,6 +129,8 @@ export class BattleManager extends Component {
     private _restTimer = 0;
 
     private _gameOver = false;
+    /** 战斗外玩法：false=主城/结算（模拟冻结），true=局内进行中 */
+    private _runActive = false;
     /** 升级选卡期间暂停整个战斗（各实体 update 自行检查） */
     private _paused = false;
 
@@ -280,11 +283,33 @@ export class BattleManager extends Component {
         this._abilityBar.rebind(this._heroes);
 
         GameManager.instance.load();
+        // 战斗外玩法：启动后先进入主城（战斗模拟冻结），点击出战才 beginRun
+        if (typeof document !== 'undefined') {
+            const homeNode = createUINode('HomeUi');
+            this.node.addChild(homeNode);
+            homeNode.addComponent(HomeUi);
+        }
+    }
+
+    /** 主城点击出战：应用局外强化（幂等）并开启第一波 */
+    beginRun(): void {
+        const gm = GameManager.instance;
+        this._runActive = true;
+        for (const h of this._heroes) {
+            h.applyMetaAtk(gm.metaAtkMul());
+        }
+        this._vehicle.applyMetaHp(gm.metaVehHpMul());
         this._startWave(1);
     }
 
+    /** 返回主城：冻结战斗模拟（主城覆盖层负责展示与再次出战） */
+    leaveRun(): void {
+        this._runActive = false;
+    }
+
     update(dt: number): void {
-        if (this._gameOver || this._paused) {
+        // 主城/结算界面期间冻结整场模拟（不刷怪、不计时不滚动）
+        if (!this._runActive || this._gameOver || this._paused) {
             return;
         }
         dt *= this._timeScale;
@@ -563,6 +588,14 @@ export class BattleManager extends Component {
         }
         this._bullets.splice(idx, 1);
         this._bulletPool.put(bullet.node);
+    }
+
+    /** 结算金币：击杀与波次折算，带局外赏金加成（GAME_OVER 前调用） */
+    private _awardRunGold(): void {
+        const gm = GameManager.instance;
+        const amount = Math.round((gm.kills * 2 + gm.wave * 15) * gm.metaGoldMul());
+        gm.addGold(amount);
+        eventCenter.emit(GameEvent.GOLD_EARNED, amount);
     }
 
     /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验） */
@@ -1021,6 +1054,7 @@ export class BattleManager extends Component {
         GameManager.instance.wave = this._waveNumber;
         GameManager.instance.bestWave = Math.max(GameManager.instance.bestWave, this._waveNumber);
         GameManager.instance.save();
+        this._awardRunGold();
         eventCenter.emit(GameEvent.GAME_OVER);
     }
 
@@ -1407,7 +1441,8 @@ export class BattleManager extends Component {
                     // 不恢复战斗，重新把护送失败面板顶到最前，避免"点卡后世界定格"的假死
                     if (this._gameOver) {
                         this._paused = true;
-                        eventCenter.emit(GameEvent.GAME_OVER);
+                        this._awardRunGold();
+        eventCenter.emit(GameEvent.GAME_OVER);
                     }
                 }
             });
@@ -1501,6 +1536,7 @@ export class BattleManager extends Component {
 
         this._gameOver = false;
         this._paused = false;
+        this._runActive = false;
         this._elapsed = 0;
         this._autoCastReadyAt = 0;
         this._dmgByHero.clear();
@@ -1516,7 +1552,6 @@ export class BattleManager extends Component {
             hero.gmSetInfUltimate(this._gmInfUlt[i] ?? false);
         });
         eventCenter.emit(GameEvent.XP_CHANGED, 0, GameManager.instance.xpToNext(1), 1);
-        this._startWave(1);
     }
 
     /** 路面滚动层：虚线不断下移，营造载具向前开的感觉（暂停时冻结） */

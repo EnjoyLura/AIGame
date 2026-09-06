@@ -51,6 +51,7 @@ export class DomHud extends Component {
     private _statsRows: StatRow[] = [];
     private _statsRefresh = 0;
     private _failPanel: HTMLDivElement | null = null;
+    private _failGold: HTMLDivElement | null = null;
     private _failWave: HTMLDivElement | null = null;
     private _failKill: HTMLDivElement | null = null;
     private _failLevel: HTMLDivElement | null = null;
@@ -68,6 +69,7 @@ export class DomHud extends Component {
         eventCenter.on(GameEvent.VEHICLE_HP_CHANGED, this._onVehicleHpChanged, this);
         eventCenter.on(GameEvent.ENEMY_DEAD, this._onKill, this);
         eventCenter.on(GameEvent.GAME_OVER, this._onGameOver, this);
+        eventCenter.on(GameEvent.GOLD_EARNED, this._onGoldEarned, this);
         window.addEventListener('resize', () => this._layout());
         console.log('[末日航线] build', BUILD_STAMP, (window as any).__BUILD_TIME ?? '');
     }
@@ -166,6 +168,12 @@ export class DomHud extends Component {
         this._fillGameOver();
         if (this._failPanel) {
             this._failPanel.style.display = 'flex';
+        }
+    }
+
+    private _onGoldEarned(amount: number): void {
+        if (this._failGold) {
+            this._failGold.textContent = `金币收益　+${amount}`;
         }
     }
 
@@ -311,7 +319,11 @@ export class DomHud extends Component {
         if (this._statsOverlay) {
             this._statsOverlay.style.display = 'none';
         }
+        if (this._failPanel) {
+            this._failPanel.style.display = 'none';
+        }
         eventCenter.emit(GameEvent.GAME_RESTART);
+        BattleManager.instance?.beginRun();
     }
 
     // ================= 构建 =================
@@ -556,7 +568,14 @@ export class DomHud extends Component {
         this._failWave = this._label(card, 'failLine', '');
         this._failKill = this._label(card, 'failLine', '');
         this._failLevel = this._label(card, 'failLine', '');
-        card.appendChild(this._menuButton('重 新 挑 战', '#ffa726', () => this._restart()));
+        this._failGold = this._label(card, 'failGold', '');
+        card.appendChild(this._menuButton('重 试 一 次', '#ffa726', () => this._restart()));
+        card.appendChild(this._menuButton('返 回 主 城', '#4dd0e9', () => {
+            if (this._failPanel) {
+                this._failPanel.style.display = 'none';
+            }
+            eventCenter.emit(GameEvent.HOME_SHOW);
+        }));
         fp.appendChild(card);
         root.appendChild(fp);
         this._failPanel = fp;
@@ -810,6 +829,7 @@ export class DomHud extends Component {
   box-shadow: 0 0 0 calc(3px * var(--s,1)) rgba(0,0,0,.55), 0 calc(16px * var(--s,1)) calc(48px * var(--s,1)) rgba(0,0,0,.6),
     inset 0 0 calc(80px * var(--s,1)) rgba(255,167,38,.06); }
 #domHud .failLine { font-size: calc(42px * var(--s,1)); }
+#domHud .failGold { font-size: calc(42px * var(--s,1)); color: #ffd76a; }
 `;
         document.head.appendChild(style);
     }

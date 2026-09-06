@@ -28,8 +28,12 @@ export class Hero extends Component {
     private _snapAim = false;
     private _recoil = 0;
 
+    /** 基础攻击（局外强化的乘区基准，beginRun 时按 meta 乘区重算 atk） */
+    atkBase = 0;
+
     init(def: HeroDef): void {
         this.def = def;
+        this.atkBase = def.atk;
         this.atk = def.atk;
         this.interval = def.interval || 1;
         this.range = def.range * BattleManager.instance.uiScale;
@@ -163,6 +167,11 @@ export class Hero extends Component {
     /** 手动点按大招：充满即可立即释放（跳过 1 秒自动延迟）；返回是否成功起手 */
     tryManualUltimate(): boolean {
         return this._combat ? this._combat.tryManualUltimate() : false;
+    }
+
+    /** 应用局外攻击强化（每局开始时调用一次，幂等：基于 atkBase 重算） */
+    applyMetaAtk(mul: number): void {
+        this.atk = Math.round(this.atkBase * mul);
     }
 
     /** GM：开关本英雄「技能无冷却」；开启时技能未解锁则顺手解锁 */

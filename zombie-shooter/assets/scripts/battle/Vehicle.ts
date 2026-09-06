@@ -50,6 +50,15 @@ export class Vehicle extends Component {
     }
 
     resetState(): void {
+        // 局外装甲强化在 beginRun 时再叠加；重置先回基础值（幂等基准）
+        this.maxHp = BattleConfig.VEHICLE_MAX_HP;
+        this.hp = this.maxHp;
+        eventCenter.emit(GameEvent.VEHICLE_HP_CHANGED, this.hp, this.maxHp);
+    }
+
+    /** 应用局外装甲强化（每局开始时调用一次，幂等：基于基础耐久重算并回满） */
+    applyMetaHp(mul: number): void {
+        this.maxHp = Math.round(BattleConfig.VEHICLE_MAX_HP * mul);
         this.hp = this.maxHp;
         eventCenter.emit(GameEvent.VEHICLE_HP_CHANGED, this.hp, this.maxHp);
     }
