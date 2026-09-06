@@ -37,6 +37,10 @@ export class Enemy extends Component {
     private _walkFreq = 9;
     private _bobAmp = 2;
     private _isFlyer = false;
+    /** 步态表现参数：蹬地拉伸幅度 / 重心摇摆角 / 蠕行波（爬行者专属） */
+    private _squash = 0.06;
+    private _swayAmp = 4;
+    private _crawlWave = false;
     /** charger：蓄力-冲刺状态机（蓄力期间定身，是集火窗口） */
     private _chargeState: 'advance' | 'windup' | 'dash' = 'advance';
     private _windupLeft = 0;
@@ -55,13 +59,8 @@ export class Enemy extends Component {
     private _reticleTotal = 1;
     private _reticleNode: Node | null = null;
     private _reticleG: Graphics | null = null;
-    /** 脚下阴影/精英圈层（接地感，不跟随身体摆动） */
+    /** 脚下阴影/精英圈层（接地感的关键：大小/透明度随身体起落联动） */
     private _shadowNode: Node | null = null;
-    /** 行走动效参数（按怪型在 init 配置） */
-    private _walkPhase = 0;
-    private _walkFreq = 9;
-    private _bobAmp = 2;
-    private _isFlyer = false;
 
     onLoad(): void {
         // 根节点必须有 UITransform：2D 渲染靠它逐层计算子节点世界矩阵
@@ -91,23 +90,33 @@ export class Enemy extends Component {
         // 准星/标记随池化回收清零
         this._reticleLeft = 0;
         this._hideReticle();
-        // 行走动效节奏：疯狗高频碎步 / 野猪沉重小跑 / 熊缓慢沉稳 / 疯鹰悬浮
+        // 行走动效节奏：疯狗高频碎步 / 野猪沉重颠簸 / 熊缓慢沉稳 / 疯鹰振翅悬浮
         this._walkPhase = Math.random() * Math.PI * 2;
+        // 步态表现默认值（各怪型覆盖）：蹬地拉伸 / 重心摇摆 / 蠕行波
+        this._squash = 0.06;
+        this._swayAmp = 4;
+        this._crawlWave = false;
         switch (info.behavior) {
             case 'swarm':
                 this._walkFreq = 14; this._bobAmp = 2; this._isFlyer = false;
+                this._squash = 0.08; this._swayAmp = 4;
                 break;
             case 'charger':
                 this._walkFreq = 7; this._bobAmp = 2.5; this._isFlyer = false;
+                this._squash = 0.1; this._swayAmp = 3;
                 break;
             case 'tanker':
                 this._walkFreq = 4; this._bobAmp = 3; this._isFlyer = false;
+                this._squash = 0.08; this._swayAmp = 2;
                 break;
             case 'diver':
                 this._walkFreq = 6; this._bobAmp = 5; this._isFlyer = true;
+                this._squash = 0.05; this._swayAmp = 2;
                 break;
             default:
+                // 爬行者：蠕行波（主波+次波叠加的尺蠖起伏）+ 蛇行摇摆
                 this._walkFreq = 9; this._bobAmp = 2; this._isFlyer = false;
+                this._squash = 0.06; this._swayAmp = 5; this._crawlWave = true;
                 break;
         }
         this._bodyNode.setPosition(0, 0);
@@ -359,25 +368,66 @@ export class Enemy extends Component {
         }
     }
 
-    /** 行走动效（直走版）：只上下迈步颠簸 + 轻微压扁拉伸的脚感，不做左右摇摆 */
+    /** 行走动效：squash&stretch 蹬地弹性 + 重心摇摆 + 怪型专属步态 + 阴影联动 */
     private _updateWalkAnim(dt: number): void {
-        // 野猪蓄力/冲刺切换专属姿态
+        // 野猪蓄力/冲刺专属姿态（蓄力下蹲压扁蓄势；冲刺压扁拉长贴地扑）
         if (this._behavior === 'charger' && this._chargeState !== 'advance') {
             this._bodyNode.angle = 0;
             if (this._chargeState === 'dash') {
-                // 扑咬：压扁拉长贴地冲
                 this._bodyNode.setScale(0.94, 1.08, 1);
             } else {
-                this._bodyNode.setScale(1, 1, 1);
+                this._bodyNode.setScale(1.08, 0.9, 1);
             }
             this._bodyNode.setPosition(0, 0);
+            this._updateShadow(0.4);
             return;
         }
         this._walkPhase += dt * this._walkFreq;
-        // 直走表现：只保留轻微上下颠簸（不做左右摇摆、不做横向形变）
-        const bob = this._isFlyer ? Math.sin(this._walkPhase) : Math.abs(Math.cos(this._walkPhase));
-        this._bodyNode.setPosition(0, bob * this._bobAmp);
-        this._bodyNode.angle = Math.sin(this._walkPhase) * 3;   // 轻微摇摆（立绘活跃感）
+        const ph = this._walkPhase;
+        // bob：0=贴地 1=腾空最高点；vel：bob 变化速度（>0 蹬地上升，<0 下落）
+        let bob: number;
+        let vel = 0;
+        if (this._isFlyer) {
+            bob = 0.5 + 0.5 * Math.sin(ph);
+            vel = 0.5 * Math.cos(ph);
+        } else if (this._crawlWave) {
+            // 蠕行：主波（迈步）+ 慢次波（躯干起伏）叠加的尺蠖节奏
+            const main = Math.abs(Math.cos(ph));
+            const ripple = 0.5 + 0.5 * Math.sin(ph * 0.5 + 1.3);
+            bob = main * 0.75 + ripple * 0.25;
+            vel = -Math.sin(ph) * Math.sign(Math.cos(ph));
+        } else {
+            bob = Math.abs(Math.cos(ph));
+            vel = -Math.sin(ph) * Math.sign(Math.cos(ph));
+        }
+        // 重心横晃（与 bob 异相）+ 上下颠簸
+        const swayX = Math.sin(ph) * this._bobAmp * 0.45;
+        this._bodyNode.setPosition(swayX, bob * this._bobAmp);
+        this._bodyNode.angle = Math.sin(ph) * this._swayAmp;
+        // squash & stretch：蹬地段纵向拉伸、落地瞬间压扁，横向反向补偿体积
+        const stretch = vel * this._squash;
+        const land = Math.max(0, 1 - bob * 2.5) * Math.max(0, -vel);
+        let sy = 1 + stretch * 1.5 - land * this._squash * 1.6;
+        let sx = 1 - stretch * 0.9 + land * this._squash;
+        if (this._isFlyer) {
+            // 振翅：躯干按双倍步频收张（翅膀拍打的反作用）
+            sy = 1 + 0.05 * Math.sin(ph * 2);
+            sx = 1 - 0.03 * Math.sin(ph * 2);
+        }
+        this._bodyNode.setScale(sx, sy, 1);
+        // 阴影联动：身体越贴近地面影子越大越实，腾空则小而淡
+        this._updateShadow(this._isFlyer ? 1 - bob * 0.5 : 1 - bob);
+    }
+
+    /** 阴影联动：airK 0=贴地（影子大而实）→ 1=腾空（影子小而淡） */
+    private _updateShadow(airK: number): void {
+        if (!this._shadowNode) {
+            return;
+        }
+        const s = 1 - airK * 0.12;
+        this._shadowNode.setScale(s, s * 0.9, 1);
+        const op = this._shadowNode.getComponent(UIOpacity) ?? this._shadowNode.addComponent(UIOpacity);
+        op.opacity = Math.round(255 * (1 - airK * 0.3));
     }
 
     private _bodyColor(behavior: MonsterBehavior): Color {
