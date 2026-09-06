@@ -1,4 +1,6 @@
 import { sys } from 'cc';
+import { PlayerResources } from './PlayerResources';
+import { BattleConfig } from '../config/GameConfig';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -25,12 +27,31 @@ export class GameManager {
     // ---- 持久化数据 ----
     bestWave = 0;
     totalKills = 0;
-    /** 金币：战斗结算产出，主城消费（局外强化） */
-    gold = 0;
+    /** 玩家资源仓库（金币/钻石/体力统一走这里；gold 保留兼容访问器） */
+    readonly res = new PlayerResources();
     /** 局外强化等级（id 见 META_UPGRADES） */
     private _upgrades: Record<string, number> = { atk: 0, vehHp: 0, goldGain: 0, xpGain: 0 };
     /** 局次号：resetRun 自增，战斗开始时按局次幂等应用局外加成 */
     runId = 0;
+
+    /** 金币兼容访问器（真身在资源仓库） */
+    get gold(): number { return this.res.get('gold'); }
+
+    /** 体力当前值（结算离线恢复后返回） */
+    stamina(): number {
+        return this.res.stamina(Math.floor(Date.now() / 1000), BattleConfig.STAMINA_MAX,
+            BattleConfig.STAMINA_REGEN_MINUTES * 60);
+    }
+
+    /** 体力是否够开一局 */
+    canStartRun(): boolean {
+        return this.stamina() >= BattleConfig.RUN_STAMINA_COST;
+    }
+
+    /** 扣体力开一局；不足返回 false */
+    spendRunStamina(): boolean {
+        return this.res.spend('stamina', BattleConfig.RUN_STAMINA_COST);
+    }
 
     // ---- 局外强化定义（主城升级用；效果乘区在对应系统处应用） ----
     upgradeLevel(id: string): number {
@@ -52,14 +73,14 @@ export class GameManager {
         if (!this.canUpgrade(id)) {
             return false;
         }
-        this.gold -= this.upgradeCost(id);
+        this.res.spend('gold', this.upgradeCost(id));
         this._upgrades[id] = this.upgradeLevel(id) + 1;
         this.save();
         return true;
     }
 
     addGold(n: number): void {
-        this.gold += Math.max(0, Math.round(n));
+        this.res.add('gold', n);
         this.save();
     }
 
@@ -100,6 +121,7 @@ export class GameManager {
             totalKills: this.totalKills,
             gold: this.gold,
             upgrades: this._upgrades,
+            res: this.res.serialize(),
         };
         sys.localStorage.setItem(GameManager.SAVE_KEY, JSON.stringify(data));
     }
@@ -113,7 +135,10 @@ export class GameManager {
             const data = JSON.parse(raw);
             this.bestWave = data.bestWave ?? 0;
             this.totalKills = data.totalKills ?? 0;
-            this.gold = data.gold ?? 0;
+            if (data.gold !== undefined) {
+                this.res.add('gold', data.gold);
+            }
+            this.res.deserialize(data.res ?? null);
             if (data.upgrades) {
                 for (const k of Object.keys(this._upgrades)) {
                     this._upgrades[k] = data.upgrades[k] ?? 0;

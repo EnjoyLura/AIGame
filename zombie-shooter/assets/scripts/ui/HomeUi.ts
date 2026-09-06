@@ -1,6 +1,6 @@
 import { _decorator, Component, SpriteFrame } from 'cc';
 const { ccclass } = _decorator;
-import { BUILD_STAMP, GameEvent } from '../config/GameConfig';
+import { BattleConfig, BUILD_STAMP, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
 import { GameManager, META_UPGRADES } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
@@ -21,6 +21,7 @@ export class HomeUi extends Component {
     private _bestEl: HTMLDivElement | null = null;
     private _rewardEl: HTMLDivElement | null = null;
     private _chapterEl: HTMLDivElement | null = null;
+    private _staminaEl: HTMLDivElement | null = null;
     private _rows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLSpanElement; eff: HTMLDivElement; cost: HTMLDivElement; btn: HTMLButtonElement }> = [];
     private _pages: Record<string, HTMLDivElement> = {};
     private _navBtns: Record<string, HTMLButtonElement> = {};
@@ -43,6 +44,7 @@ export class HomeUi extends Component {
         };
         applyScale();
         window.addEventListener('resize', applyScale);
+        eventCenter.on(GameEvent.RES_CHANGED, () => this._refresh(), this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
         eventCenter.on(GameEvent.GOLD_EARNED, (amount: number) => {
             if (this._rewardEl) {
@@ -71,7 +73,8 @@ export class HomeUi extends Component {
     }
 
     private _startBattle(): void {
-        if (!this._root) {
+        const gm = GameManager.instance;
+        if (!this._root || !gm.canStartRun()) {
             return;
         }
         this._root.style.display = 'none';
@@ -117,6 +120,11 @@ export class HomeUi extends Component {
         if (this._bestEl) {
             this._bestEl.textContent = String(gm.bestWave);
         }
+        if (this._staminaEl) {
+            const st = gm.stamina();
+            this._staminaEl.textContent = `${st}/${BattleConfig.STAMINA_MAX}`;
+            this._staminaEl.style.color = gm.canStartRun() ? '#ffd76a' : '#ff6b6b';
+        }
         if (this._chapterEl) {
             const idx = Math.min(HomeUi.CHAPTERS.length - 1, Math.floor(gm.bestWave / 10));
             this._chapterEl.textContent = HomeUi.CHAPTERS[idx];
@@ -131,6 +139,10 @@ export class HomeUi extends Component {
             row.btn.style.display = maxed ? 'none' : '';
             row.btn.disabled = !gm.canUpgrade(row.def.id);
             row.btn.style.opacity = gm.canUpgrade(row.def.id) ? '1' : '0.45';
+        }
+        const startBtn = document.querySelector<HTMLButtonElement>('#homeUi .homeStart');
+        if (startBtn) {
+            startBtn.style.opacity = gm.canStartRun() ? '1' : '0.45';
         }
     }
 
@@ -165,6 +177,7 @@ export class HomeUi extends Component {
             return v;
         };
         this._goldEl = mkStat('金币', '0');
+        this._staminaEl = mkStat('体力', '30/30');
         this._bestEl = mkStat('最远波次', '0');
         battle.appendChild(statsRow);
 

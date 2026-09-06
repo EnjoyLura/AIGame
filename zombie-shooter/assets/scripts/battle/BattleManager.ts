@@ -291,15 +291,19 @@ export class BattleManager extends Component {
         }
     }
 
-    /** 主城点击出战：应用局外强化（幂等）并开启第一波 */
-    beginRun(): void {
+    /** 主城点击出战：扣体力 → 应用局外强化（幂等）并开启第一波；体力不足返回 false */
+    beginRun(): boolean {
         const gm = GameManager.instance;
+        if (!gm.spendRunStamina()) {
+            return false;
+        }
         this._runActive = true;
         for (const h of this._heroes) {
             h.applyMetaAtk(gm.metaAtkMul());
         }
         this._vehicle.applyMetaHp(gm.metaVehHpMul());
         this._startWave(1);
+        return true;
     }
 
     /** 返回主城：冻结战斗模拟（主城覆盖层负责展示与再次出战） */

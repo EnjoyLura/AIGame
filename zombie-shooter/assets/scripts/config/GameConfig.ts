@@ -38,6 +38,10 @@ export const BattleConfig = {
     /** 波次 */
     WAVE_REST_TIME: 3.5,
     WAVE_START_DELAY: 0.8,
+    /** 体力：出战消耗与恢复（分钟/点），上限满后不累积 */
+    RUN_STAMINA_COST: 5,
+    STAMINA_MAX: 30,
+    STAMINA_REGEN_MINUTES: 10,
     /** 每波前四组渐进进入常态密度；不改变怪物总量与同屏上限 */
     WAVE_RAMP_GROUPS: 4,
     /** 自动技能/大招起手错峰（战斗秒），不影响普攻或已发出的多段伤害 */
@@ -85,4 +89,5 @@ export enum GameEvent {
     GAME_RESTART = 'game-restart',
     HOME_SHOW = 'home-show',
     GOLD_EARNED = 'gold-earned',
+    RES_CHANGED = 'res-changed',
 }
