@@ -128,7 +128,7 @@ def match_colors(frames: list[Image.Image]) -> None:
         gains = []
         for c in range(3):
             g = ref[c] / max(1.0, m[c])
-            g = max(0.82, min(1.22, g))
+            g = max(0.75, min(1.35, g))
             gains.append(g)
         px = f.load()
         w, h = f.size
@@ -150,6 +150,10 @@ def main() -> None:
 
     frames = list(read_frames(src))
     print(f'decoded {len(frames)} frames')
+    # 掐头去尾：AI 视频首尾常带过渡帧（从参考图渐入、光照漂移），首帧色差的根源
+    trim = max(2, round(len(frames) * 0.05))
+    if len(frames) > trim * 3:
+        frames = frames[trim:len(frames) - trim]
     bg = detect_bg(frames[0])
     print(f'bg color = {bg}')
     smalls = [f.resize((TARGET, TARGET)) for f in frames]
