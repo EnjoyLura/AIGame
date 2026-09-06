@@ -498,15 +498,18 @@ class AbilityRuntime {
         return 0.5; // projectile / multi / beam
     }
 
-    /** 进入前摇：英雄立即抬枪瞄准，枪口出现蓄力环，图标施法环同步推进 */
+    /** 进入前摇：英雄立即抬枪瞄准，枪口出现蓄力环，图标施法环同步推进。
+     *  零前摇能力（area 已有落点预警 / lock 已有读秒）直接结算，不经过前摇分支 */
     private _beginWindup(target: EnemyHandle): void {
         this._pendingTarget = target;
+        this._owner.stats.notifyShot?.(target.enemy.node.position);
         this._windupTotal = this._windupDuration();
         this._windup = this._windupTotal;
-        this._owner.stats.notifyShot?.(target.enemy.node.position);
         if (this._windup > 0) {
             this._owner.battle.castChargeFx(
                 this._owner.muzzleWorldPosition(), this._owner.def.bulletColor, this._windup);
+        } else {
+            this._executeCast();
         }
     }
 
