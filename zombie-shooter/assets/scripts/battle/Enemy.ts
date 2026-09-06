@@ -359,13 +359,14 @@ export class Enemy extends Component {
         const g = this._shadowNode.getComponent(Graphics) ?? this._shadowNode.addComponent(Graphics);
         g.clear();
         g.fillColor = new Color(0, 0, 0, 70);
-        g.ellipse(0, -this.radius * 0.15, this.radius * 0.95, this.radius * 0.4);
+        // 立绘高 2.6r 居中挂载，脚在图像底部（约 -1.1r）：影子画在脚下而不是身体中心
+        g.ellipse(0, -this.radius * 1.02, this.radius * 0.95, this.radius * 0.32);
         g.fill();
         // 精英怪：立绘保留原色，用脚下精英红圈标识
         if (info.tier === 1) {
             g.strokeColor = Palette.elite;
             g.lineWidth = 5;
-            g.circle(0, -this.radius * 0.15, this.radius * 1.15);
+            g.circle(0, -this.radius * 1.02, this.radius * 1.05);
             g.stroke();
         }
     }
