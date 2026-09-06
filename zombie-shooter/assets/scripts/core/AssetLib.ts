@@ -19,6 +19,12 @@ const MANIFEST = [
     'scenes/vehicle_tail',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'monsters/crawler', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',
+    // 分层纸娃娃（body 齐髋截断 + legs 腿部层，Enemy 腿层摆动驱动）
+    'monsters/crawler_body', 'monsters/crawler_legs',
+    'monsters/dog_body', 'monsters/dog_legs',
+    'monsters/boar_body', 'monsters/boar_legs',
+    'monsters/bear_body', 'monsters/bear_legs',
+    'monsters/eagle_body', 'monsters/eagle_legs',
     'icons/rifle_basic', 'icons/rifle_skill', 'icons/rifle_ultimate',
     'icons/sniper_basic', 'icons/sniper_skill', 'icons/sniper_ultimate',
     'icons/laser_basic', 'icons/laser_skill', 'icons/laser_ultimate',
