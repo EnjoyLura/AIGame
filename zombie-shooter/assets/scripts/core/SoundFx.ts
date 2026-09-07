@@ -3,7 +3,7 @@
  * 短促、低沉、偏"打击感"的合成声。微信小游戏无 WebAudio 时自动静音。
  * 所有发声走统一入口并做 45ms 节流，避免同帧大量重复音爆音。
  */
-type FxName = 'shoot' | 'laser' | 'hit' | 'kill' | 'bigkill' | 'vehicleHit' | 'ready' | 'ui' | 'boom' | 'ult';
+type FxName = 'shoot' | 'laser' | 'hit' | 'kill' | 'bigkill' | 'vehicleHit' | 'ready' | 'ui' | 'boom' | 'ult' | 'coin' | 'buy';
 
 export class SoundFx {
     private static _ctx: AudioContext | null = null;
@@ -130,6 +130,15 @@ export class SoundFx {
                 // 技能/大招施法：上扫锯齿波 + 低频冲击（施法"释放感"）
                 this._tone(160, 950, 0.45, 0.13, 'sawtooth');
                 this._noise(0.3, 0.12, 320);
+                break;
+            case 'coin':
+                // 金币到账：清脆上行双叮
+                this._tone(880, 880, 0.06, 0.07, 'square');
+                setTimeout(() => this._tone(1320, 1320, 0.09, 0.07, 'square'), 60);
+                break;
+            case 'buy':
+                // 购买确认：中频确认音
+                this._tone(520, 780, 0.12, 0.08, 'triangle');
                 break;
         }
     }

@@ -5,7 +5,13 @@ import { eventCenter } from '../core/EventCenter';
 import { GameManager, META_UPGRADES } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
 import { GameFlow } from '../core/GameFlow';
+import { AdService } from '../core/AdService';
+import { ShopData, ShopItem } from '../core/ShopData';
+import { SoundFx } from '../core/SoundFx';
 import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
+
+/** 看广告单次发放体力 */
+const MALL_AD_STAMINA = 10;
 
 /**
  * 主城界面（战斗外玩法入口，DOM 渲染）：
@@ -28,6 +34,15 @@ export class HomeUi extends Component {
     private _rows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLSpanElement; eff: HTMLDivElement; cost: HTMLDivElement; btn: HTMLButtonElement }> = [];
     private _pages: Record<string, HTMLDivElement> = {};
     private _navBtns: Record<string, HTMLButtonElement> = {};
+    /** 商城页可刷新元素：资源数值 + 商品购买按钮 + 广告按钮 */
+    private _mallResEls: Partial<Record<'gold' | 'diamond' | 'stamina', HTMLDivElement>> = {};
+    private _mallShopRows: Array<{ item: ShopItem; btn: HTMLButtonElement }> = [];
+    private _mallAdBtn: HTMLButtonElement | null = null;
+    private _mallAdLab: HTMLDivElement | null = null;
+    /** 模拟广告层（AD_START 显示 / AD_END 关闭，倒计时文案） */
+    private _adOverlay: HTMLDivElement | null = null;
+    private _adCountdown: HTMLDivElement | null = null;
+    private _adTimer = 0;
     /** 贴图挂起队列：AssetLib 异步就绪后补挂（_refresh 轮询消化） */
     private _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
 
@@ -69,7 +84,10 @@ export class HomeUi extends Component {
         };
         applyScale();
         window.addEventListener('resize', applyScale);
-        eventCenter.on(GameEvent.RES_CHANGED, () => this._refresh(), this);
+        eventCenter.on(GameEvent.RES_CHANGED, () => {
+            this._refresh();
+            this._refreshMall();
+        }, this);
         // 流程状态机驱动主城显隐：state==='home' 显示，其余隐藏（替代点击事件里手动切 display）
         eventCenter.on(GameEvent.FLOW_CHANGED, (from: string, to: string) => {
             if (to === 'home') {
@@ -127,6 +145,228 @@ export class HomeUi extends Component {
         }
     }
 
+    // ================= 商城页 =================
+
+    /** 商城页：资源条 + 商品行 + 看广告领体力区块（购买/发奖走 PlayerResources 唯一入口） */
+    private _buildMall(root: HTMLDivElement): void {
+        const page = document.createElement('div');
+        page.className = 'page';
+
+        // 资源条：金币/钻石/体力
+        const resRow = document.createElement('div');
+        resRow.className = 'mallResRow';
+        const mkRes = (id: 'gold' | 'diamond' | 'stamina', lab: string) => {
+            const chip = document.createElement('div');
+            chip.className = 'mallRes';
+            const ico = document.createElement('i');
+            ico.className = 'mallResIco';
+            this._tex(`ui/res_${id}`, u => { ico.style.backgroundImage = u; });
+            const val = document.createElement('div');
+            val.className = 'mallResVal';
+            chip.appendChild(ico);
+            chip.appendChild(val);
+            resRow.appendChild(chip);
+            this._mallResEls[id] = val;
+            void lab;
+        };
+        mkRes('gold', '金币');
+        mkRes('diamond', '钻石');
+        mkRes('stamina', '体力');
+        page.appendChild(resRow);
+
+        // 商品区
+        const sec1 = document.createElement('div');
+        sec1.className = 'homeSection';
+        sec1.textContent = '━ 商 品 ━';
+        page.appendChild(sec1);
+        for (const item of ShopData.ITEMS) {
+            page.appendChild(this._mkShopRow(item));
+        }
+
+        // 广告区
+        const sec2 = document.createElement('div');
+        sec2.className = 'homeSection';
+        sec2.textContent = '━ 免 费 补 给 ━';
+        page.appendChild(sec2);
+        const adBtn = document.createElement('button');
+        adBtn.className = 'mallAdBtn';
+        const adLab = document.createElement('div');
+        adLab.className = 'mallAdLab';
+        adBtn.appendChild(adLab);
+        adBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            AdService.instance.claimReward('stamina', () => {
+                GameManager.instance.res.add('stamina', MALL_AD_STAMINA);
+                SoundFx.play('coin');
+            });
+        };
+        this._tex('ui/btn_cyan', u => {
+            adBtn.style.backgroundImage = u;
+            adBtn.style.backgroundSize = '100% 100%';
+            adBtn.style.border = 'none';
+        });
+        this._mallAdBtn = adBtn;
+        this._mallAdLab = adLab;
+        page.appendChild(adBtn);
+        const adHint = document.createElement('div');
+        adHint.className = 'mallAdHint';
+        adHint.textContent = '观看广告免费领取，每日 3 次';
+        page.appendChild(adHint);
+
+        root.appendChild(page);
+        this._pages.mall = page;
+    }
+
+    /** 单个商品行（样式复用基地强化的行结构） */
+    private _mkShopRow(item: ShopItem): HTMLDivElement {
+        const row = document.createElement('div');
+        row.className = 'upRow';
+        const info = document.createElement('div');
+        info.className = 'upInfo';
+        const name = document.createElement('div');
+        name.className = 'upName';
+        name.textContent = item.name;
+        const eff = document.createElement('div');
+        eff.className = 'upEff';
+        eff.textContent = item.desc;
+        info.appendChild(name);
+        info.appendChild(eff);
+        const right = document.createElement('div');
+        right.className = 'upRight';
+        const cost = document.createElement('div');
+        cost.className = 'upCost';
+        const RES_NAME = { gold: '金币', diamond: '钻石', stamina: '体力' } as const;
+        cost.textContent = `${item.price.amount} ${RES_NAME[item.price.res]}`;
+        const btn = document.createElement('button');
+        btn.className = 'upBtn';
+        btn.textContent = '购 买';
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            this._buyShopItem(item);
+        };
+        this._tex('ui/btn_gold', u => {
+            btn.style.backgroundImage = u;
+            btn.style.backgroundSize = '100% 100%';
+            btn.style.border = 'none';
+        });
+        right.appendChild(cost);
+        right.appendChild(btn);
+        row.appendChild(info);
+        row.appendChild(right);
+        this._mallShopRows.push({ item, btn });
+        return row;
+    }
+
+    /** 购买商品：余额/条件校验 → 扣费 → 发货 → 音效；失败刷新显示 */
+    private _buyShopItem(item: ShopItem): void {
+        const gm = GameManager.instance;
+        SoundFx.unlock();
+        // 特例：体力商品满仓时不可购买
+        if (item.grant.res === 'stamina' && gm.stamina() >= BattleConfig.STAMINA_MAX) {
+            this._refreshMall();
+            return;
+        }
+        if (item.canBuy && !item.canBuy()) {
+            this._refreshMall();
+            return;
+        }
+        if (!gm.res.spend(item.price.res, item.price.amount)) {
+            SoundFx.play('ui');
+            this._refreshMall();
+            return;
+        }
+        gm.res.add(item.grant.res, item.grant.amount);
+        gm.save();
+        SoundFx.play('buy');
+        this._refreshMall();
+    }
+
+    /** 商城页数值刷新（RES_CHANGED 与切页时调用） */
+    private _refreshMall(): void {
+        const gm = GameManager.instance;
+        const gold = this._mallResEls.gold;
+        const diamond = this._mallResEls.diamond;
+        const stamina = this._mallResEls.stamina;
+        if (gold) {
+            gold.textContent = String(gm.gold);
+        }
+        if (diamond) {
+            diamond.textContent = String(gm.res.get('diamond'));
+        }
+        if (stamina) {
+            stamina.textContent = `${gm.stamina()}/${BattleConfig.STAMINA_MAX}`;
+        }
+        for (const { item, btn } of this._mallShopRows) {
+            let disabled = !gm.res.canSpend(item.price.res, item.price.amount);
+            if (item.grant.res === 'stamina' && gm.stamina() >= BattleConfig.STAMINA_MAX) {
+                disabled = true;
+            }
+            if (item.canBuy && !item.canBuy()) {
+                disabled = true;
+            }
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.45' : '1';
+            btn.title = disabled && item.disabledTip ? item.disabledTip : '';
+        }
+        if (this._mallAdBtn && this._mallAdLab) {
+            const left = AdService.instance.remaining('stamina');
+            const full = gm.stamina() >= BattleConfig.STAMINA_MAX;
+            this._mallAdLab.textContent =
+                full ? '体力已满' : left > 0 ? `看广告领 ${MALL_AD_STAMINA} 体力（今日 ${3 - left}/3）` : '今日次数已用完，明日再来';
+            this._mallAdBtn.disabled = left <= 0 || full;
+            this._mallAdBtn.style.opacity = this._mallAdBtn.disabled ? '0.45' : '1';
+        }
+    }
+
+    /** 模拟广告层：AD_START 弹出 3 秒倒计时（真实观感占位），AD_END 关闭 */
+    private _buildAdOverlay(root: HTMLDivElement): void {
+        const ov = document.createElement('div');
+        ov.className = 'adOverlay';
+        ov.style.display = 'none';
+        const title = document.createElement('div');
+        title.className = 'adTitle';
+        title.textContent = '📺 广告播放中…';
+        const cd = document.createElement('div');
+        cd.className = 'adCountdown';
+        cd.textContent = '3';
+        const tip = document.createElement('div');
+        tip.className = 'adTip';
+        tip.textContent = '观看完毕后将自动发放奖励';
+        ov.appendChild(title);
+        ov.appendChild(cd);
+        ov.appendChild(tip);
+        root.appendChild(ov);
+        this._adOverlay = ov;
+        this._adCountdown = cd;
+
+        eventCenter.on(GameEvent.AD_START, () => {
+            if (!this._adOverlay || !this._adCountdown) {
+                return;
+            }
+            this._adOverlay.style.display = 'flex';
+            let n = 3;
+            this._adCountdown.textContent = String(n);
+            clearInterval(this._adTimer);
+            this._adTimer = setInterval(() => {
+                n--;
+                if (this._adCountdown) {
+                    this._adCountdown.textContent = String(Math.max(0, n));
+                }
+                if (n <= 0) {
+                    clearInterval(this._adTimer);
+                }
+            }, 1000) as unknown as number;
+        }, this);
+        eventCenter.on(GameEvent.AD_END, () => {
+            clearInterval(this._adTimer);
+            if (this._adOverlay) {
+                this._adOverlay.style.display = 'none';
+            }
+            this._refreshMall();
+        }, this);
+    }
+
     /** 场景/立绘 SpriteFrame → CSS 背景图 URL；缺图返回 null */
     private _frameUrl(key: string): string | null {
         const frame: SpriteFrame | null = AssetLib.frame(key);
@@ -154,6 +394,9 @@ export class HomeUi extends Component {
         }
         if (page === 'battle') {
             this._refresh();
+        }
+        if (page === 'mall') {
+            this._refreshMall();
         }
     }
 
@@ -412,9 +655,8 @@ export class HomeUi extends Component {
             this._rows.push({ def, lv, eff, cost, btn });
         }
 
-        // ---- 其余四页：建设中占位 ----
+        // ---- 其余四页：商城实装，其余建设中占位 ----
         const PLACEHOLDERS: Record<string, { icon: string; name: string; hint: string }> = {
-            mall: { icon: '🛒', name: '商城', hint: '补给箱与特惠礼包 · 建设中' },
             heroes: { icon: '🦸', name: '角色', hint: '先锋官与枪械养成 · 建设中' },
             core: { icon: '🧬', name: '核心', hint: '核心科技研发 · 建设中' },
             base: { icon: '🏰', name: '基地', hint: '基地建设与产出 · 建设中' },
@@ -438,6 +680,9 @@ export class HomeUi extends Component {
             root.appendChild(page);
             this._pages[key] = page;
         }
+
+        // ---- 商城页 ----
+        this._buildMall(root);
 
         // ---- 底部导航栏 ----
         const nav = document.createElement('div');
@@ -475,6 +720,9 @@ export class HomeUi extends Component {
             this._navBtns[item.key] = btn;
         }
         root.appendChild(nav);
+
+        // 模拟广告层（全屏覆盖，AD_START/AD_END 驱动）
+        this._buildAdOverlay(root);
 
         const stamp = document.createElement('div');
         stamp.className = 'homeStamp';
@@ -601,6 +849,33 @@ export class HomeUi extends Component {
 
 #homeUi .homeStamp { position: absolute; right: calc(20px * var(--hs,1)); bottom: calc(160px * var(--hs,1));
   font-size: calc(20px * var(--hs,1)); color: rgba(236,241,241,.35); }
+
+/* ---- 商城页 ---- */
+#homeUi .mallResRow { display: flex; gap: calc(18px * var(--hs,1)); margin-top: calc(18px * var(--hs,1)); width: 100%;
+  max-width: calc(900px * var(--hs,1)); }
+#homeUi .mallRes { flex: 1; display: flex; align-items: center; gap: calc(12px * var(--hs,1));
+  padding: calc(12px * var(--hs,1)) calc(20px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
+  background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
+#homeUi .mallResIco { width: calc(44px * var(--hs,1)); height: calc(44px * var(--hs,1)); flex: none;
+  background-size: contain; background-repeat: no-repeat; background-position: center; }
+#homeUi .mallResVal { font-size: calc(34px * var(--hs,1)); color: #fff; font-variant-numeric: tabular-nums; }
+#homeUi .mallAdBtn { margin-top: calc(22px * var(--hs,1)); min-width: calc(620px * var(--hs,1));
+  padding: calc(20px * var(--hs,1)) calc(50px * var(--hs,1)); border-radius: calc(18px * var(--hs,1)); cursor: pointer;
+  font-size: calc(34px * var(--hs,1)); font-weight: 800; color: #062028; letter-spacing: calc(3px * var(--hs,1));
+  filter: drop-shadow(0 calc(5px * var(--hs,1)) 0 rgba(0,0,0,.4)); }
+#homeUi .mallAdBtn:active { transform: translateY(calc(3px * var(--hs,1))); }
+#homeUi .mallAdLab { display: flex; align-items: center; justify-content: center; gap: calc(10px * var(--hs,1)); }
+#homeUi .mallAdLab::before { content: '▶'; font-size: calc(30px * var(--hs,1)); }
+#homeUi .mallAdHint { margin-top: calc(14px * var(--hs,1)); font-size: calc(26px * var(--hs,1)); color: #8fa0ab; }
+
+/* ---- 模拟广告层 ---- */
+#homeUi .adOverlay { position: fixed; inset: 0; z-index: 9600; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: calc(30px * var(--hs,1)); background: rgba(2,6,10,.94);
+  pointer-events: auto; }
+#homeUi .adTitle { font-size: calc(52px * var(--hs,1)); color: #9be7ff; letter-spacing: calc(4px * var(--hs,1)); }
+#homeUi .adCountdown { font-size: calc(140px * var(--hs,1)); font-weight: 800; color: #ffd76a;
+  font-variant-numeric: tabular-nums; text-shadow: 0 calc(6px * var(--hs,1)) 0 rgba(0,0,0,.6); }
+#homeUi .adTip { font-size: calc(28px * var(--hs,1)); color: #8fa0ab; }
 `;
         document.head.appendChild(style);
     }

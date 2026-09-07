@@ -84,6 +84,14 @@ export class GmPanel extends Component {
         this._addButton(body, '体力回满', () => {
             GameManager.instance.res.add('stamina', BattleConfig.STAMINA_MAX);
         });
+        this._addButton(body, '金币+1000', () => {
+            GameManager.instance.addGold(1000);
+            SoundFx.play('coin');
+        });
+        this._addButton(body, '钻石+100', () => {
+            GameManager.instance.res.add('diamond', 100);
+            SoundFx.play('coin');
+        });
 
         // ---- 指定怪型刷新（单测行为，不占波次进度） ----
         const mobRow = document.createElement('div');

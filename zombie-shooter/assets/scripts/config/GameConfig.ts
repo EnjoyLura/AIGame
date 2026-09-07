@@ -92,4 +92,6 @@ export enum GameEvent {
     HOME_SHOW = 'home-show',
     GOLD_EARNED = 'gold-earned',
     RES_CHANGED = 'res-changed',
+    AD_START = 'ad-start',
+    AD_END = 'ad-end',
 }

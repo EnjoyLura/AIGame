@@ -6,6 +6,8 @@ import { GameManager } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
 import { BattleManager } from '../battle/BattleManager';
 import { GameFlow } from '../core/GameFlow';
+import { AdService } from '../core/AdService';
+import { SoundFx } from '../core/SoundFx';
 import { FINAL_STAGE_ID } from '../battle/StageData';
 import { HERO_DEFS } from '../battle/HeroDef';
 
@@ -64,6 +66,9 @@ export class DomHud extends Component {
     private _clearGold: HTMLDivElement | null = null;
     /** GOLD_EARNED 缓存：通关面板与失败面板共用金币数据源 */
     private _lastGoldEarned = 0;
+    /** 结算"看广告金币×2"按钮（失败/通关各一） */
+    private _failAdBtn: HTMLButtonElement | null = null;
+    private _clearAdBtn: HTMLButtonElement | null = null;
     /** 缩放系数：设计像素 → CSS 像素（FIXED_WIDTH：宽恒定 1080 设计像素） */
     private _scale = 1;
 
@@ -180,9 +185,41 @@ export class DomHud extends Component {
 
     private _onGameOver(): void {
         this._fillGameOver();
+        this._syncAdButton(this._failAdBtn);
         if (this._failPanel) {
             this._failPanel.style.display = 'flex';
         }
+    }
+
+    /** 结算双倍广告按钮：文案=本次收益金额，限次用完/无收益时隐藏 */
+    private _syncAdButton(btn: HTMLButtonElement | null): void {
+        if (!btn) {
+            return;
+        }
+        const earned = Math.max(0, this._lastGoldEarned);
+        const can = earned > 0 && AdService.instance.canShow('doubleSettle');
+        btn.style.display = can ? '' : 'none';
+        if (can) {
+            const left = AdService.instance.remaining('doubleSettle');
+            btn.textContent = `▶ 看广告 金币×2（今日 ${3 - left}/3）`;
+        }
+    }
+
+    /** 看广告领双倍结算金币（AdService 计次，看完发等额金币） */
+    private _claimDoubleGold(btn: HTMLButtonElement | null): void {
+        const earned = Math.max(0, this._lastGoldEarned);
+        if (earned <= 0 || !AdService.instance.canShow('doubleSettle')) {
+            return;
+        }
+        AdService.instance.claimReward('doubleSettle', () => {
+            GameManager.instance.addGold(earned);
+            SoundFx.play('coin');
+            // 已翻倍：清零缓存防重复领取，按钮收起
+            this._lastGoldEarned = 0;
+            this._syncAdButton(this._failAdBtn);
+            this._syncAdButton(this._clearAdBtn);
+            void btn;
+        });
     }
 
     private _onStageClear(stageId: number, bonus: number): void {
@@ -201,6 +238,7 @@ export class DomHud extends Component {
             this._clearGold.textContent =
                 `金币收益　+${earned}` + (bonus > 0 ? `（含首通奖励 +${bonus}）` : '');
         }
+        this._syncAdButton(this._clearAdBtn);
         if (this._clearPanel) {
             this._clearPanel.style.display = 'flex';
         }
@@ -609,6 +647,8 @@ export class DomHud extends Component {
         this._failLevel = this._label(card, 'failLine', '');
         this._failGold = this._label(card, 'failGold', '');
         card.appendChild(this._menuButton('重 试 一 次', '#ffa726', () => this._restart()));
+        this._failAdBtn = this._menuButton('', '#9ccc65', () => this._claimDoubleGold(this._failAdBtn));
+        card.appendChild(this._failAdBtn);
         card.appendChild(this._menuButton('返 回 主 城', '#4dd0e9', () => {
             if (this._failPanel) {
                 this._failPanel.style.display = 'none';
@@ -630,6 +670,8 @@ export class DomHud extends Component {
         ccard.appendChild(this._clearTitle);
         this._clearLines = this._label(ccard, 'failLine', '');
         this._clearGold = this._label(ccard, 'failGold', '');
+        this._clearAdBtn = this._menuButton('', '#9ccc65', () => this._claimDoubleGold(this._clearAdBtn));
+        ccard.appendChild(this._clearAdBtn);
         ccard.appendChild(this._menuButton('返 回 主 城', '#7bdc7b', () => {
             if (this._clearPanel) {
                 this._clearPanel.style.display = 'none';
