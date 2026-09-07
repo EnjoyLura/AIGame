@@ -129,6 +129,8 @@ export class GameManager {
     load(): void {
         const raw = sys.localStorage.getItem(GameManager.SAVE_KEY);
         if (!raw) {
+            // 新存档：首次赠送满体力，避免 0 体力无获取途径卡死出战
+            this.res.add('stamina', BattleConfig.STAMINA_MAX);
             return;
         }
         try {
@@ -137,6 +139,10 @@ export class GameManager {
             this.totalKills = data.totalKills ?? 0;
             if (data.gold !== undefined) {
                 this.res.add('gold', data.gold);
+            }
+            // 资源系统上线前的旧存档没有 res 字段：补送满体力防止 0 体力卡死
+            if (!data.res || !data.res.amounts) {
+                this.res.add('stamina', BattleConfig.STAMINA_MAX);
             }
             this.res.deserialize(data.res ?? null);
             if (data.upgrades) {

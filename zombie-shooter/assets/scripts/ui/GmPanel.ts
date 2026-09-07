@@ -2,6 +2,8 @@ import { _decorator, Component, profiler } from 'cc';
 const { ccclass } = _decorator;
 import { BattleManager } from '../battle/BattleManager';
 import { SoundFx } from '../core/SoundFx';
+import { GameManager } from '../core/GameManager';
+import { BattleConfig } from '../config/GameConfig';
 
 /**
  * GM 调试面板（浏览器预览专用）：DOM 覆盖层按钮，免等待快速验证技能/大招/波次/失败流程。
@@ -79,6 +81,9 @@ export class GmPanel extends Component {
         this._addButton(body, '下一波', () => this._bm()?.gmNextWave());
         this._addButton(body, '车回满', () => this._bm()?.gmVehicleRefill());
         this._addButton(body, '车打空(失败)', () => this._bm()?.gmVehicleFail());
+        this._addButton(body, '体力回满', () => {
+            GameManager.instance.res.add('stamina', BattleConfig.STAMINA_MAX);
+        });
 
         // ---- 指定怪型刷新（单测行为，不占波次进度） ----
         const mobRow = document.createElement('div');

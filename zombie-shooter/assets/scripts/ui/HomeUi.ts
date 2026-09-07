@@ -100,11 +100,16 @@ export class HomeUi extends Component {
     private _startBattle(): void {
         const gm = GameManager.instance;
         if (!this._root || !gm.canStartRun()) {
+            this._refresh();
             return;
         }
         this._root.style.display = 'none';
         eventCenter.emit(GameEvent.GAME_RESTART);
-        BattleManager.instance?.beginRun();
+        // beginRun 失败（体力不足等）必须回滚显示，否则主城藏起后整屏卡死
+        if (!BattleManager.instance?.beginRun()) {
+            this._root.style.display = 'flex';
+            this._refresh();
+        }
     }
 
     /** 场景/立绘 SpriteFrame → CSS 背景图 URL；缺图返回 null */
