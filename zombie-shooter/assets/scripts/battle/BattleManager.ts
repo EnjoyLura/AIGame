@@ -529,7 +529,9 @@ export class BattleManager extends Component {
         if (!this.isEnemyHandleValid(handle)) {
             return false;
         }
-        const crit = canCrit && Math.random() < BattleConfig.CRIT_CHANCE;
+        // 暴击率 = 基础 + 来源英雄的武器核心加成
+        const critBonus = sourceId ? (this._heroes.find(h => h.def.id === sourceId)?.critBonus ?? 0) : 0;
+        const crit = canCrit && Math.random() < BattleConfig.CRIT_CHANCE + critBonus;
         const damage = Math.max(1, Math.round(baseDamage * (crit ? BattleConfig.CRIT_MULTI : 1)));
         const enemy = handle.enemy;
         this.spawnDamageNumber(enemy.node.worldPosition, damage, crit);

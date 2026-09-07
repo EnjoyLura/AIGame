@@ -1,19 +1,22 @@
 import { GameManager } from './GameManager';
 
 /**
- * 英雄成长系统（骨架）：英雄等级 + 三槽装备。
+ * 英雄成长系统：英雄等级 + 五槽装备 + 主武器强化 + 武器核心。
  * - 等级：金币升级，每级攻击 +5%，上限 HERO_LEVEL_MAX。
- * - 装备：每名英雄固定三槽（枪口/弹匣/瞄具），固定装备池分四档品质，
+ * - 装备：每名英雄五槽（头盔/护甲/护腿/手套/战靴），固定装备池分四档品质，
  *   金币购买即穿上（同槽替换、旧件不返还），可继续金币强化（每级 +8% 本件属性）。
- * - 数据真值存 GameManager（heroLevels / equips），本类只提供查询、消费与乘区计算；
- *   战斗侧在 beginRun 用 atkMulOf 合并乘区、在部署后用 applyEquipStats 追加射速/射程。
+ * - 主武器：每英雄独立强化等级，每级攻击 +6%，上限 WEAPON_LEVEL_MAX。
+ * - 武器核心：每英雄一个核心槽，嵌入后提供特殊效果（暴击/攻速/攻击加成），可替换。
+ * - 数据真值存 GameManager（heroLevels / equips / weaponLv / weaponCores），
+ *   本类只提供查询、消费与乘区计算；战斗侧在 beginRun 用 atkMulOf 合并攻击乘区、
+ *   在部署后用 applyEquipStats 追加射速/射程/暴击加成。
  */
 
-/** 装备槽位 */
-export type EquipSlot = 'muzzle' | 'clip' | 'scope';
-export const EQUIP_SLOTS: EquipSlot[] = ['muzzle', 'clip', 'scope'];
+/** 装备槽位（五部位） */
+export type EquipSlot = 'head' | 'body' | 'legs' | 'gloves' | 'shoes';
+export const EQUIP_SLOTS: EquipSlot[] = ['head', 'body', 'legs', 'gloves', 'shoes'];
 export const EQUIP_SLOT_NAMES: Record<EquipSlot, string> = {
-    muzzle: '枪口', clip: '弹匣', scope: '瞄具',
+    head: '头盔', body: '护甲', legs: '护腿', gloves: '手套', shoes: '战靴',
 };
 
 /** 装备品质（tier 1-4）；品质越高属性与价格越高 */
@@ -53,23 +56,68 @@ export interface EquipState {
     lv: number;
 }
 
-/** 固定装备池：每槽 4 件，覆盖四档品质（低档可当过渡装） */
+// ---- 主武器强化 ----
+
+export const WEAPON_LEVEL_MAX = 20;
+/** 主武器每级攻击加成 */
+export const WEAPON_ATK_STEP = 0.06;
+export const WEAPON_UPGRADE_BASE_COST = 200;
+export const WEAPON_UPGRADE_COST_MUL = 1.3;
+
+// ---- 武器核心 ----
+
+export interface WeaponCoreDef {
+    id: string;
+    name: string;
+    /** 品质 1-2 */
+    tier: 1 | 2;
+    /** 暴击率加成（绝对值，如 0.05 = +5%） */
+    critPct?: number;
+    /** 攻击加成 */
+    atkPct?: number;
+    /** 射速加成 */
+    ratePct?: number;
+    baseCost: number;
+    desc: string;
+}
+
+/** 武器核心池：嵌入主武器获得特殊效果，同槽替换不返还 */
+export const WEAPON_CORE_DEFS: WeaponCoreDef[] = [
+    { id: 'core_crit1', name: '猎杀核心·I', tier: 1, critPct: 0.05, baseCost: 600, desc: '暴击率 +5%' },
+    { id: 'core_crit2', name: '猎杀核心·II', tier: 2, critPct: 0.10, baseCost: 1800, desc: '暴击率 +10%' },
+    { id: 'core_atk1', name: '强袭核心·I', tier: 1, atkPct: 0.10, baseCost: 500, desc: '攻击 +10%' },
+    { id: 'core_atk2', name: '强袭核心·II', tier: 2, atkPct: 0.20, baseCost: 1600, desc: '攻击 +20%' },
+    { id: 'core_rate1', name: '狂热核心·I', tier: 1, ratePct: 0.08, baseCost: 550, desc: '射速 +8%' },
+    { id: 'core_rate2', name: '狂热核心·II', tier: 2, ratePct: 0.16, baseCost: 1700, desc: '射速 +16%' },
+];
+
+/** 固定装备池：五槽各 4 件，覆盖四档品质；属性倾向按部位差异化（低档可当过渡装） */
 export const EQUIPMENT_DEFS: EquipmentDef[] = [
-    // 枪口：攻击向
-    { id: 'muzzle_std', slot: 'muzzle', name: '制式枪口', tier: 1, atkPct: 0.08, baseCost: 150 },
-    { id: 'muzzle_heavy', slot: 'muzzle', name: '重型枪口', tier: 2, atkPct: 0.16, baseCost: 400 },
-    { id: 'muzzle_boost', slot: 'muzzle', name: '增压器枪口', tier: 3, atkPct: 0.26, baseCost: 1000 },
-    { id: 'muzzle_plasma', slot: 'muzzle', name: '等离子枪口', tier: 4, atkPct: 0.40, baseCost: 2400 },
-    // 弹匣：射速向
-    { id: 'clip_std', slot: 'clip', name: '标准弹匣', tier: 1, ratePct: 0.06, baseCost: 150 },
-    { id: 'clip_rapid', slot: 'clip', name: '速射弹匣', tier: 2, ratePct: 0.12, baseCost: 400 },
-    { id: 'clip_gyro', slot: 'clip', name: '陀螺弹匣', tier: 3, ratePct: 0.20, baseCost: 1000 },
-    { id: 'clip_quantum', slot: 'clip', name: '量子弹匣', tier: 4, ratePct: 0.32, baseCost: 2400 },
-    // 瞄具：射程向（附带少量攻击）
-    { id: 'scope_std', slot: 'scope', name: '机械瞄具', tier: 1, rangePct: 0.10, baseCost: 120 },
-    { id: 'scope_long', slot: 'scope', name: '加长瞄具', tier: 2, rangePct: 0.18, baseCost: 350 },
-    { id: 'scope_thermal', slot: 'scope', name: '热成像瞄具', tier: 3, rangePct: 0.28, atkPct: 0.06, baseCost: 900 },
-    { id: 'scope_quantum', slot: 'scope', name: '量子瞄具', tier: 4, rangePct: 0.42, atkPct: 0.10, baseCost: 2200 },
+    // 头盔：攻击向（火控/观瞄在头部）
+    { id: 'head_std', slot: 'head', name: '战术头盔', tier: 1, atkPct: 0.08, baseCost: 150 },
+    { id: 'head_tactic', slot: 'head', name: '火控头盔', tier: 2, atkPct: 0.16, baseCost: 400 },
+    { id: 'head_radar', slot: 'head', name: '雷达头盔', tier: 3, atkPct: 0.26, baseCost: 1000 },
+    { id: 'head_neural', slot: 'head', name: '神经link头盔', tier: 4, atkPct: 0.40, baseCost: 2400 },
+    // 护甲：攻击+射速均衡
+    { id: 'body_std', slot: 'body', name: '制式护甲', tier: 1, atkPct: 0.05, ratePct: 0.03, baseCost: 160 },
+    { id: 'body_alloy', slot: 'body', name: '合金护甲', tier: 2, atkPct: 0.10, ratePct: 0.06, baseCost: 420 },
+    { id: 'body_exo', slot: 'body', name: '外骨骼护甲', tier: 3, atkPct: 0.16, ratePct: 0.10, baseCost: 1050 },
+    { id: 'body_nano', slot: 'body', name: '纳米护甲', tier: 4, atkPct: 0.24, ratePct: 0.16, baseCost: 2500 },
+    // 护腿：射程向（机动走位拉长输出距离）
+    { id: 'legs_std', slot: 'legs', name: '制式护腿', tier: 1, rangePct: 0.08, baseCost: 130 },
+    { id: 'legs_servo', slot: 'legs', name: '伺服护腿', tier: 2, rangePct: 0.15, baseCost: 380 },
+    { id: 'legs_thrust', slot: 'legs', name: '推进护腿', tier: 3, rangePct: 0.24, baseCost: 950 },
+    { id: 'legs_phase', slot: 'legs', name: '相位护腿', tier: 4, rangePct: 0.36, baseCost: 2300 },
+    // 手套：射速向
+    { id: 'gloves_std', slot: 'gloves', name: '战术手套', tier: 1, ratePct: 0.05, baseCost: 140 },
+    { id: 'gloves_rapid', slot: 'gloves', name: '速射手套', tier: 2, ratePct: 0.10, baseCost: 400 },
+    { id: 'gloves_gyro', slot: 'gloves', name: '陀螺手套', tier: 3, ratePct: 0.17, baseCost: 1000 },
+    { id: 'gloves_quantum', slot: 'gloves', name: '量子手套', tier: 4, ratePct: 0.28, baseCost: 2400 },
+    // 战靴：射程+攻速均衡
+    { id: 'shoes_std', slot: 'shoes', name: '制式战靴', tier: 1, rangePct: 0.05, ratePct: 0.03, baseCost: 130 },
+    { id: 'shoes_sprint', slot: 'shoes', name: '疾行战靴', tier: 2, rangePct: 0.10, ratePct: 0.05, baseCost: 370 },
+    { id: 'shoes_blink', slot: 'shoes', name: '闪现战靴', tier: 3, rangePct: 0.16, ratePct: 0.09, baseCost: 950 },
+    { id: 'shoes_warp', slot: 'shoes', name: '跃迁战靴', tier: 4, rangePct: 0.26, ratePct: 0.14, baseCost: 2300 },
 ];
 
 /** 英雄解锁价格表（商城一次性买断；未收录的英雄不可购买） */
@@ -124,6 +172,74 @@ export class HeroSystem {
             return false;
         }
         this._gm.heroLevels[heroId] = this.heroLevel(heroId) + 1;
+        this._gm.save();
+        return true;
+    }
+
+    // ================= 主武器强化 =================
+
+    weaponLevel(heroId: string): number {
+        return this._gm.weaponLv[heroId] ?? 1;
+    }
+
+    weaponUpgradeCost(heroId: string): number {
+        return Math.round(WEAPON_UPGRADE_BASE_COST * Math.pow(WEAPON_UPGRADE_COST_MUL, this.weaponLevel(heroId) - 1));
+    }
+
+    isWeaponMaxLevel(heroId: string): boolean {
+        return this.weaponLevel(heroId) >= WEAPON_LEVEL_MAX;
+    }
+
+    /** 主武器攻击乘区（Lv.1 = 1.0） */
+    weaponAtkMul(heroId: string): number {
+        return 1 + WEAPON_ATK_STEP * (this.weaponLevel(heroId) - 1);
+    }
+
+    /** 金币强化主武器；成功返回 true */
+    upgradeWeapon(heroId: string): boolean {
+        if (!this._gm.isHeroOwned(heroId) || this.isWeaponMaxLevel(heroId)) {
+            return false;
+        }
+        if (!this._gm.res.spend('gold', this.weaponUpgradeCost(heroId))) {
+            return false;
+        }
+        this._gm.weaponLv[heroId] = this.weaponLevel(heroId) + 1;
+        this._gm.save();
+        return true;
+    }
+
+    // ================= 武器核心 =================
+
+    coreDef(coreId: string): WeaponCoreDef | null {
+        return WEAPON_CORE_DEFS.find(c => c.id === coreId) ?? null;
+    }
+
+    /** 某英雄已嵌武器核心（无则 null） */
+    weaponCore(heroId: string): WeaponCoreDef | null {
+        const id = this._gm.weaponCores[heroId]?.id;
+        return id ? this.coreDef(id) : null;
+    }
+
+    /** 金币购买核心并嵌入主武器（同槽替换不返还） */
+    buyCore(heroId: string, coreId: string): boolean {
+        const def = this.coreDef(coreId);
+        if (!def || !this._gm.isHeroOwned(heroId)) {
+            return false;
+        }
+        if (!this._gm.res.spend('gold', def.baseCost)) {
+            return false;
+        }
+        this._gm.weaponCores[heroId] = { id: coreId };
+        this._gm.save();
+        return true;
+    }
+
+    /** 拆除核心（免费，核心销毁） */
+    removeCore(heroId: string): boolean {
+        if (!this._gm.weaponCores[heroId]) {
+            return false;
+        }
+        delete this._gm.weaponCores[heroId];
         this._gm.save();
         return true;
     }
@@ -194,7 +310,7 @@ export class HeroSystem {
         return base * Math.pow(1 + EQUIP_UPGRADE_STEP, state.lv - 1);
     }
 
-    /** 某英雄装备汇总乘区：atk=攻击、rate=射速（interval 除数）、range=射程 */
+    /** 某英雄装备+核心汇总乘区：atk=攻击、rate=射速（interval 除数）、range=射程 */
     equipMulOf(heroId: string): { atk: number; rate: number; range: number } {
         let atk = 0, rate = 0, range = 0;
         for (const slot of EQUIP_SLOTS) {
@@ -206,19 +322,27 @@ export class HeroSystem {
             rate += this._equipValue(state, 'ratePct');
             range += this._equipValue(state, 'rangePct');
         }
+        const core = this.weaponCore(heroId);
+        if (core) {
+            atk += core.atkPct ?? 0;
+            rate += core.ratePct ?? 0;
+        }
         return { atk: 1 + atk, rate: 1 + rate, range: 1 + range };
     }
 
-    /** 英雄总攻击乘区（等级 × 装备；beginRun 与 metaAtkMul 相乘后进 applyMetaAtk） */
+    /** 英雄总攻击乘区（等级 × 主武器 × 装备；beginRun 与 metaAtkMul 相乘后进 applyMetaAtk） */
     atkMulOf(heroId: string): number {
-        return this.heroAtkMul(heroId) * this.equipMulOf(heroId).atk;
+        return this.heroAtkMul(heroId) * this.weaponAtkMul(heroId) * this.equipMulOf(heroId).atk;
     }
 
-    /** 部署后把装备的射速/射程加成追加到英雄实例（interval 缩小、range 放大） */
-    applyEquipStats(hero: { def: { id: string }; interval: number; range: number }): void {
+    /** 部署后把装备/核心的射速/射程/暴击加成追加到英雄实例（interval 缩小、range 放大） */
+    applyEquipStats(hero: { def: { id: string }; interval: number; range: number; critBonus?: number }): void {
         const mul = this.equipMulOf(hero.def.id);
         hero.interval = Math.max(0.12, hero.interval / mul.rate);
         hero.range = hero.range * mul.range;
+        if (hero.critBonus !== undefined) {
+            hero.critBonus = this.weaponCore(hero.def.id)?.critPct ?? 0;
+        }
     }
 
     /** 某槽推荐装备（品质最高且比当前更强的下一件；供 UI 免做完整背包） */

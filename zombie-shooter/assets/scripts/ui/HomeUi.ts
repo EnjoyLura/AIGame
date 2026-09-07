@@ -8,7 +8,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP } from '../core/HeroSystem';
+import { HeroSystem, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP, WEAPON_CORE_DEFS } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
 
@@ -412,6 +412,105 @@ export class HomeUi extends Component {
         }
     }
 
+    /** 编队弹出面板（战斗页入口）：四槽位 + 可选英雄列表，上阵/下阵即时刷新 */
+    private _openLineupPanel(): void {
+        if (!this._root || document.querySelector('#homeUi .lineupPanelOverlay')) {
+            return;
+        }
+        const ov = document.createElement('div');
+        ov.className = 'lineupPanelOverlay';
+        ov.onclick = (e) => {
+            e.stopPropagation();
+            ov.remove();
+        };
+        const card = document.createElement('div');
+        card.className = 'lineupPanelCard';
+        card.onclick = (e) => e.stopPropagation();
+
+        const title = document.createElement('div');
+        title.className = 'lineupPanelTitle';
+        title.textContent = '出 战 编 队';
+        card.appendChild(title);
+
+        // 槽位行 + 候选列表（内容由 refresh 重建）
+        const slots = document.createElement('div');
+        slots.className = 'lineupRow center';
+        const pool = document.createElement('div');
+        pool.className = 'lineupPool';
+        card.appendChild(slots);
+        card.appendChild(pool);
+
+        const tip = document.createElement('div');
+        tip.className = 'lineupTip';
+        tip.textContent = '点击下方英雄上阵 / 再次点击下阵（最多 4 人，至少 1 人）';
+        card.appendChild(tip);
+
+        const close = document.createElement('button');
+        close.className = 'heroCardBtn cyan lineupClose';
+        close.textContent = '关 闭';
+        close.onclick = (e) => {
+            e.stopPropagation();
+            ov.remove();
+        };
+        card.appendChild(close);
+
+        ov.appendChild(card);
+        this._root.appendChild(ov);
+        this._refreshLineupPanel(slots, pool);
+    }
+
+    /** 编队面板刷新：槽位与候选英雄重绘 */
+    private _refreshLineupPanel(slots: HTMLDivElement, pool: HTMLDivElement): void {
+        const gm = GameManager.instance;
+        slots.innerHTML = '';
+        pool.innerHTML = '';
+        // 槽位
+        for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'lineupSlot' + (i < gm.lineup.length ? '' : ' empty');
+            const id = gm.lineup[i];
+            if (id) {
+                this._tex(`characters/hero_${id}`, u => { slot.style.backgroundImage = u; });
+                slot.title = '点击下阵';
+                slot.onclick = (e) => {
+                    e.stopPropagation();
+                    if (gm.toggleLineupMember(id)) {
+                        SoundFx.play('ui');
+                        this._refreshLineupPanel(slots, pool);
+                        this._refreshHeroes();
+                    }
+                };
+            } else {
+                slot.textContent = '+';
+            }
+            slots.appendChild(slot);
+        }
+        // 候选英雄（仅已拥有）
+        for (const def of HERO_DEFS) {
+            if (!gm.isHeroOwned(def.id)) {
+                continue;
+            }
+            const inLineup = gm.isInLineup(def.id);
+            const item = document.createElement('div');
+            item.className = 'lineupPoolItem' + (inLineup ? ' active' : '');
+            this._tex(`characters/hero_${def.id}`, u => { item.style.backgroundImage = u; });
+            const name = document.createElement('div');
+            name.className = 'lineupPoolName';
+            name.textContent = def.name;
+            item.appendChild(name);
+            item.title = inLineup ? '点击下阵' : '点击上阵';
+            item.onclick = (e) => {
+                e.stopPropagation();
+                if (gm.toggleLineupMember(def.id)) {
+                    SoundFx.play('ui');
+                    this._refreshLineupPanel(slots, pool);
+                    this._refreshHeroes();
+                }
+            };
+            pool.appendChild(item);
+        }
+    }
+
     /** 模拟广告层：AD_START 弹出 3 秒倒计时（真实观感占位），AD_END 关闭 */
     private _buildAdOverlay(root: HTMLDivElement): void {
         const ov = document.createElement('div');
@@ -658,14 +757,109 @@ export class HomeUi extends Component {
         } else {
             upBtn.style.display = 'none';
         }
+        // 主武器强化按钮
+        const wpBtn = document.createElement('button');
+        wpBtn.className = 'heroCardBtn';
+        if (owned) {
+            if (hs.isWeaponMaxLevel(def.id)) {
+                wpBtn.textContent = '武器已满级';
+                wpBtn.disabled = true;
+            } else {
+                const wCost = hs.weaponUpgradeCost(def.id);
+                wpBtn.textContent = `武器强化 Lv.${hs.weaponLevel(def.id)} ${wCost}金`;
+                wpBtn.disabled = gm.gold < wCost;
+                wpBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (hs.upgradeWeapon(def.id)) {
+                        SoundFx.play('buy');
+                        this._refreshHeroes();
+                    }
+                };
+            }
+        } else {
+            wpBtn.style.display = 'none';
+        }
         btnCol.appendChild(lineupBtn);
         btnCol.appendChild(upBtn);
+        btnCol.appendChild(wpBtn);
 
         body.appendChild(avatar);
         body.appendChild(info);
         body.appendChild(btnCol);
 
-        // 装备栏（仅已拥有英雄；未拥有显示锁定提示）
+        // 主武器区：核心槽（仅已拥有英雄；未拥有显示锁定提示）
+        const secWp = document.createElement('div');
+        secWp.className = 'equipSectionLab';
+        secWp.textContent = '── 主 武 器 ──';
+        body.appendChild(secWp);
+        const wpBox = document.createElement('div');
+        wpBox.className = 'equipSlots';
+        body.appendChild(wpBox);
+        if (!owned) {
+            const lockTip = document.createElement('div');
+            lockTip.className = 'equipStat';
+            lockTip.textContent = '解锁英雄后开放武器养成';
+            wpBox.appendChild(lockTip);
+
+            const secLock = document.createElement('div');
+            secLock.className = 'equipSectionLab';
+            secLock.textContent = '── 装 备 栏 ──';
+            body.appendChild(secLock);
+            const lockEq = document.createElement('div');
+            lockEq.className = 'equipStat';
+            lockEq.textContent = '解锁英雄后开放装备栏';
+            body.appendChild(lockEq);
+            return;
+        }
+        {
+            const core = hs.weaponCore(def.id);
+            const coreRow = document.createElement('div');
+            coreRow.className = 'equipRow';
+            const coreInfo = document.createElement('div');
+            coreInfo.className = 'equipInfo';
+            const coreBtn = document.createElement('button');
+            coreBtn.className = 'heroCardBtn';
+            if (core) {
+                coreInfo.innerHTML =
+                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[core.tier - 1]}">核心：${core.name}（${EQUIP_TIER_NAMES[core.tier - 1]}）</div>` +
+                    `<div class="equipStat">${core.desc}</div>`;
+                coreBtn.textContent = '拆 除';
+                coreBtn.onclick = () => {
+                    if (hs.removeCore(def.id)) {
+                        SoundFx.play('ui');
+                        this._refreshHeroes();
+                    }
+                };
+            } else {
+                // 推荐核心：已嵌低档时推下一档，否则推价格最低的入门件
+                const rec = WEAPON_CORE_DEFS
+                    .slice()
+                    .sort((a, b) => (a.tier - b.tier) || (a.baseCost - b.baseCost))[0] ?? null;
+                if (rec) {
+                    coreInfo.innerHTML =
+                        `<div class="equipName" style="color:${EQUIP_TIER_COLORS[rec.tier - 1]}">核心：未嵌入</div>` +
+                        `<div class="equipStat">推荐 ${rec.name} · ${rec.desc}</div>`;
+                    coreBtn.textContent = `嵌 入 ${rec.baseCost}金`;
+                    coreBtn.disabled = gm.gold < rec.baseCost;
+                    coreBtn.onclick = () => {
+                        if (hs.buyCore(def.id, rec.id)) {
+                            SoundFx.play('buy');
+                            this._refreshHeroes();
+                        }
+                    };
+                } else {
+                    coreInfo.innerHTML = `<div class="equipName">核心：暂无可购核心</div>`;
+                    coreBtn.style.display = 'none';
+                }
+            }
+            coreBtn.style.opacity = coreBtn.disabled ? '0.45' : '1';
+            coreRow.appendChild(coreInfo);
+            coreRow.appendChild(coreBtn);
+            wpBox.appendChild(coreRow);
+        }
+
+        // 装备栏（五部位）
         const secEq = document.createElement('div');
         secEq.className = 'equipSectionLab';
         secEq.textContent = '── 装 备 栏 ──';
@@ -673,13 +867,6 @@ export class HomeUi extends Component {
         const slotsBox = document.createElement('div');
         slotsBox.className = 'equipSlots';
         body.appendChild(slotsBox);
-        if (!owned) {
-            const lockTip = document.createElement('div');
-            lockTip.className = 'equipStat';
-            lockTip.textContent = '解锁英雄后开放装备栏';
-            slotsBox.appendChild(lockTip);
-            return;
-        }
         for (const slot of EQUIP_SLOTS) {
             const cur = hs.equipped(def.id, slot);
             const eqRow = document.createElement('div');
@@ -993,6 +1180,18 @@ export class HomeUi extends Component {
             start.style.boxShadow = '0 calc(6px * var(--hs,1)) 0 rgba(0,0,0,.4)';
         });
         battle.appendChild(start);
+
+        // 编队按钮：弹出编队面板（上阵/下阵）
+        const lineupOpen = document.createElement('button');
+        lineupOpen.className = 'lineupOpen';
+        lineupOpen.textContent = '编 队';
+        lineupOpen.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            SoundFx.play('ui');
+            this._openLineupPanel();
+        };
+        battle.appendChild(lineupOpen);
 
         // 基地强化（过渡期挂在战斗页底部，基地页实装后迁走）
         const upTitle = document.createElement('div');
@@ -1308,6 +1507,31 @@ export class HomeUi extends Component {
 #homeUi .equipInfo { flex: 1; min-width: 0; }
 #homeUi .equipName { font-size: calc(30px * var(--hs,1)); font-weight: 700; }
 #homeUi .equipStat { font-size: calc(26px * var(--hs,1)); color: #8fa0ab; margin-top: calc(4px * var(--hs,1)); }
+
+/* ---- 编队按钮与弹出面板 ---- */
+#homeUi .lineupOpen { margin-top: calc(20px * var(--hs,1)); min-width: calc(360px * var(--hs,1));
+  padding: calc(18px * var(--hs,1)) calc(50px * var(--hs,1)); border-radius: calc(16px * var(--hs,1)); cursor: pointer;
+  font-size: calc(32px * var(--hs,1)); font-weight: 800; color: #062028; letter-spacing: calc(3px * var(--hs,1));
+  border: none; filter: drop-shadow(0 calc(5px * var(--hs,1)) 0 rgba(0,0,0,.4));
+  background: linear-gradient(180deg, #b3f0ff, #4db8dd); }
+#homeUi .lineupOpen:active { transform: translateY(calc(3px * var(--hs,1))); }
+#homeUi .lineupPanelOverlay { position: fixed; inset: 0; z-index: 9200; display: flex; align-items: center; justify-content: center;
+  background: rgba(2,6,10,.85); pointer-events: auto; }
+#homeUi .lineupPanelCard { display: flex; flex-direction: column; align-items: center; gap: calc(24px * var(--hs,1));
+  width: calc(960px * var(--hs,1)); max-height: 86vh; overflow-y: auto; padding: calc(36px * var(--hs,1));
+  border-radius: calc(22px * var(--hs,1)); background: linear-gradient(180deg, #17222c, #0c141c);
+  border: calc(3px * var(--hs,1)) solid rgba(255,204,85,.5); box-shadow: 0 calc(16px * var(--hs,1)) 0 rgba(0,0,0,.5); }
+#homeUi .lineupPanelTitle { font-size: calc(48px * var(--hs,1)); font-weight: 800; color: #ffd76a; letter-spacing: calc(6px * var(--hs,1)); }
+#homeUi .lineupRow.center { justify-content: center; }
+#homeUi .lineupPool { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(20px * var(--hs,1)); width: 100%; }
+#homeUi .lineupPoolItem { width: calc(170px * var(--hs,1)); height: calc(200px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
+  background: rgba(10,18,26,.72) center / contain no-repeat; border: calc(3px * var(--hs,1)) solid rgba(120,150,170,.35);
+  cursor: pointer; position: relative; transition: transform .12s; }
+#homeUi .lineupPoolItem:active { transform: scale(.94); }
+#homeUi .lineupPoolItem.active { border-color: rgba(255,204,85,.85); box-shadow: 0 0 calc(16px * var(--hs,1)) rgba(255,204,85,.35); }
+#homeUi .lineupPoolName { position: absolute; left: 0; right: 0; bottom: calc(6px * var(--hs,1)); text-align: center;
+  font-size: calc(24px * var(--hs,1)); color: #ecf1f1; text-shadow: 0 calc(2px * var(--hs,1)) 0 rgba(0,0,0,.8); }
+#homeUi .lineupClose { align-self: center; }
 `;
         document.head.appendChild(style);
     }

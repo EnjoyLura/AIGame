@@ -30,6 +30,8 @@ export class Hero extends Component {
 
     /** 基础攻击（局外强化的乘区基准，beginRun 时按 meta 乘区重算 atk） */
     atkBase = 0;
+    /** 武器核心暴击加成（绝对值；部署时由 HeroSystem 写入，applyDamage 叠加基础暴击率） */
+    critBonus = 0;
 
     init(def: HeroDef): void {
         this.def = def;

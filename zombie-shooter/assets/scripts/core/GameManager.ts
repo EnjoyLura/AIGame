@@ -2,7 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS } from '../battle/HeroDef';
-import { EQUIP_SLOTS, EQUIPMENT_DEFS, HeroSystem } from './HeroSystem';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, HeroSystem } from './HeroSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -47,6 +47,10 @@ export class GameManager {
     heroLevels: Record<string, number> = {};
     /** 英雄装备（heroId → 槽位 → 装备状态；读写走 HeroSystem） */
     equips: Record<string, Record<string, { id: string; lv: number } | null>> = {};
+    /** 主武器强化等级（heroId → Lv，缺省 1；读写走 HeroSystem） */
+    weaponLv: Record<string, number> = {};
+    /** 武器核心（heroId → 已嵌核心 id；读写走 HeroSystem） */
+    weaponCores: Record<string, { id: string } | null> = {};
 
     /** 金币兼容访问器（真身在资源仓库） */
     get gold(): number { return this.res.get('gold'); }
@@ -202,6 +206,8 @@ export class GameManager {
             ownedHeroes: [...this.ownedHeroes],
             heroLevels: this.heroLevels,
             equips: this.equips,
+            weaponLv: this.weaponLv,
+            weaponCores: this.weaponCores,
             gold: this.gold,
             upgrades: this._upgrades,
             res: this.res.serialize(),
@@ -263,6 +269,24 @@ export class GameManager {
                             }
                             this.equips[d.id][slot] = { id: st.id, lv: Math.max(1, Math.floor(st.lv)) };
                         }
+                    }
+                }
+            }
+            // 主武器强化等级（缺省 1）
+            if (data.weaponLv && typeof data.weaponLv === 'object') {
+                for (const d of HERO_DEFS) {
+                    const lv = data.weaponLv[d.id];
+                    if (typeof lv === 'number' && lv >= 1) {
+                        this.weaponLv[d.id] = Math.floor(lv);
+                    }
+                }
+            }
+            // 武器核心（只接受合法核心 id）
+            if (data.weaponCores && typeof data.weaponCores === 'object') {
+                for (const d of HERO_DEFS) {
+                    const c = data.weaponCores[d.id];
+                    if (c && typeof c.id === 'string' && WEAPON_CORE_DEFS.some(w => w.id === c.id)) {
+                        this.weaponCores[d.id] = { id: c.id };
                     }
                 }
             }
