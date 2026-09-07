@@ -222,13 +222,12 @@ export class GameManager {
             this.totalKills = data.totalKills ?? 0;
             this.stageCleared = data.stageCleared ?? 0;
             this.currentStage = data.currentStage ?? 1;
-            // 已拥有英雄：旧档无此字段视为全拥有（英雄购买上线前的存档不做回锁）；
-            // 新档字段必须含合法 id，空/全非法回退仅步枪手
+            // 已拥有英雄：无字段（旧档）或空/全非法一律回退仅步枪手，其余英雄商城金币解锁
             if (Array.isArray(data.ownedHeroes)) {
                 const validOwned = data.ownedHeroes.filter((id: unknown) => typeof id === 'string' && HERO_DEFS.some(d => d.id === id));
                 this.ownedHeroes = validOwned.length > 0 ? validOwned : ['rifle'];
             } else {
-                this.ownedHeroes = HERO_DEFS.map(d => d.id);
+                this.ownedHeroes = ['rifle'];
             }
             // 编队：合法 id 且必须已拥有（旧档 lineup 可能含未拥有英雄），空则回退首个已拥有英雄
             if (Array.isArray(data.lineup)) {
