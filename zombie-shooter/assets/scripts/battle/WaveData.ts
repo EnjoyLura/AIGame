@@ -80,6 +80,9 @@ export const MONSTERS: Record<string, MonsterInfo> = {
     eagle: eagle(90),
 };
 
+/** 关卡表构建辅助：按倍率批量生成波次怪物（StageData 用） */
+export const mob = { stoneape, dog, boar, bear, eagle };
+
 export const WAVES: WaveInfo[] = [
     { count: 8,  interval: 1.2,  maxAlive: 6,  eliteChance: 0,    monsters: [stoneape(100, 135)] },
     { count: 10, interval: 1.05, maxAlive: 7,  eliteChance: 0,    monsters: [stoneape(140, 150)] },

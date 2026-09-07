@@ -19,7 +19,8 @@ import { DomHud } from '../ui/DomHud';
 import { LevelUpPanel } from '../ui/LevelUpPanel';
 import { GmPanel } from '../ui/GmPanel';
 import { AbilityBar } from '../ui/AbilityBar';
-import { MonsterInfo, WaveInfo, WAVES, MONSTERS } from './WaveData';
+import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
+import { stageWaves, stageInfo, FINAL_STAGE_ID } from './StageData';
 import { HitParticle } from './HitParticle';
 import { MortarFx, MORTAR_FX } from './MortarFx';
 import { HomeUi } from '../ui/HomeUi';
@@ -118,6 +119,8 @@ export class BattleManager extends Component {
     private _spawnTimer = 0;
     private _spawnGroups = 0;
     private _autoCastReadyAt = 0;
+    /** 本局关卡 id（beginRun 时从 GameManager.currentStage 取，波次表按此查 StageData） */
+    private _stageId = 1;
 
     /** 只错开新施法；等待期间不耗充能、不锁定目标，普攻照常。 */
     tryBeginAutoCast(): boolean {
@@ -297,6 +300,7 @@ export class BattleManager extends Component {
         if (!gm.spendRunStamina()) {
             return false;
         }
+        this._stageId = gm.currentStage;
         this._runActive = true;
         for (const h of this._heroes) {
             h.applyMetaAtk(gm.metaAtkMul());
@@ -345,7 +349,12 @@ export class BattleManager extends Component {
         if (this._waveCleared) {
             this._restTimer -= dt;
             if (this._restTimer <= 0) {
-                this._startWave(this._waveNumber + 1);
+                // 末波清完 → 通关结算（解锁下一关+回主城）；否则滚下一波
+                if (this._waveNumber >= stageWaves(this._stageId).length) {
+                    this._clearStage();
+                } else {
+                    this._startWave(this._waveNumber + 1);
+                }
             }
         }
 
@@ -1062,6 +1071,28 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.GAME_OVER);
     }
 
+    /** 关卡通关：登记解锁进度 + 结算奖励，结算面板走 STAGE_CLEAR 事件 */
+    private _clearStage(): void {
+        if (this._gameOver) {
+            return;
+        }
+        this._gameOver = true;
+        const gm = GameManager.instance;
+        GameManager.instance.wave = this._waveNumber;
+        GameManager.instance.bestWave = Math.max(GameManager.instance.bestWave, this._waveNumber);
+        // 首次通关才推进解锁进度（重复刷已通关卡不回退进度）
+        const firstClear = this._stageId > gm.stageCleared;
+        gm.markStageCleared(this._stageId);
+        this._awardRunGold();
+        // 首通奖励：一次性金币（后续重复通关只拿常规结算）
+        let bonus = 0;
+        if (firstClear) {
+            bonus = this._stageId * 200;
+            gm.addGold(bonus);
+        }
+        eventCenter.emit(GameEvent.STAGE_CLEAR, this._stageId, bonus);
+    }
+
     // ================= GM 调试（浏览器预览专用，GmPanel 调用） =================
 
     /** GM：号位开关状态（true=该 1~4 号位生效；重开英雄后会自动回填到新英雄） */
@@ -1259,10 +1290,11 @@ export class BattleManager extends Component {
 
     private _startWave(waveNumber: number): void {
         this._waveNumber = waveNumber;
-        // 超出配置表后循环最后一波，进入无尽模式
-        const idx = Math.min(waveNumber - 1, WAVES.length - 1);
+        // 本关波次表（StageData 按关卡 id 生成）；越界=通关后无尽滚波
+        const table = stageWaves(this._stageId);
+        const idx = Math.min(waveNumber - 1, table.length - 1);
         // 总量/上限保留 ×3；前三波生成密度由 ×2 平滑过渡至 ×3。
-        const base = WAVES[idx];
+        const base = table[idx];
         const scale = BattleConfig.WAVE_SCALE;
         const density = Math.min(scale, 2 + (waveNumber - 1) * 0.5);
         this._currentWave = {
@@ -1271,7 +1303,7 @@ export class BattleManager extends Component {
             maxAlive: base.maxAlive * scale,
             interval: Math.max(0.28, base.interval / density),
         };
-        const overCount = Math.max(0, waveNumber - WAVES.length);
+        const overCount = Math.max(0, waveNumber - table.length);
         this._hpScale = Math.pow(BattleConfig.ENDLESS_HP_SCALE, overCount);
 
         this._spawnLeft = this._currentWave.count;
@@ -1280,7 +1312,7 @@ export class BattleManager extends Component {
         this._waveCleared = false;
 
         GameManager.instance.wave = waveNumber;
-        eventCenter.emit(GameEvent.WAVE_START, waveNumber, WAVES.length);
+        eventCenter.emit(GameEvent.WAVE_START, waveNumber, table.length);
     }
 
     private _hpScale = 1;

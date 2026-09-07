@@ -5,6 +5,7 @@ import { eventCenter } from '../core/EventCenter';
 import { GameManager, META_UPGRADES } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
 import { BattleManager } from '../battle/BattleManager';
+import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
 
 /**
  * 主城界面（战斗外玩法入口，DOM 渲染）：
@@ -21,6 +22,8 @@ export class HomeUi extends Component {
     private _bestEl: HTMLDivElement | null = null;
     private _rewardEl: HTMLDivElement | null = null;
     private _chapterEl: HTMLDivElement | null = null;
+    private _chapterPrev: HTMLDivElement | null = null;
+    private _chapterNext: HTMLDivElement | null = null;
     private _staminaEl: HTMLDivElement | null = null;
     private _rows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLSpanElement; eff: HTMLDivElement; cost: HTMLDivElement; btn: HTMLButtonElement }> = [];
     private _pages: Record<string, HTMLDivElement> = {};
@@ -50,9 +53,6 @@ export class HomeUi extends Component {
             return true;
         });
     }
-
-    /** 章节名（随最远波次推进展示位） */
-    private static readonly CHAPTERS = ['1.末日公路', '2.跨海大桥', '3.雨夜废墟', '4.炼钢厂', '5.尸潮深谷'];
 
     onLoad(): void {
         if (typeof document === 'undefined') {
@@ -103,11 +103,28 @@ export class HomeUi extends Component {
             this._refresh();
             return;
         }
+        // 未解锁的关卡不可出战（横幅箭头已限位，这里兜底）
+        if (!gm.stageUnlocked(gm.currentStage)) {
+            this._refresh();
+            return;
+        }
         this._root.style.display = 'none';
         eventCenter.emit(GameEvent.GAME_RESTART);
         // beginRun 失败（体力不足等）必须回滚显示，否则主城藏起后整屏卡死
         if (!BattleManager.instance?.beginRun()) {
             this._root.style.display = 'flex';
+            this._refresh();
+        }
+    }
+
+    /** 横幅左右箭头切关：只在已解锁范围（1 ~ stageCleared+1）内移动 */
+    private _switchStage(dir: number): void {
+        const gm = GameManager.instance;
+        const maxUnlocked = Math.min(FINAL_STAGE_ID, gm.stageCleared + 1);
+        const next = Math.min(maxUnlocked, Math.max(1, gm.currentStage + dir));
+        if (next !== gm.currentStage) {
+            gm.currentStage = next;
+            gm.save();
             this._refresh();
         }
     }
@@ -156,8 +173,14 @@ export class HomeUi extends Component {
             this._staminaEl.style.color = gm.canStartRun() ? '#ffd76a' : '#ff6b6b';
         }
         if (this._chapterEl) {
-            const idx = Math.min(HomeUi.CHAPTERS.length - 1, Math.floor(gm.bestWave / 10));
-            this._chapterEl.textContent = HomeUi.CHAPTERS[idx];
+            const stage = STAGES[Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID) - 1];
+            this._chapterEl.textContent = stage.name;
+        }
+        if (this._chapterPrev) {
+            this._chapterPrev.style.visibility = gm.currentStage > 1 ? 'visible' : 'hidden';
+        }
+        if (this._chapterNext) {
+            this._chapterNext.style.visibility = gm.currentStage < FINAL_STAGE_ID ? 'visible' : 'hidden';
         }
         for (const row of this._rows) {
             const lv = gm.upgradeLevel(row.def.id);
@@ -224,18 +247,33 @@ export class HomeUi extends Component {
         battle.appendChild(reward);
         this._rewardEl = reward;
 
-        // 章节横幅：编号章名 + 骷髅徽记
+        // 章节横幅：编号章名 + 骷髅徽记 + 左右切关箭头
         const chapter = document.createElement('div');
         chapter.className = 'chapterBanner';
+        const chapterPrev = document.createElement('div');
+        chapterPrev.className = 'chapterArrow';
+        chapterPrev.textContent = '❮';
+        chapterPrev.onclick = (e) => {
+            e.stopPropagation();
+            this._switchStage(-1);
+        };
         const chapterName = document.createElement('div');
         chapterName.className = 'chapterName';
         this._chapterEl = chapterName;
-        chapterName.textContent = HomeUi.CHAPTERS[0];
         const chapterSkull = document.createElement('div');
         chapterSkull.className = 'chapterSkull';
         chapterSkull.textContent = '☠';
+        const chapterNext = document.createElement('div');
+        chapterNext.className = 'chapterArrow';
+        chapterNext.textContent = '❯';
+        chapterNext.onclick = (e) => {
+            e.stopPropagation();
+            this._switchStage(1);
+        };
+        chapter.appendChild(chapterPrev);
         chapter.appendChild(chapterName);
         chapter.appendChild(chapterSkull);
+        chapter.appendChild(chapterNext);
         this._tex('ui/banner_orange', u => {
             chapter.style.backgroundImage = u;
             chapter.style.backgroundSize = '100% 100%';
@@ -490,6 +528,9 @@ export class HomeUi extends Component {
   filter: drop-shadow(0 calc(4px * var(--hs,1)) 0 rgba(0,0,0,.6)); }
 #homeUi .chapterSkull { font-size: calc(64px * var(--hs,1));
   filter: drop-shadow(0 0 calc(14px * var(--hs,1)) rgba(255,120,40,.8)); }
+#homeUi .chapterArrow { font-size: calc(52px * var(--hs,1)); color: #ffd76a; padding: 0 calc(16px * var(--hs,1));
+  text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.6); user-select: none; }
+#homeUi .chapterArrow:active { opacity: .6; }
 
 #homeUi .diffRow { display: flex; margin-top: calc(30px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
   overflow: hidden; border: calc(2px * var(--hs,1)) solid rgba(217,155,66,.4); }

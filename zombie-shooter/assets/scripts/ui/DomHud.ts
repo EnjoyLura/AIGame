@@ -5,6 +5,7 @@ import { eventCenter } from '../core/EventCenter';
 import { GameManager } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
 import { BattleManager } from '../battle/BattleManager';
+import { FINAL_STAGE_ID } from '../battle/StageData';
 import { HERO_DEFS } from '../battle/HeroDef';
 
 /** 伤害统计面板每英雄一行的可更新元素 */
@@ -55,6 +56,13 @@ export class DomHud extends Component {
     private _failWave: HTMLDivElement | null = null;
     private _failKill: HTMLDivElement | null = null;
     private _failLevel: HTMLDivElement | null = null;
+    /** 通关结算面板（STAGE_CLEAR 时弹出，与失败结算互斥） */
+    private _clearPanel: HTMLDivElement | null = null;
+    private _clearTitle: HTMLDivElement | null = null;
+    private _clearLines: HTMLDivElement | null = null;
+    private _clearGold: HTMLDivElement | null = null;
+    /** GOLD_EARNED 缓存：通关面板与失败面板共用金币数据源 */
+    private _lastGoldEarned = 0;
     /** 缩放系数：设计像素 → CSS 像素（FIXED_WIDTH：宽恒定 1080 设计像素） */
     private _scale = 1;
 
@@ -69,6 +77,7 @@ export class DomHud extends Component {
         eventCenter.on(GameEvent.VEHICLE_HP_CHANGED, this._onVehicleHpChanged, this);
         eventCenter.on(GameEvent.ENEMY_DEAD, this._onKill, this);
         eventCenter.on(GameEvent.GAME_OVER, this._onGameOver, this);
+        eventCenter.on(GameEvent.STAGE_CLEAR, this._onStageClear, this);
         eventCenter.on(GameEvent.GOLD_EARNED, this._onGoldEarned, this);
         window.addEventListener('resize', () => this._layout());
         console.log('[末日航线] build', BUILD_STAMP, (window as any).__BUILD_TIME ?? '');
@@ -80,6 +89,7 @@ export class DomHud extends Component {
         eventCenter.off(GameEvent.VEHICLE_HP_CHANGED, this._onVehicleHpChanged, this);
         eventCenter.off(GameEvent.ENEMY_DEAD, this._onKill, this);
         eventCenter.off(GameEvent.GAME_OVER, this._onGameOver, this);
+        eventCenter.off(GameEvent.STAGE_CLEAR, this._onStageClear, this);
         this._root?.remove();
         this._root = null;
     }
@@ -117,6 +127,9 @@ export class DomHud extends Component {
         }
         if (this._failPanel) {
             this._failPanel.style.display = 'none';
+        }
+        if (this._clearPanel) {
+            this._clearPanel.style.display = 'none';
         }
         this._root?.classList.remove('paused');
         if (this._popupEl) {
@@ -171,7 +184,29 @@ export class DomHud extends Component {
         }
     }
 
+    private _onStageClear(stageId: number, bonus: number): void {
+        const gm = GameManager.instance;
+        if (this._clearTitle) {
+            const hasNext = stageId < FINAL_STAGE_ID;
+            this._clearTitle.textContent = hasNext ? `第 ${stageId} 关 通 关` : '全 部 通 关';
+            this._clearTitle.style.color = hasNext ? '#7bdc7b' : '#ffd76a';
+        }
+        if (this._clearLines) {
+            this._clearLines.textContent =
+                `击杀怪物：${gm.kills}　　团队等级：Lv.${gm.level}`;
+        }
+        if (this._clearGold) {
+            const earned = Number(this._lastGoldEarned) || 0;
+            this._clearGold.textContent =
+                `金币收益　+${earned}` + (bonus > 0 ? `（含首通奖励 +${bonus}）` : '');
+        }
+        if (this._clearPanel) {
+            this._clearPanel.style.display = 'flex';
+        }
+    }
+
     private _onGoldEarned(amount: number): void {
+        this._lastGoldEarned = amount;
         if (this._failGold) {
             this._failGold.textContent = `金币收益　+${amount}`;
         }
@@ -321,6 +356,9 @@ export class DomHud extends Component {
         }
         if (this._failPanel) {
             this._failPanel.style.display = 'none';
+        }
+        if (this._clearPanel) {
+            this._clearPanel.style.display = 'none';
         }
         eventCenter.emit(GameEvent.GAME_RESTART);
         BattleManager.instance?.beginRun();
@@ -579,6 +617,27 @@ export class DomHud extends Component {
         fp.appendChild(card);
         root.appendChild(fp);
         this._failPanel = fp;
+
+        // 关卡通关结算（STAGE_CLEAR）
+        const cp = document.createElement('div');
+        cp.className = 'menuOverlay';
+        cp.style.display = 'none';
+        const ccard = document.createElement('div');
+        ccard.className = 'failCard';
+        this._clearTitle = this._bigLabel('通 关', 72);
+        this._clearTitle.style.color = '#7bdc7b';
+        ccard.appendChild(this._clearTitle);
+        this._clearLines = this._label(ccard, 'failLine', '');
+        this._clearGold = this._label(ccard, 'failGold', '');
+        ccard.appendChild(this._menuButton('返 回 主 城', '#7bdc7b', () => {
+            if (this._clearPanel) {
+                this._clearPanel.style.display = 'none';
+            }
+            eventCenter.emit(GameEvent.HOME_SHOW);
+        }));
+        cp.appendChild(ccard);
+        root.appendChild(cp);
+        this._clearPanel = cp;
 
         document.body.appendChild(root);
         this._layout();

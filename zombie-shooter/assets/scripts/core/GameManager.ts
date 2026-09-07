@@ -27,6 +27,10 @@ export class GameManager {
     // ---- 持久化数据 ----
     bestWave = 0;
     totalKills = 0;
+    /** 已通关的最大关卡 id（0=未通关任何关；下一关=stageCleared+1，用于主城解锁） */
+    stageCleared = 0;
+    /** 当前选中的关卡 id（主城出战时带上；缺省=最新解锁关） */
+    currentStage = 1;
     /** 玩家资源仓库（金币/钻石/体力统一走这里；gold 保留兼容访问器） */
     readonly res = new PlayerResources();
     /** 局外强化等级（id 见 META_UPGRADES） */
@@ -36,6 +40,19 @@ export class GameManager {
 
     /** 金币兼容访问器（真身在资源仓库） */
     get gold(): number { return this.res.get('gold'); }
+
+    /** 关卡已解锁（第 1 关始终开放；其余需通关前一关） */
+    stageUnlocked(stageId: number): boolean {
+        return stageId <= this.stageCleared + 1;
+    }
+
+    /** 通关登记：推进解锁进度并落盘 */
+    markStageCleared(stageId: number): void {
+        if (stageId > this.stageCleared) {
+            this.stageCleared = stageId;
+            this.save();
+        }
+    }
 
     /** 体力当前值（结算离线恢复后返回） */
     stamina(): number {
@@ -119,6 +136,8 @@ export class GameManager {
         const data = {
             bestWave: this.bestWave,
             totalKills: this.totalKills,
+            stageCleared: this.stageCleared,
+            currentStage: this.currentStage,
             gold: this.gold,
             upgrades: this._upgrades,
             res: this.res.serialize(),
@@ -137,6 +156,8 @@ export class GameManager {
             const data = JSON.parse(raw);
             this.bestWave = data.bestWave ?? 0;
             this.totalKills = data.totalKills ?? 0;
+            this.stageCleared = data.stageCleared ?? 0;
+            this.currentStage = data.currentStage ?? 1;
             if (data.gold !== undefined) {
                 this.res.add('gold', data.gold);
             }
