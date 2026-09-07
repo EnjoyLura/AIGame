@@ -87,6 +87,7 @@ export enum GameEvent {
     ENEMY_DEAD = 'enemy-dead',
     GAME_OVER = 'game-over',
     STAGE_CLEAR = 'stage-clear',
+    FLOW_CHANGED = 'flow-changed',
     GAME_RESTART = 'game-restart',
     HOME_SHOW = 'home-show',
     GOLD_EARNED = 'gold-earned',

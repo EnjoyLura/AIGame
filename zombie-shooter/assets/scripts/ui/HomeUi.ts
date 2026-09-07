@@ -4,14 +4,14 @@ import { BattleConfig, BUILD_STAMP, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
 import { GameManager, META_UPGRADES } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
-import { BattleManager } from '../battle/BattleManager';
+import { GameFlow } from '../core/GameFlow';
 import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
 
 /**
  * 主城界面（战斗外玩法入口，DOM 渲染）：
  * 底部五格导航（商城/角色/战斗/核心/基地），先实装中央「战斗」页——
  * 章节横幅、难度切换、载具展台、三档通关宝箱、出战按钮、基地强化；
- * 其余四页为建设中占位，逐个迭代。战斗模拟由 BattleManager._runActive 冻结。
+ * 其余四页为建设中占位，逐个迭代。界面显隐由 GameFlow 状态机驱动。
  */
 @ccclass('HomeUi')
 export class HomeUi extends Component {
@@ -70,6 +70,14 @@ export class HomeUi extends Component {
         applyScale();
         window.addEventListener('resize', applyScale);
         eventCenter.on(GameEvent.RES_CHANGED, () => this._refresh(), this);
+        // 流程状态机驱动主城显隐：state==='home' 显示，其余隐藏（替代点击事件里手动切 display）
+        eventCenter.on(GameEvent.FLOW_CHANGED, (from: string, to: string) => {
+            if (to === 'home') {
+                this.show();
+            } else {
+                this.hide();
+            }
+        }, this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
         eventCenter.on(GameEvent.GOLD_EARNED, (amount: number) => {
             if (this._rewardEl) {
@@ -85,36 +93,26 @@ export class HomeUi extends Component {
     }
 
     private show(): void {
-        this.leaveBattle();
         if (this._root) {
             this._root.style.display = 'flex';
             this._refresh();
         }
     }
 
-    private leaveBattle(): void {
+    private hide(): void {
         this._root && (this._root.style.display = 'none');
-        BattleManager.instance?.leaveRun();
     }
 
     private _startBattle(): void {
-        const gm = GameManager.instance;
-        if (!this._root || !gm.canStartRun()) {
+        if (!this._root) {
+            return;
+        }
+        // 守卫（体力/解锁）与开波统一走流程状态机；失败回滚显示防止黑屏
+        if (!GameFlow.instance.startRun()) {
             this._refresh();
             return;
         }
-        // 未解锁的关卡不可出战（横幅箭头已限位，这里兜底）
-        if (!gm.stageUnlocked(gm.currentStage)) {
-            this._refresh();
-            return;
-        }
-        this._root.style.display = 'none';
-        eventCenter.emit(GameEvent.GAME_RESTART);
-        // beginRun 失败（体力不足等）必须回滚显示，否则主城藏起后整屏卡死
-        if (!BattleManager.instance?.beginRun()) {
-            this._root.style.display = 'flex';
-            this._refresh();
-        }
+        this.hide();
     }
 
     /** 横幅左右箭头切关：只在已解锁范围（1 ~ stageCleared+1）内移动 */

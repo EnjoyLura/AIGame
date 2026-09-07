@@ -5,6 +5,7 @@ import { eventCenter } from '../core/EventCenter';
 import { GameManager } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
 import { BattleManager } from '../battle/BattleManager';
+import { GameFlow } from '../core/GameFlow';
 import { FINAL_STAGE_ID } from '../battle/StageData';
 import { HERO_DEFS } from '../battle/HeroDef';
 
@@ -360,8 +361,8 @@ export class DomHud extends Component {
         if (this._clearPanel) {
             this._clearPanel.style.display = 'none';
         }
-        eventCenter.emit(GameEvent.GAME_RESTART);
-        BattleManager.instance?.beginRun();
+        // 重试转移统一走流程状态机（settle → battle，再扣体力开波）
+        GameFlow.instance.retry();
     }
 
     // ================= 构建 =================
@@ -612,7 +613,7 @@ export class DomHud extends Component {
             if (this._failPanel) {
                 this._failPanel.style.display = 'none';
             }
-            eventCenter.emit(GameEvent.HOME_SHOW);
+            GameFlow.instance.toHome();
         }));
         fp.appendChild(card);
         root.appendChild(fp);
@@ -633,7 +634,7 @@ export class DomHud extends Component {
             if (this._clearPanel) {
                 this._clearPanel.style.display = 'none';
             }
-            eventCenter.emit(GameEvent.HOME_SHOW);
+            GameFlow.instance.toHome();
         }));
         cp.appendChild(ccard);
         root.appendChild(cp);

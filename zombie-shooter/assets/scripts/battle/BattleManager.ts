@@ -21,6 +21,7 @@ import { GmPanel } from '../ui/GmPanel';
 import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
 import { stageWaves, stageInfo, FINAL_STAGE_ID } from './StageData';
+import { GameFlow } from '../core/GameFlow';
 import { HitParticle } from './HitParticle';
 import { MortarFx, MORTAR_FX } from './MortarFx';
 import { HomeUi } from '../ui/HomeUi';
@@ -131,9 +132,10 @@ export class BattleManager extends Component {
     private _waveCleared = false;
     private _restTimer = 0;
 
-    private _gameOver = false;
-    /** 战斗外玩法：false=主城/结算（模拟冻结），true=局内进行中 */
-    private _runActive = false;
+    /** 终局真值在 GameFlow（battle 之外的任何状态都视为已终局=模拟冻结） */
+    private get _gameOver(): boolean { return !GameFlow.instance.inBattle(); }
+    /** 局内/主城真值在 GameFlow（flow state==='battle'） */
+    private get _runActive(): boolean { return GameFlow.instance.inBattle(); }
     /** 升级选卡期间暂停整个战斗（各实体 update 自行检查） */
     private _paused = false;
 
@@ -294,25 +296,16 @@ export class BattleManager extends Component {
         }
     }
 
-    /** 主城点击出战：扣体力 → 应用局外强化（幂等）并开启第一波；体力不足返回 false */
+    /** 开波纯战斗部分（体力扣减与清场已由 GameFlow.startRun 完成）：应用局外强化并开启第一波 */
     beginRun(): boolean {
         const gm = GameManager.instance;
-        if (!gm.spendRunStamina()) {
-            return false;
-        }
         this._stageId = gm.currentStage;
-        this._runActive = true;
         for (const h of this._heroes) {
             h.applyMetaAtk(gm.metaAtkMul());
         }
         this._vehicle.applyMetaHp(gm.metaVehHpMul());
         this._startWave(1);
         return true;
-    }
-
-    /** 返回主城：冻结战斗模拟（主城覆盖层负责展示与再次出战） */
-    leaveRun(): void {
-        this._runActive = false;
     }
 
     update(dt: number): void {
@@ -1063,12 +1056,12 @@ export class BattleManager extends Component {
         if (this._gameOver) {
             return;
         }
-        this._gameOver = true;
         GameManager.instance.wave = this._waveNumber;
         GameManager.instance.bestWave = Math.max(GameManager.instance.bestWave, this._waveNumber);
         GameManager.instance.save();
         this._awardRunGold();
-        eventCenter.emit(GameEvent.GAME_OVER);
+        // 终局置位 + GAME_OVER 广播统一由流程状态机收口
+        GameFlow.instance.endRun('fail');
     }
 
     /** 关卡通关：登记解锁进度 + 结算奖励，结算面板走 STAGE_CLEAR 事件 */
@@ -1076,7 +1069,6 @@ export class BattleManager extends Component {
         if (this._gameOver) {
             return;
         }
-        this._gameOver = true;
         const gm = GameManager.instance;
         GameManager.instance.wave = this._waveNumber;
         GameManager.instance.bestWave = Math.max(GameManager.instance.bestWave, this._waveNumber);
@@ -1084,14 +1076,24 @@ export class BattleManager extends Component {
         const firstClear = this._stageId > gm.stageCleared;
         gm.markStageCleared(this._stageId);
         this._awardRunGold();
-        // 首通奖励：一次性金币（后续重复通关只拿常规结算）
-        let bonus = 0;
-        if (firstClear) {
-            bonus = this._stageId * 200;
-            gm.addGold(bonus);
+        // 首通奖励：一次性金币（后续重复通关只拿常规结算），暂存供 GameFlow 广播带出
+        this._clearBonus = firstClear ? this._stageId * 200 : 0;
+        if (this._clearBonus > 0) {
+            gm.addGold(this._clearBonus);
         }
-        eventCenter.emit(GameEvent.STAGE_CLEAR, this._stageId, bonus);
+        GameFlow.instance.endRun('clear');
     }
+
+    /** 首通奖励暂存（GameFlow.endRun 广播 STAGE_CLEAR 时读取带走） */
+    private _clearBonus = 0;
+    takeClearBonus(): number {
+        const v = this._clearBonus;
+        this._clearBonus = 0;
+        return v;
+    }
+
+    /** 流程状态机查询本局关卡 id（STAGE_CLEAR 广播参数用） */
+    get stageId(): number { return this._stageId; }
 
     // ================= GM 调试（浏览器预览专用，GmPanel 调用） =================
 
@@ -1478,7 +1480,7 @@ export class BattleManager extends Component {
                     if (this._gameOver) {
                         this._paused = true;
                         this._awardRunGold();
-        eventCenter.emit(GameEvent.GAME_OVER);
+                        GameFlow.instance.endRun('fail');
                     }
                 }
             });
@@ -1570,9 +1572,8 @@ export class BattleManager extends Component {
         }
         this._bullets.length = 0;
 
-        this._gameOver = false;
+        // _gameOver/_runActive 真值在 GameFlow（清场后仍处于出发前状态，转移由调用方驱动）
         this._paused = false;
-        this._runActive = false;
         this._elapsed = 0;
         this._autoCastReadyAt = 0;
         this._dmgByHero.clear();
