@@ -1206,12 +1206,21 @@ export class BattleManager extends Component {
         this._vehicle = vehicleNode.addComponent(Vehicle);
     }
 
-    /** 部署上阵英雄（基础版固定前 4 名定义，横排在载具上） */
+    /** 部署上阵英雄：按主城编队表（GameManager.lineup）的顺序，横排在载具上 */
     private _deployHeroes(): void {
         this._clearHeroes();
-        const count = Math.min(BattleConfig.DEPLOY_HERO_COUNT, HERO_DEFS.length);
+        // 编队表映射英雄定义（按编队顺序排号位）；空/坏档回退前 4 名
+        const gm = GameManager.instance;
+        let defs = gm.lineup
+            .map(id => HERO_DEFS.find(d => d.id === id))
+            .filter((d): d is (typeof HERO_DEFS)[number] => !!d)
+            .slice(0, BattleConfig.DEPLOY_HERO_COUNT);
+        if (defs.length === 0) {
+            defs = HERO_DEFS.slice(0, BattleConfig.DEPLOY_HERO_COUNT);
+        }
+        const count = defs.length;
         for (let i = 0; i < count; i++) {
-            const def = HERO_DEFS[i];
+            const def = defs[i];
             const heroNode = createUINode('Hero_' + def.id);
             this._unitLayer.addChild(heroNode);
             const slotX = (i - (count - 1) / 2) * BattleConfig.HERO_SLOT_SPACING;

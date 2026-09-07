@@ -1,6 +1,7 @@
 import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
+import { HERO_DEFS } from '../battle/HeroDef';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -37,6 +38,8 @@ export class GameManager {
     private _upgrades: Record<string, number> = { atk: 0, vehHp: 0, goldGain: 0, xpGain: 0 };
     /** 局次号：resetRun 自增，战斗开始时按局次幂等应用局外加成 */
     runId = 0;
+    /** 编队：上阵英雄 id 列表（最多 4 人、至少 1 人；战斗按此顺序部署与排号位） */
+    lineup: string[] = ['rifle', 'sniper', 'laser', 'radiation'];
 
     /** 金币兼容访问器（真身在资源仓库） */
     get gold(): number { return this.res.get('gold'); }
@@ -52,6 +55,31 @@ export class GameManager {
             this.stageCleared = stageId;
             this.save();
         }
+    }
+
+    /** 编队上限（与战斗 DEPLOY_HERO_COUNT 对齐） */
+    static readonly LINEUP_MAX = 4;
+    /** 是否已上阵 */
+    isInLineup(heroId: string): boolean {
+        return this.lineup.indexOf(heroId) >= 0;
+    }
+
+    /** 上阵/下阵切换：上阵需未满 4 且未上阵，下阵需至少留 1 人；成功返回 true */
+    toggleLineupMember(heroId: string): boolean {
+        const idx = this.lineup.indexOf(heroId);
+        if (idx >= 0) {
+            if (this.lineup.length <= 1) {
+                return false;
+            }
+            this.lineup.splice(idx, 1);
+        } else {
+            if (this.lineup.length >= GameManager.LINEUP_MAX) {
+                return false;
+            }
+            this.lineup.push(heroId);
+        }
+        this.save();
+        return true;
     }
 
     /** 体力当前值（结算离线恢复后返回） */
@@ -138,6 +166,7 @@ export class GameManager {
             totalKills: this.totalKills,
             stageCleared: this.stageCleared,
             currentStage: this.currentStage,
+            lineup: [...this.lineup],
             gold: this.gold,
             upgrades: this._upgrades,
             res: this.res.serialize(),
@@ -158,6 +187,13 @@ export class GameManager {
             this.totalKills = data.totalKills ?? 0;
             this.stageCleared = data.stageCleared ?? 0;
             this.currentStage = data.currentStage ?? 1;
+            // 编队：只接受合法英雄 id，空/全非法时回退默认（防御坏档）
+            if (Array.isArray(data.lineup)) {
+                const valid = data.lineup.filter((id: unknown) => typeof id === 'string' && HERO_DEFS.some(d => d.id === id));
+                if (valid.length > 0) {
+                    this.lineup = valid.slice(0, GameManager.LINEUP_MAX);
+                }
+            }
             if (data.gold !== undefined) {
                 this.res.add('gold', data.gold);
             }
