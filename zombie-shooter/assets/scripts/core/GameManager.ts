@@ -2,6 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS } from '../battle/HeroDef';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS } from './HeroSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -40,6 +41,10 @@ export class GameManager {
     runId = 0;
     /** 编队：上阵英雄 id 列表（最多 4 人、至少 1 人；战斗按此顺序部署与排号位） */
     lineup: string[] = ['rifle', 'sniper', 'laser', 'radiation'];
+    /** 英雄等级（heroId → Lv，缺省 1；读写走 HeroSystem） */
+    heroLevels: Record<string, number> = {};
+    /** 英雄装备（heroId → 槽位 → 装备状态；读写走 HeroSystem） */
+    equips: Record<string, Record<string, { id: string; lv: number } | null>> = {};
 
     /** 金币兼容访问器（真身在资源仓库） */
     get gold(): number { return this.res.get('gold'); }
@@ -167,6 +172,8 @@ export class GameManager {
             stageCleared: this.stageCleared,
             currentStage: this.currentStage,
             lineup: [...this.lineup],
+            heroLevels: this.heroLevels,
+            equips: this.equips,
             gold: this.gold,
             upgrades: this._upgrades,
             res: this.res.serialize(),
@@ -192,6 +199,33 @@ export class GameManager {
                 const valid = data.lineup.filter((id: unknown) => typeof id === 'string' && HERO_DEFS.some(d => d.id === id));
                 if (valid.length > 0) {
                     this.lineup = valid.slice(0, GameManager.LINEUP_MAX);
+                }
+            }
+            // 英雄等级/装备：只接受合法英雄 id（装备结构逐项校验，防御坏档）
+            if (data.heroLevels && typeof data.heroLevels === 'object') {
+                for (const d of HERO_DEFS) {
+                    const lv = data.heroLevels[d.id];
+                    if (typeof lv === 'number' && lv >= 1) {
+                        this.heroLevels[d.id] = Math.floor(lv);
+                    }
+                }
+            }
+            if (data.equips && typeof data.equips === 'object') {
+                for (const d of HERO_DEFS) {
+                    const slots = data.equips[d.id];
+                    if (!slots || typeof slots !== 'object') {
+                        continue;
+                    }
+                    for (const slot of EQUIP_SLOTS) {
+                        const st = slots[slot];
+                        if (st && typeof st.id === 'string' && typeof st.lv === 'number'
+                            && EQUIPMENT_DEFS.some(e => e.id === st.id && e.slot === slot)) {
+                            if (!this.equips[d.id]) {
+                                this.equips[d.id] = {};
+                            }
+                            this.equips[d.id][slot] = { id: st.id, lv: Math.max(1, Math.floor(st.lv)) };
+                        }
+                    }
                 }
             }
             if (data.gold !== undefined) {

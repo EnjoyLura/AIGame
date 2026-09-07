@@ -8,6 +8,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
+import { HeroSystem, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
 
@@ -44,9 +45,9 @@ export class HomeUi extends Component {
     private _adOverlay: HTMLDivElement | null = null;
     private _adCountdown: HTMLDivElement | null = null;
     private _adTimer = 0;
-    /** 角色编队页：上阵槽行容器 + 英雄卡按钮（刷新态） */
+    /** 角色编队页：上阵槽行容器 + 英雄卡（升级按钮 + 等级行，刷新态） */
     private _lineupRowEl: HTMLDivElement | null = null;
-    private _heroCards: Array<{ defId: string; btn: HTMLButtonElement }> = [];
+    private _heroCards: Array<{ defId: string; btn: HTMLButtonElement; lv: HTMLDivElement | null }> = [];
     /** 贴图挂起队列：AssetLib 异步就绪后补挂（_refresh 轮询消化） */
     private _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
 
@@ -418,28 +419,209 @@ export class HomeUi extends Component {
             const role = document.createElement('div');
             role.className = 'heroRole';
             role.textContent = `${def.role} · ${def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射'}`;
+            const lv = document.createElement('div');
+            lv.className = 'heroLv';
             info.appendChild(name);
             info.appendChild(role);
-            const btn = document.createElement('button');
-            btn.className = 'heroCardBtn';
-            btn.onclick = (e) => {
+            info.appendChild(lv);
+            // 双按钮：升级（直接扣金币）/ 装备（打开装备弹层）
+            const btnRow = document.createElement('div');
+            btnRow.className = 'heroBtnCol';
+            const upBtn = document.createElement('button');
+            upBtn.className = 'heroCardBtn';
+            upBtn.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.unlock();
-                if (GameManager.instance.toggleLineupMember(def.id)) {
-                    SoundFx.play('ui');
+                if (HeroSystem.instance.upgradeHero(def.id)) {
+                    SoundFx.play('buy');
                     this._refreshHeroes();
                 }
             };
+            const eqBtn = document.createElement('button');
+            eqBtn.className = 'heroCardBtn cyan';
+            eqBtn.textContent = '装 备';
+            eqBtn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                SoundFx.play('ui');
+                this._openEquipPanel(def.id);
+            };
+            btnRow.appendChild(upBtn);
+            btnRow.appendChild(eqBtn);
             card.appendChild(avatar);
             card.appendChild(info);
-            card.appendChild(btn);
+            card.appendChild(btnRow);
             cards.appendChild(card);
-            this._heroCards.push({ defId: def.id, btn });
+            this._heroCards.push({ defId: def.id, btn: upBtn, lv });
         }
         page.appendChild(cards);
 
         root.appendChild(page);
         this._pages.heroes = page;
+    }
+
+    /** 英雄装备弹层：三槽（已装→显示属性+强化；未装→显示推荐装备+购买）+ 英雄升级 */
+    private _openEquipPanel(heroId: string): void {
+        const def = HERO_DEFS.find(d => d.id === heroId);
+        if (!def) {
+            return;
+        }
+        const ov = document.createElement('div');
+        ov.className = 'equipOverlay';
+        ov.onclick = (e) => {
+            e.stopPropagation();
+            ov.remove();
+        };
+        const card = document.createElement('div');
+        card.className = 'equipCard';
+        card.onclick = (e) => e.stopPropagation();
+
+        // 头部：立绘 + 名字 + 等级 + 升级按钮
+        const head = document.createElement('div');
+        head.className = 'equipHead';
+        const avatar = document.createElement('div');
+        avatar.className = 'equipAvatar';
+        this._tex(`characters/hero_${def.id}`, u => { avatar.style.backgroundImage = u; });
+        const headInfo = document.createElement('div');
+        headInfo.className = 'equipHeadInfo';
+        const name = document.createElement('div');
+        name.className = 'heroName';
+        name.textContent = def.name;
+        const lvLab = document.createElement('div');
+        lvLab.className = 'heroRole';
+        headInfo.appendChild(name);
+        headInfo.appendChild(lvLab);
+        const upBtn = document.createElement('button');
+        upBtn.className = 'heroCardBtn';
+        upBtn.onclick = () => {
+            if (HeroSystem.instance.upgradeHero(heroId)) {
+                SoundFx.play('buy');
+                this._refreshEquipPanel(card, heroId, lvLab, upBtn);
+                this._refreshHeroes();
+            }
+        };
+        head.appendChild(avatar);
+        head.appendChild(headInfo);
+        head.appendChild(upBtn);
+        card.appendChild(head);
+
+        // 三槽装备行
+        const slotsBox = document.createElement('div');
+        slotsBox.className = 'equipSlots';
+        card.appendChild(slotsBox);
+
+        const close = document.createElement('button');
+        close.className = 'equipClose';
+        close.textContent = '关 闭';
+        close.onclick = (e) => {
+            e.stopPropagation();
+            ov.remove();
+        };
+        card.appendChild(close);
+
+        ov.appendChild(card);
+        this._root?.appendChild(ov);
+        this._refreshEquipPanel(card, heroId, lvLab, upBtn);
+    }
+
+    /** 装备弹层数据刷新：重绘三槽行与升级按钮态 */
+    private _refreshEquipPanel(card: HTMLDivElement, heroId: string, lvLab: HTMLDivElement, upBtn: HTMLButtonElement): void {
+        const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
+        const RES_NAME = { gold: '金币', diamond: '钻石', stamina: '体力' } as const;
+
+        // 头部：等级/攻击加成 + 升级按钮
+        const lv = hs.heroLevel(heroId);
+        const atkPct = Math.round((hs.atkMulOf(heroId) - 1) * 100);
+        lvLab.textContent = `Lv.${lv} · 攻击加成 +${atkPct}%${hs.isHeroMaxLevel(heroId) ? '（已满级）' : ''}`;
+        if (hs.isHeroMaxLevel(heroId)) {
+            upBtn.textContent = '已满级';
+            upBtn.disabled = true;
+            upBtn.style.opacity = '0.45';
+        } else {
+            upBtn.textContent = `升 级 ${hs.heroUpgradeCost(heroId)}金`;
+            upBtn.disabled = gm.gold < hs.heroUpgradeCost(heroId);
+            upBtn.style.opacity = upBtn.disabled ? '0.45' : '1';
+        }
+
+        // 三槽
+        const box = card.querySelector<HTMLDivElement>('.equipSlots');
+        if (!box) {
+            return;
+        }
+        box.innerHTML = '';
+        for (const slot of EQUIP_SLOTS) {
+            const cur = hs.equipped(heroId, slot);
+            const row = document.createElement('div');
+            row.className = 'equipRow';
+            const info = document.createElement('div');
+            info.className = 'equipInfo';
+            const btn = document.createElement('button');
+            btn.className = 'heroCardBtn';
+            if (cur) {
+                const d = hs.equipDef(cur.id)!;
+                const parts: string[] = [];
+                if (d.atkPct) {
+                    parts.push(`攻击+${Math.round(d.atkPct * Math.pow(1 + EQUIP_UPGRADE_STEP, cur.lv - 1) * 100)}%`);
+                }
+                if (d.ratePct) {
+                    parts.push(`射速+${Math.round(d.ratePct * Math.pow(1 + EQUIP_UPGRADE_STEP, cur.lv - 1) * 100)}%`);
+                }
+                if (d.rangePct) {
+                    parts.push(`射程+${Math.round(d.rangePct * Math.pow(1 + EQUIP_UPGRADE_STEP, cur.lv - 1) * 100)}%`);
+                }
+                info.innerHTML =
+                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[d.tier - 1]}">${EQUIP_SLOT_NAMES[slot]}：${d.name}（${EQUIP_TIER_NAMES[d.tier - 1]}）</div>` +
+                    `<div class="equipStat">强化 Lv.${cur.lv} · ${parts.join(' ')}</div>`;
+                if (hs.isEquipMaxLevel(cur)) {
+                    btn.textContent = '已满级';
+                    btn.disabled = true;
+                } else {
+                    const cost = hs.equipUpgradeCost(cur);
+                    btn.textContent = `强 化 ${cost}金`;
+                    btn.disabled = gm.gold < cost;
+                    btn.onclick = () => {
+                        if (hs.upgradeEquip(heroId, slot)) {
+                            SoundFx.play('buy');
+                            this._refreshEquipPanel(card, heroId, lvLab, upBtn);
+                        }
+                    };
+                }
+            } else {
+                const rec = hs.recommend(heroId, slot);
+                if (rec) {
+                    const parts: string[] = [];
+                    if (rec.atkPct) {
+                        parts.push(`攻击+${Math.round(rec.atkPct * 100)}%`);
+                    }
+                    if (rec.ratePct) {
+                        parts.push(`射速+${Math.round(rec.ratePct * 100)}%`);
+                    }
+                    if (rec.rangePct) {
+                        parts.push(`射程+${Math.round(rec.rangePct * 100)}%`);
+                    }
+                    info.innerHTML =
+                        `<div class="equipName" style="color:${EQUIP_TIER_COLORS[rec.tier - 1]}">${EQUIP_SLOT_NAMES[slot]}：${rec.name}（${EQUIP_TIER_NAMES[rec.tier - 1]}）</div>` +
+                        `<div class="equipStat">未装备 · ${parts.join(' ')}</div>`;
+                    btn.textContent = `购 买 ${rec.baseCost}金`;
+                    btn.disabled = gm.gold < rec.baseCost;
+                    btn.onclick = () => {
+                        if (hs.buyEquip(heroId, rec.id)) {
+                            SoundFx.play('buy');
+                            this._refreshEquipPanel(card, heroId, lvLab, upBtn);
+                        }
+                    };
+                } else {
+                    info.innerHTML = `<div class="equipName">${EQUIP_SLOT_NAMES[slot]}：暂无可购装备</div>`;
+                    btn.style.display = 'none';
+                }
+            }
+            btn.style.opacity = btn.disabled ? '0.45' : '1';
+            void RES_NAME;
+            row.appendChild(info);
+            row.appendChild(btn);
+            box.appendChild(row);
+        }
     }
 
     /** 角色页刷新：上阵槽内容与英雄卡按钮态（上阵/满员/至少留一人） */
@@ -471,19 +653,41 @@ export class HomeUi extends Component {
                 row.appendChild(slot);
             }
         }
-        for (const { defId, btn } of this._heroCards) {
+        for (const { defId, btn, lv } of this._heroCards) {
+            const hs = HeroSystem.instance;
+            // 编队切换移到立绘上（上阵/下阵）；按钮行专职养成（升级+装备）
             const inLineup = gm.isInLineup(defId);
-            const full = gm.lineup.length >= GameManager.LINEUP_MAX;
-            if (inLineup) {
-                btn.textContent = gm.lineup.length <= 1 ? '已上阵' : '点击下阵';
-                btn.disabled = gm.lineup.length <= 1;
-                btn.title = gm.lineup.length <= 1 ? '至少保留 1 名英雄' : '';
+            if (lv) {
+                const atkPct = Math.round((hs.atkMulOf(defId) - 1) * 100);
+                lv.textContent = `Lv.${hs.heroLevel(defId)} · 攻击加成 +${atkPct}%` + (inLineup ? ' · 上阵中' : '');
+            }
+            const cost = hs.heroUpgradeCost(defId);
+            if (hs.isHeroMaxLevel(defId)) {
+                btn.textContent = '已满级';
+                btn.disabled = true;
             } else {
-                btn.textContent = full ? '编队已满' : '上 阵';
-                btn.disabled = full;
-                btn.title = full ? '编队已满，先下阵一名' : '';
+                btn.textContent = `升 级 ${cost}金`;
+                btn.disabled = gm.gold < cost;
             }
             btn.style.opacity = btn.disabled ? '0.45' : '1';
+            // 立绘 = 编队开关（找同卡片的 avatar 元素）
+            const card = btn.closest('.heroCard');
+            const avatar = card?.querySelector<HTMLDivElement>('.heroAvatar');
+            if (avatar) {
+                const full = gm.lineup.length >= GameManager.LINEUP_MAX;
+                avatar.classList.toggle('inLineup', inLineup);
+                avatar.title = inLineup
+                    ? (gm.lineup.length <= 1 ? '至少保留 1 名英雄' : '点击下阵')
+                    : (full ? '编队已满，先下阵一名' : '点击上阵');
+                avatar.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (GameManager.instance.toggleLineupMember(defId)) {
+                        SoundFx.play('ui');
+                        this._refreshHeroes();
+                    }
+                };
+            }
         }
     }
 
@@ -1021,6 +1225,31 @@ export class HomeUi extends Component {
   padding: calc(12px * var(--hs,1)) calc(26px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); font-weight: 800;
   color: #062028; background: linear-gradient(180deg, #ffe9a8, #e8a027); }
 #homeUi .heroCardBtn:active { transform: translateY(calc(2px * var(--hs,1))); }
+#homeUi .heroCardBtn.cyan { background: linear-gradient(180deg, #b3f0ff, #4db8dd); }
+#homeUi .heroLv { font-size: calc(26px * var(--hs,1)); color: #ffd76a; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .heroBtnCol { flex: none; display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .heroAvatar.inLineup { border: calc(3px * var(--hs,1)) solid rgba(255,204,85,.8); }
+
+/* ---- 英雄装备弹层 ---- */
+#homeUi .equipOverlay { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center;
+  background: rgba(2,6,10,.8); pointer-events: auto; }
+#homeUi .equipCard { display: flex; flex-direction: column; gap: calc(20px * var(--hs,1)); width: calc(920px * var(--hs,1));
+  max-height: 86vh; overflow-y: auto; padding: calc(34px * var(--hs,1)); border-radius: calc(22px * var(--hs,1));
+  background: linear-gradient(180deg, #17222c, #0c141c); border: calc(3px * var(--hs,1)) solid rgba(255,204,85,.5);
+  box-shadow: 0 calc(16px * var(--hs,1)) 0 rgba(0,0,0,.5); }
+#homeUi .equipHead { display: flex; align-items: center; gap: calc(22px * var(--hs,1)); }
+#homeUi .equipAvatar { width: calc(130px * var(--hs,1)); height: calc(130px * var(--hs,1)); flex: none; border-radius: calc(14px * var(--hs,1));
+  background: rgba(255,255,255,.06) center / contain no-repeat; }
+#homeUi .equipHeadInfo { flex: 1; min-width: 0; }
+#homeUi .equipSlots { display: flex; flex-direction: column; gap: calc(14px * var(--hs,1)); }
+#homeUi .equipRow { display: flex; align-items: center; gap: calc(18px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(20px * var(--hs,1));
+  border-radius: calc(14px * var(--hs,1)); background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
+#homeUi .equipInfo { flex: 1; min-width: 0; }
+#homeUi .equipName { font-size: calc(30px * var(--hs,1)); font-weight: 700; }
+#homeUi .equipStat { font-size: calc(26px * var(--hs,1)); color: #8fa0ab; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .equipClose { border: none; border-radius: calc(12px * var(--hs,1)); cursor: pointer; align-self: center;
+  padding: calc(14px * var(--hs,1)) calc(60px * var(--hs,1)); font-size: calc(30px * var(--hs,1)); font-weight: 800;
+  color: #eaf6ff; background: rgba(90,120,140,.4); }
 `;
         document.head.appendChild(style);
     }

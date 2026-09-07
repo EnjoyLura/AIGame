@@ -22,6 +22,7 @@ import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
 import { stageWaves, stageInfo, FINAL_STAGE_ID } from './StageData';
 import { GameFlow } from '../core/GameFlow';
+import { HeroSystem } from '../core/HeroSystem';
 import { HitParticle } from './HitParticle';
 import { MortarFx, MORTAR_FX } from './MortarFx';
 import { HomeUi } from '../ui/HomeUi';
@@ -299,9 +300,11 @@ export class BattleManager extends Component {
     /** 开波纯战斗部分（体力扣减与清场已由 GameFlow.startRun 完成）：应用局外强化并开启第一波 */
     beginRun(): boolean {
         const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
         this._stageId = gm.currentStage;
         for (const h of this._heroes) {
-            h.applyMetaAtk(gm.metaAtkMul());
+            // 最终攻击 = 基础 × 局外火力 × 英雄等级 × 装备
+            h.applyMetaAtk(gm.metaAtkMul() * hs.atkMulOf(h.def.id));
         }
         this._vehicle.applyMetaHp(gm.metaVehHpMul());
         this._startWave(1);
@@ -1228,6 +1231,8 @@ export class BattleManager extends Component {
             heroNode.setPosition(slotX, this.vehicleTopY - 40);
             const hero = heroNode.addComponent(Hero);
             hero.init(def);
+            // 装备的射速/射程加成（攻击乘区在 beginRun 统一结算）
+            HeroSystem.instance.applyEquipStats(hero);
             this._heroes.push(hero);
         }
         // 图标栏重新绑定新英雄（重开时英雄整体重建）
