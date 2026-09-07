@@ -2,7 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS } from '../battle/HeroDef';
-import { EQUIP_SLOTS, EQUIPMENT_DEFS } from './HeroSystem';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS, HeroSystem } from './HeroSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -41,6 +41,8 @@ export class GameManager {
     runId = 0;
     /** 编队：上阵英雄 id 列表（最多 4 人、至少 1 人；战斗按此顺序部署与排号位） */
     lineup: string[] = ['rifle', 'sniper', 'laser', 'radiation'];
+    /** 已拥有英雄（商城购买解锁；新存档仅步枪手，旧档无此字段视为全拥有） */
+    ownedHeroes: string[] = ['rifle'];
     /** 英雄等级（heroId → Lv，缺省 1；读写走 HeroSystem） */
     heroLevels: Record<string, number> = {};
     /** 英雄装备（heroId → 槽位 → 装备状态；读写走 HeroSystem） */
@@ -69,7 +71,32 @@ export class GameManager {
         return this.lineup.indexOf(heroId) >= 0;
     }
 
-    /** 上阵/下阵切换：上阵需未满 4 且未上阵，下阵需至少留 1 人；成功返回 true */
+    /** 是否已拥有该英雄 */
+    isHeroOwned(heroId: string): boolean {
+        return this.ownedHeroes.indexOf(heroId) >= 0;
+    }
+
+    /**
+     * 金币解锁英雄（商城购买，一次性买断）。
+     * 价格表在 HeroSystem.HERO_PRICES；已拥有/未收录/余额不足返回 false。
+     */
+    unlockHero(heroId: string): boolean {
+        if (this.isHeroOwned(heroId)) {
+            return false;
+        }
+        const price = HeroSystem.HERO_PRICES[heroId];
+        if (!price) {
+            return false;
+        }
+        if (!this.res.spend('gold', price)) {
+            return false;
+        }
+        this.ownedHeroes.push(heroId);
+        this.save();
+        return true;
+    }
+
+    /** 上阵/下阵切换：上阵需未拥有拦截+未满 4，下阵需至少留 1 人；成功返回 true */
     toggleLineupMember(heroId: string): boolean {
         const idx = this.lineup.indexOf(heroId);
         if (idx >= 0) {
@@ -78,7 +105,7 @@ export class GameManager {
             }
             this.lineup.splice(idx, 1);
         } else {
-            if (this.lineup.length >= GameManager.LINEUP_MAX) {
+            if (this.lineup.length >= GameManager.LINEUP_MAX || !this.isHeroOwned(heroId)) {
                 return false;
             }
             this.lineup.push(heroId);
@@ -172,6 +199,7 @@ export class GameManager {
             stageCleared: this.stageCleared,
             currentStage: this.currentStage,
             lineup: [...this.lineup],
+            ownedHeroes: [...this.ownedHeroes],
             heroLevels: this.heroLevels,
             equips: this.equips,
             gold: this.gold,
@@ -194,11 +222,22 @@ export class GameManager {
             this.totalKills = data.totalKills ?? 0;
             this.stageCleared = data.stageCleared ?? 0;
             this.currentStage = data.currentStage ?? 1;
-            // 编队：只接受合法英雄 id，空/全非法时回退默认（防御坏档）
+            // 已拥有英雄：旧档无此字段视为全拥有（英雄购买上线前的存档不做回锁）；
+            // 新档字段必须含合法 id，空/全非法回退仅步枪手
+            if (Array.isArray(data.ownedHeroes)) {
+                const validOwned = data.ownedHeroes.filter((id: unknown) => typeof id === 'string' && HERO_DEFS.some(d => d.id === id));
+                this.ownedHeroes = validOwned.length > 0 ? validOwned : ['rifle'];
+            } else {
+                this.ownedHeroes = HERO_DEFS.map(d => d.id);
+            }
+            // 编队：合法 id 且必须已拥有（旧档 lineup 可能含未拥有英雄），空则回退首个已拥有英雄
             if (Array.isArray(data.lineup)) {
-                const valid = data.lineup.filter((id: unknown) => typeof id === 'string' && HERO_DEFS.some(d => d.id === id));
+                const valid = data.lineup.filter((id: unknown) =>
+                    typeof id === 'string' && HERO_DEFS.some(d => d.id === id) && this.isHeroOwned(id));
                 if (valid.length > 0) {
                     this.lineup = valid.slice(0, GameManager.LINEUP_MAX);
+                } else {
+                    this.lineup = [this.ownedHeroes[0]];
                 }
             }
             // 英雄等级/装备：只接受合法英雄 id（装备结构逐项校验，防御坏档）

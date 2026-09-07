@@ -4,6 +4,7 @@ import { BattleManager } from '../battle/BattleManager';
 import { SoundFx } from '../core/SoundFx';
 import { GameManager } from '../core/GameManager';
 import { BattleConfig } from '../config/GameConfig';
+import { HERO_DEFS } from '../battle/HeroDef';
 
 /**
  * GM 调试面板（浏览器预览专用）：DOM 覆盖层按钮，免等待快速验证技能/大招/波次/失败流程。
@@ -90,6 +91,16 @@ export class GmPanel extends Component {
         });
         this._addButton(body, '钻石+100', () => {
             GameManager.instance.res.add('diamond', 100);
+            SoundFx.play('coin');
+        });
+        this._addButton(body, '解锁全部英雄', () => {
+            const gm = GameManager.instance;
+            for (const d of HERO_DEFS) {
+                if (!gm.isHeroOwned(d.id)) {
+                    gm.ownedHeroes.push(d.id);
+                }
+            }
+            gm.save();
             SoundFx.play('coin');
         });
 

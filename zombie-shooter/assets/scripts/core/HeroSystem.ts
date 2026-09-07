@@ -72,7 +72,17 @@ export const EQUIPMENT_DEFS: EquipmentDef[] = [
     { id: 'scope_quantum', slot: 'scope', name: '量子瞄具', tier: 4, rangePct: 0.42, atkPct: 0.10, baseCost: 2200 },
 ];
 
+/** 英雄解锁价格表（商城一次性买断；未收录的英雄不可购买） */
+export const HERO_PRICES: Record<string, number> = {
+    rifle: 0,       // 初始拥有
+    sniper: 1500,
+    laser: 2500,
+    radiation: 2000,
+};
+
 export class HeroSystem {
+    static readonly HERO_PRICES = HERO_PRICES;
+
     private static _inst: HeroSystem | null = null;
     static get instance(): HeroSystem {
         if (!this._inst) {
@@ -104,9 +114,9 @@ export class HeroSystem {
         return 1 + HERO_LEVEL_ATK_STEP * (this.heroLevel(heroId) - 1);
     }
 
-    /** 金币升级英雄；成功返回 true */
+    /** 金币升级英雄；成功返回 true（未拥有英雄不可升级） */
     upgradeHero(heroId: string): boolean {
-        if (this.isHeroMaxLevel(heroId)) {
+        if (!this._gm.isHeroOwned(heroId) || this.isHeroMaxLevel(heroId)) {
             return false;
         }
         const cost = this.heroUpgradeCost(heroId);
@@ -146,7 +156,7 @@ export class HeroSystem {
      */
     buyEquip(heroId: string, equipId: string): boolean {
         const def = this.equipDef(equipId);
-        if (!def) {
+        if (!def || !this._gm.isHeroOwned(heroId)) {
             return false;
         }
         if (!this._gm.res.spend('gold', def.baseCost)) {
@@ -163,7 +173,7 @@ export class HeroSystem {
     /** 金币强化某槽当前装备（+8% 本件属性/级） */
     upgradeEquip(heroId: string, slot: EquipSlot): boolean {
         const state = this.equipped(heroId, slot);
-        if (!state || this.isEquipMaxLevel(state)) {
+        if (!state || this.isEquipMaxLevel(state) || !this._gm.isHeroOwned(heroId)) {
             return false;
         }
         if (!this._gm.res.spend('gold', this.equipUpgradeCost(state))) {

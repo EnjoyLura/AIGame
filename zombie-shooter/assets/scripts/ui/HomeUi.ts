@@ -41,6 +41,8 @@ export class HomeUi extends Component {
     private _mallShopRows: Array<{ item: ShopItem; btn: HTMLButtonElement }> = [];
     private _mallAdBtn: HTMLButtonElement | null = null;
     private _mallAdLab: HTMLDivElement | null = null;
+    /** 商城英雄区容器（每次刷新重绘） */
+    private _heroShopBoxEl: HTMLDivElement | null = null;
     /** 模拟广告层（AD_START 显示 / AD_END 关闭，倒计时文案） */
     private _adOverlay: HTMLDivElement | null = null;
     private _adCountdown: HTMLDivElement | null = null;
@@ -92,6 +94,7 @@ export class HomeUi extends Component {
         eventCenter.on(GameEvent.RES_CHANGED, () => {
             this._refresh();
             this._refreshMall();
+            this._refreshHeroes();
         }, this);
         // 流程状态机驱动主城显隐：state==='home' 显示，其余隐藏（替代点击事件里手动切 display）
         eventCenter.on(GameEvent.FLOW_CHANGED, (from: string, to: string) => {
@@ -187,6 +190,16 @@ export class HomeUi extends Component {
         for (const item of ShopData.ITEMS) {
             page.appendChild(this._mkShopRow(item));
         }
+
+        // 英雄区：未拥有英雄金币买断解锁
+        const secH = document.createElement('div');
+        secH.className = 'homeSection';
+        secH.textContent = '━ 英 雄 ━';
+        page.appendChild(secH);
+        const heroShopBox = document.createElement('div');
+        heroShopBox.className = 'heroShopBox';
+        page.appendChild(heroShopBox);
+        this._heroShopBoxEl = heroShopBox;
 
         // 广告区
         const sec2 = document.createElement('div');
@@ -287,6 +300,79 @@ export class HomeUi extends Component {
         this._refreshMall();
     }
 
+    /** 商城英雄区重绘：每英雄一行（立绘+名字+定位+价格/已拥有），解锁即时刷角色页 */
+    private _refreshHeroShop(): void {
+        const box = this._heroShopBoxEl;
+        if (!box) {
+            return;
+        }
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        box.innerHTML = '';
+        for (const def of HERO_DEFS) {
+            const price = HeroSystem.HERO_PRICES[def.id];
+            const owned = gm.isHeroOwned(def.id);
+            if (!price) {
+                continue;
+            }
+            const row = document.createElement('div');
+            row.className = 'upRow';
+            const avatar = document.createElement('div');
+            avatar.className = 'heroAvatar shop';
+            this._tex(`characters/hero_${def.id}`, u => { avatar.style.backgroundImage = u; });
+            const info = document.createElement('div');
+            info.className = 'upInfo';
+            const name = document.createElement('div');
+            name.className = 'upName';
+            name.textContent = def.name;
+            const eff = document.createElement('div');
+            eff.className = 'upEff';
+            eff.textContent = def.role;
+            info.appendChild(name);
+            info.appendChild(eff);
+            const right = document.createElement('div');
+            right.className = 'upRight';
+            const cost = document.createElement('div');
+            cost.className = 'upCost';
+            const btn = document.createElement('button');
+            btn.className = 'upBtn';
+            if (owned) {
+                cost.textContent = '已拥有';
+                btn.textContent = '已拥有';
+                btn.disabled = true;
+            } else {
+                cost.textContent = `${price} 金币`;
+                btn.textContent = '解 锁';
+                btn.disabled = gm.gold < price;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    this._buyHero(def.id);
+                };
+            }
+            btn.style.opacity = btn.disabled ? '0.45' : '1';
+            right.appendChild(cost);
+            right.appendChild(btn);
+            row.appendChild(avatar);
+            row.appendChild(info);
+            row.appendChild(right);
+            box.appendChild(row);
+        }
+    }
+
+    /** 商城购买英雄：解锁（GameManager 扣费+落盘），成功后商城与角色页同步刷新 */
+    private _buyHero(heroId: string): void {
+        const gm = GameManager.instance;
+        SoundFx.unlock();
+        if (!gm.unlockHero(heroId)) {
+            SoundFx.play('ui');
+            this._refreshMall();
+            return;
+        }
+        SoundFx.play('buy');
+        this._refreshMall();
+        this._refreshHeroes();
+    }
+
     /** 商城页数值刷新（RES_CHANGED 与切页时调用） */
     private _refreshMall(): void {
         const gm = GameManager.instance;
@@ -314,6 +400,7 @@ export class HomeUi extends Component {
             btn.style.opacity = disabled ? '0.45' : '1';
             btn.title = disabled && item.disabledTip ? item.disabledTip : '';
         }
+        this._refreshHeroShop();
         if (this._mallAdBtn && this._mallAdLab) {
             const left = AdService.instance.remaining('stamina');
             const full = gm.stamina() >= BattleConfig.STAMINA_MAX;
@@ -463,7 +550,7 @@ export class HomeUi extends Component {
     /** 英雄装备弹层：三槽（已装→显示属性+强化；未装→显示推荐装备+购买）+ 英雄升级 */
     private _openEquipPanel(heroId: string): void {
         const def = HERO_DEFS.find(d => d.id === heroId);
-        if (!def) {
+        if (!def || !GameManager.instance.isHeroOwned(heroId)) {
             return;
         }
         const ov = document.createElement('div');
@@ -655,6 +742,38 @@ export class HomeUi extends Component {
         }
         for (const { defId, btn, lv } of this._heroCards) {
             const hs = HeroSystem.instance;
+            const owned = gm.isHeroOwned(defId);
+            const card = btn.closest('.heroCard');
+            // 未拥有：立绘灰态、禁养成与上阵，引导去商城
+            if (!owned) {
+                if (lv) {
+                    lv.textContent = '未拥有 · 前往商城解锁';
+                }
+                btn.textContent = '未拥有';
+                btn.disabled = true;
+                btn.style.opacity = '0.45';
+                const eqBtn = card?.querySelector<HTMLButtonElement>('.heroCardBtn.cyan');
+                if (eqBtn) {
+                    eqBtn.disabled = true;
+                    eqBtn.style.opacity = '0.45';
+                }
+                const avatar = card?.querySelector<HTMLDivElement>('.heroAvatar');
+                if (avatar) {
+                    avatar.classList.remove('inLineup');
+                    avatar.classList.add('locked');
+                    avatar.title = '未拥有，前往商城解锁';
+                    avatar.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.play('ui');
+                        this._switchPage('mall');
+                    };
+                }
+                continue;
+            }
+            if (card) {
+                const av = card.querySelector<HTMLDivElement>('.heroAvatar');
+                av?.classList.remove('locked');
+            }
             // 编队切换移到立绘上（上阵/下阵）；按钮行专职养成（升级+装备）
             const inLineup = gm.isInLineup(defId);
             if (lv) {
@@ -670,8 +789,7 @@ export class HomeUi extends Component {
                 btn.disabled = gm.gold < cost;
             }
             btn.style.opacity = btn.disabled ? '0.45' : '1';
-            // 立绘 = 编队开关（找同卡片的 avatar 元素）
-            const card = btn.closest('.heroCard');
+            // 立绘 = 编队开关（card 已在上方声明）
             const avatar = card?.querySelector<HTMLDivElement>('.heroAvatar');
             if (avatar) {
                 const full = gm.lineup.length >= GameManager.LINEUP_MAX;
@@ -1218,6 +1336,10 @@ export class HomeUi extends Component {
   border-radius: calc(16px * var(--hs,1)); background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
 #homeUi .heroAvatar { width: calc(110px * var(--hs,1)); height: calc(110px * var(--hs,1)); flex: none; border-radius: calc(12px * var(--hs,1));
   background: rgba(255,255,255,.06) center / contain no-repeat; }
+#homeUi .heroAvatar.locked { filter: grayscale(1) brightness(.55); }
+#homeUi .heroAvatar.shop { width: calc(84px * var(--hs,1)); height: calc(84px * var(--hs,1)); }
+#homeUi .heroShopBox { display: flex; flex-direction: column; gap: calc(16px * var(--hs,1)); width: 100%;
+  max-width: calc(900px * var(--hs,1)); }
 #homeUi .heroInfo { flex: 1; min-width: 0; }
 #homeUi .heroName { font-size: calc(36px * var(--hs,1)); font-weight: 800; color: #ecf1f1; }
 #homeUi .heroRole { font-size: calc(26px * var(--hs,1)); color: #8fa0ab; margin-top: calc(4px * var(--hs,1)); }
