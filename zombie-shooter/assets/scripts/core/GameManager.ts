@@ -2,7 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS } from '../battle/HeroDef';
-import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, HeroSystem } from './HeroSystem';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES } from './HeroSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -51,6 +51,8 @@ export class GameManager {
     weaponLv: Record<string, number> = {};
     /** 武器核心（heroId → 已嵌核心 id；读写走 HeroSystem） */
     weaponCores: Record<string, { id: string } | null> = {};
+    /** 装备背包（账号级；购买入库，穿戴时绑定到英雄，卸下回背包） */
+    bag: BagItem[] = [];
 
     /** 金币兼容访问器（真身在资源仓库） */
     get gold(): number { return this.res.get('gold'); }
@@ -208,6 +210,7 @@ export class GameManager {
             equips: this.equips,
             weaponLv: this.weaponLv,
             weaponCores: this.weaponCores,
+            bag: this.bag,
             gold: this.gold,
             upgrades: this._upgrades,
             res: this.res.serialize(),
@@ -289,6 +292,16 @@ export class GameManager {
                         this.weaponCores[d.id] = { id: c.id };
                     }
                 }
+            }
+            // 装备背包（逐件校验槽位/品质/等级）
+            if (Array.isArray(data.bag)) {
+                this.bag = data.bag.filter((it: unknown) => {
+                    const b = it as BagItem;
+                    return !!b && typeof b === 'object'
+                        && typeof b.slot === 'string' && b.slot in EQUIP_SLOT_NAMES
+                        && typeof b.tier === 'number' && b.tier >= 1 && b.tier <= 4
+                        && typeof b.lv === 'number' && b.lv >= 1;
+                }).map((b: BagItem) => ({ slot: b.slot, tier: b.tier, lv: Math.max(1, Math.floor(b.lv)) }));
             }
             if (data.gold !== undefined) {
                 this.res.add('gold', data.gold);

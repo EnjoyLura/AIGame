@@ -8,7 +8,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP, WEAPON_CORE_DEFS } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
 
@@ -43,6 +43,8 @@ export class HomeUi extends Component {
     private _mallAdLab: HTMLDivElement | null = null;
     /** 商城英雄区容器（每次刷新重绘） */
     private _heroShopBoxEl: HTMLDivElement | null = null;
+    /** 商城装备区容器（每次刷新重绘） */
+    private _equipShopBoxEl: HTMLDivElement | null = null;
     /** 模拟广告层（AD_START 显示 / AD_END 关闭，倒计时文案） */
     private _adOverlay: HTMLDivElement | null = null;
     private _adCountdown: HTMLDivElement | null = null;
@@ -191,6 +193,20 @@ export class HomeUi extends Component {
         for (const item of ShopData.ITEMS) {
             page.appendChild(this._mkShopRow(item));
         }
+
+        // 装备区：全部部件统一列表，购买入背包（角色页穿戴）
+        const secE = document.createElement('div');
+        secE.className = 'homeSection';
+        secE.textContent = '━ 装 备 ━';
+        page.appendChild(secE);
+        const equipShopBox = document.createElement('div');
+        equipShopBox.className = 'heroShopBox';
+        page.appendChild(equipShopBox);
+        this._equipShopBoxEl = equipShopBox;
+        const equipHint = document.createElement('div');
+        equipHint.className = 'mallAdHint';
+        equipHint.textContent = '购买后入背包，在角色页点击装备槽穿戴';
+        page.appendChild(equipHint);
 
         // 英雄区：未拥有英雄金币买断解锁
         const secH = document.createElement('div');
@@ -374,6 +390,63 @@ export class HomeUi extends Component {
         this._refreshHeroes();
     }
 
+    /** 商城装备区重绘：全部部件统一列表（按槽位顺序），购买入背包 */
+    private _refreshEquipShop(): void {
+        const box = this._equipShopBoxEl;
+        if (!box) {
+            return;
+        }
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        box.innerHTML = '';
+        for (const slot of EQUIP_SLOTS) {
+            for (const def of EQUIPMENT_DEFS.filter(e => e.slot === slot)) {
+                const row = document.createElement('div');
+                row.className = 'upRow';
+                const info = document.createElement('div');
+                info.className = 'upInfo';
+                const parts: string[] = [];
+                if (def.atkPct) {
+                    parts.push(`攻击+${Math.round(def.atkPct * 100)}%`);
+                }
+                if (def.ratePct) {
+                    parts.push(`射速+${Math.round(def.ratePct * 100)}%`);
+                }
+                if (def.rangePct) {
+                    parts.push(`射程+${Math.round(def.rangePct * 100)}%`);
+                }
+                info.innerHTML =
+                    `<div class="upName" style="color:${EQUIP_TIER_COLORS[def.tier - 1]}">${def.name}（${EQUIP_SLOT_NAMES[slot]}·${EQUIP_TIER_NAMES[def.tier - 1]}）</div>` +
+                    `<div class="upEff">${parts.join(' ')}</div>`;
+                const right = document.createElement('div');
+                right.className = 'upRight';
+                const cost = document.createElement('div');
+                cost.className = 'upCost';
+                cost.textContent = `${def.baseCost} 金币`;
+                const btn = document.createElement('button');
+                btn.className = 'upBtn';
+                btn.textContent = '购 买';
+                btn.disabled = gm.gold < def.baseCost;
+                btn.style.opacity = btn.disabled ? '0.45' : '1';
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (hs.buyEquipToBag(def.id)) {
+                        SoundFx.play('buy');
+                    } else {
+                        SoundFx.play('ui');
+                    }
+                    this._refreshMall();
+                };
+                right.appendChild(cost);
+                right.appendChild(btn);
+                row.appendChild(info);
+                row.appendChild(right);
+                box.appendChild(row);
+            }
+        }
+    }
+
     /** 商城页数值刷新（RES_CHANGED 与切页时调用） */
     private _refreshMall(): void {
         const gm = GameManager.instance;
@@ -402,6 +475,7 @@ export class HomeUi extends Component {
             btn.title = disabled && item.disabledTip ? item.disabledTip : '';
         }
         this._refreshHeroShop();
+        this._refreshEquipShop();
         if (this._mallAdBtn && this._mallAdLab) {
             const left = AdService.instance.remaining('stamina');
             const full = gm.stamina() >= BattleConfig.STAMINA_MAX;
@@ -651,7 +725,8 @@ export class HomeUi extends Component {
                 row.appendChild(slot);
             }
         }
-        // 英雄详情（整块重建，避免逐元素状态同步）
+        // 英雄详情（整块重建，避免逐元素状态同步）：
+        // 左列 = 立绘+名字+战力+按钮（居中），右列 = 六槽装备卡 2×3 + 主武器区
         const body = this._heroDetailBodyEl;
         if (!body) {
             return;
@@ -661,6 +736,10 @@ export class HomeUi extends Component {
         const owned = gm.isHeroOwned(def.id);
         const inLineup = gm.isInLineup(def.id);
         const weaponName = def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射';
+
+        // ---- 左列：居中英雄展示 ----
+        const left = document.createElement('div');
+        left.className = 'heroShowcase';
 
         // 立绘：未拥有=灰态点跳商城；已拥有=点击上下阵
         const avatar = document.createElement('div');
@@ -688,31 +767,34 @@ export class HomeUi extends Component {
                 this._switchPage('mall');
             };
         }
+        left.appendChild(avatar);
 
-        // 信息列
-        const info = document.createElement('div');
-        info.className = 'heroInfo';
         const name = document.createElement('div');
-        name.className = 'heroName';
+        name.className = 'heroName center';
         name.textContent = def.name;
-        const role = document.createElement('div');
-        role.className = 'heroRole';
-        role.textContent = `${def.role} · ${weaponName}`;
-        const lv = document.createElement('div');
-        lv.className = 'heroLv';
-        if (owned) {
-            const atkPct = Math.round((hs.atkMulOf(def.id) - 1) * 100);
-            lv.textContent = `Lv.${hs.heroLevel(def.id)} · 攻击加成 +${atkPct}%` + (inLineup ? ' · 上阵中' : '');
-        } else {
-            lv.textContent = '未拥有 · 点击立绘前往商城解锁';
-        }
-        info.appendChild(name);
-        info.appendChild(role);
-        info.appendChild(lv);
+        left.appendChild(name);
 
-        // 按钮列：上阵切换 + 升级
+        const role = document.createElement('div');
+        role.className = 'heroRole center';
+        role.textContent = `${def.role} · ${weaponName}` + (owned ? (inLineup ? ' · 上阵中' : '') : ' · 未拥有');
+        left.appendChild(role);
+
+        // 战力值（基础攻击 × 总攻击乘区）
+        const power = document.createElement('div');
+        power.className = 'heroPower';
+        if (owned) {
+            const baseDef = HERO_DEFS.find(d => d.id === def.id)!;
+            const pw = Math.round(baseDef.atk * hs.atkMulOf(def.id) * 10);
+            power.innerHTML = `<span class="powerFlame">🔥</span> ${pw}`;
+            power.title = `Lv.${hs.heroLevel(def.id)} · 武器 Lv.${hs.weaponLevel(def.id)} · 装备/核心加成`;
+        } else {
+            power.innerHTML = `<span class="powerFlame">🔥</span> ---`;
+        }
+        left.appendChild(power);
+
+        // 按钮列：上阵切换 + 升级 + 武器强化
         const btnCol = document.createElement('div');
-        btnCol.className = 'heroBtnCol';
+        btnCol.className = 'heroBtnCol center';
         const lineupBtn = document.createElement('button');
         lineupBtn.className = 'heroCardBtn cyan';
         if (owned) {
@@ -783,35 +865,34 @@ export class HomeUi extends Component {
         btnCol.appendChild(lineupBtn);
         btnCol.appendChild(upBtn);
         btnCol.appendChild(wpBtn);
+        left.appendChild(btnCol);
+        body.appendChild(left);
 
-        body.appendChild(avatar);
-        body.appendChild(info);
-        body.appendChild(btnCol);
-
-        // 主武器区：核心槽（仅已拥有英雄；未拥有显示锁定提示）
-        const secWp = document.createElement('div');
-        secWp.className = 'equipSectionLab';
-        secWp.textContent = '── 主 武 器 ──';
-        body.appendChild(secWp);
-        const wpBox = document.createElement('div');
-        wpBox.className = 'equipSlots';
-        body.appendChild(wpBox);
+        // ---- 右列：六槽装备卡 2×3 + 主武器区 ----
+        const right = document.createElement('div');
+        right.className = 'heroEquipGrid';
         if (!owned) {
             const lockTip = document.createElement('div');
             lockTip.className = 'equipStat';
-            lockTip.textContent = '解锁英雄后开放武器养成';
-            wpBox.appendChild(lockTip);
-
-            const secLock = document.createElement('div');
-            secLock.className = 'equipSectionLab';
-            secLock.textContent = '── 装 备 栏 ──';
-            body.appendChild(secLock);
-            const lockEq = document.createElement('div');
-            lockEq.className = 'equipStat';
-            lockEq.textContent = '解锁英雄后开放装备栏';
-            body.appendChild(lockEq);
+            lockTip.textContent = '解锁英雄后开放装备栏与武器养成';
+            right.appendChild(lockTip);
+            body.appendChild(right);
             return;
         }
+        // 六槽装备卡（点击弹穿戴面板）
+        for (const slot of EQUIP_SLOTS) {
+            right.appendChild(this._mkEquipCard(def.id, slot));
+        }
+        body.appendChild(right);
+
+        // 主武器区（核心嵌入）横贯下方
+        const secWp = document.createElement('div');
+        secWp.className = 'equipSectionLab wide';
+        secWp.textContent = '── 主 武 器 ──';
+        body.appendChild(secWp);
+        const wpBox = document.createElement('div');
+        wpBox.className = 'equipSlots wide';
+        body.appendChild(wpBox);
         {
             const core = hs.weaponCore(def.id);
             const coreRow = document.createElement('div');
@@ -832,7 +913,7 @@ export class HomeUi extends Component {
                     }
                 };
             } else {
-                // 推荐核心：已嵌低档时推下一档，否则推价格最低的入门件
+                // 推荐核心：档次/价格最低的入门件
                 const rec = WEAPON_CORE_DEFS
                     .slice()
                     .sort((a, b) => (a.tier - b.tier) || (a.baseCost - b.baseCost))[0] ?? null;
@@ -858,85 +939,196 @@ export class HomeUi extends Component {
             coreRow.appendChild(coreBtn);
             wpBox.appendChild(coreRow);
         }
+    }
 
-        // 装备栏（五部位）
-        const secEq = document.createElement('div');
-        secEq.className = 'equipSectionLab';
-        secEq.textContent = '── 装 备 栏 ──';
-        body.appendChild(secEq);
-        const slotsBox = document.createElement('div');
-        slotsBox.className = 'equipSlots';
-        body.appendChild(slotsBox);
-        for (const slot of EQUIP_SLOTS) {
-            const cur = hs.equipped(def.id, slot);
-            const eqRow = document.createElement('div');
-            eqRow.className = 'equipRow';
-            const eqInfo = document.createElement('div');
-            eqInfo.className = 'equipInfo';
-            const btn = document.createElement('button');
-            btn.className = 'heroCardBtn';
-            if (cur) {
-                const d = hs.equipDef(cur.id)!;
-                const parts: string[] = [];
-                if (d.atkPct) {
-                    parts.push(`攻击+${Math.round(d.atkPct * Math.pow(1 + EQUIP_UPGRADE_STEP, cur.lv - 1) * 100)}%`);
-                }
-                if (d.ratePct) {
-                    parts.push(`射速+${Math.round(d.ratePct * Math.pow(1 + EQUIP_UPGRADE_STEP, cur.lv - 1) * 100)}%`);
-                }
-                if (d.rangePct) {
-                    parts.push(`射程+${Math.round(d.rangePct * Math.pow(1 + EQUIP_UPGRADE_STEP, cur.lv - 1) * 100)}%`);
-                }
-                eqInfo.innerHTML =
-                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[d.tier - 1]}">${EQUIP_SLOT_NAMES[slot]}：${d.name}（${EQUIP_TIER_NAMES[d.tier - 1]}）</div>` +
-                    `<div class="equipStat">强化 Lv.${cur.lv} · ${parts.join(' ')}</div>`;
-                if (hs.isEquipMaxLevel(cur)) {
-                    btn.textContent = '已满级';
-                    btn.disabled = true;
-                } else {
-                    const cost = hs.equipUpgradeCost(cur);
-                    btn.textContent = `强 化 ${cost}金`;
-                    btn.disabled = gm.gold < cost;
-                    btn.onclick = () => {
-                        if (hs.upgradeEquip(def.id, slot)) {
-                            SoundFx.play('buy');
-                            this._refreshHeroes();
-                        }
-                    };
+    /** 单个装备槽卡片：显示槽名/已穿件（品质色+强化等级），点击弹出穿戴面板 */
+    private _mkEquipCard(heroId: string, slot: EquipSlot): HTMLDivElement {
+        const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
+        const cur = hs.equipped(heroId, slot);
+        const card = document.createElement('div');
+        card.className = 'equipCard' + (cur ? ' filled' : '');
+        if (cur) {
+            // bag: 前缀 = 背包穿戴件（品质曲线）；否则查装备池定义
+            if (cur.id.startsWith('bag:')) {
+                const [, , t] = cur.id.split(':');
+                const tier = Number(t) as 1 | 2 | 3 | 4;
+                if (tier >= 1 && tier <= 4) {
+                    card.style.borderColor = EQUIP_TIER_COLORS[tier - 1];
+                    card.innerHTML =
+                        `<div class="equipCardSlot">${EQUIP_SLOT_NAMES[slot]}</div>` +
+                        `<div class="equipCardName" style="color:${EQUIP_TIER_COLORS[tier - 1]}">${bagItemName({ slot, tier, lv: cur.lv })}</div>` +
+                        `<div class="equipCardLv">强化 Lv.${cur.lv}</div>`;
                 }
             } else {
-                const rec = hs.recommend(def.id, slot);
-                if (rec) {
-                    const parts: string[] = [];
-                    if (rec.atkPct) {
-                        parts.push(`攻击+${Math.round(rec.atkPct * 100)}%`);
-                    }
-                    if (rec.ratePct) {
-                        parts.push(`射速+${Math.round(rec.ratePct * 100)}%`);
-                    }
-                    if (rec.rangePct) {
-                        parts.push(`射程+${Math.round(rec.rangePct * 100)}%`);
-                    }
-                    eqInfo.innerHTML =
-                        `<div class="equipName" style="color:${EQUIP_TIER_COLORS[rec.tier - 1]}">${EQUIP_SLOT_NAMES[slot]}：${rec.name}（${EQUIP_TIER_NAMES[rec.tier - 1]}）</div>` +
-                        `<div class="equipStat">未装备 · ${parts.join(' ')}</div>`;
-                    btn.textContent = `购 买 ${rec.baseCost}金`;
-                    btn.disabled = gm.gold < rec.baseCost;
-                    btn.onclick = () => {
-                        if (hs.buyEquip(def.id, rec.id)) {
-                            SoundFx.play('buy');
-                            this._refreshHeroes();
-                        }
-                    };
-                } else {
-                    eqInfo.innerHTML = `<div class="equipName">${EQUIP_SLOT_NAMES[slot]}：暂无可购装备</div>`;
-                    btn.style.display = 'none';
+                const d = hs.equipDef(cur.id);
+                if (d) {
+                    card.style.borderColor = EQUIP_TIER_COLORS[d.tier - 1];
+                    card.innerHTML =
+                        `<div class="equipCardSlot">${EQUIP_SLOT_NAMES[slot]}</div>` +
+                        `<div class="equipCardName" style="color:${EQUIP_TIER_COLORS[d.tier - 1]}">${d.name}</div>` +
+                        `<div class="equipCardLv">强化 Lv.${cur.lv}</div>`;
                 }
             }
-            btn.style.opacity = btn.disabled ? '0.45' : '1';
-            eqRow.appendChild(eqInfo);
-            eqRow.appendChild(btn);
-            slotsBox.appendChild(eqRow);
+        } else {
+            card.innerHTML =
+                `<div class="equipCardSlot">${EQUIP_SLOT_NAMES[slot]}</div>` +
+                `<div class="equipCardName dim">${hs.hasBagItem(slot) ? '背包有货' : '空'}</div>`;
+        }
+        card.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openEquipSlotPanel(heroId, slot);
+        };
+        return card;
+    }
+
+    /** 穿戴面板：列出背包中该槽全部件（穿戴）+ 已穿件（卸下/强化） */
+    private _openEquipSlotPanel(heroId: string, slot: EquipSlot): void {
+        if (!this._root || !GameManager.instance.isHeroOwned(heroId) || document.querySelector('#homeUi .equipSlotPanel')) {
+            return;
+        }
+        const ov = document.createElement('div');
+        ov.className = 'lineupPanelOverlay';
+        ov.onclick = (e) => {
+            e.stopPropagation();
+            ov.remove();
+        };
+        const card = document.createElement('div');
+        card.className = 'lineupPanelCard';
+        card.onclick = (e) => e.stopPropagation();
+        const title = document.createElement('div');
+        title.className = 'lineupPanelTitle';
+        title.textContent = `${EQUIP_SLOT_NAMES[slot]} · 穿 戴`;
+        card.appendChild(title);
+
+        const list = document.createElement('div');
+        list.className = 'equipSlots wide';
+        card.appendChild(list);
+        this._refreshEquipSlotPanel(list, heroId, slot, ov);
+
+        const close = document.createElement('button');
+        close.className = 'heroCardBtn cyan lineupClose';
+        close.textContent = '关 闭';
+        close.onclick = (e) => {
+            e.stopPropagation();
+            ov.remove();
+        };
+        card.appendChild(close);
+        ov.appendChild(card);
+        this._root.appendChild(ov);
+    }
+
+    /** 穿戴面板刷新：背包件列表（穿戴按钮）+ 已穿件操作（卸下/强化） */
+    private _refreshEquipSlotPanel(list: HTMLDivElement, heroId: string, slot: EquipSlot, ov: HTMLDivElement): void {
+        const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
+        list.innerHTML = '';
+        const cur = hs.equipped(heroId, slot);
+
+        // 已穿件：卸下 / 强化
+        if (cur) {
+            const row = document.createElement('div');
+            row.className = 'equipRow';
+            const info = document.createElement('div');
+            info.className = 'equipInfo';
+            let nameHtml = '';
+            let tier: 1 | 2 | 3 | 4 = 1;
+            if (cur.id.startsWith('bag:')) {
+                const t = Number(cur.id.split(':')[2]) as 1 | 2 | 3 | 4;
+                tier = t;
+                nameHtml = bagItemName({ slot, tier, lv: cur.lv });
+            } else {
+                const d = hs.equipDef(cur.id);
+                if (d) {
+                    tier = d.tier;
+                    nameHtml = d.name;
+                }
+            }
+            const parts: string[] = [];
+            for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
+                const v = Math.round(hs.equipSlotValue(cur, key) * 100);
+                if (v > 0) {
+                    parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
+                }
+            }
+            info.innerHTML =
+                `<div class="equipName" style="color:${EQUIP_TIER_COLORS[tier - 1]}">当前：${nameHtml}</div>` +
+                `<div class="equipStat">强化 Lv.${cur.lv} · ${parts.join(' ') || '无属性'}</div>`;
+            const btn = document.createElement('button');
+            btn.className = 'heroCardBtn';
+            if (!hs.isEquipMaxLevel(cur)) {
+                const cost = hs.equipUpgradeCost(cur);
+                btn.textContent = `强 化 ${cost}金`;
+                btn.disabled = gm.gold < cost;
+                btn.onclick = () => {
+                    if (hs.upgradeEquip(heroId, slot)) {
+                        SoundFx.play('buy');
+                        this._refreshEquipSlotPanel(list, heroId, slot, ov);
+                        this._refreshHeroes();
+                    }
+                };
+            } else {
+                btn.textContent = '已满级';
+                btn.disabled = true;
+            }
+            const offBtn = document.createElement('button');
+            offBtn.className = 'heroCardBtn cyan';
+            offBtn.textContent = '卸 下';
+            offBtn.style.marginLeft = 'calc(10px * var(--hs,1))';
+            offBtn.onclick = () => {
+                if (hs.unequipToBag(heroId, slot)) {
+                    SoundFx.play('ui');
+                    this._refreshEquipSlotPanel(list, heroId, slot, ov);
+                    this._refreshHeroes();
+                }
+            };
+            const btnWrap = document.createElement('div');
+            btnWrap.className = 'heroBtnCol';
+            btnWrap.style.flexDirection = 'row';
+            btnWrap.appendChild(btn);
+            btnWrap.appendChild(offBtn);
+            row.appendChild(info);
+            row.appendChild(btnWrap);
+            list.appendChild(row);
+        }
+
+        // 背包件列表
+        const items = hs.bagItemsOf(slot);
+        if (items.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'equipStat';
+            empty.textContent = cur ? '背包中该部位没有其他件' : '背包中该部位没有装备，去商城购买';
+            list.appendChild(empty);
+        }
+        for (const { index, item } of items) {
+            const row = document.createElement('div');
+            row.className = 'equipRow';
+            const info = document.createElement('div');
+            info.className = 'equipInfo';
+            const parts: string[] = [];
+            for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
+                const v = Math.round(bagItemValue(item, key) * 100);
+                if (v > 0) {
+                    parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
+                }
+            }
+            info.innerHTML =
+                `<div class="equipName" style="color:${EQUIP_TIER_COLORS[item.tier - 1]}">${bagItemName(item)}</div>` +
+                `<div class="equipStat">${parts.join(' ') || '无属性'}</div>`;
+            const btn = document.createElement('button');
+            btn.className = 'heroCardBtn';
+            btn.textContent = '穿 戴';
+            btn.onclick = () => {
+                if (hs.equipFromBag(heroId, index)) {
+                    SoundFx.play('buy');
+                    ov.remove();
+                    this._refreshHeroes();
+                }
+            };
+            row.appendChild(info);
+            row.appendChild(btn);
+            list.appendChild(row);
         }
     }
 
@@ -1479,9 +1671,27 @@ export class HomeUi extends Component {
   font-size: calc(56px * var(--hs,1)); color: #ffd76a; cursor: pointer; user-select: none;
   text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.6); }
 #homeUi .heroArrow:active { opacity: .6; }
-#homeUi .heroDetailBody { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: calc(20px * var(--hs,1));
+#homeUi .heroDetailBody { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: flex-start; gap: calc(24px * var(--hs,1));
   padding: calc(20px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
   background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
+#homeUi .heroShowcase { flex: none; width: calc(340px * var(--hs,1)); display: flex; flex-direction: column; align-items: center; gap: calc(10px * var(--hs,1)); }
+#homeUi .heroPower { font-size: calc(44px * var(--hs,1)); font-weight: 800; color: #ff9d45;
+  text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.6); font-variant-numeric: tabular-nums; }
+#homeUi .powerFlame { font-size: calc(36px * var(--hs,1)); }
+#homeUi .heroName.center, #homeUi .heroRole.center { text-align: center; }
+#homeUi .heroBtnCol.center { align-items: center; }
+#homeUi .heroEquipGrid { flex: 1; min-width: calc(360px * var(--hs,1)); display: grid;
+  grid-template-columns: 1fr 1fr; gap: calc(14px * var(--hs,1)); align-content: start; }
+#homeUi .equipCard { border-radius: calc(14px * var(--hs,1)); background: rgba(6,12,18,.72);
+  border: calc(3px * var(--hs,1)) solid rgba(120,150,170,.35); padding: calc(12px * var(--hs,1)) calc(16px * var(--hs,1));
+  cursor: pointer; min-height: calc(110px * var(--hs,1)); }
+#homeUi .equipCard:active { transform: scale(.97); }
+#homeUi .equipCardSlot { font-size: calc(24px * var(--hs,1)); color: #8fa0ab; }
+#homeUi .equipCardName { font-size: calc(30px * var(--hs,1)); font-weight: 800; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .equipCardName.dim { color: #6b7d88; font-weight: 400; }
+#homeUi .equipCardLv { font-size: calc(24px * var(--hs,1)); color: #ffd76a; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .equipSectionLab.wide { width: 100%; }
+#homeUi .equipSlots.wide { width: 100%; }
 #homeUi .heroAvatar { width: calc(110px * var(--hs,1)); height: calc(110px * var(--hs,1)); flex: none; border-radius: calc(12px * var(--hs,1));
   background: rgba(255,255,255,.06) center / contain no-repeat; }
 #homeUi .heroAvatar.detail { width: calc(220px * var(--hs,1)); height: calc(240px * var(--hs,1)); cursor: pointer; }

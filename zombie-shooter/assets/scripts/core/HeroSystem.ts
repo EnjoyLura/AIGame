@@ -12,11 +12,11 @@ import { GameManager } from './GameManager';
  *   在部署后用 applyEquipStats 追加射速/射程/暴击加成。
  */
 
-/** 装备槽位（五部位） */
-export type EquipSlot = 'head' | 'body' | 'legs' | 'gloves' | 'shoes';
-export const EQUIP_SLOTS: EquipSlot[] = ['head', 'body', 'legs', 'gloves', 'shoes'];
+/** 装备槽位（六部位） */
+export type EquipSlot = 'head' | 'body' | 'legs' | 'gloves' | 'wrist' | 'shoes';
+export const EQUIP_SLOTS: EquipSlot[] = ['head', 'body', 'legs', 'gloves', 'wrist', 'shoes'];
 export const EQUIP_SLOT_NAMES: Record<EquipSlot, string> = {
-    head: '头盔', body: '护甲', legs: '护腿', gloves: '手套', shoes: '战靴',
+    head: '头盔', body: '护甲', legs: '护腿', gloves: '手套', wrist: '腕甲', shoes: '战靴',
 };
 
 /** 装备品质（tier 1-4）；品质越高属性与价格越高 */
@@ -118,7 +118,49 @@ export const EQUIPMENT_DEFS: EquipmentDef[] = [
     { id: 'shoes_sprint', slot: 'shoes', name: '疾行战靴', tier: 2, rangePct: 0.10, ratePct: 0.05, baseCost: 370 },
     { id: 'shoes_blink', slot: 'shoes', name: '闪现战靴', tier: 3, rangePct: 0.16, ratePct: 0.09, baseCost: 950 },
     { id: 'shoes_warp', slot: 'shoes', name: '跃迁战靴', tier: 4, rangePct: 0.26, ratePct: 0.14, baseCost: 2300 },
+    // 腕甲：攻击+攻速均衡（稳枪系）
+    { id: 'wrist_std', slot: 'wrist', name: '制式腕甲', tier: 1, atkPct: 0.04, ratePct: 0.03, baseCost: 140 },
+    { id: 'wrist_stable', slot: 'wrist', name: '稳枪腕甲', tier: 2, atkPct: 0.08, ratePct: 0.06, baseCost: 390 },
+    { id: 'wrist_assault', slot: 'wrist', name: '突袭腕甲', tier: 3, atkPct: 0.13, ratePct: 0.10, baseCost: 980 },
+    { id: 'wrist_rage', slot: 'wrist', name: '狂怒腕甲', tier: 4, atkPct: 0.20, ratePct: 0.16, baseCost: 2350 },
 ];
+
+// ================= 背包系统 =================
+
+/** 背包内装备件（购买入库；穿戴时绑定到英雄，卸下回背包） */
+export interface BagItem {
+    /** 部位槽位 */
+    slot: EquipSlot;
+    /** 品质 1-4 */
+    tier: 1 | 2 | 3 | 4;
+    /** 强化等级（购买时 1） */
+    lv: number;
+}
+
+/** 由装备定义 id 解析背包件（购买入库用） */
+export function bagItemFromDef(def: EquipmentDef): BagItem {
+    return { slot: def.slot, tier: def.tier, lv: 1 };
+}
+
+/** 背包件的属性值（品质定基础，强化等级放大；与 EQUIPMENT_DEFS 数值对齐：tier n 基础≈同槽 tier n 件的 60%） */
+export function bagItemValue(item: BagItem, key: 'atkPct' | 'ratePct' | 'rangePct'): number {
+    // 背包件基础值 = 同槽同品质标准曲线：0.06 × tier × (1 + 0.05 × (tier-1))
+    const base = 0.06 * item.tier * (1 + 0.05 * (item.tier - 1));
+    if (base <= 0) {
+        return 0;
+    }
+    return base * Math.pow(1 + EQUIP_UPGRADE_STEP, item.lv - 1);
+}
+
+/** 背包件显示名（品质 + 部位） */
+export function bagItemName(item: BagItem): string {
+    return `${EQUIP_TIER_NAMES[item.tier - 1]}${EQUIP_SLOT_NAMES[item.slot]}`;
+}
+
+/** 背包件购买价格（品质定价曲线） */
+export function bagItemCost(item: BagItem): number {
+    return Math.round(120 * Math.pow(2.1, item.tier - 1));
+}
 
 /** 英雄解锁价格表（商城一次性买断；未收录的英雄不可购买） */
 export const HERO_PRICES: Record<string, number> = {
@@ -244,7 +286,7 @@ export class HeroSystem {
         return true;
     }
 
-    // ================= 装备 =================
+    // ================= 装备与背包 =================
 
     equipDef(equipId: string): EquipmentDef | null {
         return EQUIPMENT_DEFS.find(e => e.id === equipId) ?? null;
@@ -255,7 +297,7 @@ export class HeroSystem {
         return this._gm.equips[heroId]?.[slot] ?? null;
     }
 
-    /** 装备强化费用（随品质与当前强化等级递增） */
+    /** 已穿件强化费用（随品质与当前强化等级递增；背包件品质即 tier） */
     equipUpgradeCost(state: EquipState): number {
         const def = this.equipDef(state.id);
         const tier = def?.tier ?? 1;
@@ -266,22 +308,83 @@ export class HeroSystem {
         return state.lv >= EQUIP_UPGRADE_MAX;
     }
 
-    /**
-     * 金币购买装备并穿上（同槽替换，旧件不返还）。
-     * equipId 必须属于该槽位；成功返回 true。
-     */
-    buyEquip(heroId: string, equipId: string): boolean {
-        const def = this.equipDef(equipId);
-        if (!def || !this._gm.isHeroOwned(heroId)) {
+    /** 商城购买装备：扣金币后入背包（不直接上身）；defId 必须在装备池内 */
+    buyEquipToBag(defId: string): boolean {
+        const def = this.equipDef(defId);
+        if (!def) {
             return false;
         }
         if (!this._gm.res.spend('gold', def.baseCost)) {
             return false;
         }
+        this._gm.bag.push(bagItemFromDef(def));
+        this._gm.save();
+        return true;
+    }
+
+    /** 背包中某槽的全部件（返回索引以便穿戴定位） */
+    bagItemsOf(slot: EquipSlot): Array<{ index: number; item: BagItem }> {
+        const out: Array<{ index: number; item: BagItem }> = [];
+        this._gm.bag.forEach((item, index) => {
+            if (item.slot === slot) {
+                out.push({ index, item });
+            }
+        });
+        return out;
+    }
+
+    /** 背包中是否有某槽的件（红点/置灰判断用） */
+    hasBagItem(slot: EquipSlot): boolean {
+        return this._gm.bag.some(item => item.slot === slot);
+    }
+
+    /**
+     * 从背包穿戴：背包件复制到英雄对应槽（同槽旧件回背包），背包移除该件。
+     * bagIndex 失效/槽位不符返回 false。
+     */
+    equipFromBag(heroId: string, bagIndex: number): boolean {
+        const item = this._gm.bag[bagIndex];
+        if (!item || !this._gm.isHeroOwned(heroId)) {
+            return false;
+        }
         if (!this._gm.equips[heroId]) {
             this._gm.equips[heroId] = {};
         }
-        this._gm.equips[heroId][def.slot] = { id: equipId, lv: 1 };
+        const slots = this._gm.equips[heroId];
+        const cur = slots[item.slot];
+        // 旧件回背包（保留强化等级）；新件上身
+        if (cur) {
+            const curDef = this.equipDef(cur.id);
+            if (curDef) {
+                this._gm.bag.push({ slot: curDef.slot, tier: curDef.tier, lv: cur.lv });
+            }
+        }
+        // 新件以 BagItem 身份上身：equips 结构兼容（id 存 bag: 前缀虚拟 id，真实属性按 slot+tier 查）
+        slots[item.slot] = { id: `bag:${item.slot}:${item.tier}`, lv: item.lv };
+        this._gm.bag.splice(bagIndex, 1);
+        this._gm.save();
+        return true;
+    }
+
+    /** 卸下某槽装备回背包（不销毁） */
+    unequipToBag(heroId: string, slot: EquipSlot): boolean {
+        const cur = this.equipped(heroId, slot);
+        if (!cur) {
+            return false;
+        }
+        const def = this.equipDef(cur.id);
+        if (def) {
+            // 旧定义件（id 非 bag: 前缀）
+            this._gm.bag.push({ slot: def.slot, tier: def.tier, lv: cur.lv });
+        } else if (cur.id.startsWith('bag:')) {
+            const [, s, t] = cur.id.split(':');
+            const tier = Number(t) as 1 | 2 | 3 | 4;
+            const slotOk = EQUIP_SLOTS.indexOf(s as EquipSlot) >= 0;
+            if (slotOk && tier >= 1 && tier <= 4) {
+                this._gm.bag.push({ slot: s as EquipSlot, tier, lv: cur.lv });
+            }
+        }
+        delete this._gm.equips[heroId][slot];
         this._gm.save();
         return true;
     }
@@ -300,8 +403,21 @@ export class HeroSystem {
         return true;
     }
 
-    /** 单件装备的属性值（含强化等级；返回百分比小数） */
+    /** 单件装备的属性值（含强化等级；返回百分比小数）——UI 展示用 */
+    equipSlotValue(state: EquipState, key: 'atkPct' | 'ratePct' | 'rangePct'): number {
+        return this._equipValue(state, key);
+    }
+
+    /** 单件装备的属性值（含强化等级；返回百分比小数）。bag: 前缀件按品质曲线取值 */
     private _equipValue(state: EquipState, key: 'atkPct' | 'ratePct' | 'rangePct'): number {
+        if (state.id.startsWith('bag:')) {
+            const [, , t] = state.id.split(':');
+            const tier = Number(t) as 1 | 2 | 3 | 4;
+            if (!(tier >= 1 && tier <= 4)) {
+                return 0;
+            }
+            return bagItemValue({ slot: 'head', tier, lv: state.lv }, key);
+        }
         const def = this.equipDef(state.id);
         const base = def?.[key] ?? 0;
         if (base <= 0) {
