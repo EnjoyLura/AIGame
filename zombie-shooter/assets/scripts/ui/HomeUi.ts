@@ -702,8 +702,8 @@ export class HomeUi extends Component {
         this._pages.heroes = page;
     }
 
-    /** 角色页刷新：复刻装备界面布局——左上头像铭牌、左侧功能圆钮、中央立绘、
-     *  右侧六槽装备格 2×3、底部战力徽章，下方为背包网格 */
+    /** 角色页刷新：立绘铺满整页作底板，小组件（头像铭牌/功能圆钮/武器槽/核心/
+     *  装备格/战力徽章）全部浮在底板上，下方为背包网格 */
     private _refreshHeroes(): void {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
@@ -712,17 +712,33 @@ export class HomeUi extends Component {
             return;
         }
         body.innerHTML = '';
-        body.className = 'heroDetailBody col';
+        body.className = 'heroDetailBody col base';
         const def = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length];
         const owned = gm.isHeroOwned(def.id);
         const inLineup = gm.isInLineup(def.id);
         const weaponName = def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射';
 
-        // ---- 角色展示区（relative 舞台）----
-        const stage = document.createElement('div');
-        stage.className = 'heroStage';
+        // ---- 整页底板：英雄立绘铺满（点击 = 上阵切换 / 未拥有跳商城）----
+        const model = document.createElement('div');
+        model.className = 'heroModel' + (owned ? '' : ' locked');
+        this._tex(`characters/hero_${def.id}`, u => { model.style.backgroundImage = u; });
+        model.title = owned ? '点击切换上阵' : '未拥有，前往商城解锁';
+        model.onclick = (e) => {
+            e.stopPropagation();
+            if (!owned) {
+                SoundFx.play('ui');
+                this._switchPage('mall');
+                return;
+            }
+            SoundFx.unlock();
+            if (gm.toggleLineupMember(def.id)) {
+                SoundFx.play('ui');
+                this._refreshHeroes();
+            }
+        };
+        body.appendChild(model);
 
-        // 左上：头像 + 等级角标 + 名牌 + 定位徽章
+        // 左上：头像 + 等级角标 + 名牌 + 定位徽章（浮在底板上）
         const avatarBox = document.createElement('div');
         avatarBox.className = 'heroAvatarBox';
         const faceWrap = document.createElement('div');
@@ -746,7 +762,7 @@ export class HomeUi extends Component {
         avatarBox.appendChild(faceWrap);
         avatarBox.appendChild(plate);
         avatarBox.appendChild(roleBadge);
-        stage.appendChild(avatarBox);
+        body.appendChild(avatarBox);
 
         // 左侧功能圆钮：上阵/下阵 + 升级（未拥有 = 去解锁）
         const side = document.createElement('div');
@@ -784,27 +800,7 @@ export class HomeUi extends Component {
                 this._switchPage('mall');
             }));
         }
-        stage.appendChild(side);
-
-        // 中央大立绘（点击 = 上阵切换 / 未拥有跳商城）
-        const model = document.createElement('div');
-        model.className = 'heroModel' + (owned ? '' : ' locked');
-        this._tex(`characters/hero_${def.id}`, u => { model.style.backgroundImage = u; });
-        model.title = owned ? '点击切换上阵' : '未拥有，前往商城解锁';
-        model.onclick = (e) => {
-            e.stopPropagation();
-            if (!owned) {
-                SoundFx.play('ui');
-                this._switchPage('mall');
-                return;
-            }
-            SoundFx.unlock();
-            if (gm.toggleLineupMember(def.id)) {
-                SoundFx.play('ui');
-                this._refreshHeroes();
-            }
-        };
-        stage.appendChild(model);
+        body.appendChild(side);
 
         if (owned) {
             // 主武器槽（立绘右侧）：显示等级，点击强化
@@ -823,7 +819,7 @@ export class HomeUi extends Component {
                     this._refreshHeroes();
                 }
             };
-            stage.appendChild(wpn);
+            body.appendChild(wpn);
 
             // 武器核心（主武器下方）：已嵌 = 点击拆除；未嵌 = 点击嵌入推荐件
             const core = hs.weaponCore(def.id);
@@ -857,13 +853,13 @@ export class HomeUi extends Component {
                     gem.innerHTML = `<div class="heroGemIco">💠</div><div class="heroGemTx">暂无核心</div>`;
                 }
             }
-            stage.appendChild(gem);
+            body.appendChild(gem);
         } else {
             const lock = document.createElement('div');
             lock.className = 'equipStat';
             lock.style.cssText = 'position:absolute;right:0;top:calc(30px * var(--hs,1));width:calc(280px * var(--hs,1));text-align:center;';
             lock.textContent = '解锁英雄后开放装备栏与武器养成';
-            stage.appendChild(lock);
+            body.appendChild(lock);
         }
 
         // 右侧：六槽装备格 2×3
@@ -874,7 +870,7 @@ export class HomeUi extends Component {
                 panel.appendChild(this._mkEquipCell(def.id, slot));
             }
         }
-        stage.appendChild(panel);
+        body.appendChild(panel);
 
         // 底部战力徽章（🔥 + 战力值）
         const power = document.createElement('div');
@@ -886,8 +882,8 @@ export class HomeUi extends Component {
         } else {
             power.innerHTML = `<span class="powerFlame">🔥</span><span class="powerNum">---</span>`;
         }
-        stage.appendChild(power);
-        body.appendChild(stage);
+        body.appendChild(power);
+
 
         // ---- 背包区：标题行 + 六列网格（点击格子打开对应槽位穿戴面板）----
         const bagHead = document.createElement('div');
@@ -1857,8 +1853,15 @@ export class HomeUi extends Component {
   padding: calc(20px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
   background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
 #homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
-/* ---- 角色页复刻布局：舞台（头像/侧钮/立绘/装备格/战力徽章）+ 背包网格 ---- */
-#homeUi .heroStage { position: relative; width: 100%; height: calc(560px * var(--hs,1)); flex: none; }
+/* ---- 角色页复刻布局：立绘整页底板 + 小组件浮层 + 背包网格 ---- */
+#homeUi .heroDetailBody.base { position: relative; min-height: calc(980px * var(--hs,1)); overflow: hidden;
+  padding: calc(20px * var(--hs,1)); }
+#homeUi .heroModel { position: absolute; inset: 0; z-index: 0; cursor: pointer;
+  background: radial-gradient(ellipse at 50% 24%, rgba(255,190,90,.14), transparent 60%),
+    center calc(30%) / contain no-repeat;
+  filter: drop-shadow(0 calc(8px * var(--hs,1)) calc(10px * var(--hs,1)) rgba(0,0,0,.6)); }
+#homeUi .heroModel.locked { filter: grayscale(1) brightness(.55); }
+#homeUi .heroDetailBody.base > *:not(.heroModel):not(.bagGrid):not(.bagHead) { z-index: 5; }
 #homeUi .heroAvatarBox { position: absolute; top: calc(4px * var(--hs,1)); left: calc(8px * var(--hs,1)); z-index: 5;
   display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); }
 #homeUi .heroFaceWrap { position: relative; }
@@ -1882,12 +1885,6 @@ export class HomeUi extends Component {
 #homeUi .heroCircleBtn .tx { font-size: calc(18px * var(--hs,1)); color: #ffd98a; }
 #homeUi .heroCircleBtn.dim { opacity: .4; }
 #homeUi .heroCircleBtn:active { transform: scale(.94); }
-#homeUi .heroModel { position: absolute; left: 50%; top: 0; transform: translateX(-56%);
-  width: calc(300px * var(--hs,1)); height: calc(460px * var(--hs,1)); cursor: pointer;
-  background: radial-gradient(ellipse at 50% 30%, rgba(120,90,50,.35), transparent 70%) top / 100% 60% no-repeat,
-    center / contain no-repeat;
-  filter: drop-shadow(0 calc(8px * var(--hs,1)) calc(10px * var(--hs,1)) rgba(0,0,0,.6)); }
-#homeUi .heroModel.locked { filter: grayscale(1) brightness(.55); }
 #homeUi .heroWpnSlot { position: absolute; right: calc(24px * var(--hs,1)); top: calc(36px * var(--hs,1)); z-index: 5;
   width: calc(120px * var(--hs,1)); text-align: center; cursor: pointer; }
 #homeUi .heroWpnIco { width: calc(76px * var(--hs,1)); height: calc(84px * var(--hs,1)); margin: 0 auto;
@@ -1925,7 +1922,8 @@ export class HomeUi extends Component {
 #homeUi .powerFlame { font-size: calc(38px * var(--hs,1)); line-height: 1; filter: drop-shadow(0 0 calc(6px * var(--hs,1)) #f80); }
 /* ---- 背包区 ---- */
 #homeUi .bagHead { width: 100%; display: flex; align-items: center; gap: calc(14px * var(--hs,1));
-  padding: calc(10px * var(--hs,1)) calc(8px * var(--hs,1)); flex: none; }
+  padding: calc(10px * var(--hs,1)) calc(8px * var(--hs,1)); flex: none; position: relative; z-index: 5;
+  margin-top: calc(640px * var(--hs,1)); }
 #homeUi .bagTitle { color: #ffd98a; font-size: calc(28px * var(--hs,1)); font-weight: 700; }
 #homeUi .bagCount { color: #8fa0ab; font-size: calc(20px * var(--hs,1)); margin-left: auto; }
 #homeUi .bagGrid { width: 100%; flex: 1; min-height: calc(240px * var(--hs,1)); overflow-y: auto;
