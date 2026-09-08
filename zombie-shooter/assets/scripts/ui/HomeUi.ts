@@ -49,8 +49,7 @@ export class HomeUi extends Component {
     private _adOverlay: HTMLDivElement | null = null;
     private _adCountdown: HTMLDivElement | null = null;
     private _adTimer = 0;
-    /** 角色编队页：上阵槽行容器 + 英雄详情区（左右切换选中索引） */
-    private _lineupRowEl: HTMLDivElement | null = null;
+    /** 角色编队页：英雄详情区容器（左右切换选中索引） */
     private _heroDetailBodyEl: HTMLDivElement | null = null;
     private _heroSelIdx = 0;
     /** 贴图挂起队列：AssetLib 异步就绪后补挂（_refresh 轮询消化） */
@@ -635,33 +634,33 @@ export class HomeUi extends Component {
 
     // ================= 角色编队页 =================
 
-    /** 角色页：上阵槽 + 英雄详情（左右箭头切换，页内装备栏直购/强化） */
+    /** 角色页：顶部资源条 + 英雄居中展示（左右箭头切换）+ 右侧六槽装备卡 + 主武器区 */
     private _buildHeroes(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'page';
 
-        const sec1 = document.createElement('div');
-        sec1.className = 'homeSection';
-        sec1.textContent = '━ 出 战 编 队 ━';
-        page.appendChild(sec1);
+        // 顶部资源条（与商城页共用同一组元素引用，RES_CHANGED 两页同步刷新）
+        const resRow = document.createElement('div');
+        resRow.className = 'mallResRow';
+        const mkRes = (id: 'gold' | 'diamond' | 'stamina') => {
+            const chip = document.createElement('div');
+            chip.className = 'mallRes';
+            const ico = document.createElement('i');
+            ico.className = 'mallResIco';
+            this._tex(`ui/res_${id}`, u => { ico.style.backgroundImage = u; });
+            const val = document.createElement('div');
+            val.className = 'mallResVal';
+            chip.appendChild(ico);
+            chip.appendChild(val);
+            resRow.appendChild(chip);
+            this._mallResEls[id] = val;
+        };
+        mkRes('gold');
+        mkRes('diamond');
+        mkRes('stamina');
+        page.appendChild(resRow);
 
-        // 上阵槽行（4 格）
-        const slots = document.createElement('div');
-        slots.className = 'lineupRow';
-        page.appendChild(slots);
-        this._lineupRowEl = slots;
-
-        const tip = document.createElement('div');
-        tip.className = 'lineupTip';
-        tip.textContent = '点击上阵位可下阵（至少保留 1 人）';
-        page.appendChild(tip);
-
-        const sec2 = document.createElement('div');
-        sec2.className = 'homeSection';
-        sec2.textContent = '━ 英 雄 详 情 ━';
-        page.appendChild(sec2);
-
-        // 英雄详情：左右箭头 + 立绘 + 信息 + 按钮 + 装备栏（内容全部由 _refreshHeroes 重建）
+        // 英雄展示：左右箭头 + 立绘 + 信息 + 按钮 + 装备栏（内容全部由 _refreshHeroes 重建）
         const detail = document.createElement('div');
         detail.className = 'heroDetail';
         const prev = document.createElement('div');
@@ -694,37 +693,10 @@ export class HomeUi extends Component {
         this._pages.heroes = page;
     }
 
-    /** 角色页刷新：上阵槽重绘 + 当前选中英雄的详情与装备栏整块重建 */
+    /** 角色页刷新：当前选中英雄的详情与装备栏整块重建 */
     private _refreshHeroes(): void {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
-        // 上阵槽
-        const row = this._lineupRowEl;
-        if (row) {
-            row.innerHTML = '';
-            for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
-                const slot = document.createElement('div');
-                slot.className = 'lineupSlot' + (i < gm.lineup.length ? '' : ' empty');
-                const id = gm.lineup[i];
-                if (id) {
-                    this._tex(`characters/hero_${id}`, u => {
-                        slot.style.backgroundImage = u;
-                    });
-                    slot.title = '点击下阵';
-                    slot.onclick = (e) => {
-                        e.stopPropagation();
-                        SoundFx.unlock();
-                        if (gm.toggleLineupMember(id)) {
-                            SoundFx.play('ui');
-                            this._refreshHeroes();
-                        }
-                    };
-                } else {
-                    slot.textContent = '+';
-                }
-                row.appendChild(slot);
-            }
-        }
         // 英雄详情（整块重建，避免逐元素状态同步）：
         // 左列 = 立绘+名字+战力+按钮（居中），右列 = 六槽装备卡 2×3 + 主武器区
         const body = this._heroDetailBodyEl;
@@ -779,16 +751,16 @@ export class HomeUi extends Component {
         role.textContent = `${def.role} · ${weaponName}` + (owned ? (inLineup ? ' · 上阵中' : '') : ' · 未拥有');
         left.appendChild(role);
 
-        // 战力值（基础攻击 × 总攻击乘区）
+        // 战力值（基础攻击 × 总攻击乘区）——橙红横幅牌
         const power = document.createElement('div');
-        power.className = 'heroPower';
+        power.className = 'heroPowerBanner';
         if (owned) {
             const baseDef = HERO_DEFS.find(d => d.id === def.id)!;
             const pw = Math.round(baseDef.atk * hs.atkMulOf(def.id) * 10);
-            power.innerHTML = `<span class="powerFlame">🔥</span> ${pw}`;
+            power.innerHTML = `<span class="powerFlame">🔥</span><span class="powerNum">${pw}</span>`;
             power.title = `Lv.${hs.heroLevel(def.id)} · 武器 Lv.${hs.weaponLevel(def.id)} · 装备/核心加成`;
         } else {
-            power.innerHTML = `<span class="powerFlame">🔥</span> ---`;
+            power.innerHTML = `<span class="powerFlame">🔥</span><span class="powerNum">---</span>`;
         }
         left.appendChild(power);
 
@@ -1675,9 +1647,13 @@ export class HomeUi extends Component {
   padding: calc(20px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
   background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
 #homeUi .heroShowcase { flex: none; width: calc(340px * var(--hs,1)); display: flex; flex-direction: column; align-items: center; gap: calc(10px * var(--hs,1)); }
-#homeUi .heroPower { font-size: calc(44px * var(--hs,1)); font-weight: 800; color: #ff9d45;
-  text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.6); font-variant-numeric: tabular-nums; }
-#homeUi .powerFlame { font-size: calc(36px * var(--hs,1)); }
+#homeUi .heroPowerBanner { display: flex; align-items: center; justify-content: center; gap: calc(12px * var(--hs,1));
+  width: calc(300px * var(--hs,1)); padding: calc(10px * var(--hs,1)) 0; border-radius: calc(999px * var(--hs,1));
+  background: linear-gradient(180deg, #ff7d3b, #e04f1a); border: calc(3px * var(--hs,1)) solid rgba(255,220,150,.55);
+  box-shadow: 0 calc(4px * var(--hs,1)) 0 rgba(0,0,0,.4); }
+#homeUi .powerNum { font-size: calc(44px * var(--hs,1)); font-weight: 800; color: #fff;
+  text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.45); font-variant-numeric: tabular-nums; line-height: 1; }
+#homeUi .powerFlame { font-size: calc(36px * var(--hs,1)); line-height: 1; }
 #homeUi .heroName.center, #homeUi .heroRole.center { text-align: center; }
 #homeUi .heroBtnCol.center { align-items: center; }
 #homeUi .heroEquipGrid { flex: 1; min-width: calc(360px * var(--hs,1)); display: grid;
