@@ -1915,7 +1915,7 @@ export class HomeUi extends Component {
 #homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
 /* ===== 角色页：整页当底板，组件按比例铺满可用区域 ===== */
 #homeUi .heroesPage { padding-bottom: calc(170px * var(--hs,1)); }
-#homeUi .heroesPage .heroDetail { margin-top: 0; max-width: none; }
+#homeUi .heroesPage .heroDetail { flex: 1; min-height: 0; margin-top: 0; max-width: none; }
 #homeUi .heroesPage .heroDetailBody { flex: 1; min-height: 0; }
 #homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
 /* ===== 角色展示区 stage（按剩余高度拉伸，无固定高） ===== */
