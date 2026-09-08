@@ -523,6 +523,12 @@ export class DomHud extends Component {
         pm.appendChild(this._bigLabel('已暂停', 84));
         pm.appendChild(this._menuButton('继 续 游 戏', '#4dd0e9', () => this._togglePause()));
         pm.appendChild(this._menuButton('重 新 挑 战', '#ffa726', () => this._restart()));
+        pm.appendChild(this._menuButton('退 出 关 卡', '#ef5350', () => {
+            if (this._pauseMenu) {
+                this._pauseMenu.style.display = 'none';
+            }
+            BattleManager.instance?.exitRun();
+        }));
         root.appendChild(pm);
         this._pauseMenu = pm;
 

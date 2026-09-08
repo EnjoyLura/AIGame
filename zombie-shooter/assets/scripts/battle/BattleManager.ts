@@ -1097,6 +1097,22 @@ export class BattleManager extends Component {
         return v;
     }
 
+    /** 退出关卡（暂停菜单）：记波次/发已得金币后直接回主城，不弹结算面板 */
+    exitRun(): void {
+        if (this._gameOver) {
+            return;
+        }
+        const gm = GameManager.instance;
+        gm.wave = this._waveNumber;
+        gm.bestWave = Math.max(gm.bestWave, this._waveNumber);
+        gm.save();
+        this._awardRunGold();
+        GameFlow.instance.endRun('fail');
+        // endRun 只广播 GAME_OVER 事件；此处把失败结算面板跳过，直接回主城
+        eventCenter.emit(GameEvent.HOME_SHOW);
+        GameFlow.instance.toHome();
+    }
+
     /** 流程状态机查询本局关卡 id（STAGE_CLEAR 广播参数用） */
     get stageId(): number { return this._stageId; }
 
