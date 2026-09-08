@@ -461,7 +461,10 @@ class AbilityRuntime {
             if (this._autoDelay > 0) {
                 return;
             }
-            const target = this._owner.battle.findTargetOnScreen(this._owner.position, this._def.range);
+            // laserbeam 与激光普攻同源同款索敌（推进最深优先），其余大招保持最近目标
+            const target = this._def.kind === 'laserbeam'
+                ? this._owner.battle.findFrontTarget(this._owner.position, this._def.range)
+                : this._owner.battle.findTargetOnScreen(this._owner.position, this._def.range);
             if (!target || this._recastLeft > 0 || !this._owner.battle.tryBeginAutoCast()) {
                 return;
             }
@@ -523,7 +526,10 @@ class AbilityRuntime {
         if (this._isUlt && !this._owner.gmInfUltimate && this._charge < ULTIMATE_CHARGE_MAX) {
             return false;
         }
-        const target = bm.findTargetOnScreen(this._owner.position, this._def.range);
+        // laserbeam 与激光普攻同源同款索敌（推进最深优先），其余大招保持最近目标
+        const target = this._def.kind === 'laserbeam'
+            ? bm.findFrontTarget(this._owner.position, this._def.range)
+            : bm.findTargetOnScreen(this._owner.position, this._def.range);
         if (!target || !bm.tryBeginAutoCast()) {
             return false;
         }
@@ -532,7 +538,7 @@ class AbilityRuntime {
         return true;
     }
 
-    /** 前摇结束：执行瞬间重索敌（原目标死亡/超程则改打当前最近入屏目标），
+    /** 前摇结束：执行瞬间重索敌（原目标死亡/超程则改打当前目标——laserbeam 用普攻同款推进最深优先），
      *  无可打目标则放弃本次施法（冷却/充能未扣，稍后自动重试）。
      *  冷却与充能消耗都在结算时点，前摇期间暂停/倍速由战斗时钟统一驱动 */
     private _executeCast(): void {
@@ -540,7 +546,9 @@ class AbilityRuntime {
         let target = this._pendingTarget;
         this._pendingTarget = null;
         if (!battle.isEnemyHandleValid(target, this._owner.position, this._def.range)) {
-            target = battle.findTargetOnScreen(this._owner.position, this._def.range);
+            target = this._def.kind === 'laserbeam'
+                ? battle.findFrontTarget(this._owner.position, this._def.range)
+                : battle.findTargetOnScreen(this._owner.position, this._def.range);
         }
         if (!target) {
             return;
@@ -1061,12 +1069,7 @@ export class HeroCombatController {
     update(dt: number): void {
         this._fxTime += dt;
         this._tickBuff(dt);
-        // 贯穿光束引导期间挂起普攻激光（同一英雄身上双束分叉视觉穿帮），结束后自动恢复重锁
-        const suspending = this._ultimate.isLaserBeamActive;
-        if (suspending !== this._basicSuspended) {
-            this._basicSuspended = suspending;
-            this._basic.suspend?.(suspending);
-        }
+        // 贯穿光束与普攻/技能并存：大招期间普攻与技能照常释放（光束图层独立不互擦）
         this._basic.update(dt);
         this._skill.update(dt);
         this._ultimate.update(dt);
@@ -1077,9 +1080,6 @@ export class HeroCombatController {
             }
         }
     }
-
-    /** 普攻挂起状态（跟随大招贯穿光束） */
-    private _basicSuspended = false;
 
     levelUpSkill(): void { this._skill.levelUp(); }
     levelUpUltimate(): void { this._ultimate.levelUp(); }
