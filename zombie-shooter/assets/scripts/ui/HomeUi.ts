@@ -646,7 +646,7 @@ export class HomeUi extends Component {
     /** 角色页：顶部资源条 + 英雄居中展示（左右箭头切换）+ 右侧六槽装备卡 + 主武器区 */
     private _buildHeroes(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'page';
+        page.className = 'page heroesPage';
 
         // 顶部资源条（与商城页共用同一组元素引用，RES_CHANGED 两页同步刷新）
         const resRow = document.createElement('div');
@@ -1913,8 +1913,13 @@ export class HomeUi extends Component {
 #homeUi .heroDetailBody { background: linear-gradient(180deg, #3a2c1c 0%, #241a10 40%, #1a120b 100%);
   border: none; border-radius: 0; padding: 0; gap: 0; }
 #homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
-/* ===== 角色展示区 stage ===== */
-#homeUi .heroStage { position: relative; width: 100%; height: calc(600px * var(--hs,1)); flex: none; }
+/* ===== 角色页：整页当底板，组件按比例铺满可用区域 ===== */
+#homeUi .heroesPage { padding-bottom: calc(170px * var(--hs,1)); }
+#homeUi .heroesPage .heroDetail { margin-top: 0; max-width: none; }
+#homeUi .heroesPage .heroDetailBody { flex: 1; min-height: 0; }
+#homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
+/* ===== 角色展示区 stage（按剩余高度拉伸，无固定高） ===== */
+#homeUi .heroStage { position: relative; width: 100%; flex: 1 1 auto; min-height: calc(520px * var(--hs,1)); }
 #homeUi .heroAvatarBox { position: absolute; top: calc(4px * var(--hs,1)); left: calc(20px * var(--hs,1)); z-index: 5;
   display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); }
 #homeUi .heroFace { position: relative; width: calc(104px * var(--hs,1)); height: calc(104px * var(--hs,1)); border-radius: 50%;
