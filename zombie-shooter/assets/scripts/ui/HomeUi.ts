@@ -8,60 +8,83 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
-import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
+import { STAGES, FINAL_STAGE_ID, stageInfo } from '../battle/StageData';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
 
-/** 六槽部位图标（复刻稿 emoji 风格） */
+/** 六槽部位图标（原型图 emoji 风格） */
 const SLOT_EMOJI: Record<EquipSlot, string> = {
-    head: '⛑️', body: '🦺', legs: '👖', gloves: '🧤', wrist: '🥊', shoes: '🥾',
+    head: '🪖', body: '🛡️', legs: '🦵', gloves: '🧤', wrist: '💪', shoes: '🥾',
 };
 
+/** 章节主题（对应 STAGES 五关的场景表现：场景渐变/载具 emoji/怪物 emoji） */
+const CHAPTER_THEMES: Array<{ veh: string; mobs: string[] }> = [
+    { veh: '🚚', mobs: ['🐺', '🐗', '🦅'] },
+    { veh: '🚢', mobs: ['🦅', '🐊', '🐍'] },
+    { veh: '🚚', mobs: ['🐺', '🦂', '🐝'] },
+    { veh: '🚛', mobs: ['🐗', '🐻', '🐺'] },
+    { veh: '🚚', mobs: ['🦅', '🐻', '🐺'] },
+];
+
+/** 每关波次进度点标签（1~5 波 + BOSS，对齐原型 lvl-track 10 关制压缩为波次轨道） */
+const WAVES_PER_STAGE = 5;
+
 /**
- * 主城界面（战斗外玩法入口，DOM 渲染）：
- * 底部五格导航（商城/角色/战斗/核心/基地），先实装中央「战斗」页——
- * 章节横幅、难度切换、载具展台、三档通关宝箱、出战按钮、基地强化；
- * 其余四页为建设中占位，逐个迭代。界面显隐由 GameFlow 状态机驱动。
+ * 主城界面（战斗外玩法入口，DOM 渲染）——一比一复刻《末日航线》原型图：
+ * 顶栏（玩家头像/经验/资源胶囊）+ 底部五导航（商店/英雄/关卡主钮/技能/基地）。
+ * 视觉风格对齐原型：深蓝底 + 鎏金面板 + 金角饰 frame。
+ * 界面显隐由 GameFlow 状态机驱动。
  */
 @ccclass('HomeUi')
 export class HomeUi extends Component {
     private static _styleInjected = false;
 
     private _root: HTMLDivElement | null = null;
-    private _goldEl: HTMLDivElement | null = null;
-    private _bestEl: HTMLDivElement | null = null;
-    private _rewardEl: HTMLDivElement | null = null;
-    private _chapterEl: HTMLDivElement | null = null;
-    private _chapterPrev: HTMLDivElement | null = null;
-    private _chapterNext: HTMLDivElement | null = null;
-    private _staminaEl: HTMLDivElement | null = null;
-    private _rows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLSpanElement; eff: HTMLDivElement; cost: HTMLDivElement; btn: HTMLButtonElement }> = [];
     private _pages: Record<string, HTMLDivElement> = {};
     private _navBtns: Record<string, HTMLButtonElement> = {};
-    /** 商城页可刷新元素：资源数值 + 商品购买按钮 + 广告按钮 */
+    /** 顶栏资源胶囊数值元素 */
+    private _topRes: Partial<Record<'gold' | 'diamond' | 'stamina', HTMLElement>> = {};
+    /** 顶栏经验条与文案 */
+    private _expFill: HTMLElement | null = null;
+    private _expNum: HTMLDivElement | null = null;
+    /** 关卡页动态元素 */
+    private _stageTabsEl: HTMLDivElement | null = null;
+    private _lvlTrackEl: HTMLDivElement | null = null;
+    private _sceneEl: HTMLDivElement | null = null;
+    private _sceneChipEl: HTMLDivElement | null = null;
+    private _vehEl: HTMLDivElement | null = null;
+    private _mobsEl: HTMLDivElement | null = null;
+    private _siLvlEl: HTMLElement | null = null;
+    private _siPowEl: HTMLElement | null = null;
+    private _siStEl: HTMLElement | null = null;
+    private _chestsEl: HTMLDivElement | null = null;
+    private _arrowL: HTMLDivElement | null = null;
+    private _arrowR: HTMLDivElement | null = null;
+    /** 英雄页 */
+    private _heroPickEl: HTMLDivElement | null = null;
+    private _heroBodyEl: HTMLDivElement | null = null;
+    private _heroSelIdx = 0;
+    /** 技能页 */
+    private _skillPickEl: HTMLDivElement | null = null;
+    private _skillListEl: HTMLDivElement | null = null;
+    private _skillSelIdx = 0;
+    /** 基地页强化行（迁移自战斗页的 META_UPGRADES） */
+    private _baseRows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLElement; eff: HTMLDivElement; btn: HTMLButtonElement; cost: HTMLElement }> = [];
+    /** 商城页 */
     private _mallResEls: Partial<Record<'gold' | 'diamond' | 'stamina', HTMLDivElement>> = {};
-    private _mallShopRows: Array<{ item: ShopItem; btn: HTMLButtonElement }> = [];
+    private _mallTabsEl: HTMLDivElement | null = null;
+    private _mallGridEl: HTMLDivElement | null = null;
+    private _mallTab: 'hero' | 'equip' | 'gem' | 'mat' | 'ad' = 'hero';
     private _mallAdBtn: HTMLButtonElement | null = null;
     private _mallAdLab: HTMLDivElement | null = null;
-    /** 商城英雄区容器（每次刷新重绘） */
-    private _heroShopBoxEl: HTMLDivElement | null = null;
-    /** 商城装备区容器（每次刷新重绘） */
-    private _equipShopBoxEl: HTMLDivElement | null = null;
-    /** 模拟广告层（AD_START 显示 / AD_END 关闭，倒计时文案） */
+    /** 模拟广告层 */
     private _adOverlay: HTMLDivElement | null = null;
     private _adCountdown: HTMLDivElement | null = null;
     private _adTimer = 0;
-    /** 角色编队页：英雄详情区容器（左右切换选中索引） */
-    private _heroDetailBodyEl: HTMLDivElement | null = null;
-    private _heroSelIdx = 0;
-    /** 核心页（技能升级）：英雄展示容器 + 三技能卡容器 + 选中索引 */
-    private _coreBodyEl: HTMLDivElement | null = null;
-    private _coreCardsEl: HTMLDivElement | null = null;
-    private _coreSelIdx = 0;
-    /** 贴图挂起队列：AssetLib 异步就绪后补挂（_refresh 轮询消化） */
+    /** 贴图挂起队列：AssetLib 异步就绪后补挂 */
     private _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
 
     private _tex(key: string, apply: (url: string) => void): void {
@@ -87,6 +110,23 @@ export class HomeUi extends Component {
         });
     }
 
+    private _heroWeaponName(id: string): string {
+        const def = HERO_DEFS.find(d => d.id === id);
+        if (!def) {
+            return '';
+        }
+        return def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射';
+    }
+
+    /** 英雄战力（与旧版口径一致：基础攻击 × 总乘区 × 10） */
+    private _heroPower(id: string): number {
+        const def = HERO_DEFS.find(d => d.id === id);
+        if (!def) {
+            return 0;
+        }
+        return Math.round(def.atk * HeroSystem.instance.atkMulOf(id) * 10);
+    }
+
     onLoad(): void {
         if (typeof document === 'undefined') {
             return;
@@ -103,11 +143,12 @@ export class HomeUi extends Component {
         applyScale();
         window.addEventListener('resize', applyScale);
         eventCenter.on(GameEvent.RES_CHANGED, () => {
-            this._refresh();
+            this._refreshTop();
             this._refreshMall();
             this._refreshHeroes();
+            this._refreshStagePage();
         }, this);
-        // 流程状态机驱动主城显隐：state==='home' 显示，其余隐藏（替代点击事件里手动切 display）
+        // 流程状态机驱动主城显隐：state==='home' 显示，其余隐藏
         eventCenter.on(GameEvent.FLOW_CHANGED, (from: string, to: string) => {
             if (to === 'home') {
                 this.show();
@@ -116,11 +157,6 @@ export class HomeUi extends Component {
             }
         }, this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
-        eventCenter.on(GameEvent.GOLD_EARNED, (amount: number) => {
-            if (this._rewardEl) {
-                this._rewardEl.textContent = `本次出战收益　${amount} 金币`;
-            }
-        });
         this.show();
     }
 
@@ -132,12 +168,22 @@ export class HomeUi extends Component {
     private show(): void {
         if (this._root) {
             this._root.style.display = 'flex';
-            this._refresh();
+            this._refreshAll();
         }
     }
 
     private hide(): void {
         this._root && (this._root.style.display = 'none');
+    }
+
+    private _refreshAll(): void {
+        this._refreshTop();
+        this._refreshStagePage();
+        this._refreshMall();
+        this._refreshHeroes();
+        this._refreshSkillPage();
+        this._refreshBase();
+        this._applyPendingTex();
     }
 
     private _startBattle(): void {
@@ -146,13 +192,13 @@ export class HomeUi extends Component {
         }
         // 守卫（体力/解锁）与开波统一走流程状态机；失败回滚显示防止黑屏
         if (!GameFlow.instance.startRun()) {
-            this._refresh();
+            this._refreshAll();
             return;
         }
         this.hide();
     }
 
-    /** 横幅左右箭头切关：只在已解锁范围（1 ~ stageCleared+1）内移动 */
+    /** 关卡页关卡切换：只在已解锁范围（1 ~ stageCleared+1）内移动 */
     private _switchStage(dir: number): void {
         const gm = GameManager.instance;
         const maxUnlocked = Math.min(FINAL_STAGE_ID, gm.stageCleared + 1);
@@ -160,309 +206,128 @@ export class HomeUi extends Component {
         if (next !== gm.currentStage) {
             gm.currentStage = next;
             gm.save();
-            this._refresh();
+            this._refreshStagePage();
         }
     }
 
-    // ================= 商城页 =================
-
-    /** 商城页：资源条 + 商品行 + 看广告领体力区块（购买/发奖走 PlayerResources 唯一入口） */
-    private _buildMall(root: HTMLDivElement): void {
-        const page = document.createElement('div');
-        page.className = 'page';
-
-        // 资源条：金币/钻石/体力
-        const resRow = document.createElement('div');
-        resRow.className = 'mallResRow';
-        const mkRes = (id: 'gold' | 'diamond' | 'stamina', lab: string) => {
-            const chip = document.createElement('div');
-            chip.className = 'mallRes';
-            const ico = document.createElement('i');
-            ico.className = 'mallResIco';
-            this._tex(`ui/res_${id}`, u => { ico.style.backgroundImage = u; });
-            const val = document.createElement('div');
-            val.className = 'mallResVal';
-            chip.appendChild(ico);
-            chip.appendChild(val);
-            resRow.appendChild(chip);
-            this._mallResEls[id] = val;
-            void lab;
-        };
-        mkRes('gold', '金币');
-        mkRes('diamond', '钻石');
-        mkRes('stamina', '体力');
-        page.appendChild(resRow);
-
-        // 商品区
-        const sec1 = document.createElement('div');
-        sec1.className = 'homeSection';
-        sec1.textContent = '━ 商 品 ━';
-        page.appendChild(sec1);
-        for (const item of ShopData.ITEMS) {
-            page.appendChild(this._mkShopRow(item));
+    private _toast(msg: string): void {
+        if (!this._root) {
+            return;
         }
+        document.querySelector('#homeUi .toastEl')?.remove();
+        const t = document.createElement('div');
+        t.className = 'toastEl';
+        t.textContent = msg;
+        this._root.appendChild(t);
+        setTimeout(() => {
+            t.classList.add('show');
+            setTimeout(() => t.remove(), 1800);
+        }, 10);
+    }
 
-        // 装备区：全部部件统一列表，购买入背包（角色页穿戴）
-        const secE = document.createElement('div');
-        secE.className = 'homeSection';
-        secE.textContent = '━ 装 备 ━';
-        page.appendChild(secE);
-        const equipShopBox = document.createElement('div');
-        equipShopBox.className = 'heroShopBox';
-        page.appendChild(equipShopBox);
-        this._equipShopBoxEl = equipShopBox;
-        const equipHint = document.createElement('div');
-        equipHint.className = 'mallAdHint';
-        equipHint.textContent = '购买后入背包，在角色页点击装备槽穿戴';
-        page.appendChild(equipHint);
-
-        // 英雄区：未拥有英雄金币买断解锁
-        const secH = document.createElement('div');
-        secH.className = 'homeSection';
-        secH.textContent = '━ 英 雄 ━';
-        page.appendChild(secH);
-        const heroShopBox = document.createElement('div');
-        heroShopBox.className = 'heroShopBox';
-        page.appendChild(heroShopBox);
-        this._heroShopBoxEl = heroShopBox;
-
-        // 广告区
-        const sec2 = document.createElement('div');
-        sec2.className = 'homeSection';
-        sec2.textContent = '━ 免 费 补 给 ━';
-        page.appendChild(sec2);
-        const adBtn = document.createElement('button');
-        adBtn.className = 'mallAdBtn';
-        const adLab = document.createElement('div');
-        adLab.className = 'mallAdLab';
-        adBtn.appendChild(adLab);
-        adBtn.onclick = (e) => {
+    /** 原型风弹窗：mask + mbox frame（英雄核心/武器强化/背包共用） */
+    private _openModal(title: string, buildBody: (box: HTMLDivElement, close: () => void) => void): void {
+        if (!this._root || document.querySelector('#homeUi .protoMask')) {
+            return;
+        }
+        const mask = document.createElement('div');
+        mask.className = 'protoMask';
+        mask.onclick = (e) => {
             e.stopPropagation();
-            SoundFx.unlock();
-            AdService.instance.claimReward('stamina', () => {
-                GameManager.instance.res.add('stamina', MALL_AD_STAMINA);
-                SoundFx.play('coin');
-            });
+            if (e.target === mask) {
+                mask.remove();
+            }
         };
-        this._tex('ui/btn_cyan', u => {
-            adBtn.style.backgroundImage = u;
-            adBtn.style.backgroundSize = '100% 100%';
-            adBtn.style.border = 'none';
-        });
-        this._mallAdBtn = adBtn;
-        this._mallAdLab = adLab;
-        page.appendChild(adBtn);
-        const adHint = document.createElement('div');
-        adHint.className = 'mallAdHint';
-        adHint.textContent = '观看广告免费领取，每日 3 次';
-        page.appendChild(adHint);
-
-        root.appendChild(page);
-        this._pages.mall = page;
+        const box = document.createElement('div');
+        box.className = 'mbox frame';
+        box.onclick = (e) => e.stopPropagation();
+        const head = document.createElement('div');
+        head.className = 'mHead';
+        const h3 = document.createElement('h3');
+        h3.textContent = title;
+        const x = document.createElement('button');
+        x.className = 'mClose';
+        x.textContent = '✕';
+        x.onclick = (e) => {
+            e.stopPropagation();
+            mask.remove();
+        };
+        head.appendChild(h3);
+        head.appendChild(x);
+        box.appendChild(head);
+        const close = () => mask.remove();
+        buildBody(box, close);
+        mask.appendChild(box);
+        this._root.appendChild(mask);
     }
 
-    /** 单个商品行（样式复用基地强化的行结构） */
-    private _mkShopRow(item: ShopItem): HTMLDivElement {
-        const row = document.createElement('div');
-        row.className = 'upRow';
+    // ================= 顶栏（全局） =================
+
+    /** 顶栏：玩家头像 + 名牌/等级/经验条 + 三资源胶囊（金币/钻石/体力） */
+    private _buildTopbar(root: HTMLDivElement): void {
+        const bar = document.createElement('div');
+        bar.className = 'topbar';
+        const avatar = document.createElement('div');
+        avatar.className = 'pAvatar';
+        const face = document.createElement('div');
+        face.textContent = '🎖️';
+        avatar.appendChild(face);
+        bar.appendChild(avatar);
         const info = document.createElement('div');
-        info.className = 'upInfo';
-        const name = document.createElement('div');
-        name.className = 'upName';
-        name.textContent = item.name;
-        const eff = document.createElement('div');
-        eff.className = 'upEff';
-        eff.textContent = item.desc;
-        info.appendChild(name);
-        info.appendChild(eff);
-        const right = document.createElement('div');
-        right.className = 'upRight';
-        const cost = document.createElement('div');
-        cost.className = 'upCost';
-        const RES_NAME = { gold: '金币', diamond: '钻石', stamina: '体力' } as const;
-        cost.textContent = `${item.price.amount} ${RES_NAME[item.price.res]}`;
-        const btn = document.createElement('button');
-        btn.className = 'upBtn';
-        btn.textContent = '购 买';
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            this._buyShopItem(item);
+        info.className = 'pinfo';
+        const nameRow = document.createElement('div');
+        nameRow.className = 'pname';
+        nameRow.appendChild(document.createTextNode('末日指挥官'));
+        const lvtag = document.createElement('span');
+        lvtag.className = 'lvtag';
+        lvtag.textContent = 'LV.12';
+        nameRow.appendChild(lvtag);
+        const exp = document.createElement('div');
+        exp.className = 'expbar';
+        const fill = document.createElement('i');
+        exp.appendChild(fill);
+        const expnum = document.createElement('div');
+        expnum.className = 'expnum';
+        info.appendChild(nameRow);
+        info.appendChild(exp);
+        info.appendChild(expnum);
+        bar.appendChild(info);
+        this._expFill = fill;
+        this._expNum = expnum;
+        const reswrap = document.createElement('div');
+        reswrap.className = 'reswrap';
+        const mkRes = (id: 'gold' | 'diamond' | 'stamina', ico: string) => {
+            const chip = document.createElement('div');
+            chip.className = 'res';
+            chip.appendChild(document.createTextNode(ico + ' '));
+            const b = document.createElement('b');
+            chip.appendChild(b);
+            const add = document.createElement('span');
+            add.className = 'add';
+            add.textContent = '+';
+            add.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._switchPage('mall');
+            };
+            chip.appendChild(add);
+            reswrap.appendChild(chip);
+            this._topRes[id] = b;
         };
-        this._tex('ui/btn_gold', u => {
-            btn.style.backgroundImage = u;
-            btn.style.backgroundSize = '100% 100%';
-            btn.style.border = 'none';
-        });
-        right.appendChild(cost);
-        right.appendChild(btn);
-        row.appendChild(info);
-        row.appendChild(right);
-        this._mallShopRows.push({ item, btn });
-        return row;
+        mkRes('gold', '🪙');
+        mkRes('diamond', '💎');
+        mkRes('stamina', '🍖');
+        bar.appendChild(reswrap);
+        root.appendChild(bar);
     }
 
-    /** 购买商品：余额/条件校验 → 扣费 → 发货 → 音效；失败刷新显示 */
-    private _buyShopItem(item: ShopItem): void {
+    private _refreshTop(): void {
         const gm = GameManager.instance;
-        SoundFx.unlock();
-        // 特例：体力商品满仓时不可购买
-        if (item.grant.res === 'stamina' && gm.stamina() >= BattleConfig.STAMINA_MAX) {
-            this._refreshMall();
-            return;
-        }
-        if (item.canBuy && !item.canBuy()) {
-            this._refreshMall();
-            return;
-        }
-        if (!gm.res.spend(item.price.res, item.price.amount)) {
-            SoundFx.play('ui');
-            this._refreshMall();
-            return;
-        }
-        gm.res.add(item.grant.res, item.grant.amount);
-        gm.save();
-        SoundFx.play('buy');
-        this._refreshMall();
-    }
-
-    /** 商城英雄区重绘：每英雄一行（立绘+名字+定位+价格/已拥有），解锁即时刷角色页 */
-    private _refreshHeroShop(): void {
-        const box = this._heroShopBoxEl;
-        if (!box) {
-            return;
-        }
-        const gm = GameManager.instance;
-        const hs = HeroSystem.instance;
-        box.innerHTML = '';
-        for (const def of HERO_DEFS) {
-            const price = HeroSystem.HERO_PRICES[def.id];
-            const owned = gm.isHeroOwned(def.id);
-            if (!price) {
-                continue;
-            }
-            const row = document.createElement('div');
-            row.className = 'upRow';
-            const avatar = document.createElement('div');
-            avatar.className = 'heroAvatar shop';
-            this._tex(`characters/hero_${def.id}`, u => { avatar.style.backgroundImage = u; });
-            const info = document.createElement('div');
-            info.className = 'upInfo';
-            const name = document.createElement('div');
-            name.className = 'upName';
-            name.textContent = def.name;
-            const eff = document.createElement('div');
-            eff.className = 'upEff';
-            eff.textContent = def.role;
-            info.appendChild(name);
-            info.appendChild(eff);
-            const right = document.createElement('div');
-            right.className = 'upRight';
-            const cost = document.createElement('div');
-            cost.className = 'upCost';
-            const btn = document.createElement('button');
-            btn.className = 'upBtn';
-            if (owned) {
-                cost.textContent = '已拥有';
-                btn.textContent = '已拥有';
-                btn.disabled = true;
-            } else {
-                cost.textContent = `${price} 金币`;
-                btn.textContent = '解 锁';
-                btn.disabled = gm.gold < price;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    this._buyHero(def.id);
-                };
-            }
-            btn.style.opacity = btn.disabled ? '0.45' : '1';
-            right.appendChild(cost);
-            right.appendChild(btn);
-            row.appendChild(avatar);
-            row.appendChild(info);
-            row.appendChild(right);
-            box.appendChild(row);
-        }
-    }
-
-    /** 商城购买英雄：解锁（GameManager 扣费+落盘），成功后商城与角色页同步刷新 */
-    private _buyHero(heroId: string): void {
-        const gm = GameManager.instance;
-        SoundFx.unlock();
-        if (!gm.unlockHero(heroId)) {
-            SoundFx.play('ui');
-            this._refreshMall();
-            return;
-        }
-        SoundFx.play('buy');
-        this._refreshMall();
-        this._refreshHeroes();
-    }
-
-    /** 商城装备区重绘：全部部件统一列表（按槽位顺序），购买入背包 */
-    private _refreshEquipShop(): void {
-        const box = this._equipShopBoxEl;
-        if (!box) {
-            return;
-        }
-        const gm = GameManager.instance;
-        const hs = HeroSystem.instance;
-        box.innerHTML = '';
-        for (const slot of EQUIP_SLOTS) {
-            for (const def of EQUIPMENT_DEFS.filter(e => e.slot === slot)) {
-                const row = document.createElement('div');
-                row.className = 'upRow';
-                const info = document.createElement('div');
-                info.className = 'upInfo';
-                const parts: string[] = [];
-                if (def.atkPct) {
-                    parts.push(`攻击+${Math.round(def.atkPct * 100)}%`);
-                }
-                if (def.ratePct) {
-                    parts.push(`射速+${Math.round(def.ratePct * 100)}%`);
-                }
-                if (def.rangePct) {
-                    parts.push(`射程+${Math.round(def.rangePct * 100)}%`);
-                }
-                info.innerHTML =
-                    `<div class="upName" style="color:${EQUIP_TIER_COLORS[def.tier - 1]}">${def.name}（${EQUIP_SLOT_NAMES[slot]}·${EQUIP_TIER_NAMES[def.tier - 1]}）</div>` +
-                    `<div class="upEff">${parts.join(' ')}</div>`;
-                const right = document.createElement('div');
-                right.className = 'upRight';
-                const cost = document.createElement('div');
-                cost.className = 'upCost';
-                cost.textContent = `${def.baseCost} 金币`;
-                const btn = document.createElement('button');
-                btn.className = 'upBtn';
-                btn.textContent = '购 买';
-                btn.disabled = gm.gold < def.baseCost;
-                btn.style.opacity = btn.disabled ? '0.45' : '1';
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    if (hs.buyEquipToBag(def.id)) {
-                        SoundFx.play('buy');
-                    } else {
-                        SoundFx.play('ui');
-                    }
-                    this._refreshMall();
-                };
-                right.appendChild(cost);
-                right.appendChild(btn);
-                row.appendChild(info);
-                row.appendChild(right);
-                box.appendChild(row);
-            }
-        }
-    }
-
-    /** 商城页数值刷新（RES_CHANGED 与切页时调用） */
-    private _refreshMall(): void {
-        const gm = GameManager.instance;
-        const gold = this._mallResEls.gold;
-        const diamond = this._mallResEls.diamond;
-        const stamina = this._mallResEls.stamina;
+        const gold = this._topRes.gold;
+        const diamond = this._topRes.diamond;
+        const stamina = this._topRes.stamina;
         if (gold) {
-            gold.textContent = String(gm.gold);
+            gold.textContent = gm.gold >= 10000 ? `${(gm.gold / 10000).toFixed(1)}万` : String(gm.gold);
         }
         if (diamond) {
             diamond.textContent = String(gm.res.get('diamond'));
@@ -470,130 +335,1572 @@ export class HomeUi extends Component {
         if (stamina) {
             stamina.textContent = `${gm.stamina()}/${BattleConfig.STAMINA_MAX}`;
         }
-        for (const { item, btn } of this._mallShopRows) {
-            let disabled = !gm.res.canSpend(item.price.res, item.price.amount);
-            if (item.grant.res === 'stamina' && gm.stamina() >= BattleConfig.STAMINA_MAX) {
-                disabled = true;
-            }
-            if (item.canBuy && !item.canBuy()) {
-                disabled = true;
-            }
-            btn.disabled = disabled;
-            btn.style.opacity = disabled ? '0.45' : '1';
-            btn.title = disabled && item.disabledTip ? item.disabledTip : '';
+        // 经验条（占位口径：最远波次 / 100）
+        if (this._expFill) {
+            const pct = Math.min(100, Math.round(gm.bestWave));
+            this._expFill.style.width = `${Math.max(5, pct)}%`;
         }
-        this._refreshHeroShop();
-        this._refreshEquipShop();
-        if (this._mallAdBtn && this._mallAdLab) {
-            const left = AdService.instance.remaining('stamina');
-            const full = gm.stamina() >= BattleConfig.STAMINA_MAX;
-            this._mallAdLab.textContent =
-                full ? '体力已满' : left > 0 ? `看广告领 ${MALL_AD_STAMINA} 体力（今日 ${3 - left}/3）` : '今日次数已用完，明日再来';
-            this._mallAdBtn.disabled = left <= 0 || full;
-            this._mallAdBtn.style.opacity = this._mallAdBtn.disabled ? '0.45' : '1';
+        if (this._expNum) {
+            this._expNum.textContent = `最远波次 ${gm.bestWave} · 已通关 ${gm.stageCleared}/${FINAL_STAGE_ID} 章`;
         }
     }
 
-    /** 编队弹出面板（战斗页入口）：四槽位 + 可选英雄列表，上阵/下阵即时刷新 */
-    private _openLineupPanel(): void {
-        if (!this._root || document.querySelector('#homeUi .lineupPanelOverlay')) {
+    // ================= 底部导航 =================
+
+    private _buildNav(root: HTMLDivElement): void {
+        const nav = document.createElement('div');
+        nav.className = 'tabbar';
+        const NAV: Array<{ key: string; icon: string; name: string; main?: boolean }> = [
+            { key: 'mall', icon: '🛒', name: '商店' },
+            { key: 'heroes', icon: '🎖️', name: '英雄' },
+            { key: 'battle', icon: '🚚', name: '关卡', main: true },
+            { key: 'core', icon: '⚡', name: '技能' },
+            { key: 'base', icon: '🏰', name: '基地' },
+        ];
+        for (const item of NAV) {
+            const btn = document.createElement('button');
+            btn.className = 'tab' + (item.main ? ' main' : '') + (item.key === 'battle' ? ' on' : '');
+            const icon = document.createElement('span');
+            icon.className = 'ticon';
+            icon.textContent = item.icon;
+            const label = document.createElement('span');
+            label.textContent = item.name;
+            btn.appendChild(icon);
+            btn.appendChild(label);
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._switchPage(item.key);
+            };
+            const texKey = item.key === 'mall' ? 'ui/nav_mall' : item.key === 'heroes' ? 'ui/nav_heroes'
+                : item.key === 'battle' ? 'ui/nav_battle' : item.key === 'core' ? 'ui/nav_core' : 'ui/nav_base';
+            this._tex(texKey, u => {
+                icon.style.backgroundImage = u;
+                icon.style.backgroundSize = 'contain';
+                icon.style.backgroundRepeat = 'no-repeat';
+                icon.style.backgroundPosition = 'center';
+                icon.style.width = 'calc(46px * var(--hs,1))';
+                icon.style.height = 'calc(46px * var(--hs,1))';
+                icon.textContent = '';
+            });
+            nav.appendChild(btn);
+            this._navBtns[item.key] = btn;
+        }
+        root.appendChild(nav);
+    }
+
+    private _switchPage(page: string): void {
+        for (const key of Object.keys(this._pages)) {
+            this._pages[key].style.display = key === page ? 'block' : 'none';
+        }
+        for (const key of Object.keys(this._navBtns)) {
+            this._navBtns[key].classList.toggle('on', key === page);
+        }
+        if (page === 'battle') {
+            this._refreshStagePage();
+        }
+        if (page === 'mall') {
+            this._refreshMall();
+        }
+        if (page === 'heroes') {
+            this._refreshHeroes();
+        }
+        if (page === 'core') {
+            this._refreshSkillPage();
+        }
+        if (page === 'base') {
+            this._refreshBase();
+        }
+        this._refreshTop();
+        this._applyPendingTex();
+    }
+
+    // ================= 构建入口 =================
+
+    private _build(): void {
+        const root = document.createElement('div');
+        root.id = 'homeUi';
+        this._root = root;
+
+        this._buildTopbar(root);
+
+        const viewport = document.createElement('div');
+        viewport.className = 'viewport';
+        root.appendChild(viewport);
+
+        this._buildMallPage(viewport);
+        this._buildHeroesPage(viewport);
+        this._buildStagePage(viewport);
+        this._buildSkillPage(viewport);
+        this._buildBasePage(viewport);
+
+        this._buildNav(root);
+        this._buildAdOverlay(root);
+
+        const stamp = document.createElement('div');
+        stamp.className = 'homeStamp';
+        stamp.textContent = BUILD_STAMP;
+        root.appendChild(stamp);
+
+        document.body.appendChild(root);
+        this._switchPage('battle');
+    }
+
+    // ================= 商店页 =================
+
+    /** 商店页：礼包 banner + 四页签（英雄/装备/宝石/材料）+ 广告补给 + 双列商品网格 */
+    private _buildMallPage(root: HTMLDivElement): void {
+        const page = document.createElement('div');
+        page.className = 'screen';
+        this._pages.mall = page;
+
+        // 限时礼包 banner（装饰，点击 toast）
+        const banner = document.createElement('div');
+        banner.className = 'shopBanner frame';
+        banner.innerHTML = `<div class="sbTxt"><h3>末日启程 · 超值礼包</h3>` +
+            `<p>自选超能力英雄 + 680钻石</p>` +
+            `<div class="price">💎 3,280 <s>💎 6,880</s></div></div>` +
+            `<div class="sbGift">🎁</div>` +
+            `<div class="sbTime">⏰ 限时特惠</div>`;
+        banner.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._toast('礼包系统即将开放，敬请期待');
+        };
+        page.appendChild(banner);
+
+        // 页签：英雄 / 装备 / 宝石 / 材料
+        const tabs = document.createElement('div');
+        tabs.className = 'shopTabs';
+        page.appendChild(tabs);
+        this._mallTabsEl = tabs;
+
+        // 双列商品网格（含广告补给卡，置底）
+        const grid = document.createElement('div');
+        grid.className = 'shopGrid';
+        page.appendChild(grid);
+        this._mallGridEl = grid;
+
+        root.appendChild(page);
+    }
+
+    private _setMallTab(tab: 'hero' | 'equip' | 'gem' | 'mat'): void {
+        this._mallTab = tab;
+        this._refreshMall();
+    }
+
+    /** 商店页刷新：页签高亮 + 商品网格重绘（真数据：英雄解锁/装备部件/强化材料占位/广告） */
+    private _refreshMall(): void {
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        const tabs = this._mallTabsEl;
+        const grid = this._mallGridEl;
+        if (!tabs || !grid) {
             return;
         }
-        const ov = document.createElement('div');
-        ov.className = 'lineupPanelOverlay';
-        ov.onclick = (e) => {
-            e.stopPropagation();
-            ov.remove();
+        // 顶栏资源（mall 页与全局顶栏共用数据）
+        this._refreshTop();
+        const TABS: Array<['hero' | 'equip' | 'gem' | 'mat', string]> = [
+            ['hero', '🦸 英雄'], ['equip', '🛡️ 装备'], ['gem', '💎 宝石'], ['mat', '⚙️ 材料'],
+        ];
+        tabs.innerHTML = '';
+        for (const [key, label] of TABS) {
+            const b = document.createElement('button');
+            b.className = this._mallTab === key ? 'on' : '';
+            b.textContent = label;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._setMallTab(key);
+            };
+            tabs.appendChild(b);
+        }
+
+        grid.innerHTML = '';
+        const mkGood = (opt: { ic: string; name: string; tag: string; price: string; r: number; hot?: boolean; disabled?: boolean; onTap: () => void }) => {
+            const card = document.createElement('div');
+            card.className = `good panel r${opt.r}`;
+            if (opt.hot) {
+                const hot = document.createElement('span');
+                hot.className = 'gHot';
+                hot.textContent = 'HOT';
+                card.appendChild(hot);
+            }
+            const ic = document.createElement('div');
+            ic.className = 'gIc';
+            ic.textContent = opt.ic;
+            card.appendChild(ic);
+            const name = document.createElement('div');
+            name.className = 'gName';
+            name.textContent = opt.name;
+            card.appendChild(name);
+            const tag = document.createElement('div');
+            tag.className = 'gTag';
+            tag.textContent = opt.tag;
+            card.appendChild(tag);
+            const buy = document.createElement('button');
+            buy.className = 'btn gold gBuy';
+            buy.textContent = opt.price;
+            buy.disabled = !!opt.disabled;
+            buy.style.opacity = opt.disabled ? '0.45' : '1';
+            buy.onclick = (e) => {
+                e.stopPropagation();
+                if (opt.disabled) {
+                    return;
+                }
+                SoundFx.unlock();
+                opt.onTap();
+            };
+            card.appendChild(buy);
+            grid.appendChild(card);
         };
-        const card = document.createElement('div');
-        card.className = 'lineupPanelCard';
-        card.onclick = (e) => e.stopPropagation();
 
-        const title = document.createElement('div');
-        title.className = 'lineupPanelTitle';
-        title.textContent = '出 战 编 队';
-        card.appendChild(title);
-
-        // 槽位行 + 候选列表（内容由 refresh 重建）
-        const slots = document.createElement('div');
-        slots.className = 'lineupRow center';
-        const pool = document.createElement('div');
-        pool.className = 'lineupPool';
-        card.appendChild(slots);
-        card.appendChild(pool);
-
-        const tip = document.createElement('div');
-        tip.className = 'lineupTip';
-        tip.textContent = '点击下方英雄上阵 / 再次点击下阵（最多 4 人，至少 1 人）';
-        card.appendChild(tip);
-
-        const close = document.createElement('button');
-        close.className = 'heroCardBtn cyan lineupClose';
-        close.textContent = '关 闭';
-        close.onclick = (e) => {
-            e.stopPropagation();
-            ov.remove();
-        };
-        card.appendChild(close);
-
-        ov.appendChild(card);
-        this._root.appendChild(ov);
-        this._refreshLineupPanel(slots, pool);
+        if (this._mallTab === 'hero') {
+            for (const def of HERO_DEFS) {
+                const price = HeroSystem.HERO_PRICES[def.id];
+                if (!price) {
+                    continue;
+                }
+                const owned = gm.isHeroOwned(def.id);
+                mkGood({
+                    ic: '🎖️', name: def.name, tag: `${def.role} · ${this._heroWeaponName(def.id)}`,
+                    price: owned ? '已拥有' : `🪙 ${price.toLocaleString()}`,
+                    r: price >= 2000 ? 5 : 4, disabled: owned,
+                    onTap: () => {
+                        if (gm.unlockHero(def.id)) {
+                            SoundFx.play('buy');
+                            this._toast(`${def.name} 解锁成功！`);
+                        } else {
+                            SoundFx.play('ui');
+                        }
+                        this._refreshMall();
+                    },
+                });
+            }
+        } else if (this._mallTab === 'equip') {
+            for (const slot of EQUIP_SLOTS) {
+                for (const def of EQUIPMENT_DEFS.filter(e => e.slot === slot)) {
+                    const parts: string[] = [];
+                    if (def.atkPct) {
+                        parts.push(`攻+${Math.round(def.atkPct * 100)}%`);
+                    }
+                    if (def.ratePct) {
+                        parts.push(`速+${Math.round(def.ratePct * 100)}%`);
+                    }
+                    if (def.rangePct) {
+                        parts.push(`程+${Math.round(def.rangePct * 100)}%`);
+                    }
+                    mkGood({
+                        ic: SLOT_EMOJI[slot], name: def.name,
+                        tag: `${EQUIP_SLOT_NAMES[slot]} · ${EQUIP_TIER_NAMES[def.tier - 1]} · ${parts.join(' ')}`,
+                        price: `🪙 ${def.baseCost.toLocaleString()}`,
+                        r: def.tier <= 1 ? 2 : def.tier === 2 ? 3 : def.tier === 3 ? 4 : 5,
+                        hot: def.tier >= 4,
+                        disabled: gm.gold < def.baseCost,
+                        onTap: () => {
+                            if (hs.buyEquipToBag(def.id)) {
+                                SoundFx.play('buy');
+                                this._toast(`${def.name} 已放入背包`);
+                            } else {
+                                SoundFx.play('ui');
+                            }
+                            this._refreshMall();
+                        },
+                    });
+                }
+            }
+        } else if (this._mallTab === 'gem') {
+            // 宝石页签 = 武器核心（六种核心即"宝石"，对应核心嵌入玩法）
+            for (const core of WEAPON_CORE_DEFS) {
+                mkGood({
+                    ic: '💠', name: core.name, tag: core.desc,
+                    price: `🪙 ${core.baseCost.toLocaleString()}`,
+                    r: core.tier <= 1 ? 3 : core.tier === 2 ? 4 : 5,
+                    disabled: gm.gold < core.baseCost,
+                    onTap: () => {
+                        // 买核心入背包口径：直接挂到当前选中英雄（若未嵌）
+                        const heroId = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length].id;
+                        if (hs.buyCore(heroId, core.id)) {
+                            SoundFx.play('buy');
+                            this._toast(`${core.name} 已嵌入 ${HERO_DEFS.find(d => d.id === heroId)?.name ?? ''}`);
+                        } else {
+                            SoundFx.play('ui');
+                            this._toast('该英雄已有核心，先到英雄页拆除');
+                        }
+                        this._refreshMall();
+                    },
+                });
+            }
+        } else {
+            // 材料页签 = 商城道具（ShopData）+ 体力广告卡
+            for (const item of ShopData.ITEMS) {
+                const RES_NAME = { gold: '🪙', diamond: '💎', stamina: '🍖' } as const;
+                mkGood({
+                    ic: item.grant.res === 'stamina' ? '🍖' : item.grant.res === 'gold' ? '🪙' : '💎',
+                    name: item.name, tag: item.desc,
+                    price: `${RES_NAME[item.price.res]} ${item.price.amount.toLocaleString()}`,
+                    r: 3,
+                    disabled: !gm.res.canSpend(item.price.res, item.price.amount)
+                        || (item.grant.res === 'stamina' && gm.stamina() >= BattleConfig.STAMINA_MAX)
+                        || (!!item.canBuy && !item.canBuy()),
+                    onTap: () => {
+                        this._buyShopItem(item);
+                        this._refreshMall();
+                    },
+                });
+            }
+            // 广告补给卡
+            const adCard = document.createElement('div');
+            adCard.className = 'good panel adCard';
+            const adIc = document.createElement('div');
+            adIc.className = 'gIc';
+            adIc.textContent = '📺';
+            adCard.appendChild(adIc);
+            const adName = document.createElement('div');
+            adName.className = 'gName';
+            adName.textContent = '广告补给';
+            adCard.appendChild(adName);
+            const adTag = document.createElement('div');
+            adTag.className = 'gTag';
+            const left = AdService.instance.remaining('stamina');
+            adTag.textContent = left > 0 ? `今日剩余 ${left}/3 次` : '今日已用完';
+            adCard.appendChild(adTag);
+            const adBtn = document.createElement('button');
+            adBtn.className = 'btn adBtn gBuy';
+            adBtn.textContent = '▶ 领体力';
+            const full = gm.stamina() >= BattleConfig.STAMINA_MAX;
+            adBtn.disabled = left <= 0 || full;
+            adBtn.style.opacity = adBtn.disabled ? '0.45' : '1';
+            adBtn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                AdService.instance.claimReward('stamina', () => {
+                    gm.res.add('stamina', MALL_AD_STAMINA);
+                    SoundFx.play('coin');
+                });
+            };
+            this._mallAdBtn = adBtn;
+            adCard.appendChild(adBtn);
+            grid.appendChild(adCard);
+        }
+        this._applyPendingTex();
     }
 
-    /** 编队面板刷新：槽位与候选英雄重绘 */
-    private _refreshLineupPanel(slots: HTMLDivElement, pool: HTMLDivElement): void {
+    private _buyShopItem(item: ShopItem): void {
         const gm = GameManager.instance;
-        slots.innerHTML = '';
-        pool.innerHTML = '';
-        // 槽位
-        for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
-            const slot = document.createElement('div');
-            slot.className = 'lineupSlot' + (i < gm.lineup.length ? '' : ' empty');
-            const id = gm.lineup[i];
-            if (id) {
-                this._tex(`characters/hero_${id}`, u => { slot.style.backgroundImage = u; });
-                slot.title = '点击下阵';
-                slot.onclick = (e) => {
-                    e.stopPropagation();
-                    if (gm.toggleLineupMember(id)) {
+        if (!gm.res.spend(item.price.res, item.price.amount)) {
+            SoundFx.play('ui');
+            return;
+        }
+        gm.res.add(item.grant.res, item.grant.amount);
+        gm.save();
+        SoundFx.play('buy');
+        this._toast(`购买成功：${item.name}`);
+    }
+
+    // ================= 英雄页 =================
+
+    /** 英雄页：英雄横滑选择条 + 详情（由 _refreshHeroes 整块重建） */
+    private _buildHeroesPage(root: HTMLDivElement): void {
+        const page = document.createElement('div');
+        page.className = 'screen';
+        this._pages.heroes = page;
+        const pick = document.createElement('div');
+        pick.className = 'heroPick';
+        page.appendChild(pick);
+        this._heroPickEl = pick;
+        const body = document.createElement('div');
+        page.appendChild(body);
+        this._heroBodyEl = body;
+        root.appendChild(page);
+    }
+
+    private _pickHero(i: number): void {
+        const gm = GameManager.instance;
+        const def = HERO_DEFS[i % HERO_DEFS.length];
+        if (!gm.isHeroOwned(def.id)) {
+            this._toast(`「${def.name}」尚未获得 · 可在商店解锁`);
+            return;
+        }
+        this._heroSelIdx = i;
+        this._refreshHeroes();
+    }
+
+    /** 英雄页刷新：横滑选择条 + 头牌/战力 + 左右三槽夹立绘 + 三维 + 升级/核心/武器/背包 */
+    private _refreshHeroes(): void {
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        const pick = this._heroPickEl;
+        const body = this._heroBodyEl;
+        if (!pick || !body) {
+            return;
+        }
+        // 横滑选择条
+        pick.innerHTML = '';
+        HERO_DEFS.forEach((d, i) => {
+            const owned = gm.isHeroOwned(d.id);
+            const b = document.createElement('button');
+            b.className = 'hpick' + (i === this._heroSelIdx ? ' on' : '') + (owned ? '' : ' lock');
+            const pic = document.createElement('span');
+            pic.className = 'pic';
+            this._tex(`characters/hero_${d.id}`, u => {
+                pic.style.backgroundImage = u;
+                pic.style.backgroundSize = 'contain';
+                pic.style.backgroundRepeat = 'no-repeat';
+                pic.style.backgroundPosition = 'center';
+            });
+            const nm = document.createElement('i');
+            nm.textContent = d.name;
+            b.appendChild(pic);
+            b.appendChild(nm);
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._pickHero(i);
+            };
+            pick.appendChild(b);
+        });
+
+        // 详情区整块重建
+        body.innerHTML = '';
+        const def = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length];
+        const owned = gm.isHeroOwned(def.id);
+        const inLineup = gm.isInLineup(def.id);
+        const idx = this._heroSelIdx % HERO_DEFS.length;
+
+        // 头牌：名字+星级 / 定位标签 / 战力徽章
+        const head = document.createElement('div');
+        head.className = 'heroHead';
+        const hLeft = document.createElement('div');
+        const hName = document.createElement('div');
+        hName.className = 'heroName';
+        if (owned) {
+            const stars = document.createElement('span');
+            stars.className = 'star';
+            const lv = hs.heroLevel(def.id);
+            const starN = Math.min(5, 1 + Math.floor(lv / 4));
+            stars.textContent = '★'.repeat(starN) + '☆'.repeat(5 - starN);
+            hName.appendChild(document.createTextNode(def.name));
+            hName.appendChild(stars);
+        } else {
+            hName.textContent = def.name + '（未获得）';
+        }
+        const tagRow = document.createElement('div');
+        tagRow.className = 'tagRow';
+        tagRow.innerHTML = `<span class="tag b">人类·${this._heroWeaponName(def.id)}</span>` +
+            `<span class="tag g">${def.role}</span>` +
+            `<span class="tag">${inLineup ? '已上阵' : '未上阵'} ${gm.lineup.length}/${GameManager.LINEUP_MAX}</span>`;
+        hLeft.appendChild(hName);
+        hLeft.appendChild(tagRow);
+        const power = document.createElement('div');
+        power.className = 'powerBadge';
+        power.innerHTML = `⚡ <span>${owned ? this._heroPower(def.id).toLocaleString() : '---'}</span>`;
+        head.appendChild(hLeft);
+        head.appendChild(power);
+        body.appendChild(head);
+
+        // 中部：左槽列（头/身/臂）+ 立绘 + 右槽列（手/腿/脚）
+        const main = document.createElement('div');
+        main.className = 'heroMain';
+        const mkSlot = (slot: EquipSlot) => {
+            const cur = owned ? hs.equipped(def.id, slot) : null;
+            const el = document.createElement('div');
+            el.className = 'slot' + (cur ? ' filled' : ' empty');
+            const sname = document.createElement('span');
+            sname.className = 'sname';
+            sname.textContent = EQUIP_SLOT_NAMES[slot];
+            el.appendChild(sname);
+            if (cur) {
+                let tier: 1 | 2 | 3 | 4 = 1;
+                if (cur.id.startsWith('bag:')) {
+                    tier = Number(cur.id.split(':')[2]) as 1 | 2 | 3 | 4;
+                } else {
+                    const d = hs.equipDef(cur.id);
+                    tier = d ? d.tier : 1;
+                }
+                const ic = document.createElement('span');
+                ic.textContent = SLOT_EMOJI[slot];
+                el.appendChild(ic);
+                const slv = document.createElement('span');
+                slv.className = 'slv';
+                slv.textContent = `+${cur.lv}`;
+                slv.style.borderColor = EQUIP_TIER_COLORS[tier - 1];
+                el.appendChild(slv);
+                el.title = `${bagItemName({ slot, tier, lv: cur.lv })}`;
+            } else {
+                el.title = `${EQUIP_SLOT_NAMES[slot]} · 空槽位`;
+            }
+            el.onclick = (e) => {
+                e.stopPropagation();
+                if (!owned) {
+                    this._toast('先解锁英雄');
+                    return;
+                }
+                SoundFx.play('ui');
+                this._openEquipSlotPanel(def.id, slot);
+            };
+            return el;
+        };
+        const colL = document.createElement('div');
+        colL.className = 'slotCol';
+        colL.appendChild(mkSlot('head'));
+        colL.appendChild(mkSlot('body'));
+        colL.appendChild(mkSlot('gloves'));
+        const fig = document.createElement('div');
+        fig.className = 'heroFigure';
+        const halo = document.createElement('div');
+        halo.className = 'halo';
+        const halo2 = document.createElement('div');
+        halo2.className = 'halo2';
+        const emoji = document.createElement('div');
+        emoji.className = 'heroEmoji' + (owned ? '' : ' lock');
+        this._tex(`characters/hero_${def.id}`, u => {
+            emoji.style.backgroundImage = u;
+            emoji.style.backgroundSize = 'contain';
+            emoji.style.backgroundRepeat = 'no-repeat';
+            emoji.style.backgroundPosition = 'center';
+        });
+        emoji.title = owned ? (inLineup ? '点击下阵' : '点击上阵') : '未获得';
+        emoji.onclick = (e) => {
+            e.stopPropagation();
+            if (!owned) {
+                this._toast('先到商店解锁英雄');
+                return;
+            }
+            SoundFx.unlock();
+            if (gm.toggleLineupMember(def.id)) {
+                SoundFx.play('ui');
+                this._refreshHeroes();
+            }
+        };
+        const heroLv = document.createElement('div');
+        heroLv.className = 'heroLv';
+        heroLv.textContent = owned ? `Lv.${hs.heroLevel(def.id)} · ${def.role}` : '未获得';
+        fig.appendChild(halo);
+        fig.appendChild(halo2);
+        fig.appendChild(emoji);
+        fig.appendChild(heroLv);
+        const colR = document.createElement('div');
+        colR.className = 'slotCol';
+        colR.appendChild(mkSlot('wrist'));
+        colR.appendChild(mkSlot('legs'));
+        colR.appendChild(mkSlot('shoes'));
+        main.appendChild(colL);
+        main.appendChild(fig);
+        main.appendChild(colR);
+        body.appendChild(main);
+
+        // 三维面板（攻击/战力口径真实；生命/防御占位推算）
+        const stats = document.createElement('div');
+        stats.className = 'statRow';
+        const mkStat = (lab: string, val: string) => {
+            const s = document.createElement('div');
+            s.className = 'stat panel';
+            s.innerHTML = `${lab}<b>${val}</b>`;
+            stats.appendChild(s);
+        };
+        if (owned) {
+            mkStat('⚔️ 攻击', String(Math.round(def.atk * hs.atkMulOf(def.id))));
+            mkStat('⚡ 战力', this._heroPower(def.id).toLocaleString());
+            mkStat('🛡️ 加成', `+${Math.round((hs.equipMulOf(def.id).atk - 1) * 100)}%`);
+        } else {
+            mkStat('⚔️ 攻击', '---');
+            mkStat('⚡ 战力', '---');
+            mkStat('🛡️ 加成', '---');
+        }
+        body.appendChild(stats);
+
+        if (!owned) {
+            const unlock = document.createElement('button');
+            unlock.className = 'btn gold big';
+            unlock.textContent = `🔓 前往商店解锁（🪙 ${(HeroSystem.HERO_PRICES[def.id] ?? 0).toLocaleString()}）`;
+            unlock.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._switchPage('mall');
+            };
+            body.appendChild(unlock);
+            this._applyPendingTex();
+            return;
+        }
+
+        // 大升级按钮（英雄升级）
+        const up = document.createElement('button');
+        up.className = 'btn gold big';
+        if (hs.isHeroMaxLevel(def.id)) {
+            up.textContent = '▲ 已满级';
+            up.disabled = true;
+        } else {
+            up.textContent = `▲ 英雄升级（消耗 🪙 ${hs.heroUpgradeCost(def.id).toLocaleString()}）`;
+            up.disabled = !gm.canUpgrade('atk') && gm.gold < hs.heroUpgradeCost(def.id);
+            up.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                if (hs.upgradeHero(def.id)) {
+                    SoundFx.play('buy');
+                    this._toast(`${def.name} 升至 Lv.${hs.heroLevel(def.id)}`);
+                    this._refreshHeroes();
+                    this._refreshTop();
+                }
+            };
+        }
+        up.style.opacity = up.disabled ? '0.6' : '1';
+        body.appendChild(up);
+
+        // 三按钮行：英雄核心 / 武器强化 / 背包
+        const row3 = document.createElement('div');
+        row3.className = 'row3';
+        const coreBtn = document.createElement('button');
+        coreBtn.className = 'btn blue';
+        coreBtn.textContent = '🧬 英雄核心';
+        coreBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openCoreModal(def.id);
+        };
+        const wpnBtn = document.createElement('button');
+        wpnBtn.className = 'btn blue';
+        wpnBtn.textContent = '🔧 武器强化';
+        wpnBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openWeaponModal(def.id);
+        };
+        const bagBtn = document.createElement('button');
+        bagBtn.className = 'btn dark';
+        bagBtn.textContent = '🎒 背包';
+        bagBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openBagModal(def.id);
+        };
+        row3.appendChild(coreBtn);
+        row3.appendChild(wpnBtn);
+        row3.appendChild(bagBtn);
+        body.appendChild(row3);
+        this._applyPendingTex();
+    }
+
+    /** 弹窗：英雄核心（武器核心嵌入/拆除，口径同旧 gem 钮） */
+    private _openCoreModal(heroId: string): void {
+        const hs = HeroSystem.instance;
+        const def = HERO_DEFS.find(d => d.id === heroId);
+        const core = hs.weaponCore(heroId);
+        this._openModal('🧬 英雄核心', (box, close) => {
+            const sub = document.createElement('p');
+            sub.className = 'mSub';
+            sub.textContent = `核心为 ${def?.name ?? ''} 提供武器特效加成（暴击/攻击等）`;
+            box.appendChild(sub);
+            if (core) {
+                const row = document.createElement('div');
+                row.className = 'mRow';
+                row.innerHTML = `<span>当前核心 <b class="goldT" style="color:${EQUIP_TIER_COLORS[core.tier - 1]}">${core.name}</b> · ${core.desc}</span>`;
+                const off = document.createElement('button');
+                off.className = 'btn dark sm';
+                off.textContent = '拆 除';
+                off.onclick = () => {
+                    if (hs.removeCore(heroId)) {
                         SoundFx.play('ui');
-                        this._refreshLineupPanel(slots, pool);
+                        this._toast('核心已拆除');
+                        close();
                         this._refreshHeroes();
                     }
                 };
+                row.appendChild(off);
+                box.appendChild(row);
             } else {
-                slot.textContent = '+';
-            }
-            slots.appendChild(slot);
-        }
-        // 候选英雄（仅已拥有）
-        for (const def of HERO_DEFS) {
-            if (!gm.isHeroOwned(def.id)) {
-                continue;
-            }
-            const inLineup = gm.isInLineup(def.id);
-            const item = document.createElement('div');
-            item.className = 'lineupPoolItem' + (inLineup ? ' active' : '');
-            this._tex(`characters/hero_${def.id}`, u => { item.style.backgroundImage = u; });
-            const name = document.createElement('div');
-            name.className = 'lineupPoolName';
-            name.textContent = def.name;
-            item.appendChild(name);
-            item.title = inLineup ? '点击下阵' : '点击上阵';
-            item.onclick = (e) => {
-                e.stopPropagation();
-                if (gm.toggleLineupMember(def.id)) {
-                    SoundFx.play('ui');
-                    this._refreshLineupPanel(slots, pool);
-                    this._refreshHeroes();
+                const rec = WEAPON_CORE_DEFS.slice()
+                    .sort((a, b) => (a.tier - b.tier) || (a.baseCost - b.baseCost))[0] ?? null;
+                if (rec) {
+                    const row = document.createElement('div');
+                    row.className = 'mRow';
+                    row.innerHTML = `<span>未嵌入核心 · 推荐 <b class="goldT">${rec.name}</b>（${rec.desc}）</span>`;
+                    const buy = document.createElement('button');
+                    buy.className = 'btn gold sm';
+                    buy.textContent = `🪙 ${rec.baseCost} 嵌入`;
+                    buy.disabled = GameManager.instance.gold < rec.baseCost;
+                    buy.onclick = () => {
+                        if (hs.buyCore(heroId, rec.id)) {
+                            SoundFx.play('buy');
+                            this._toast(`${rec.name} 嵌入成功`);
+                            close();
+                            this._refreshHeroes();
+                        }
+                    };
+                    row.appendChild(buy);
+                    box.appendChild(row);
                 }
-            };
-            pool.appendChild(item);
-        }
+                // 全核心列表（供选择）
+                for (const c of WEAPON_CORE_DEFS) {
+                    const row = document.createElement('div');
+                    row.className = 'mRow';
+                    row.innerHTML = `<span><b style="color:${EQUIP_TIER_COLORS[c.tier - 1]}">${c.name}</b> · ${c.desc}</span>`;
+                    const b2 = document.createElement('button');
+                    b2.className = 'btn blue sm';
+                    b2.textContent = `🪙 ${c.baseCost}`;
+                    b2.disabled = GameManager.instance.gold < c.baseCost;
+                    b2.onclick = () => {
+                        if (hs.buyCore(heroId, c.id)) {
+                            SoundFx.play('buy');
+                            this._toast(`${c.name} 嵌入成功`);
+                            close();
+                            this._refreshHeroes();
+                        }
+                    };
+                    row.appendChild(b2);
+                    box.appendChild(row);
+                }
+            }
+        });
     }
 
-    /** 模拟广告层：AD_START 弹出 3 秒倒计时（真实观感占位），AD_END 关闭 */
+    /** 弹窗：武器强化 */
+    private _openWeaponModal(heroId: string): void {
+        const hs = HeroSystem.instance;
+        const def = HERO_DEFS.find(d => d.id === heroId);
+        this._openModal(`🔧 武器强化 · ${def?.name ?? ''}`, (box, close) => {
+            const lv = hs.weaponLevel(heroId);
+            const sub = document.createElement('p');
+            sub.className = 'mSub';
+            sub.textContent = '武器强化提升普攻基础伤害（每级攻击加成叠加）';
+            box.appendChild(sub);
+            const cur = document.createElement('div');
+            cur.className = 'mRow';
+            cur.innerHTML = `<span>当前武器 <b class="goldT">+${lv}</b> · 攻击加成 +${Math.round((hs.weaponAtkMul(heroId) - 1) * 100)}%</span>`;
+            box.appendChild(cur);
+            const row = document.createElement('div');
+            row.className = 'mRow';
+            if (hs.isWeaponMaxLevel(heroId)) {
+                row.innerHTML = '<span>武器已满级</span>';
+                const b = document.createElement('button');
+                b.className = 'btn dark sm';
+                b.disabled = true;
+                b.textContent = '已满级';
+                row.appendChild(b);
+            } else {
+                const cost = hs.weaponUpgradeCost(heroId);
+                row.innerHTML = `<span>强化至 +${lv + 1}（攻击加成 +${Math.round((Math.pow(1 + 0.05, lv + 1) - 1) * 100)}%）</span>`;
+                const b = document.createElement('button');
+                b.className = 'btn gold sm';
+                b.textContent = `🪙 ${cost} 强化`;
+                b.disabled = GameManager.instance.gold < cost;
+                b.onclick = () => {
+                    if (hs.upgradeWeapon(heroId)) {
+                        SoundFx.play('buy');
+                        this._toast(`武器强化至 +${lv + 1}`);
+                        close();
+                        this._refreshHeroes();
+                    }
+                };
+                row.appendChild(b);
+            }
+            box.appendChild(row);
+        });
+    }
+
+    /** 弹窗：指挥官背包（装备/材料双页签，真数据 gm.bag） */
+    private _openBagModal(heroId: string): void {
+        let tab: 'equip' | 'all' = 'equip';
+        const gm = GameManager.instance;
+        const render = (box: HTMLDivElement) => {
+            box.querySelector('.bagWrap')?.remove();
+            const wrap = document.createElement('div');
+            wrap.className = 'bagWrap';
+            const tabs = document.createElement('div');
+            tabs.className = 'bagTabs';
+            const mk = (key: 'equip' | 'all', label: string) => {
+                const b = document.createElement('button');
+                b.className = tab === key ? 'on' : '';
+                b.textContent = label;
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    tab = key;
+                    render(box);
+                };
+                tabs.appendChild(b);
+            };
+            mk('equip', '🛡️ 装备');
+            mk('all', '📦 全部');
+            wrap.appendChild(tabs);
+            const grid = document.createElement('div');
+            grid.className = 'bagGrid';
+            const items: BagItem[] = tab === 'equip' ? gm.bag : gm.bag;
+            if (items.length === 0) {
+                const tip = document.createElement('p');
+                tip.className = 'mSub';
+                tip.textContent = '背包空空如也 · 去商店购买装备部件';
+                grid.appendChild(tip);
+            }
+            for (const it of items) {
+                const cell = document.createElement('div');
+                cell.className = `bcell r${it.tier <= 1 ? 2 : it.tier === 2 ? 3 : it.tier === 3 ? 4 : 5}`;
+                cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>${it.lv}</em>`;
+                cell.title = `${bagItemName(it)}（点击穿戴）`;
+                cell.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._openEquipSlotPanel(heroId, it.slot);
+                };
+                grid.appendChild(cell);
+            }
+            wrap.appendChild(grid);
+            box.appendChild(wrap);
+        };
+        this._openModal('🎒 指挥官背包', (box) => render(box));
+    }
+
+    /** 穿戴面板（对齐原型 mbox 风格）：已穿件（强化/卸下）+ 背包件（穿戴） */
+    private _openEquipSlotPanel(heroId: string, slot: EquipSlot): void {
+        const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
+        if (!gm.isHeroOwned(heroId)) {
+            return;
+        }
+        this._openModal(`${EQUIP_SLOT_NAMES[slot]} · 穿戴`, (box, close) => {
+            const list = document.createElement('div');
+            list.className = 'equipSlots wide';
+            box.appendChild(list);
+            const cur = hs.equipped(heroId, slot);
+            if (cur) {
+                const row = document.createElement('div');
+                row.className = 'equipRow';
+                const info = document.createElement('div');
+                info.className = 'equipInfo';
+                let tier: 1 | 2 | 3 | 4 = 1;
+                let name = '';
+                if (cur.id.startsWith('bag:')) {
+                    tier = Number(cur.id.split(':')[2]) as 1 | 2 | 3 | 4;
+                    name = bagItemName({ slot, tier, lv: cur.lv });
+                } else {
+                    const d = hs.equipDef(cur.id);
+                    if (d) {
+                        tier = d.tier;
+                        name = d.name;
+                    }
+                }
+                const parts: string[] = [];
+                for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
+                    const v = Math.round(hs.equipSlotValue(cur, key) * 100);
+                    if (v > 0) {
+                        parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
+                    }
+                }
+                info.innerHTML =
+                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[tier - 1]}">当前：${name}</div>` +
+                    `<div class="equipStat">强化 +${cur.lv} · ${parts.join(' ') || '无属性'}</div>`;
+                const btn = document.createElement('button');
+                btn.className = 'btn gold sm';
+                if (!hs.isEquipMaxLevel(cur)) {
+                    const cost = hs.equipUpgradeCost(cur);
+                    btn.textContent = `🪙 ${cost} 强化`;
+                    btn.disabled = gm.gold < cost;
+                    btn.onclick = () => {
+                        if (hs.upgradeEquip(heroId, slot)) {
+                            SoundFx.play('buy');
+                            document.querySelector('#homeUi .protoMask')?.remove();
+                            this._refreshHeroes();
+                        }
+                    };
+                } else {
+                    btn.textContent = '已满级';
+                    btn.disabled = true;
+                }
+                const offBtn = document.createElement('button');
+                offBtn.className = 'btn dark sm';
+                offBtn.textContent = '卸 下';
+                offBtn.onclick = () => {
+                    if (hs.unequipToBag(heroId, slot)) {
+                        SoundFx.play('ui');
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._refreshHeroes();
+                    }
+                };
+                const wrap = document.createElement('div');
+                wrap.style.display = 'flex';
+                wrap.style.gap = 'calc(8px * var(--hs,1))';
+                wrap.appendChild(btn);
+                wrap.appendChild(offBtn);
+                row.appendChild(info);
+                row.appendChild(wrap);
+                list.appendChild(row);
+            }
+            const items = hs.bagItemsOf(slot);
+            if (items.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'mSub';
+                empty.textContent = cur ? '背包中该部位没有其他件' : '背包中该部位没有装备 · 去商店购买';
+                list.appendChild(empty);
+            }
+            for (const { index, item } of items) {
+                const row = document.createElement('div');
+                row.className = 'equipRow';
+                const info = document.createElement('div');
+                info.className = 'equipInfo';
+                const parts: string[] = [];
+                for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
+                    const v = Math.round(bagItemValue(item, key) * 100);
+                    if (v > 0) {
+                        parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
+                    }
+                }
+                info.innerHTML =
+                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[item.tier - 1]}">${bagItemName(item)}</div>` +
+                    `<div class="equipStat">${parts.join(' ') || '无属性'}</div>`;
+                const btn = document.createElement('button');
+                btn.className = 'btn gold sm';
+                btn.textContent = '穿 戴';
+                btn.onclick = () => {
+                    if (hs.equipFromBag(heroId, index)) {
+                        SoundFx.play('buy');
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._refreshHeroes();
+                    }
+                };
+                row.appendChild(info);
+                row.appendChild(btn);
+                list.appendChild(row);
+            }
+            const closeBar = document.createElement('button');
+            closeBar.className = 'btn dark big';
+            closeBar.style.marginTop = 'calc(12px * var(--hs,1))';
+            closeBar.textContent = '关 闭';
+            closeBar.onclick = (e) => {
+                e.stopPropagation();
+                close();
+            };
+            box.appendChild(closeBar);
+        });
+    }
+
+    // ================= 关卡页 =================
+
+    /** 关卡页：章节页签 + 波次进度轨道 + 护送场景（动画）+ 关卡信息 + 耐久宝箱 + 编队/出战 */
+    private _buildStagePage(root: HTMLDivElement): void {
+        const page = document.createElement('div');
+        page.className = 'screen';
+        this._pages.battle = page;
+
+        // 章节页签（1~5 关，未解锁灰态）
+        const tabs = document.createElement('div');
+        tabs.className = 'chTabs';
+        page.appendChild(tabs);
+        this._stageTabsEl = tabs;
+
+        // 波次进度轨道（1~5 波 done/cur/lock 圆点）
+        const track = document.createElement('div');
+        track.className = 'lvlTrack';
+        page.appendChild(track);
+        this._lvlTrackEl = track;
+
+        // 护送场景（CSS 动画：太阳/山丘/公路/载具/怪物 + 耐久角标 + 左右箭头）
+        const scene = document.createElement('div');
+        scene.className = 'scene frame';
+        scene.innerHTML = `<div class="sun"></div><div class="mtn"></div><div class="hill"></div>` +
+            `<div class="ground"></div><div class="road"></div><div class="dash"></div>` +
+            `<div class="mobs"><span>🐺</span><span>🐗</span><span>🦅</span></div>` +
+            `<div class="veh">🚚</div>` +
+            `<div class="crew"><i></i><i></i><i></i><i></i></div>` +
+            `<div class="sceneInfo"><div class="siChip"></div>` +
+            `<div class="siHp">🛡️ 难度 ×<b class="hpMul"></b></div></div>`;
+        const al = document.createElement('div');
+        al.className = 'arrow l';
+        al.textContent = '‹';
+        al.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._switchStage(-1);
+        };
+        const ar = document.createElement('div');
+        ar.className = 'arrow r';
+        ar.textContent = '›';
+        ar.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._switchStage(1);
+        };
+        scene.appendChild(al);
+        scene.appendChild(ar);
+        page.appendChild(scene);
+        this._sceneEl = scene;
+        this._sceneChipEl = scene.querySelector('.siChip');
+        this._vehEl = scene.querySelector('.veh');
+        this._mobsEl = scene.querySelector('.mobs');
+        this._arrowL = al;
+        this._arrowR = ar;
+
+        // 关卡信息三格：当前关卡 / 推荐战力 / 关卡状态
+        const info = document.createElement('div');
+        info.className = 'stageInfo';
+        info.innerHTML = `<div class="siBox panel">当前关卡<b class="siLvl"></b></div>` +
+            `<div class="siBox panel">推荐战力<b class="siPow"></b></div>` +
+            `<div class="siBox panel">关卡状态<b class="siSt"></b></div>`;
+        page.appendChild(info);
+        this._siLvlEl = info.querySelector('.siLvl');
+        this._siPowEl = info.querySelector('.siPow');
+        this._siStEl = info.querySelector('.siSt');
+
+        // 耐久结算宝箱三档
+        const chestTitle = document.createElement('div');
+        chestTitle.className = 'secTitle';
+        chestTitle.textContent = '🛡️ 通关宝箱 · 越少受伤，奖励越丰厚';
+        page.appendChild(chestTitle);
+        const chests = document.createElement('div');
+        chests.className = 'chests';
+        page.appendChild(chests);
+        this._chestsEl = chests;
+
+        // 底部按钮：编队 + 出战
+        const btns = document.createElement('div');
+        btns.className = 'stageBtns';
+        const squad = document.createElement('button');
+        squad.className = 'btn blue squad';
+        squad.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openSquadModal();
+        };
+        const go = document.createElement('button');
+        go.className = 'btn gold go';
+        go.textContent = '▶ 开始护送';
+        go.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            this._startBattle();
+        };
+        btns.appendChild(squad);
+        btns.appendChild(go);
+        page.appendChild(btns);
+        this._squadBtn = squad;
+
+        root.appendChild(page);
+    }
+
+    private _squadBtn: HTMLButtonElement | null = null;
+
+    /** 关卡页刷新：章节页签/进度点/场景内容/信息/宝箱（真数据 STAGES + stageCleared） */
+    private _refreshStagePage(): void {
+        const gm = GameManager.instance;
+        const tabs = this._stageTabsEl;
+        const track = this._lvlTrackEl;
+        const scene = this._sceneEl;
+        const chests = this._chestsEl;
+        if (!tabs || !track || !scene || !chests) {
+            return;
+        }
+        const stageId = Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID);
+        const info = stageInfo(stageId);
+        const theme = CHAPTER_THEMES[stageId - 1] ?? CHAPTER_THEMES[0];
+
+        // 章节页签
+        tabs.innerHTML = '';
+        STAGES.forEach((s, i) => {
+            const open = s.id <= gm.stageCleared + 1;
+            const b = document.createElement('button');
+            b.className = (s.id === stageId ? 'on' : '') + (open ? '' : ' lock');
+            const nm = document.createElement('b');
+            nm.textContent = s.name;
+            const sub = document.createElement('span');
+            sub.textContent = open ? `难度 ×${s.hpMul}` : '🔒 未解锁';
+            b.appendChild(nm);
+            b.appendChild(sub);
+            b.title = open ? `前往第 ${s.id} 关` : `通关第 ${s.id - 1} 关后解锁`;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                if (!open) {
+                    this._toast(`通关「${STAGES[i - 1]?.name ?? '上一关'}」后解锁`);
+                    return;
+                }
+                gm.currentStage = s.id;
+                gm.save();
+                this._refreshStagePage();
+            };
+            tabs.appendChild(b);
+        });
+
+        // 波次进度轨道（done = 已通关整关全部点亮 / 当前关 cur 高亮最后一格）
+        track.innerHTML = '';
+        const clearedAll = stageId <= gm.stageCleared;
+        for (let w = 0; w < WAVES_PER_STAGE; w++) {
+            const dot = document.createElement('span');
+            let cls = 'lock';
+            if (clearedAll) {
+                cls = 'done';
+            } else if (stageId === gm.stageCleared + 1 && w === WAVES_PER_STAGE - 1) {
+                cls = 'cur';
+            }
+            dot.className = `dot ${cls}`;
+            dot.style.left = `${8 + w * 21}%`;
+            const em = document.createElement('em');
+            em.textContent = `${w + 1}`;
+            dot.appendChild(em);
+            track.appendChild(dot);
+        }
+
+        // 场景内容
+        scene.className = 'scene frame c' + ((stageId - 1) % 3 + 1);
+        if (this._vehEl) {
+            this._vehEl.textContent = theme.veh;
+            this._tex('scenes/vehicle_tail', u => {
+                if (this._vehEl) {
+                    this._vehEl.style.backgroundImage = 'none';
+                    this._vehEl.textContent = theme.veh;
+                }
+            });
+        }
+        if (this._mobsEl) {
+            this._mobsEl.innerHTML = theme.mobs.map((m, i) =>
+                `<span style="animation-delay:${i * 0.4}s">${m}</span>`).join('');
+        }
+        if (this._sceneChipEl) {
+            this._sceneChipEl.textContent = `${info.name} ${theme.veh}`;
+        }
+        if (this._arrowL) {
+            this._arrowL.style.visibility = stageId > 1 ? 'visible' : 'hidden';
+        }
+        if (this._arrowR) {
+            this._arrowR.style.visibility = stageId < FINAL_STAGE_ID && stageId < gm.stageCleared + 1 ? 'visible' : 'hidden';
+        }
+
+        // 关卡信息
+        if (this._siLvlEl) {
+            this._siLvlEl.innerHTML = `${stageId}-1<span style="font-size:calc(18px * var(--hs,1));color:#8ba3c7"> ${info.name.replace(/^\d+\./, '')}</span>`;
+        }
+        if (this._siPowEl) {
+            this._siPowEl.textContent = (7600 + stageId * 1400).toLocaleString();
+        }
+        if (this._siStEl) {
+            if (clearedAll) {
+                this._siStEl.textContent = '✅ 已通关';
+                this._siStEl.className = 'ok';
+            } else if (stageId === gm.stageCleared + 1) {
+                this._siStEl.textContent = '▶ 待挑战';
+                this._siStEl.className = 'go';
+            } else {
+                this._siStEl.textContent = '🔒 未解锁';
+                this._siStEl.className = '';
+            }
+        }
+
+        // 通关宝箱三档（已通关=可领，待挑战=锁，通关后可领=ready）
+        chests.innerHTML = '';
+        const boxes: Array<[string, string, string, string, boolean]> = clearedAll
+            ? [['📦', '通关奖励', 'got', '已可领取', true], ['🎁', '无伤通关', 'got', '进阶挑战', false], ['🏆', '完美通关', 'lock', '敬请期待', false]]
+            : stageId === gm.stageCleared + 1
+                ? [['📦', '通关奖励', 'ready', '', true], ['🎁', '无伤通关', 'lock', '进阶挑战', false], ['🏆', '完美通关', 'lock', '敬请期待', false]]
+                : [['📦', '通关奖励', 'lock', '通关后结算', true], ['🎁', '无伤通关', 'lock', '通关后结算', false], ['🏆', '完美通关', 'lock', '通关后结算', false]];
+        for (const [ic, label, st, tip, goldBox] of boxes) {
+            const c = document.createElement('div');
+            c.className = `chest panel ${st}`;
+            const cic = document.createElement('span');
+            cic.className = 'cic';
+            cic.textContent = ic;
+            this._tex('ui/chest', u => { void u; });
+            c.appendChild(cic);
+            const p = document.createElement('p');
+            p.textContent = label;
+            c.appendChild(p);
+            if (st === 'ready') {
+                const b = document.createElement('button');
+                b.className = 'btn gold sm';
+                b.textContent = '领 取';
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    // 通关奖励在结算面板发放，这里跳结算提示
+                    this._toast('通关奖励在战斗结算时发放');
+                };
+                c.appendChild(b);
+            } else {
+                const tag = document.createElement('span');
+                tag.className = 'tag';
+                tag.style.marginTop = 'calc(6px * var(--hs,1))';
+                tag.style.display = 'inline-block';
+                tag.textContent = tip;
+                c.appendChild(tag);
+            }
+            void goldBox;
+            chests.appendChild(c);
+        }
+
+        // 编队按钮文案
+        if (this._squadBtn) {
+            this._squadBtn.textContent = `👥 护送编队 ${gm.lineup.length}/${GameManager.LINEUP_MAX}`;
+        }
+
+        // 出战按钮体力口径（css opacity）
+        const go = document.querySelector<HTMLButtonElement>('#homeUi .btn.go');
+        if (go) {
+            go.style.opacity = gm.canStartRun() ? '1' : '0.45';
+            go.title = gm.canStartRun() ? '' : `体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`;
+        }
+        this._applyPendingTex();
+    }
+
+    /** 弹窗：护送编队（对齐原型 sq-slot + cand 网格，真数据 lineup） */
+    private _openSquadModal(): void {
+        this._openModal('👥 护送编队', (box) => {
+            const gm = GameManager.instance;
+            const render = () => {
+                box.querySelector('.sqWrap')?.remove();
+                const wrap = document.createElement('div');
+                wrap.className = 'sqWrap';
+                const sub = document.createElement('p');
+                sub.className = 'mSub';
+                const total = gm.lineup.reduce((s, id) => s + this._heroPower(id), 0);
+                sub.innerHTML = `最多上阵 ${GameManager.LINEUP_MAX} 名英雄护卫载具尾部 · 当前 <b class="goldT">${gm.lineup.length}/${GameManager.LINEUP_MAX}</b> · 总战力 <b class="goldT">${total.toLocaleString()}</b>`;
+                wrap.appendChild(sub);
+                const sq = document.createElement('div');
+                sq.className = 'sqRow';
+                for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
+                    const id = gm.lineup[i];
+                    const slot = document.createElement('div');
+                    slot.className = 'sqSlot' + (id ? '' : ' empty');
+                    if (id) {
+                        const def = HERO_DEFS.find(d => d.id === id);
+                        const pic = document.createElement('span');
+                        this._tex(`characters/hero_${id}`, u => {
+                            pic.style.backgroundImage = u;
+                            pic.style.width = 'calc(44px * var(--hs,1))';
+                            pic.style.height = 'calc(44px * var(--hs,1))';
+                            pic.style.backgroundSize = 'contain';
+                            pic.style.backgroundRepeat = 'no-repeat';
+                            pic.style.backgroundPosition = 'center';
+                        });
+                        const nm = document.createElement('span');
+                        nm.textContent = def?.name ?? id;
+                        slot.appendChild(pic);
+                        slot.appendChild(nm);
+                        slot.title = '点击下阵';
+                        slot.onclick = (e) => {
+                            e.stopPropagation();
+                            if (gm.toggleLineupMember(id)) {
+                                SoundFx.play('ui');
+                                render();
+                                this._refreshStagePage();
+                            }
+                        };
+                    } else {
+                        slot.textContent = '+';
+                    }
+                    sq.appendChild(slot);
+                }
+                wrap.appendChild(sq);
+                const candLab = document.createElement('p');
+                candLab.className = 'mSub';
+                candLab.textContent = '候补英雄 · 点击上阵';
+                wrap.appendChild(candLab);
+                const cand = document.createElement('div');
+                cand.className = 'cand';
+                for (const def of HERO_DEFS) {
+                    const owned = gm.isHeroOwned(def.id);
+                    const inLineup = gm.isInLineup(def.id);
+                    const b = document.createElement('button');
+                    b.className = 'candB';
+                    if (!owned) {
+                        b.style.opacity = '.4';
+                    }
+                    const ic = document.createElement('b');
+                    const pic = document.createElement('span');
+                    this._tex(`characters/hero_${def.id}`, u => {
+                        pic.style.backgroundImage = u;
+                        pic.style.width = 'calc(40px * var(--hs,1))';
+                        pic.style.height = 'calc(40px * var(--hs,1))';
+                        pic.style.display = 'block';
+                        pic.style.backgroundSize = 'contain';
+                        pic.style.backgroundRepeat = 'no-repeat';
+                        pic.style.backgroundPosition = 'center';
+                    });
+                    ic.appendChild(pic);
+                    const nm = document.createElement('span');
+                    nm.textContent = owned ? def.name : '🔒 未获得';
+                    b.appendChild(ic);
+                    b.appendChild(nm);
+                    b.onclick = (e) => {
+                        e.stopPropagation();
+                        if (!owned) {
+                            this._toast(`「${def.name}」尚未获得 · 可在商店解锁`);
+                            return;
+                        }
+                        SoundFx.unlock();
+                        if (gm.toggleLineupMember(def.id)) {
+                            SoundFx.play('ui');
+                            render();
+                            this._refreshStagePage();
+                        }
+                    };
+                    cand.appendChild(b);
+                    void inLineup;
+                }
+                wrap.appendChild(cand);
+                const save = document.createElement('button');
+                save.className = 'btn gold big';
+                save.style.marginTop = 'calc(14px * var(--hs,1))';
+                save.textContent = '保存编队';
+                save.onclick = (e) => {
+                    e.stopPropagation();
+                    gm.save();
+                    SoundFx.play('buy');
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._toast('编队已保存');
+                };
+                wrap.appendChild(save);
+                box.appendChild(wrap);
+            };
+            render();
+        });
+    }
+
+    // ================= 技能页（核心页） =================
+
+    /** 技能页：英雄横滑选择条 + 普攻/技能/大招三横卡（原型 s-skill 风格） */
+    private _buildSkillPage(root: HTMLDivElement): void {
+        const page = document.createElement('div');
+        page.className = 'screen';
+        this._pages.core = page;
+        const pick = document.createElement('div');
+        pick.className = 'heroPick';
+        page.appendChild(pick);
+        this._skillPickEl = pick;
+        const list = document.createElement('div');
+        list.style.marginTop = 'calc(16px * var(--hs,1))';
+        page.appendChild(list);
+        this._skillListEl = list;
+        const hint = document.createElement('div');
+        hint.className = 'skillHint';
+        hint.textContent = '—— 普攻 / 技能 / 大招 三线独立成长 · 战斗内三选一升级在此基础上继续 ——';
+        page.appendChild(hint);
+        root.appendChild(page);
+    }
+
+    private _pickSkillHero(i: number): void {
+        const gm = GameManager.instance;
+        const def = HERO_DEFS[i % HERO_DEFS.length];
+        if (!gm.isHeroOwned(def.id)) {
+            this._toast(`「${def.name}」尚未获得 · 无法升级技能`);
+            return;
+        }
+        this._skillSelIdx = i;
+        this._refreshSkillPage();
+    }
+
+    private _refreshSkillPage(): void {
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        const pick = this._skillPickEl;
+        const list = this._skillListEl;
+        if (!pick || !list) {
+            return;
+        }
+        pick.innerHTML = '';
+        HERO_DEFS.forEach((d, i) => {
+            const owned = gm.isHeroOwned(d.id);
+            const b = document.createElement('button');
+            b.className = 'hpick' + (i === this._skillSelIdx ? ' on' : '') + (owned ? '' : ' lock');
+            const pic = document.createElement('span');
+            pic.className = 'pic';
+            this._tex(`characters/hero_${d.id}`, u => {
+                pic.style.backgroundImage = u;
+                pic.style.backgroundSize = 'contain';
+                pic.style.backgroundRepeat = 'no-repeat';
+                pic.style.backgroundPosition = 'center';
+            });
+            const nm = document.createElement('i');
+            nm.textContent = d.name;
+            b.appendChild(pic);
+            b.appendChild(nm);
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._pickSkillHero(i);
+            };
+            pick.appendChild(b);
+        });
+
+        list.innerHTML = '';
+        const def = HERO_DEFS[this._skillSelIdx % HERO_DEFS.length];
+        const owned = gm.isHeroOwned(def.id);
+        if (!owned) {
+            const tip = document.createElement('p');
+            tip.className = 'mSub';
+            tip.style.textAlign = 'center';
+            tip.textContent = `「${def.name}」尚未获得 · 解锁后开放技能升级`;
+            list.appendChild(tip);
+            return;
+        }
+        const basicDesc = def.weapon === 'rifle' ? '自动锁定最近目标，稳定单发射击，可触发暴击。'
+            : def.weapon === 'sniper' ? '超远射程锁定高威胁目标，高伤慢速单体狙击。'
+                : def.weapon === 'laser' ? '持续锁定跟踪光束，附加灼烧持续伤害。'
+                    : '弹速极快的辐射弹，穿透直线上多个敌人。';
+        const cards: Array<{ t: string; ic: string; iconKey: string; n: string; d: string; slot: AbilitySlot; ult: boolean }> = [
+            { t: '普攻', ic: '🔫', iconKey: `icons/${def.id}_basic`, n: '基础射击', d: basicDesc, slot: 'basic', ult: false },
+            { t: '技能', ic: '💫', iconKey: `icons/${def.id}_skill`, n: def.skill.name, d: def.skill.desc, slot: 'skill', ult: false },
+            { t: '大招', ic: '☄️', iconKey: `icons/${def.id}_ultimate`, n: def.ultimate.name, d: def.ultimate.desc, slot: 'ultimate', ult: true },
+        ];
+        for (const c of cards) {
+            const lv = hs.abilityLevel(def.id, c.slot);
+            const maxed = hs.isAbilityMaxLevel(def.id, c.slot);
+            const card = document.createElement('div');
+            card.className = 'skillCard panel' + (c.ult ? ' frame' : '');
+            const icon = document.createElement('div');
+            icon.className = 'sIcon' + (c.ult ? ' ult' : c.t === '技能' ? ' s2' : '');
+            icon.textContent = c.ic;
+            this._tex(c.iconKey, u => {
+                icon.style.backgroundImage = u;
+                icon.style.backgroundSize = 'contain';
+                icon.style.backgroundRepeat = 'no-repeat';
+                icon.style.backgroundPosition = 'center';
+                icon.textContent = '';
+            });
+            const info = document.createElement('div');
+            info.className = 'sInfo';
+            const nm = document.createElement('div');
+            nm.className = 'sName';
+            nm.innerHTML = `${c.n}<span class="tag ${c.ult ? 'g' : c.t === '技能' ? 'p' : 'b'}">${c.t}</span>`;
+            const desc = document.createElement('div');
+            desc.className = 'sDesc';
+            desc.textContent = `${c.d}（每级伤害 +${Math.round(ABILITY_LEVEL_DMG_BONUS * 100)}%）`;
+            info.appendChild(nm);
+            info.appendChild(desc);
+            const act = document.createElement('div');
+            act.className = 'sAct';
+            const lvEl = document.createElement('div');
+            lvEl.className = 'sLv';
+            lvEl.textContent = maxed ? 'MAX' : `Lv.${lv}`;
+            const btn = document.createElement('button');
+            btn.className = `btn ${c.ult ? 'gold' : 'blue'} sm`;
+            if (maxed) {
+                btn.textContent = '已满级';
+                btn.disabled = true;
+            } else {
+                const cost = hs.abilityUpgradeCost(def.id, c.slot);
+                btn.textContent = `🪙 ${cost.toLocaleString()}`;
+                btn.disabled = gm.gold < cost;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (hs.upgradeAbility(def.id, c.slot)) {
+                        SoundFx.play('buy');
+                        this._toast(`${c.n} 升至 Lv.${lv + 1}`);
+                        this._refreshSkillPage();
+                        this._refreshTop();
+                    }
+                };
+            }
+            btn.style.opacity = btn.disabled ? '0.5' : '1';
+            act.appendChild(lvEl);
+            act.appendChild(btn);
+            card.appendChild(icon);
+            card.appendChild(info);
+            card.appendChild(act);
+            list.appendChild(card);
+        }
+        this._applyPendingTex();
+    }
+
+    // ================= 基地页 =================
+
+    /** 基地页：基地横幅（繁荣度）+ 建筑卡 2 列网格（第 5 格起挂 META_UPGRADES 真数据） */
+    private _buildBasePage(root: HTMLDivElement): void {
+        const page = document.createElement('div');
+        page.className = 'screen';
+        this._pages.base = page;
+        const banner = document.createElement('div');
+        banner.className = 'baseBanner panel frame';
+        banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag">基地 LV.5</span></h3>` +
+            `<div class="pros">繁荣度 1,240 / 2,000 · 升级建筑提升繁荣度</div>` +
+            `<div class="prosBar"><i></i></div></div>`;
+        page.appendChild(banner);
+        const grid = document.createElement('div');
+        grid.className = 'baseGrid';
+        page.appendChild(grid);
+        this._baseGridEl = grid;
+        root.appendChild(page);
+    }
+
+    private _baseGridEl: HTMLDivElement | null = null;
+
+    private _refreshBase(): void {
+        const gm = GameManager.instance;
+        const grid = this._baseGridEl;
+        if (!grid) {
+            return;
+        }
+        grid.innerHTML = '';
+        // 建筑卡（视觉复刻，数值占位）
+        const buildings: Array<{ ic: string; n: string; lv: number; d: string }> = [
+            { ic: '🏛️', n: '指挥中心', lv: 5, d: '提升所有建筑等级上限' },
+            { ic: '🏕️', n: '训练营', lv: 4, d: '英雄等级上限 +2' },
+            { ic: '⚒️', n: '军械库', lv: 3, d: '装备强化等级上限 +1' },
+            { ic: '🔬', n: '研究所', lv: 4, d: '技能等级上限 +1' },
+        ];
+        for (const b of buildings) {
+            const card = document.createElement('div');
+            card.className = 'bcard panel';
+            card.innerHTML = `<div class="bIc">${b.ic}</div>` +
+                `<div class="bName">${b.n}<span>LV.${b.lv}</span></div>` +
+                `<div class="bDesc">${b.d}</div>`;
+            const btn = document.createElement('button');
+            btn.className = 'btn dark sm';
+            btn.style.width = '100%';
+            btn.textContent = '🔒 即将开放';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._toast('基地建筑系统即将开放');
+            };
+            card.appendChild(btn);
+            grid.appendChild(card);
+        }
+        // 局外强化卡（真数据 META_UPGRADES：火力/装甲/赏金/演练）
+        for (const def of META_UPGRADES) {
+            const lv = gm.upgradeLevel(def.id);
+            const maxed = lv >= def.maxLevel;
+            const cost = gm.upgradeCost(def.id);
+            const card = document.createElement('div');
+            card.className = 'bcard panel';
+            const ic = document.createElement('div');
+            ic.className = 'bIc';
+            ic.textContent = def.id === 'atk' ? '⚔️' : def.id === 'vehHp' ? '🛡️' : def.id === 'goldGain' ? '🪙' : '🎯';
+            card.appendChild(ic);
+            const nm = document.createElement('div');
+            nm.className = 'bName';
+            nm.innerHTML = `${def.name}<span>LV.${lv}</span>`;
+            card.appendChild(nm);
+            const ds = document.createElement('div');
+            ds.className = 'bDesc';
+            ds.textContent = maxed ? def.desc(lv) : def.desc(lv + 1);
+            card.appendChild(ds);
+            const btn = document.createElement('button');
+            btn.className = 'btn gold sm';
+            btn.style.width = '100%';
+            if (maxed) {
+                btn.textContent = '已满级';
+                btn.disabled = true;
+            } else {
+                btn.textContent = `🪙 ${cost.toLocaleString()}`;
+                btn.disabled = !gm.canUpgrade(def.id);
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (gm.buyUpgrade(def.id)) {
+                        SoundFx.play('buy');
+                        this._refreshBase();
+                        this._refreshTop();
+                    }
+                };
+            }
+            btn.style.opacity = btn.disabled ? '0.5' : '1';
+            card.appendChild(btn);
+            grid.appendChild(card);
+            this._baseRows.push({ def, lv: nm, eff: ds, btn, cost: btn });
+        }
+        this._applyPendingTex();
+    }
+
+    // ================= 模拟广告层 =================
+
+    /** 模拟广告层：AD_START 弹出 3 秒倒计时，AD_END 关闭 */
     private _buildAdOverlay(root: HTMLDivElement): void {
         const ov = document.createElement('div');
         ov.className = 'adOverlay';
@@ -641,726 +1948,6 @@ export class HomeUi extends Component {
         }, this);
     }
 
-    // ================= 角色编队页 =================
-
-    /** 角色页：顶部资源条 + 英雄居中展示（左右箭头切换）+ 右侧六槽装备卡 + 主武器区 */
-    private _buildHeroes(root: HTMLDivElement): void {
-        const page = document.createElement('div');
-        page.className = 'page heroesPage';
-
-        // 顶部资源条（与商城页共用同一组元素引用，RES_CHANGED 两页同步刷新）
-        const resRow = document.createElement('div');
-        resRow.className = 'mallResRow';
-        const mkRes = (id: 'gold' | 'diamond' | 'stamina') => {
-            const chip = document.createElement('div');
-            chip.className = 'mallRes';
-            const ico = document.createElement('i');
-            ico.className = 'mallResIco';
-            this._tex(`ui/res_${id}`, u => { ico.style.backgroundImage = u; });
-            const val = document.createElement('div');
-            val.className = 'mallResVal';
-            chip.appendChild(ico);
-            chip.appendChild(val);
-            resRow.appendChild(chip);
-            this._mallResEls[id] = val;
-        };
-        mkRes('gold');
-        mkRes('diamond');
-        mkRes('stamina');
-        page.appendChild(resRow);
-
-        // 英雄展示：左右箭头 + 立绘 + 信息 + 按钮 + 装备栏（内容全部由 _refreshHeroes 重建）
-        const detail = document.createElement('div');
-        detail.className = 'heroDetail';
-        const prev = document.createElement('div');
-        prev.className = 'heroArrow';
-        prev.textContent = '❮';
-        prev.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._heroSelIdx = (this._heroSelIdx + HERO_DEFS.length - 1) % HERO_DEFS.length;
-            this._refreshHeroes();
-        };
-        const next = document.createElement('div');
-        next.className = 'heroArrow';
-        next.textContent = '❯';
-        next.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._heroSelIdx = (this._heroSelIdx + 1) % HERO_DEFS.length;
-            this._refreshHeroes();
-        };
-        const body = document.createElement('div');
-        body.className = 'heroDetailBody';
-        detail.appendChild(prev);
-        detail.appendChild(body);
-        detail.appendChild(next);
-        page.appendChild(detail);
-        this._heroDetailBodyEl = body;
-
-        root.appendChild(page);
-        this._pages.heroes = page;
-    }
-
-    /** 角色页刷新：完全复刻装备界面 HTML 稿布局——
-     *  stage（左上头像铭牌/左侧圆钮/中央立绘/盾形武器/宝石钮/右侧 2×3 装备格/火焰战力牌）
-     *  + 方案锻造行 + 背包标题行 + 六列背包网格 + 分类标签 */
-    private _refreshHeroes(): void {
-        const gm = GameManager.instance;
-        const hs = HeroSystem.instance;
-        const body = this._heroDetailBodyEl;
-        if (!body) {
-            return;
-        }
-        body.innerHTML = '';
-        body.className = 'heroDetailBody col';
-        const def = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length];
-        const owned = gm.isHeroOwned(def.id);
-        const inLineup = gm.isInLineup(def.id);
-        const weaponName = def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射';
-
-        // ===== 角色展示区（.stage） =====
-        const stage = document.createElement('div');
-        stage.className = 'heroStage';
-
-        // 左上：avatar-box（头像+等级角标+名牌）+ badge-role
-        const avatarBox = document.createElement('div');
-        avatarBox.className = 'heroAvatarBox';
-        const faceWrap = document.createElement('div');
-        faceWrap.className = 'heroFace';
-        this._tex(`characters/hero_${def.id}`, u => { faceWrap.style.backgroundImage = u; });
-        if (owned) {
-            const lv = document.createElement('div');
-            lv.className = 'heroLvBadge';
-            lv.textContent = `${hs.heroLevel(def.id)}`;
-            faceWrap.appendChild(lv);
-        }
-        const plate = document.createElement('div');
-        plate.className = 'heroNamePlate';
-        plate.textContent = def.name;
-        const roleBadge = document.createElement('div');
-        roleBadge.className = 'heroRoleBadge';
-        roleBadge.textContent = `${def.role} · ${weaponName}` + (owned ? (inLineup ? ' · 上阵中' : '') : ' · 未拥有');
-        avatarBox.appendChild(faceWrap);
-        avatarBox.appendChild(plate);
-        avatarBox.appendChild(roleBadge);
-        stage.appendChild(avatarBox);
-
-        // 左侧：side-btns 两个圆形功能钮（上阵/下阵 + 升级；未拥有 = 解锁跳商城）
-        const side = document.createElement('div');
-        side.className = 'heroSideBtns';
-        const mkSide = (ic: string, tx: string, onTap: () => void, dim = false) => {
-            const b = document.createElement('div');
-            b.className = 'heroCircleBtn' + (dim ? ' dim' : '');
-            b.innerHTML = `<span class="ic">${ic}</span><span class="tx">${tx}</span>`;
-            b.onclick = (e) => {
-                e.stopPropagation();
-                if (dim) {
-                    return;
-                }
-                SoundFx.unlock();
-                onTap();
-            };
-            return b;
-        };
-        if (owned) {
-            side.appendChild(mkSide(inLineup ? '🛡' : '⚔', inLineup ? '下阵' : '上阵', () => {
-                if (gm.toggleLineupMember(def.id)) {
-                    SoundFx.play('ui');
-                    this._refreshHeroes();
-                }
-            }, inLineup && gm.lineup.length <= 1));
-            side.appendChild(mkSide('⬆', hs.isHeroMaxLevel(def.id) ? '满级' : '升级', () => {
-                if (hs.upgradeHero(def.id)) {
-                    SoundFx.play('buy');
-                    this._refreshHeroes();
-                }
-            }, hs.isHeroMaxLevel(def.id) || gm.gold < hs.heroUpgradeCost(def.id)));
-        } else {
-            side.appendChild(mkSide('🔓', '解锁', () => {
-                SoundFx.play('ui');
-                this._switchPage('mall');
-            }));
-        }
-        stage.appendChild(side);
-
-        // 中央：char-model 英雄立绘（点击 = 上阵切换 / 未拥有跳商城）
-        const model = document.createElement('div');
-        model.className = 'heroCharModel' + (owned ? '' : ' locked');
-        this._tex(`characters/hero_${def.id}`, u => { model.style.backgroundImage = u; });
-        model.title = owned ? '点击切换上阵' : '未拥有，前往商城解锁';
-        model.onclick = (e) => {
-            e.stopPropagation();
-            if (!owned) {
-                SoundFx.play('ui');
-                this._switchPage('mall');
-                return;
-            }
-            SoundFx.unlock();
-            if (gm.toggleLineupMember(def.id)) {
-                SoundFx.play('ui');
-                this._refreshHeroes();
-            }
-        };
-        stage.appendChild(model);
-
-        if (owned) {
-            // 右上：shield-slot 主武器（盾形 + 等级阶标，点击强化）
-            const wpn = document.createElement('div');
-            wpn.className = 'heroWpnSlot';
-            const wpnMax = hs.isWeaponMaxLevel(def.id);
-            wpn.innerHTML = `<div class="heroWpnIco">🔫</div>` +
-                `<div class="heroWpnStep">${wpnMax ? '已满级' : `Lv.${hs.weaponLevel(def.id)}`}</div>` +
-                (wpnMax ? '' : `<div class="heroWpnCost">${hs.weaponUpgradeCost(def.id)}金</div>`);
-            wpn.title = wpnMax ? '武器已满级' : '点击强化武器攻击力';
-            wpn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                if (hs.upgradeWeapon(def.id)) {
-                    SoundFx.play('buy');
-                    this._refreshHeroes();
-                }
-            };
-            stage.appendChild(wpn);
-
-            // 武器下方：gem-btn 宝石钮（武器核心，嵌入/拆除）
-            const core = hs.weaponCore(def.id);
-            const gem = document.createElement('div');
-            gem.className = 'heroGemBtn';
-            if (core) {
-                gem.innerHTML = `<div class="heroGemLines" style="color:${EQUIP_TIER_COLORS[core.tier - 1]}">◆◆◆</div>` +
-                    `<div class="heroGemTx">${core.name}</div>`;
-                gem.title = `${core.desc}（点击拆除）`;
-                gem.onclick = (e) => {
-                    e.stopPropagation();
-                    if (hs.removeCore(def.id)) {
-                        SoundFx.play('ui');
-                        this._refreshHeroes();
-                    }
-                };
-            } else {
-                const rec = WEAPON_CORE_DEFS.slice()
-                    .sort((a, b) => (a.tier - b.tier) || (a.baseCost - b.baseCost))[0] ?? null;
-                if (rec) {
-                    gem.innerHTML = `<div class="heroGemLines">◆◆◆</div><div class="heroGemTx">宝石</div>`;
-                    gem.title = `推荐 ${rec.name} · ${rec.desc}（${rec.baseCost}金，点击嵌入）`;
-                    gem.onclick = (e) => {
-                        e.stopPropagation();
-                        if (hs.buyCore(def.id, rec.id)) {
-                            SoundFx.play('buy');
-                            this._refreshHeroes();
-                        }
-                    };
-                } else {
-                    gem.innerHTML = `<div class="heroGemLines">◆◆◆</div><div class="heroGemTx">暂无</div>`;
-                }
-            }
-            stage.appendChild(gem);
-
-            // 右侧：equip-panel 六槽装备格 2×3
-            const panel = document.createElement('div');
-            panel.className = 'heroEquipPanel';
-            for (const slot of EQUIP_SLOTS) {
-                panel.appendChild(this._mkEquipCell(def.id, slot));
-            }
-            stage.appendChild(panel);
-
-            // 底部：flame-badge 火焰战力牌
-            const power = document.createElement('div');
-            power.className = 'heroFlameBadge';
-            const pw = Math.round(def.atk * hs.atkMulOf(def.id) * 10);
-            power.innerHTML = `<span class="fire">🔥</span><b>${pw}</b><i class="infoI">i</i>`;
-            power.title = `Lv.${hs.heroLevel(def.id)} · 武器 Lv.${hs.weaponLevel(def.id)} · 装备/核心加成`;
-            stage.appendChild(power);
-        } else {
-            const lock = document.createElement('div');
-            lock.className = 'heroLockTip';
-            lock.textContent = '解锁英雄后开放装备栏与武器养成';
-            stage.appendChild(lock);
-        }
-        body.appendChild(stage);
-
-        // ===== 方案 & 锻造行（.plan-row） =====
-        const planRow = document.createElement('div');
-        planRow.className = 'heroPlanRow';
-        if (owned) {
-            const plans = ['1 方案1 ⚙️', '2', '3', '4', '5'];
-            for (let i = 0; i < plans.length; i++) {
-                const tab = document.createElement('div');
-                tab.className = 'heroPlanTab' + (i === 0 ? ' active' : '');
-                tab.textContent = plans[i];
-                planRow.appendChild(tab);
-            }
-            const more = document.createElement('div');
-            more.className = 'heroPlanTab';
-            more.textContent = '»';
-            planRow.appendChild(more);
-            // 锻造钮 = 武器强化（带红点）
-            const forge = document.createElement('div');
-            forge.className = 'heroForgeBtn';
-            const wpnMax = hs.isWeaponMaxLevel(def.id);
-            forge.innerHTML = wpnMax ? '⚒ 武器已满级' : `⚒ 武器强化 ${hs.weaponUpgradeCost(def.id)}金`;
-            forge.title = wpnMax ? '武器已满级' : '点击强化武器攻击力';
-            if (wpnMax) {
-                forge.classList.add('dim');
-            }
-            forge.onclick = (e) => {
-                e.stopPropagation();
-                if (wpnMax) {
-                    return;
-                }
-                SoundFx.unlock();
-                if (hs.upgradeWeapon(def.id)) {
-                    SoundFx.play('buy');
-                    this._refreshHeroes();
-                }
-            };
-            planRow.appendChild(forge);
-        }
-        body.appendChild(planRow);
-
-        // ===== 背包标题行（.bag-head：标题 + 筛选 + 一键合成） =====
-        const bagHead = document.createElement('div');
-        bagHead.className = 'heroBagHead';
-        const bagTitle = document.createElement('div');
-        bagTitle.className = 'heroBagTitle';
-        bagTitle.textContent = '🎒 我的背包';
-        const filter = document.createElement('div');
-        filter.className = 'heroBagFilter';
-        filter.textContent = '🔼 全部';
-        const merge = document.createElement('div');
-        merge.className = 'heroBagMerge';
-        merge.textContent = '一键合成';
-        merge.title = '敬请期待';
-        bagHead.appendChild(bagTitle);
-        bagHead.appendChild(filter);
-        bagHead.appendChild(merge);
-        body.appendChild(bagHead);
-
-        // ===== 六列背包网格（.bag-grid） =====
-        const grid = document.createElement('div');
-        grid.className = 'heroBagGrid';
-        if (gm.bag.length === 0) {
-            const tip = document.createElement('div');
-            tip.className = 'heroBagEmpty';
-            tip.textContent = '背包空空如也，去商城购买装备部件吧';
-            grid.appendChild(tip);
-        } else {
-            for (const item of gm.bag) {
-                const cell = document.createElement('div');
-                cell.className = 'heroBagCell';
-                cell.style.borderColor = EQUIP_TIER_COLORS[item.tier - 1];
-                cell.style.background = `linear-gradient(180deg, ${EQUIP_TIER_COLORS[item.tier - 1]}22, #241a10)`;
-                cell.innerHTML = `<span class="slotIc">${SLOT_EMOJI[item.slot]}</span>` +
-                    `<span class="cnt">Lv.${item.lv}</span>`;
-                cell.title = `${bagItemName(item)} · ${EQUIP_TIER_NAMES[item.tier - 1]}（点击穿戴）`;
-                cell.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.play('ui');
-                    this._openEquipSlotPanel(def.id, item.slot);
-                };
-                grid.appendChild(cell);
-            }
-        }
-        body.appendChild(grid);
-
-        // ===== 分类标签（.cat-tabs：宝石/装备/材料/芯片，装饰） =====
-        const cats = document.createElement('div');
-        cats.className = 'heroCatTabs';
-        const catDefs: Array<[string, boolean]> = [['宝石', false], ['装备', true], ['材料', true], ['芯片', false]];
-        for (const [name, active] of catDefs) {
-            const c = document.createElement('div');
-            c.className = 'heroCat' + (active ? ' active' : '');
-            c.innerHTML = name + (name === '装备' ? '<span class="dot"></span>' : '');
-            cats.appendChild(c);
-        }
-        body.appendChild(cats);
-    }
-
-    /** 六槽装备格（复刻稿 equip-cell）：品质角标 + 部位图标 + 强化等级 + 宝石点，点击弹出穿戴面板 */
-    private _mkEquipCell(heroId: string, slot: EquipSlot): HTMLDivElement {
-        const hs = HeroSystem.instance;
-        const cur = hs.equipped(heroId, slot);
-        const cell = document.createElement('div');
-        cell.className = 'heroEquipCell';
-        if (cur) {
-            let tier: 1 | 2 | 3 | 4 = 1;
-            let name = '';
-            if (cur.id.startsWith('bag:')) {
-                tier = Number(cur.id.split(':')[2]) as 1 | 2 | 3 | 4;
-                name = bagItemName({ slot, tier, lv: cur.lv });
-            } else {
-                const d = hs.equipDef(cur.id);
-                if (d) {
-                    tier = d.tier;
-                    name = d.name;
-                }
-            }
-            cell.style.borderColor = EQUIP_TIER_COLORS[tier - 1];
-            // 宝石点：品质数=tier 个品质色点，其余绿点，共 4 点（复刻稿 stars 装饰）
-            const dots = [1, 2, 3, 4].map(n =>
-                `<i class="gemDot" style="background:${n <= tier ? EQUIP_TIER_COLORS[tier - 1] : '#58c05a'}"></i>`).join('');
-            cell.innerHTML =
-                `<span class="step">${EQUIP_TIER_NAMES[tier - 1]}</span>` +
-                `<div class="ico">${SLOT_EMOJI[slot]}</div>` +
-                `<div class="lvtx" style="color:${EQUIP_TIER_COLORS[tier - 1]}">${name} Lv.${cur.lv}</div>` +
-                `<div class="stars">${dots}</div>`;
-            cell.title = `${EQUIP_SLOT_NAMES[slot]}：${name}（点击管理）`;
-        } else {
-            cell.innerHTML =
-                `<div class="ico dim">${SLOT_EMOJI[slot]}</div>` +
-                `<div class="lvtx dim">${EQUIP_SLOT_NAMES[slot]}</div>`;
-        }
-        cell.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openEquipSlotPanel(heroId, slot);
-        };
-        return cell;
-    }
-
-    /** 穿戴面板：列出背包中该槽全部件（穿戴）+ 已穿件（卸下/强化） */
-    private _openEquipSlotPanel(heroId: string, slot: EquipSlot): void {
-        if (!this._root || !GameManager.instance.isHeroOwned(heroId) || document.querySelector('#homeUi .equipSlotPanel')) {
-            return;
-        }
-        const ov = document.createElement('div');
-        ov.className = 'lineupPanelOverlay';
-        ov.onclick = (e) => {
-            e.stopPropagation();
-            ov.remove();
-        };
-        const card = document.createElement('div');
-        card.className = 'lineupPanelCard';
-        card.onclick = (e) => e.stopPropagation();
-        const title = document.createElement('div');
-        title.className = 'lineupPanelTitle';
-        title.textContent = `${EQUIP_SLOT_NAMES[slot]} · 穿 戴`;
-        card.appendChild(title);
-
-        const list = document.createElement('div');
-        list.className = 'equipSlots wide';
-        card.appendChild(list);
-        this._refreshEquipSlotPanel(list, heroId, slot, ov);
-
-        const close = document.createElement('button');
-        close.className = 'heroCardBtn cyan lineupClose';
-        close.textContent = '关 闭';
-        close.onclick = (e) => {
-            e.stopPropagation();
-            ov.remove();
-        };
-        card.appendChild(close);
-        ov.appendChild(card);
-        this._root.appendChild(ov);
-    }
-
-    /** 穿戴面板刷新：背包件列表（穿戴按钮）+ 已穿件操作（卸下/强化） */
-    private _refreshEquipSlotPanel(list: HTMLDivElement, heroId: string, slot: EquipSlot, ov: HTMLDivElement): void {
-        const hs = HeroSystem.instance;
-        const gm = GameManager.instance;
-        list.innerHTML = '';
-        const cur = hs.equipped(heroId, slot);
-
-        // 已穿件：卸下 / 强化
-        if (cur) {
-            const row = document.createElement('div');
-            row.className = 'equipRow';
-            const info = document.createElement('div');
-            info.className = 'equipInfo';
-            let nameHtml = '';
-            let tier: 1 | 2 | 3 | 4 = 1;
-            if (cur.id.startsWith('bag:')) {
-                const t = Number(cur.id.split(':')[2]) as 1 | 2 | 3 | 4;
-                tier = t;
-                nameHtml = bagItemName({ slot, tier, lv: cur.lv });
-            } else {
-                const d = hs.equipDef(cur.id);
-                if (d) {
-                    tier = d.tier;
-                    nameHtml = d.name;
-                }
-            }
-            const parts: string[] = [];
-            for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
-                const v = Math.round(hs.equipSlotValue(cur, key) * 100);
-                if (v > 0) {
-                    parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
-                }
-            }
-            info.innerHTML =
-                `<div class="equipName" style="color:${EQUIP_TIER_COLORS[tier - 1]}">当前：${nameHtml}</div>` +
-                `<div class="equipStat">强化 Lv.${cur.lv} · ${parts.join(' ') || '无属性'}</div>`;
-            const btn = document.createElement('button');
-            btn.className = 'heroCardBtn';
-            if (!hs.isEquipMaxLevel(cur)) {
-                const cost = hs.equipUpgradeCost(cur);
-                btn.textContent = `强 化 ${cost}金`;
-                btn.disabled = gm.gold < cost;
-                btn.onclick = () => {
-                    if (hs.upgradeEquip(heroId, slot)) {
-                        SoundFx.play('buy');
-                        this._refreshEquipSlotPanel(list, heroId, slot, ov);
-                        this._refreshHeroes();
-                    }
-                };
-            } else {
-                btn.textContent = '已满级';
-                btn.disabled = true;
-            }
-            const offBtn = document.createElement('button');
-            offBtn.className = 'heroCardBtn cyan';
-            offBtn.textContent = '卸 下';
-            offBtn.style.marginLeft = 'calc(10px * var(--hs,1))';
-            offBtn.onclick = () => {
-                if (hs.unequipToBag(heroId, slot)) {
-                    SoundFx.play('ui');
-                    this._refreshEquipSlotPanel(list, heroId, slot, ov);
-                    this._refreshHeroes();
-                }
-            };
-            const btnWrap = document.createElement('div');
-            btnWrap.className = 'heroBtnCol';
-            btnWrap.style.flexDirection = 'row';
-            btnWrap.appendChild(btn);
-            btnWrap.appendChild(offBtn);
-            row.appendChild(info);
-            row.appendChild(btnWrap);
-            list.appendChild(row);
-        }
-
-        // 背包件列表
-        const items = hs.bagItemsOf(slot);
-        if (items.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'equipStat';
-            empty.textContent = cur ? '背包中该部位没有其他件' : '背包中该部位没有装备，去商城购买';
-            list.appendChild(empty);
-        }
-        for (const { index, item } of items) {
-            const row = document.createElement('div');
-            row.className = 'equipRow';
-            const info = document.createElement('div');
-            info.className = 'equipInfo';
-            const parts: string[] = [];
-            for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
-                const v = Math.round(bagItemValue(item, key) * 100);
-                if (v > 0) {
-                    parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
-                }
-            }
-            info.innerHTML =
-                `<div class="equipName" style="color:${EQUIP_TIER_COLORS[item.tier - 1]}">${bagItemName(item)}</div>` +
-                `<div class="equipStat">${parts.join(' ') || '无属性'}</div>`;
-            const btn = document.createElement('button');
-            btn.className = 'heroCardBtn';
-            btn.textContent = '穿 戴';
-            btn.onclick = () => {
-                if (hs.equipFromBag(heroId, index)) {
-                    SoundFx.play('buy');
-                    ov.remove();
-                    this._refreshHeroes();
-                }
-            };
-            row.appendChild(info);
-            row.appendChild(btn);
-            list.appendChild(row);
-        }
-    }
-
-    // ================= 核心页（技能升级） =================
-
-    /** 核心页：顶部资源条 + 英雄左右切换 + 三张技能卡（普攻/技能/大招升级） */
-    private _buildCore(root: HTMLDivElement): void {
-        const page = document.createElement('div');
-        page.className = 'page';
-
-        // 顶部资源条（与商城/角色页共用元素引用）
-        const resRow = document.createElement('div');
-        resRow.className = 'mallResRow';
-        const mkRes = (id: 'gold' | 'diamond' | 'stamina') => {
-            const chip = document.createElement('div');
-            chip.className = 'mallRes';
-            const ico = document.createElement('i');
-            ico.className = 'mallResIco';
-            this._tex(`ui/res_${id}`, u => { ico.style.backgroundImage = u; });
-            const val = document.createElement('div');
-            val.className = 'mallResVal';
-            chip.appendChild(ico);
-            chip.appendChild(val);
-            resRow.appendChild(chip);
-            this._mallResEls[id] = val;
-        };
-        mkRes('gold');
-        mkRes('diamond');
-        mkRes('stamina');
-        page.appendChild(resRow);
-
-        // 英雄展示：左右箭头 + 详情（立绘/名字，由 _refreshCore 重建）
-        const detail = document.createElement('div');
-        detail.className = 'heroDetail';
-        const prev = document.createElement('div');
-        prev.className = 'heroArrow';
-        prev.textContent = '❮';
-        prev.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._coreSelIdx = (this._coreSelIdx + HERO_DEFS.length - 1) % HERO_DEFS.length;
-            this._refreshCore();
-        };
-        const next = document.createElement('div');
-        next.className = 'heroArrow';
-        next.textContent = '❯';
-        next.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._coreSelIdx = (this._coreSelIdx + 1) % HERO_DEFS.length;
-            this._refreshCore();
-        };
-        const body = document.createElement('div');
-        body.className = 'heroDetailBody';
-        detail.appendChild(prev);
-        detail.appendChild(body);
-        detail.appendChild(next);
-        page.appendChild(detail);
-        this._coreBodyEl = body;
-
-        // 技能升级区标题 + 三卡容器
-        const sec = document.createElement('div');
-        sec.className = 'homeSection';
-        sec.textContent = '━ 技 能 升 级 ━';
-        page.appendChild(sec);
-        const cards = document.createElement('div');
-        cards.className = 'abilityCards';
-        page.appendChild(cards);
-        this._coreCardsEl = cards;
-
-        root.appendChild(page);
-        this._pages.core = page;
-    }
-
-    /** 核心页刷新：英雄展示区与三张技能卡整块重建 */
-    private _refreshCore(): void {
-        const gm = GameManager.instance;
-        const hs = HeroSystem.instance;
-        const body = this._coreBodyEl;
-        const cardsBox = this._coreCardsEl;
-        if (!body || !cardsBox) {
-            return;
-        }
-        const def = HERO_DEFS[this._coreSelIdx % HERO_DEFS.length];
-        const owned = gm.isHeroOwned(def.id);
-        const weaponName = def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射';
-
-        // 英雄展示（居中）
-        body.innerHTML = '';
-        const showcase = document.createElement('div');
-        showcase.className = 'heroShowcase';
-        const avatar = document.createElement('div');
-        avatar.className = 'heroAvatar detail' + (owned ? '' : ' locked');
-        this._tex(`characters/hero_${def.id}`, u => { avatar.style.backgroundImage = u; });
-        if (owned) {
-            avatar.title = '前往角色页穿戴装备与养成';
-            avatar.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                this._switchPage('heroes');
-            };
-        } else {
-            avatar.title = '未拥有，前往商城解锁';
-            avatar.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                this._switchPage('mall');
-            };
-        }
-        const name = document.createElement('div');
-        name.className = 'heroName center';
-        name.textContent = def.name;
-        const role = document.createElement('div');
-        role.className = 'heroRole center';
-        role.textContent = `${def.role} · ${weaponName}` + (owned ? '' : ' · 未拥有');
-        showcase.appendChild(avatar);
-        showcase.appendChild(name);
-        showcase.appendChild(role);
-        body.appendChild(showcase);
-        if (!owned) {
-            const lockTip = document.createElement('div');
-            lockTip.className = 'equipStat';
-            lockTip.style.alignSelf = 'center';
-            lockTip.textContent = '解锁英雄后开放技能升级';
-            cardsBox.innerHTML = '';
-            cardsBox.appendChild(lockTip);
-            return;
-        }
-
-        // 三张技能卡
-        cardsBox.innerHTML = '';
-        const basicDesc = def.weapon === 'rifle' ? '连续射击单个目标'
-            : def.weapon === 'sniper' ? '高伤狙击单体目标'
-                : def.weapon === 'laser' ? '激光束持续灼烧目标'
-                    : '辐射弹群体溅射';
-        const slots: Array<{ slot: AbilitySlot; name: string; desc: string; icon: string }> = [
-            { slot: 'basic', name: '普攻', desc: basicDesc, icon: `icons/${def.id}_basic` },
-            { slot: 'skill', name: def.skill.name, desc: def.skill.desc, icon: `icons/${def.id}_skill` },
-            { slot: 'ultimate', name: def.ultimate.name, desc: def.ultimate.desc, icon: `icons/${def.id}_ultimate` },
-        ];
-        for (const info of slots) {
-            cardsBox.appendChild(this._mkAbilityCard(def.id, info.slot, info.name, info.desc, info.icon));
-        }
-    }
-
-    /** 单张技能卡：图标圆窗 + 名称/等级 + 描述 + 升级按钮 */
-    private _mkAbilityCard(heroId: string, slot: AbilitySlot, name: string, desc: string, iconKey: string): HTMLDivElement {
-        const hs = HeroSystem.instance;
-        const gm = GameManager.instance;
-        const card = document.createElement('div');
-        card.className = 'abilityCard';
-
-        const iconWin = document.createElement('div');
-        iconWin.className = 'abilityIconWin';
-        this._tex(iconKey, u => { iconWin.style.backgroundImage = u; });
-        card.appendChild(iconWin);
-
-        const nameRow = document.createElement('div');
-        nameRow.className = 'abilityName';
-        nameRow.textContent = name;
-        card.appendChild(nameRow);
-
-        const lv = document.createElement('div');
-        lv.className = 'abilityLv';
-        const level = hs.abilityLevel(heroId, slot);
-        lv.textContent = hs.isAbilityMaxLevel(heroId, slot) ? '已满级' : `${level} 级`;
-        card.appendChild(lv);
-
-        const descEl = document.createElement('div');
-        descEl.className = 'abilityDesc';
-        descEl.textContent = desc + `（每级伤害 +${Math.round(ABILITY_LEVEL_DMG_BONUS * 100)}%）`;
-        card.appendChild(descEl);
-
-        const btn = document.createElement('button');
-        btn.className = 'heroCardBtn';
-        if (hs.isAbilityMaxLevel(heroId, slot)) {
-            btn.textContent = '已满级';
-            btn.disabled = true;
-        } else {
-            const cost = hs.abilityUpgradeCost(heroId, slot);
-            btn.textContent = `升 级 ${cost}金`;
-            btn.disabled = gm.gold < cost;
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                if (hs.upgradeAbility(heroId, slot)) {
-                    SoundFx.play('buy');
-                    this._refreshCore();
-                }
-            };
-        }
-        btn.style.opacity = btn.disabled ? '0.45' : '1';
-        card.appendChild(btn);
-        return card;
-    }
-
     private _frameUrl(key: string): string | null {
         const frame: SpriteFrame | null = AssetLib.frame(key);
         const tex = (frame ? frame.texture : null) as (import('cc').Texture2D & { image?: { data?: unknown } }) | null;
@@ -1378,373 +1965,7 @@ export class HomeUi extends Component {
         return null;
     }
 
-    private _switchPage(page: string): void {
-        for (const key of Object.keys(this._pages)) {
-            this._pages[key].style.display = key === page ? 'flex' : 'none';
-        }
-        for (const key of Object.keys(this._navBtns)) {
-            this._navBtns[key].classList.toggle('active', key === page);
-        }
-        if (page === 'battle') {
-            this._refresh();
-        }
-        if (page === 'mall') {
-            this._refreshMall();
-        }
-        if (page === 'heroes') {
-            this._refreshHeroes();
-        }
-        if (page === 'core') {
-            this._refreshCore();
-        }
-    }
-
-    private _refresh(): void {
-        const gm = GameManager.instance;
-        if (this._goldEl) {
-            this._goldEl.textContent = String(gm.gold);
-        }
-        if (this._bestEl) {
-            this._bestEl.textContent = String(gm.bestWave);
-        }
-        if (this._staminaEl) {
-            const st = gm.stamina();
-            this._staminaEl.textContent = `${st}/${BattleConfig.STAMINA_MAX}`;
-            this._staminaEl.style.color = gm.canStartRun() ? '#ffd76a' : '#ff6b6b';
-        }
-        if (this._chapterEl) {
-            const stage = STAGES[Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID) - 1];
-            this._chapterEl.textContent = stage.name;
-        }
-        if (this._chapterPrev) {
-            this._chapterPrev.style.visibility = gm.currentStage > 1 ? 'visible' : 'hidden';
-        }
-        if (this._chapterNext) {
-            this._chapterNext.style.visibility = gm.currentStage < FINAL_STAGE_ID ? 'visible' : 'hidden';
-        }
-        for (const row of this._rows) {
-            const lv = gm.upgradeLevel(row.def.id);
-            const cost = gm.upgradeCost(row.def.id);
-            row.lv.textContent = `Lv.${lv}`;
-            row.eff.textContent = row.def.desc(lv + 1);
-            const maxed = lv >= row.def.maxLevel;
-            row.cost.textContent = maxed ? '已满级' : `${cost} 金币`;
-            row.btn.style.display = maxed ? 'none' : '';
-            row.btn.disabled = !gm.canUpgrade(row.def.id);
-            row.btn.style.opacity = gm.canUpgrade(row.def.id) ? '1' : '0.45';
-        }
-        const startBtn = document.querySelector<HTMLButtonElement>('#homeUi .homeStart');
-        if (startBtn) {
-            startBtn.style.opacity = gm.canStartRun() ? '1' : '0.45';
-        }
-        this._applyPendingTex();
-    }
-
-    // ================= 构建 =================
-
-    private _build(): void {
-        const root = document.createElement('div');
-        root.id = 'homeUi';
-        this._root = root;
-
-        // ---- 战斗页（中央主页面） ----
-        const battle = document.createElement('div');
-        battle.className = 'page';
-        this._pages['battle'] = battle;
-        root.appendChild(battle);
-
-        // 顶部：金币 / 最远波次
-        const statsRow = document.createElement('div');
-        statsRow.className = 'homeStats';
-        const mkStat = (lab: string, val: string, iconKey?: string): HTMLDivElement => {
-            const chip = document.createElement('div');
-            chip.className = 'homeStat';
-            if (iconKey) {
-                const ico = document.createElement('i');
-                ico.className = 'statIco';
-                chip.appendChild(ico);
-                this._tex(iconKey, u => { ico.style.backgroundImage = u; });
-            }
-            const v = document.createElement('div');
-            v.className = 'homeStatVal';
-            v.textContent = val;
-            const l = document.createElement('div');
-            l.className = 'homeStatLab';
-            l.textContent = lab;
-            chip.appendChild(v);
-            chip.appendChild(l);
-            statsRow.appendChild(chip);
-            return v;
-        };
-        this._goldEl = mkStat('金币', '0', 'ui/res_gold');
-        this._staminaEl = mkStat('体力', '30/30', 'ui/res_stamina');
-        this._bestEl = mkStat('最远波次', '0');
-        battle.appendChild(statsRow);
-
-        const reward = document.createElement('div');
-        reward.className = 'homeReward';
-        reward.style.display = 'none';
-        battle.appendChild(reward);
-        this._rewardEl = reward;
-
-        // 章节横幅：编号章名 + 骷髅徽记 + 左右切关箭头
-        const chapter = document.createElement('div');
-        chapter.className = 'chapterBanner';
-        const chapterPrev = document.createElement('div');
-        chapterPrev.className = 'chapterArrow';
-        chapterPrev.textContent = '❮';
-        chapterPrev.onclick = (e) => {
-            e.stopPropagation();
-            this._switchStage(-1);
-        };
-        const chapterName = document.createElement('div');
-        chapterName.className = 'chapterName';
-        this._chapterEl = chapterName;
-        const chapterSkull = document.createElement('div');
-        chapterSkull.className = 'chapterSkull';
-        chapterSkull.textContent = '☠';
-        const chapterNext = document.createElement('div');
-        chapterNext.className = 'chapterArrow';
-        chapterNext.textContent = '❯';
-        chapterNext.onclick = (e) => {
-            e.stopPropagation();
-            this._switchStage(1);
-        };
-        chapter.appendChild(chapterPrev);
-        chapter.appendChild(chapterName);
-        chapter.appendChild(chapterSkull);
-        chapter.appendChild(chapterNext);
-        this._tex('ui/banner_orange', u => {
-            chapter.style.backgroundImage = u;
-            chapter.style.backgroundSize = '100% 100%';
-            chapter.style.padding = 'calc(26px * var(--hs,1)) calc(80px * var(--hs,1))';
-        });
-        battle.appendChild(chapter);
-
-        // 难度切换：普通 / 精英（精英暂锁定）
-        const diffRow = document.createElement('div');
-        diffRow.className = 'diffRow';
-        const normal = document.createElement('div');
-        normal.className = 'diffTab active';
-        normal.textContent = '普通';
-        const elite = document.createElement('div');
-        elite.className = 'diffTab locked';
-        elite.textContent = '精英';
-        elite.title = '通关 10 波解锁';
-        diffRow.appendChild(normal);
-        diffRow.appendChild(elite);
-        battle.appendChild(diffRow);
-
-        // 载具展台：左右箭头 + 平台 + 载具图
-        const stage = document.createElement('div');
-        stage.className = 'stage';
-        const arrowL = document.createElement('div');
-        arrowL.className = 'stageArrow dim';
-        arrowL.textContent = '❮';
-        const platform = document.createElement('div');
-        platform.className = 'platform';
-        const vehicle = document.createElement('div');
-        vehicle.className = 'vehicle';
-        const vehUrl = this._frameUrl('scenes/vehicle_tail');
-        if (vehUrl) {
-            vehicle.style.backgroundImage = vehUrl;
-        }
-        this._tex('ui/panel_metal', u => {
-            platform.style.backgroundImage = u;
-            platform.style.backgroundSize = '100% 100%';
-            platform.style.border = 'none';
-        });
-        platform.appendChild(vehicle);
-        const arrowR = document.createElement('div');
-        arrowR.className = 'stageArrow dim';
-        arrowR.textContent = '❯';
-        stage.appendChild(arrowL);
-        stage.appendChild(platform);
-        stage.appendChild(arrowR);
-        battle.appendChild(stage);
-
-        // 三档通关宝箱（占位：随关卡进度解锁）
-        const chests = document.createElement('div');
-        chests.className = 'chests';
-        for (const lab of ['成功通关', '50%血量通关', '完美通关']) {
-            const chest = document.createElement('div');
-            chest.className = 'chest';
-            const box = document.createElement('div');
-            box.className = 'chestBox';
-            const cl = document.createElement('div');
-            cl.className = 'chestLab';
-            cl.textContent = lab;
-            chest.appendChild(box);
-            chest.appendChild(cl);
-            this._tex('ui/chest', u => {
-                box.classList.add('tex');
-                box.style.backgroundImage = u;
-                box.style.backgroundSize = 'contain';
-                box.style.backgroundRepeat = 'no-repeat';
-                box.style.backgroundPosition = 'center';
-                box.style.border = 'none';
-            });
-            chests.appendChild(chest);
-        }
-        battle.appendChild(chests);
-
-        // 出战按钮
-        const start = document.createElement('button');
-        start.className = 'homeStart';
-        start.textContent = '出 战';
-        start.onclick = (e) => {
-            e.stopPropagation();
-            this._startBattle();
-        };
-        this._tex('ui/btn_gold', u => {
-            start.style.backgroundImage = u;
-            start.style.backgroundSize = '100% 100%';
-            start.style.borderRadius = 'calc(18px * var(--hs,1))';
-            start.style.border = 'none';
-            start.style.boxShadow = '0 calc(6px * var(--hs,1)) 0 rgba(0,0,0,.4)';
-        });
-        battle.appendChild(start);
-
-        // 编队按钮：弹出编队面板（上阵/下阵）
-        const lineupOpen = document.createElement('button');
-        lineupOpen.className = 'lineupOpen';
-        lineupOpen.textContent = '编 队';
-        lineupOpen.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.unlock();
-            SoundFx.play('ui');
-            this._openLineupPanel();
-        };
-        battle.appendChild(lineupOpen);
-
-        // 基地强化（过渡期挂在战斗页底部，基地页实装后迁走）
-        const upTitle = document.createElement('div');
-        upTitle.className = 'homeSection';
-        upTitle.textContent = '基地强化';
-        battle.appendChild(upTitle);
-        for (const def of META_UPGRADES) {
-            const row = document.createElement('div');
-            row.className = 'upRow';
-            const info = document.createElement('div');
-            info.className = 'upInfo';
-            const name = document.createElement('div');
-            name.className = 'upName';
-            const lv = document.createElement('span');
-            lv.className = 'upLv';
-            lv.textContent = 'Lv.0';
-            name.appendChild(document.createTextNode(def.name + ' '));
-            name.appendChild(lv);
-            const eff = document.createElement('div');
-            eff.className = 'upEff';
-            info.appendChild(name);
-            info.appendChild(eff);
-            const right = document.createElement('div');
-            right.className = 'upRight';
-            const cost = document.createElement('div');
-            cost.className = 'upCost';
-            const btn = document.createElement('button');
-            btn.className = 'upBtn';
-            btn.textContent = '升 级';
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                if (GameManager.instance.buyUpgrade(def.id)) {
-                    this._refresh();
-                }
-            };
-            this._tex('ui/btn_cyan', u => {
-                btn.style.backgroundImage = u;
-                btn.style.backgroundSize = '100% 100%';
-                btn.style.borderRadius = 'calc(10px * var(--hs,1))';
-                btn.style.boxShadow = '0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.4)';
-                btn.style.color = '#0e1620';
-            });
-            right.appendChild(cost);
-            right.appendChild(btn);
-            row.appendChild(info);
-            row.appendChild(right);
-            battle.appendChild(row);
-            this._rows.push({ def, lv, eff, cost, btn });
-        }
-
-        // ---- 其余四页：商城/角色实装，其余建设中占位 ----
-        const PLACEHOLDERS: Record<string, { icon: string; name: string; hint: string }> = {
-            base: { icon: '🏰', name: '基地', hint: '基地建设与产出 · 建设中' },
-        };
-        for (const key of Object.keys(PLACEHOLDERS)) {
-            const ph = PLACEHOLDERS[key];
-            const page = document.createElement('div');
-            page.className = 'page';
-            const icon = document.createElement('div');
-            icon.className = 'phIcon';
-            icon.textContent = ph.icon;
-            const name = document.createElement('div');
-            name.className = 'phName';
-            name.textContent = ph.name;
-            const hint = document.createElement('div');
-            hint.className = 'phHint';
-            hint.textContent = ph.hint;
-            page.appendChild(icon);
-            page.appendChild(name);
-            page.appendChild(hint);
-            root.appendChild(page);
-            this._pages[key] = page;
-        }
-
-        // ---- 核心页（技能升级）----
-        this._buildCore(root);
-
-        // ---- 商城页 / 角色编队页 ----
-        this._buildMall(root);
-        this._buildHeroes(root);
-
-        // ---- 底部导航栏 ----
-        const nav = document.createElement('div');
-        nav.className = 'navBar';
-        const NAV: Array<{ key: string; icon: string; name: string }> = [
-            { key: 'mall', icon: '🛒', name: '商城' },
-            { key: 'heroes', icon: '🦸', name: '角色' },
-            { key: 'battle', icon: '🔫', name: '战斗' },
-            { key: 'core', icon: '🧬', name: '核心' },
-            { key: 'base', icon: '🏰', name: '基地' },
-        ];
-        for (const item of NAV) {
-            const btn = document.createElement('button');
-            btn.className = 'navBtn' + (item.key === 'battle' ? ' active' : '');
-            const icon = document.createElement('div');
-            icon.className = 'navIcon';
-            icon.textContent = item.icon;
-            const label = document.createElement('div');
-            label.className = 'navLab';
-            label.textContent = item.name;
-            btn.appendChild(icon);
-            btn.appendChild(label);
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                this._switchPage(item.key);
-            };
-            this._tex(`ui/nav_${item.key}`, u => {
-                icon.style.backgroundImage = u;
-                icon.style.backgroundSize = 'contain';
-                icon.style.backgroundRepeat = 'no-repeat';
-                icon.style.backgroundPosition = 'center';
-                icon.textContent = '';
-            });
-            nav.appendChild(btn);
-            this._navBtns[item.key] = btn;
-        }
-        root.appendChild(nav);
-
-        // 模拟广告层（全屏覆盖，AD_START/AD_END 驱动）
-        this._buildAdOverlay(root);
-
-        const stamp = document.createElement('div');
-        stamp.className = 'homeStamp';
-        stamp.textContent = BUILD_STAMP;
-        root.appendChild(stamp);
-
-        document.body.appendChild(root);
-        this._switchPage('battle');
-    }
+    // ================= 样式（一比一复刻原型图 token） =================
 
     private _injectStyle(): void {
         if (HomeUi._styleInjected) {
@@ -1753,364 +1974,350 @@ export class HomeUi extends Component {
         HomeUi._styleInjected = true;
         const style = document.createElement('style');
         style.textContent = `
-#homeUi { position: fixed; inset: 0; z-index: 8500; display: flex; flex-direction: column; align-items: center;
-  padding: calc(50px * var(--hs,1)) calc(40px * var(--hs,1)) 0;
-  background: linear-gradient(180deg, #101a24 0%, #0c141d 55%, #091018 100%);
-  font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  font-weight: 700; color: #ecf1f1; user-select: none; overflow: hidden; }
-#homeUi .page { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center;
-  overflow-y: auto; padding-bottom: calc(190px * var(--hs,1)); }
-#homeUi .phIcon { font-size: calc(140px * var(--hs,1)); opacity: .5; }
-#homeUi .phName { font-size: calc(52px * var(--hs,1)); color: #9be7ff; margin-top: calc(20px * var(--hs,1)); letter-spacing: 6px; }
-#homeUi .phHint { font-size: calc(28px * var(--hs,1)); color: #8fa0ab; margin-top: calc(14px * var(--hs,1)); }
+#homeUi { position: fixed; inset: 0; z-index: 8500; display: none; flex-direction: column; align-items: stretch;
+  background: #0b1322;
+  background-image: radial-gradient(1100px 550px at 75% -10%, #122340 0%, transparent 60%),
+    radial-gradient(900px 500px at 5% 110%, #1a1430 0%, transparent 55%);
+  font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  color: #dce8f7; user-select: none; overflow: hidden; }
 
-#homeUi .homeStats { display: flex; gap: calc(24px * var(--hs,1)); margin-top: calc(10px * var(--hs,1)); }
-#homeUi .homeStat { min-width: calc(280px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(26px * var(--hs,1));
-  border-radius: calc(20px * var(--hs,1)); background: rgba(255,255,255,.04);
-  border: calc(2px * var(--hs,1)) solid rgba(128,222,228,.22); text-align: center;
-  display: flex; align-items: center; gap: calc(12px * var(--hs,1)); }
-#homeUi .statIco { width: calc(44px * var(--hs,1)); height: calc(44px * var(--hs,1)); flex: none;
-  background-size: contain; background-repeat: no-repeat; background-position: center; }
-#homeUi .homeStatVal, #homeUi .homeStatLab { text-align: left; }
-#homeUi .homeStatVal { line-height: 1.05; }
-#homeUi .chestBox.tex::before { display: none; }
-#homeUi .homeStatVal { font-size: calc(52px * var(--hs,1)); color: #ffd76a; font-variant-numeric: tabular-nums; }
-#homeUi .homeStatLab { font-size: calc(24px * var(--hs,1)); color: #8fa0ab; letter-spacing: 2px; margin-top: calc(4px * var(--hs,1)); }
-#homeUi .homeReward { margin-top: calc(24px * var(--hs,1)); font-size: calc(32px * var(--hs,1)); color: #9be7ff;
-  padding: calc(12px * var(--hs,1)) calc(30px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
-  background: rgba(77,208,233,.1); border: calc(2px * var(--hs,1)) solid rgba(77,208,233,.3); }
+/* ===== 顶栏 ===== */
+#homeUi .topbar { flex: none; display: flex; align-items: center; gap: calc(16px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(20px * var(--hs,1));
+  background: linear-gradient(180deg, #1e3054, #141f38); border-bottom: 1px solid #33507a; }
+#homeUi .pAvatar { width: calc(92px * var(--hs,1)); height: calc(92px * var(--hs,1)); flex: none; border-radius: 50%; padding: calc(4px * var(--hs,1));
+  background: conic-gradient(from 210deg, #f7d98a, #b47b1e, #ffe9a8, #8a5c12, #f7d98a); }
+#homeUi .pAvatar > div { width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #2a4470, #0d1626);
+  display: flex; align-items: center; justify-content: center; font-size: calc(44px * var(--hs,1)); }
+#homeUi .pinfo { flex: none; width: calc(236px * var(--hs,1)); }
+#homeUi .pname { font-size: calc(26px * var(--hs,1)); font-weight: 700; display: flex; align-items: center; gap: calc(10px * var(--hs,1)); }
+#homeUi .lvtag { font-size: calc(18px * var(--hs,1)); color: #5a3a08; background: linear-gradient(180deg, #ffe9a8, #e0a23c);
+  padding: calc(1px * var(--hs,1)) calc(10px * var(--hs,1)); border-radius: calc(8px * var(--hs,1)); font-weight: 800; }
+#homeUi .expbar { height: calc(10px * var(--hs,1)); background: #0a1426; border: 1px solid #2c405f; border-radius: 99px; margin-top: calc(8px * var(--hs,1)); overflow: hidden; }
+#homeUi .expbar i { display: block; height: 100%; width: 65%; background: linear-gradient(90deg, #3ad0ff, #7ef0ff); border-radius: 99px; box-shadow: 0 0 6px #3ad0ff; }
+#homeUi .expnum { font-size: calc(18px * var(--hs,1)); color: #8ba3c7; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .reswrap { flex: 1; display: flex; gap: calc(10px * var(--hs,1)); justify-content: flex-end; flex-wrap: wrap; }
+#homeUi .res { display: flex; align-items: center; gap: calc(6px * var(--hs,1)); background: #0d1930; border: 1px solid #33507a;
+  border-radius: 99px; padding: calc(6px * var(--hs,1)) calc(12px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); font-weight: 700; }
+#homeUi .res b { color: #ffe9a8; }
+#homeUi .res .add { width: calc(28px * var(--hs,1)); height: calc(28px * var(--hs,1)); border-radius: 50%; background: linear-gradient(180deg, #7fe08a, #2f9c4a);
+  color: #06300f; font-size: calc(22px * var(--hs,1)); font-weight: 900; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
-#homeUi .chapterBanner { display: flex; align-items: center; gap: calc(18px * var(--hs,1)); margin-top: calc(34px * var(--hs,1)); }
-#homeUi .chapterName { font-size: calc(72px * var(--hs,1)); font-weight: 800; letter-spacing: calc(4px * var(--hs,1));
-  background: linear-gradient(180deg, #ffe9a8 0%, #ffcc55 48%, #e8a027 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 calc(4px * var(--hs,1)) 0 rgba(0,0,0,.6)); }
-#homeUi .chapterSkull { font-size: calc(64px * var(--hs,1));
-  filter: drop-shadow(0 0 calc(14px * var(--hs,1)) rgba(255,120,40,.8)); }
-#homeUi .chapterArrow { font-size: calc(52px * var(--hs,1)); color: #ffd76a; padding: 0 calc(16px * var(--hs,1));
-  text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.6); user-select: none; }
-#homeUi .chapterArrow:active { opacity: .6; }
+/* ===== 内容区 ===== */
+#homeUi .viewport { flex: 1; position: relative; overflow: hidden;
+  background: radial-gradient(500px 320px at 50% -60px, #1d3054 0%, transparent 70%), linear-gradient(180deg, #0e1830, #0a1220); }
+#homeUi .screen { position: absolute; inset: 0; padding: calc(24px * var(--hs,1)) calc(24px * var(--hs,1)) calc(200px * var(--hs,1)); overflow-y: auto; display: none; }
+#homeUi .screen::-webkit-scrollbar { width: 4px; }
+#homeUi .screen::-webkit-scrollbar-thumb { background: #2c405f; border-radius: 4px; }
 
-#homeUi .diffRow { display: flex; margin-top: calc(30px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
-  overflow: hidden; border: calc(2px * var(--hs,1)) solid rgba(217,155,66,.4); }
-#homeUi .diffTab { padding: calc(12px * var(--hs,1)) calc(60px * var(--hs,1)); font-size: calc(34px * var(--hs,1));
-  background: rgba(255,255,255,.05); color: #8fa0ab; }
-#homeUi .diffTab.active { color: #0e1620; font-weight: 800;
-  background: linear-gradient(180deg, #ffe08a, #f0a72c); }
-#homeUi .diffTab.locked { opacity: .45; }
+/* ===== 通用面板/角饰/按钮 ===== */
+#homeUi .panel { background: linear-gradient(180deg, #20335a, #152442); border: 1px solid #3a567f; border-radius: calc(20px * var(--hs,1));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 4px 12px rgba(0,0,0,.35); }
+#homeUi .frame { position: relative; }
+#homeUi .frame::before, #homeUi .frame::after { content: ''; position: absolute; width: calc(24px * var(--hs,1)); height: calc(24px * var(--hs,1));
+  border: calc(4px * var(--hs,1)) solid #f5c451; opacity: .85; z-index: 3; }
+#homeUi .frame::before { top: -1px; left: -1px; border-right: none; border-bottom: none; border-radius: calc(8px * var(--hs,1)) 0 0 0; }
+#homeUi .frame::after { bottom: -1px; right: -1px; border-left: none; border-top: none; border-radius: 0 0 calc(8px * var(--hs,1)) 0; }
+#homeUi .secTitle { font-size: calc(26px * var(--hs,1)); font-weight: 800; color: #ffe9a8; letter-spacing: calc(4px * var(--hs,1));
+  margin: calc(20px * var(--hs,1)) calc(4px * var(--hs,1)) calc(14px * var(--hs,1)); display: flex; align-items: center; gap: calc(12px * var(--hs,1)); }
+#homeUi .secTitle::before { content: ''; width: calc(8px * var(--hs,1)); height: calc(28px * var(--hs,1));
+  background: linear-gradient(180deg, #ffe9a8, #e0a23c); border-radius: calc(4px * var(--hs,1)); }
+#homeUi .btn { border: none; cursor: pointer; font-family: inherit; font-weight: 800; border-radius: calc(18px * var(--hs,1)); }
+#homeUi .btn:active { transform: scale(.95); }
+#homeUi .btn.gold { background: linear-gradient(180deg, #ffe9a6, #f0b13e 55%, #c9861f); color: #5a3a08; border: 1px solid #8a5c12;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 3px 0 #7c520f, 0 6px 14px rgba(240,177,62,.3); }
+#homeUi .btn.blue { background: linear-gradient(180deg, #7fd4ff, #2f7fd0); color: #04263f; border: 1px solid #1b5a94;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 3px 0 #174a80; }
+#homeUi .btn.adBtn { background: linear-gradient(180deg, #7fe08a, #2f9c4a); color: #06300f; border: 1px solid #1d6b2e;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 3px 0 #1d6b2e; }
+#homeUi .btn.dark { background: linear-gradient(180deg, #2a3f66, #1a2947); color: #dce8f7; border: 1px solid #3a567f; }
+#homeUi .btn.sm { height: calc(56px * var(--hs,1)); padding: 0 calc(20px * var(--hs,1)); font-size: calc(24px * var(--hs,1)); border-radius: calc(14px * var(--hs,1)); }
+#homeUi .btn.big { width: 100%; height: calc(88px * var(--hs,1)); font-size: calc(32px * var(--hs,1)); letter-spacing: calc(4px * var(--hs,1)); border-radius: calc(22px * var(--hs,1)); }
+#homeUi .btn:disabled { filter: grayscale(.8) brightness(.7); }
+#homeUi .tag { font-size: calc(20px * var(--hs,1)); padding: calc(2px * var(--hs,1)) calc(14px * var(--hs,1)); border-radius: 99px;
+  background: #0e1930; border: 1px solid #33507a; color: #8ba3c7; white-space: nowrap; }
+#homeUi .tag.b { color: #5cc8ff; border-color: #2a6ea6; }
+#homeUi .tag.g { color: #ffe9a8; border-color: #8a6a20; }
+#homeUi .tag.p { color: #c792ff; border-color: #6a4a9a; }
+#homeUi .goldT { color: #ffe9a8; }
 
-#homeUi .stage { display: flex; align-items: center; justify-content: center; gap: calc(26px * var(--hs,1));
-  width: 100%; max-width: calc(920px * var(--hs,1)); margin-top: calc(34px * var(--hs,1)); }
-#homeUi .platform { width: calc(560px * var(--hs,1)); height: calc(430px * var(--hs,1)); border-radius: calc(26px * var(--hs,1));
-  background: radial-gradient(ellipse at 50% 62%, rgba(255,204,85,.22), rgba(255,204,85,.05) 55%, transparent),
-    linear-gradient(180deg, #22303c 0%, #1a2530 100%);
-  border: calc(3px * var(--hs,1)) solid rgba(255,204,85,.35);
-  box-shadow: 0 0 calc(40px * var(--hs,1)) rgba(255,204,85,.18), inset 0 0 calc(60px * var(--hs,1)) rgba(0,0,0,.5);
-  display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
-#homeUi .vehicle { width: 78%; height: 62%; margin-bottom: calc(26px * var(--hs,1));
-  background-size: contain; background-repeat: no-repeat; background-position: center bottom;
-  filter: drop-shadow(0 calc(14px * var(--hs,1)) calc(18px * var(--hs,1)) rgba(0,0,0,.55)); }
-#homeUi .stageArrow { font-size: calc(72px * var(--hs,1)); color: #ffd76a; }
-#homeUi .stageArrow.dim { opacity: .3; }
+/* ===== Toast ===== */
+#homeUi .toastEl { position: absolute; left: 50%; bottom: calc(220px * var(--hs,1)); transform: translateX(-50%) translateY(10px);
+  background: rgba(13,25,48,.93); border: 1px solid #f5c451; color: #ffe9a8; font-size: calc(24px * var(--hs,1)); font-weight: 700;
+  padding: calc(14px * var(--hs,1)) calc(32px * var(--hs,1)); border-radius: 99px; opacity: 0; transition: .25s;
+  z-index: 300; white-space: nowrap; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+#homeUi .toastEl.show { opacity: 1; }
 
-#homeUi .chests { display: flex; gap: calc(60px * var(--hs,1)); margin-top: calc(30px * var(--hs,1)); }
-#homeUi .chest { display: flex; flex-direction: column; align-items: center; gap: calc(10px * var(--hs,1)); }
-#homeUi .chestBox { width: calc(110px * var(--hs,1)); height: calc(86px * var(--hs,1)); border-radius: calc(12px * var(--hs,1));
-  background: linear-gradient(180deg, #7a2a24 0%, #571c18 100%);
-  border: calc(3px * var(--hs,1)) solid #c9a24a; position: relative;
-  box-shadow: inset 0 calc(3px * var(--hs,1)) calc(6px * var(--hs,1)) rgba(0,0,0,.45), 0 calc(4px * var(--hs,1)) calc(10px * var(--hs,1)) rgba(0,0,0,.4); }
-#homeUi .chestBox::before { content: ''; position: absolute; left: 50%; top: calc(-3px * var(--hs,1)); transform: translateX(-50%);
-  width: calc(16px * var(--hs,1)); height: calc(16px * var(--hs,1)); border-radius: 50%;
-  background: #ffd76a; box-shadow: inset 0 0 0 calc(3px * var(--hs,1)) #8a5a1e; }
-#homeUi .chestLab { font-size: calc(24px * var(--hs,1)); color: #d9b06a; }
+/* ===== 商店页 ===== */
+#homeUi .shopBanner { height: calc(168px * var(--hs,1)); border-radius: calc(24px * var(--hs,1)); overflow: hidden; position: relative; cursor: pointer;
+  display: flex; align-items: center; background: linear-gradient(100deg, #3a1420, #6e2418 55%, #8a4a1a);
+  border: 1px solid #a06428; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+#homeUi .shopBanner::after { content: ''; position: absolute; inset: 0;
+  background: radial-gradient(200px 90px at 85% 20%, rgba(255,210,120,.35), transparent 70%); }
+#homeUi .sbTxt { padding: 0 calc(28px * var(--hs,1)); z-index: 2; }
+#homeUi .sbTxt h3 { font-size: calc(32px * var(--hs,1)); color: #ffe9a8; letter-spacing: calc(2px * var(--hs,1)); text-shadow: 0 2px 4px rgba(0,0,0,.5); }
+#homeUi .sbTxt p { font-size: calc(22px * var(--hs,1)); color: #ffd9b0; margin-top: calc(8px * var(--hs,1)); }
+#homeUi .sbTxt .price { color: #ff8a6a; font-weight: 900; font-size: calc(32px * var(--hs,1)); }
+#homeUi .sbTxt .price s { color: #c98a6a; font-size: calc(22px * var(--hs,1)); margin-left: calc(8px * var(--hs,1)); }
+#homeUi .sbGift { margin-left: auto; font-size: calc(88px * var(--hs,1)); margin-right: calc(32px * var(--hs,1)); z-index: 2;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+#homeUi .sbTime { position: absolute; right: calc(24px * var(--hs,1)); bottom: calc(14px * var(--hs,1)); z-index: 2;
+  font-size: calc(20px * var(--hs,1)); color: #ffd9b0; background: rgba(0,0,0,.35); padding: calc(4px * var(--hs,1)) calc(16px * var(--hs,1)); border-radius: 99px; }
+#homeUi .shopTabs { display: flex; gap: calc(12px * var(--hs,1)); margin: calc(24px * var(--hs,1)) 0; }
+#homeUi .shopTabs button { flex: 1; height: calc(60px * var(--hs,1)); border-radius: calc(16px * var(--hs,1)); border: 1px solid #33507a;
+  background: #101d38; color: #8ba3c7; font-family: inherit; font-size: calc(26px * var(--hs,1)); font-weight: 700; cursor: pointer; }
+#homeUi .shopTabs button.on { background: linear-gradient(180deg, #3a567f, #243a63); color: #ffe9a8; border-color: #6a8ab8;
+  box-shadow: 0 0 10px rgba(92,150,255,.25); }
+#homeUi .shopGrid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(20px * var(--hs,1)); }
+#homeUi .good { padding: calc(16px * var(--hs,1)); position: relative; }
+#homeUi .gIc { height: calc(120px * var(--hs,1)); border-radius: calc(16px * var(--hs,1)); display: flex; align-items: center; justify-content: center;
+  font-size: calc(64px * var(--hs,1)); background: radial-gradient(circle at 50% 30%, #2a4470, #101c34);
+  border: 1px solid #3a567f; margin-bottom: calc(12px * var(--hs,1)); }
+#homeUi .good.r3 .gIc { border-color: #3a8ad0; box-shadow: 0 0 8px rgba(60,140,220,.35) inset; }
+#homeUi .good.r4 .gIc { border-color: #9a5ce0; box-shadow: 0 0 8px rgba(160,90,230,.4) inset; }
+#homeUi .good.r5 .gIc { border-color: #e0a23c; box-shadow: 0 0 10px rgba(240,170,60,.45) inset; }
+#homeUi .gName { font-size: calc(26px * var(--hs,1)); font-weight: 700; }
+#homeUi .gTag { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin: calc(4px * var(--hs,1)) 0 calc(12px * var(--hs,1)); min-height: calc(48px * var(--hs,1)); line-height: 1.3; }
+#homeUi .gBuy { width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(6px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(24px * var(--hs,1)); }
+#homeUi .gHot { position: absolute; top: calc(-10px * var(--hs,1)); right: calc(-8px * var(--hs,1));
+  background: linear-gradient(180deg, #ff8a5c, #e03a2a); color: #fff; font-size: calc(20px * var(--hs,1)); font-weight: 800;
+  padding: calc(4px * var(--hs,1)) calc(16px * var(--hs,1)); border-radius: 99px 99px 99px 4px; box-shadow: 0 2px 6px rgba(0,0,0,.4); z-index: 2; }
+#homeUi .good.adCard .gIc { border-color: #2f9c4a; }
 
-#homeUi .homeStart { margin-top: calc(36px * var(--hs,1)); min-width: calc(560px * var(--hs,1));
-  padding: calc(30px * var(--hs,1)) 0; border: none; border-radius: calc(999px * var(--hs,1));
-  font-size: calc(52px * var(--hs,1)); font-weight: 800; letter-spacing: calc(16px * var(--hs,1)); color: #0e1620; cursor: pointer;
-  background: linear-gradient(180deg, #ffe08a 0%, #f0a72c 55%, #d18a1a 100%);
-  box-shadow: 0 calc(8px * var(--hs,1)) 0 rgba(0,0,0,.4), 0 calc(14px * var(--hs,1)) calc(30px * var(--hs,1)) rgba(255,204,85,.28),
-    inset 0 calc(3px * var(--hs,1)) 0 rgba(255,255,255,.5); }
-#homeUi .homeStart:active { transform: translateY(calc(4px * var(--hs,1))); }
+/* ===== 英雄选择条 ===== */
+#homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
+#homeUi .heroPick::-webkit-scrollbar { display: none; }
+#homeUi .hpick { flex: none; width: calc(124px * var(--hs,1)); position: relative; background: none; border: none; cursor: pointer;
+  font-family: inherit; color: #8ba3c7; display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); }
+#homeUi .hpick .pic { width: calc(100px * var(--hs,1)); height: calc(100px * var(--hs,1)); border-radius: calc(20px * var(--hs,1));
+  background-color: #16233b; background-position: center; border: 1px solid #33507a; transition: .2s; }
+#homeUi .hpick i { font-style: normal; font-size: calc(20px * var(--hs,1)); white-space: nowrap; }
+#homeUi .hpick.on .pic { border-color: #f5c451; box-shadow: 0 0 12px rgba(245,196,81,.5); transform: translateY(calc(-6px * var(--hs,1))); }
+#homeUi .hpick.on { color: #ffe9a8; }
+#homeUi .hpick.lock .pic { filter: grayscale(1) brightness(.55); }
+#homeUi .hpick.lock::after { content: '🔒'; position: absolute; transform: translate(calc(32px * var(--hs,1)), calc(-80px * var(--hs,1))); font-size: calc(24px * var(--hs,1)); }
 
-#homeUi .homeSection { width: 100%; max-width: calc(920px * var(--hs,1)); margin: calc(44px * var(--hs,1)) 0 calc(18px * var(--hs,1));
-  font-size: calc(34px * var(--hs,1)); color: #9be7ff; letter-spacing: 4px; }
-#homeUi .upRow { width: 100%; max-width: calc(920px * var(--hs,1)); display: flex; align-items: center;
-  justify-content: space-between; padding: calc(20px * var(--hs,1)) calc(28px * var(--hs,1));
-  border-radius: calc(18px * var(--hs,1)); background: rgba(255,255,255,.035);
-  border: calc(2px * var(--hs,1)) solid rgba(255,255,255,.06); margin-bottom: calc(14px * var(--hs,1)); }
-#homeUi .upName { font-size: calc(32px * var(--hs,1)); }
-#homeUi .upLv { color: #ffd76a; font-size: calc(28px * var(--hs,1)); font-variant-numeric: tabular-nums; }
-#homeUi .upEff { font-size: calc(25px * var(--hs,1)); color: #8fa0ab; margin-top: calc(6px * var(--hs,1)); }
-#homeUi .upRight { display: flex; align-items: center; gap: calc(18px * var(--hs,1)); }
-#homeUi .upCost { font-size: calc(26px * var(--hs,1)); color: #ffd76a; font-variant-numeric: tabular-nums; }
-#homeUi .upBtn { border: none; border-radius: calc(14px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(30px * var(--hs,1));
-  font-size: calc(28px * var(--hs,1)); font-weight: 700; color: #0e1620; cursor: pointer;
-  background: linear-gradient(180deg, #9be7ff, #4dd0e9); box-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.4); }
-#homeUi .upBtn:disabled { cursor: default; }
+/* ===== 英雄页 ===== */
+#homeUi .heroHead { display: flex; justify-content: space-between; align-items: center; margin: calc(16px * var(--hs,1)) calc(4px * var(--hs,1)) calc(12px * var(--hs,1)); }
+#homeUi .heroName { font-size: calc(36px * var(--hs,1)); font-weight: 900; letter-spacing: calc(2px * var(--hs,1)); }
+#homeUi .star { color: #f5c451; font-size: calc(26px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); margin-left: calc(8px * var(--hs,1)); text-shadow: 0 0 6px rgba(245,196,81,.6); }
+#homeUi .tagRow { display: flex; gap: calc(10px * var(--hs,1)); margin-top: calc(10px * var(--hs,1)); }
+#homeUi .powerBadge { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); background: linear-gradient(180deg, #2a3f66, #1a2947);
+  border: 1px solid #8a6a20; border-radius: 99px; padding: calc(10px * var(--hs,1)) calc(24px * var(--hs,1));
+  font-weight: 900; color: #ffe9a8; font-size: calc(28px * var(--hs,1)); box-shadow: 0 0 12px rgba(240,177,62,.2); }
+#homeUi .heroMain { display: grid; grid-template-columns: 1fr calc(300px * var(--hs,1)) 1fr; align-items: center; gap: calc(8px * var(--hs,1)); padding: calc(12px * var(--hs,1)) 0; }
+#homeUi .slotCol { display: flex; flex-direction: column; gap: calc(24px * var(--hs,1)); align-items: center; }
+#homeUi .slot { width: calc(104px * var(--hs,1)); height: calc(104px * var(--hs,1)); border-radius: calc(18px * var(--hs,1));
+  background: radial-gradient(circle at 50% 30%, #1a2a4a, #0d1626); border: 1px solid #33507a; position: relative;
+  display: flex; align-items: center; justify-content: center; font-size: calc(46px * var(--hs,1)); cursor: pointer; }
+#homeUi .slot.filled { border-color: #8a6a20; box-shadow: 0 0 8px rgba(240,177,62,.25); }
+#homeUi .slot.empty { border-style: dashed; color: #4a608a; }
+#homeUi .slot .slv { position: absolute; right: calc(-10px * var(--hs,1)); bottom: calc(-10px * var(--hs,1));
+  background: linear-gradient(180deg, #ffe9a8, #e0a23c); color: #5a3a08; font-size: calc(18px * var(--hs,1)); font-weight: 900;
+  padding: calc(2px * var(--hs,1)) calc(10px * var(--hs,1)); border-radius: calc(12px * var(--hs,1)); border: 1px solid #8a5c12; }
+#homeUi .slot .sname { position: absolute; top: calc(-40px * var(--hs,1)); left: 50%; transform: translateX(-50%);
+  font-size: calc(18px * var(--hs,1)); color: #8ba3c7; white-space: nowrap; }
+#homeUi .heroFigure { height: calc(420px * var(--hs,1)); position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#homeUi .halo { position: absolute; width: calc(256px * var(--hs,1)); height: calc(256px * var(--hs,1)); border-radius: 50%;
+  border: 2px dashed rgba(120,180,255,.35); animation: huiSpin 16s linear infinite; }
+#homeUi .halo2 { position: absolute; width: calc(192px * var(--hs,1)); height: calc(192px * var(--hs,1)); border-radius: 50%;
+  background: radial-gradient(circle, rgba(92,200,255,.22), transparent 70%); animation: huiPulse 3s ease-in-out infinite; }
+@keyframes huiSpin { to { transform: rotate(360deg); } }
+@keyframes huiPulse { 0%, 100% { transform: scale(1); opacity: .8; } 50% { transform: scale(1.18); opacity: 1; } }
+#homeUi .heroEmoji { width: calc(220px * var(--hs,1)); height: calc(280px * var(--hs,1)); z-index: 2; cursor: pointer;
+  background-position: center bottom; background-repeat: no-repeat; filter: drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
+#homeUi .heroEmoji.lock { filter: grayscale(1) brightness(.55); }
+#homeUi .heroLv { z-index: 2; margin-top: calc(16px * var(--hs,1)); background: #0d1930; border: 1px solid #33507a; border-radius: 99px;
+  font-size: calc(22px * var(--hs,1)); color: #5cc8ff; font-weight: 800; padding: calc(4px * var(--hs,1)) calc(24px * var(--hs,1)); }
+#homeUi .statRow { display: flex; gap: calc(16px * var(--hs,1)); margin: calc(16px * var(--hs,1)) 0 calc(24px * var(--hs,1)); }
+#homeUi .stat { flex: 1; text-align: center; padding: calc(16px * var(--hs,1)) calc(4px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .stat b { display: block; font-size: calc(30px * var(--hs,1)); color: #dce8f7; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .row3 { display: flex; gap: calc(16px * var(--hs,1)); margin-top: calc(20px * var(--hs,1)); }
+#homeUi .row3 .btn { flex: 1; height: calc(76px * var(--hs,1)); font-size: calc(26px * var(--hs,1)); }
 
-#homeUi .navBar { position: absolute; left: 0; right: 0; bottom: 0; height: calc(150px * var(--hs,1));
-  display: flex; align-items: stretch; background: linear-gradient(180deg, rgba(20,30,40,.6), rgba(12,20,28,.98));
-  border-top: calc(3px * var(--hs,1)) solid rgba(255,204,85,.25); }
-#homeUi .navBtn { flex: 1; border: none; background: transparent; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(6px * var(--hs,1));
-  color: #8fa0ab; font-weight: 700; }
-#homeUi .navBtn.active { color: #ffd76a;
-  background: linear-gradient(180deg, rgba(255,204,85,.24), rgba(255,204,85,.05));
-  box-shadow: inset 0 calc(4px * var(--hs,1)) 0 #ffd76a; }
-#homeUi .navIcon { font-size: calc(52px * var(--hs,1)); line-height: 1; }
-#homeUi .navLab { font-size: calc(28px * var(--hs,1)); letter-spacing: 2px; }
+/* ===== 关卡页 ===== */
+#homeUi .chTabs { display: flex; gap: calc(12px * var(--hs,1)); }
+#homeUi .chTabs button { flex: 1; height: calc(80px * var(--hs,1)); border-radius: calc(18px * var(--hs,1)); border: 1px solid #33507a;
+  background: #101d38; color: #8ba3c7; font-family: inherit; cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: calc(2px * var(--hs,1)); padding: calc(4px * var(--hs,1)); }
+#homeUi .chTabs button b { font-size: calc(22px * var(--hs,1)); white-space: nowrap; }
+#homeUi .chTabs button span { font-size: calc(16px * var(--hs,1)); }
+#homeUi .chTabs button.on { background: linear-gradient(180deg, #3a567f, #243a63); color: #ffe9a8; border-color: #8a6a20;
+  box-shadow: 0 0 12px rgba(240,177,62,.2); }
+#homeUi .chTabs button.lock { opacity: .45; }
+#homeUi .lvlTrack { position: relative; margin: calc(40px * var(--hs,1)) calc(16px * var(--hs,1)) calc(40px * var(--hs,1)); height: calc(52px * var(--hs,1)); }
+#homeUi .lvlTrack::before { content: ''; position: absolute; top: calc(22px * var(--hs,1)); left: 6px; right: 6px; height: calc(6px * var(--hs,1));
+  border-radius: 99px; background: #22345a; }
+#homeUi .dot { position: absolute; top: calc(8px * var(--hs,1)); width: calc(34px * var(--hs,1)); height: calc(34px * var(--hs,1));
+  border-radius: 50%; background: #1a2947; border: 2px solid #3a567f; transform: translateX(-50%); z-index: 2; }
+#homeUi .dot.done { background: linear-gradient(180deg, #ffe9a8, #e0a23c); border-color: #8a5c12; box-shadow: 0 0 6px rgba(240,177,62,.5); }
+#homeUi .dot.cur { width: calc(44px * var(--hs,1)); height: calc(44px * var(--hs,1)); top: calc(2px * var(--hs,1));
+  background: radial-gradient(circle, #fff2c8, #f0b13e); border-color: #fff; box-shadow: 0 0 14px rgba(245,196,81,.9); }
+#homeUi .dot em { position: absolute; top: calc(40px * var(--hs,1)); left: 50%; transform: translateX(-50%);
+  font-style: normal; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; white-space: nowrap; }
+#homeUi .scene { height: calc(500px * var(--hs,1)); border-radius: calc(24px * var(--hs,1)); overflow: hidden; position: relative; margin-top: calc(28px * var(--hs,1));
+  border: 1px solid #3a567f; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  background: linear-gradient(180deg, #2b1b3d, #5a2e2a 45%, #8a4a2a 72%, #3a2a20); }
+#homeUi .scene.c2 { background: linear-gradient(180deg, #0d1f1a, #1a3a28 50%, #0e2418); }
+#homeUi .scene.c3 { background: linear-gradient(180deg, #0a1030, #1a2050 55%, #101838); }
+#homeUi .scene .sun { position: absolute; top: 32%; left: 50%; width: calc(176px * var(--hs,1)); height: calc(176px * var(--hs,1));
+  transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle, #ffe0ae, #ff8c4a 58%, transparent 72%); filter: blur(1px); }
+#homeUi .scene.c2 .sun, #homeUi .scene.c3 .sun { display: none; }
+#homeUi .scene .mtn { position: absolute; bottom: 26%; left: 0; right: 0; height: calc(128px * var(--hs,1)); background: #241a2c; opacity: .9;
+  clip-path: polygon(0 100%, 10% 42%, 20% 68%, 32% 18%, 44% 60%, 56% 28%, 68% 66%, 80% 22%, 92% 58%, 100% 100%); }
+#homeUi .scene .hill { position: absolute; bottom: 24%; left: 0; right: 0; height: calc(88px * var(--hs,1)); background: #1a1420;
+  clip-path: polygon(0 100%, 15% 55%, 30% 80%, 50% 40%, 70% 75%, 85% 50%, 100% 85%, 100% 100%); }
+#homeUi .scene .ground { position: absolute; bottom: 0; left: 0; right: 0; height: 26%; background: linear-gradient(180deg, #3a3128, #221d16); }
+#homeUi .scene .road { position: absolute; bottom: 0; left: 0; right: 0; height: 26%; background: #2c2a30;
+  clip-path: polygon(40% 0, 60% 0, 108% 100%, -8% 100%); }
+#homeUi .scene .dash { position: absolute; bottom: 0; left: 0; right: 0; height: 26%; opacity: .8;
+  background: repeating-linear-gradient(180deg, #e8c85a 0 20px, transparent 20px 44px);
+  clip-path: polygon(49.2% 0, 50.8% 0, 52% 100%, 48% 100%); }
+#homeUi .scene .mobs { position: absolute; top: 8%; left: 0; right: 0; display: flex; justify-content: space-around; font-size: calc(40px * var(--hs,1)); }
+#homeUi .scene .mobs span { animation: huiMob 2.6s ease-in-out infinite alternate; filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+#homeUi .scene .mobs span:nth-child(2) { animation-delay: .5s; font-size: calc(52px * var(--hs,1)); }
+#homeUi .scene .mobs span:nth-child(3) { animation-delay: 1s; font-size: calc(32px * var(--hs,1)); }
+@keyframes huiMob { from { transform: translateY(0) scale(1); } to { transform: translateY(32px) scale(1.1); } }
+#homeUi .scene .veh { position: absolute; bottom: 7%; left: 50%; transform: translateX(-50%); font-size: calc(92px * var(--hs,1)); z-index: 2;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.55)); animation: huiVeh 1.8s ease-in-out infinite; }
+@keyframes huiVeh { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
+#homeUi .scene .crew { position: absolute; bottom: 9%; left: 50%; transform: translateX(-50%); display: flex; gap: calc(28px * var(--hs,1)); z-index: 1; }
+#homeUi .scene .crew i { width: calc(22px * var(--hs,1)); height: calc(22px * var(--hs,1)); border-radius: 50%; box-shadow: 0 0 8px currentColor; animation: huiPulse 2s ease-in-out infinite; }
+#homeUi .scene .crew i:nth-child(1) { color: #5cc8ff; background: #5cc8ff; }
+#homeUi .scene .crew i:nth-child(2) { color: #f5c451; background: #f5c451; animation-delay: .3s; }
+#homeUi .scene .crew i:nth-child(3) { color: #7ef0c8; background: #7ef0c8; animation-delay: .6s; }
+#homeUi .scene .crew i:nth-child(4) { color: #c792ff; background: #c792ff; animation-delay: .9s; }
+#homeUi .sceneInfo { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start;
+  padding: calc(16px * var(--hs,1)); z-index: 5; }
+#homeUi .siChip { background: rgba(10,20,38,.8); border: 1px solid #33507a; border-radius: calc(16px * var(--hs,1));
+  padding: calc(8px * var(--hs,1)) calc(20px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); font-weight: 700; }
+#homeUi .siHp { display: flex; align-items: center; gap: calc(8px * var(--hs,1)); background: rgba(10,20,38,.8);
+  border: 1px solid #33507a; border-radius: calc(16px * var(--hs,1)); padding: calc(8px * var(--hs,1)) calc(16px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
+#homeUi .arrow { position: absolute; top: 46%; width: calc(68px * var(--hs,1)); height: calc(68px * var(--hs,1)); border-radius: 50%; z-index: 6; cursor: pointer;
+  background: rgba(10,20,38,.6); border: 1px solid #4f7ab8; color: #ffe9a8; font-size: calc(36px * var(--hs,1)); font-weight: 900;
+  display: flex; align-items: center; justify-content: center; }
+#homeUi .arrow.l { left: calc(16px * var(--hs,1)); }
+#homeUi .arrow.r { right: calc(16px * var(--hs,1)); }
+#homeUi .stageInfo { display: flex; gap: calc(16px * var(--hs,1)); margin: calc(24px * var(--hs,1)) 0; }
+#homeUi .siBox { flex: 1; text-align: center; padding: calc(16px * var(--hs,1)) calc(4px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .siBox b { display: block; font-size: calc(26px * var(--hs,1)); color: #dce8f7; margin-top: calc(6px * var(--hs,1)); }
+#homeUi .siBox b.ok { color: #7fe08a; }
+#homeUi .siBox b.go { color: #ffe9a8; }
+#homeUi .chests { display: flex; gap: calc(16px * var(--hs,1)); }
+#homeUi .chest { flex: 1; text-align: center; padding: calc(20px * var(--hs,1)) calc(8px * var(--hs,1)) calc(16px * var(--hs,1)); }
+#homeUi .chest .cic { font-size: calc(64px * var(--hs,1)); display: block; }
+#homeUi .chest p { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin-top: calc(8px * var(--hs,1)); }
+#homeUi .chest.ready { border-color: #8a6a20; animation: huiChest 1.8s ease-in-out infinite; }
+@keyframes huiChest { 0%, 100% { box-shadow: 0 0 6px rgba(240,177,62,.2); } 50% { box-shadow: 0 0 18px rgba(240,177,62,.55); } }
+#homeUi .chest.got { opacity: .55; }
+#homeUi .chest.got .cic { filter: grayscale(1); }
+#homeUi .chest.lock { opacity: .7; }
+#homeUi .chest.lock .cic { filter: grayscale(.7) brightness(.8); }
+#homeUi .stageBtns { display: flex; gap: calc(20px * var(--hs,1)); margin-top: calc(28px * var(--hs,1)); }
+#homeUi .stageBtns .btn.squad { flex: 1; height: calc(88px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); }
+#homeUi .stageBtns .btn.go { flex: 1.7; height: calc(88px * var(--hs,1)); font-size: calc(34px * var(--hs,1)); letter-spacing: calc(6px * var(--hs,1)); }
 
-#homeUi .homeStamp { position: absolute; right: calc(20px * var(--hs,1)); bottom: calc(160px * var(--hs,1));
-  font-size: calc(20px * var(--hs,1)); color: rgba(236,241,241,.35); }
+/* ===== 技能页 ===== */
+#homeUi .skillCard { display: flex; gap: calc(20px * var(--hs,1)); align-items: center; padding: calc(20px * var(--hs,1)); margin-bottom: calc(20px * var(--hs,1)); }
+#homeUi .sIcon { width: calc(96px * var(--hs,1)); height: calc(96px * var(--hs,1)); flex: none; border-radius: calc(20px * var(--hs,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(48px * var(--hs,1));
+  background-color: #16233b; background-position: center; border: 1px solid #3a8ad0; box-shadow: 0 0 8px rgba(60,140,220,.3) inset; }
+#homeUi .sIcon.s2 { border-color: #9a5ce0; box-shadow: 0 0 8px rgba(160,90,230,.35) inset; }
+#homeUi .sIcon.ult { border-color: #e0a23c; box-shadow: 0 0 12px rgba(240,170,60,.5) inset, 0 0 10px rgba(240,170,60,.25); }
+#homeUi .sInfo { flex: 1; min-width: 0; }
+#homeUi .sName { font-size: calc(28px * var(--hs,1)); font-weight: 800; display: flex; align-items: center; gap: calc(12px * var(--hs,1)); }
+#homeUi .sDesc { font-size: calc(22px * var(--hs,1)); color: #8ba3c7; margin-top: calc(8px * var(--hs,1)); line-height: 1.5; }
+#homeUi .sAct { text-align: center; flex: none; width: calc(164px * var(--hs,1)); }
+#homeUi .sLv { font-size: calc(24px * var(--hs,1)); font-weight: 900; color: #5cc8ff; margin-bottom: calc(10px * var(--hs,1)); }
+#homeUi .skillHint { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; text-align: center; margin-top: calc(8px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
 
-/* ---- 商城页 ---- */
-#homeUi .mallResRow { display: flex; gap: calc(18px * var(--hs,1)); margin-top: calc(18px * var(--hs,1)); width: 100%;
-  max-width: calc(900px * var(--hs,1)); }
-#homeUi .mallRes { flex: 1; display: flex; align-items: center; gap: calc(12px * var(--hs,1));
-  padding: calc(12px * var(--hs,1)) calc(20px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
-  background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
-#homeUi .mallResIco { width: calc(44px * var(--hs,1)); height: calc(44px * var(--hs,1)); flex: none;
-  background-size: contain; background-repeat: no-repeat; background-position: center; }
-#homeUi .mallResVal { font-size: calc(34px * var(--hs,1)); color: #fff; font-variant-numeric: tabular-nums; }
-#homeUi .mallAdBtn { margin-top: calc(22px * var(--hs,1)); min-width: calc(620px * var(--hs,1));
-  padding: calc(20px * var(--hs,1)) calc(50px * var(--hs,1)); border-radius: calc(18px * var(--hs,1)); cursor: pointer;
-  font-size: calc(34px * var(--hs,1)); font-weight: 800; color: #062028; letter-spacing: calc(3px * var(--hs,1));
-  filter: drop-shadow(0 calc(5px * var(--hs,1)) 0 rgba(0,0,0,.4)); }
-#homeUi .mallAdBtn:active { transform: translateY(calc(3px * var(--hs,1))); }
-#homeUi .mallAdLab { display: flex; align-items: center; justify-content: center; gap: calc(10px * var(--hs,1)); }
-#homeUi .mallAdLab::before { content: '▶'; font-size: calc(30px * var(--hs,1)); }
-#homeUi .mallAdHint { margin-top: calc(14px * var(--hs,1)); font-size: calc(26px * var(--hs,1)); color: #8fa0ab; }
+/* ===== 基地页 ===== */
+#homeUi .baseBanner { padding: calc(24px * var(--hs,1)) calc(28px * var(--hs,1)); display: flex; align-items: center; gap: calc(24px * var(--hs,1)); margin-bottom: calc(24px * var(--hs,1)); }
+#homeUi .bbIc { font-size: calc(68px * var(--hs,1)); filter: drop-shadow(0 0 8px rgba(92,200,255,.4)); }
+#homeUi .baseBanner h3 { font-size: calc(30px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
+#homeUi .baseBanner .pros { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin-top: calc(8px * var(--hs,1)); }
+#homeUi .prosBar { width: calc(300px * var(--hs,1)); height: calc(12px * var(--hs,1)); background: #0a1426; border: 1px solid #2c405f;
+  border-radius: 99px; margin-top: calc(8px * var(--hs,1)); overflow: hidden; }
+#homeUi .prosBar i { display: block; height: 100%; width: 62%; background: linear-gradient(90deg, #f0b13e, #ffe9a8); }
+#homeUi .baseGrid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(20px * var(--hs,1)); }
+#homeUi .bcard { padding: calc(20px * var(--hs,1)); text-align: center; }
+#homeUi .bIc { width: calc(104px * var(--hs,1)); height: calc(104px * var(--hs,1)); margin: 0 auto calc(12px * var(--hs,1)); border-radius: calc(24px * var(--hs,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(52px * var(--hs,1));
+  background: radial-gradient(circle at 50% 30%, #2a4470, #0d1626); border: 1px solid #33507a; }
+#homeUi .bName { font-size: calc(26px * var(--hs,1)); font-weight: 800; }
+#homeUi .bName span { color: #5cc8ff; font-size: calc(22px * var(--hs,1)); margin-left: calc(6px * var(--hs,1)); }
+#homeUi .bDesc { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin: calc(8px * var(--hs,1)) 0 calc(16px * var(--hs,1)); min-height: calc(56px * var(--hs,1)); line-height: 1.4; }
 
-/* ---- 模拟广告层 ---- */
-#homeUi .adOverlay { position: fixed; inset: 0; z-index: 9600; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: calc(30px * var(--hs,1)); background: rgba(2,6,10,.94);
-  pointer-events: auto; }
-#homeUi .adTitle { font-size: calc(52px * var(--hs,1)); color: #9be7ff; letter-spacing: calc(4px * var(--hs,1)); }
-#homeUi .adCountdown { font-size: calc(140px * var(--hs,1)); font-weight: 800; color: #ffd76a;
-  font-variant-numeric: tabular-nums; text-shadow: 0 calc(6px * var(--hs,1)) 0 rgba(0,0,0,.6); }
-#homeUi .adTip { font-size: calc(28px * var(--hs,1)); color: #8fa0ab; }
-
-/* ---- 角色编队页 ---- */
-#homeUi .lineupRow { display: flex; gap: calc(20px * var(--hs,1)); margin-top: calc(20px * var(--hs,1)); }
-#homeUi .lineupSlot { width: calc(160px * var(--hs,1)); height: calc(190px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
-  background: rgba(10,18,26,.72) center / contain no-repeat; border: calc(3px * var(--hs,1)) solid rgba(255,204,85,.55);
-  cursor: pointer; transition: transform .12s; }
-#homeUi .lineupSlot:active { transform: scale(.94); }
-#homeUi .lineupSlot.empty { border-style: dashed; border-color: rgba(120,150,170,.4); cursor: default;
-  display: flex; align-items: center; justify-content: center; font-size: calc(64px * var(--hs,1)); color: rgba(143,160,171,.5); }
-#homeUi .lineupTip { margin-top: calc(14px * var(--hs,1)); font-size: calc(26px * var(--hs,1)); color: #8fa0ab; }
-#homeUi .heroDetail { display: flex; align-items: stretch; gap: calc(14px * var(--hs,1)); margin-top: calc(20px * var(--hs,1));
-  width: 100%; max-width: calc(920px * var(--hs,1)); }
-#homeUi .heroArrow { flex: none; width: calc(70px * var(--hs,1)); display: flex; align-items: center; justify-content: center;
-  font-size: calc(56px * var(--hs,1)); color: #ffd76a; cursor: pointer; user-select: none;
-  text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.6); }
-#homeUi .heroArrow:active { opacity: .6; }
-#homeUi .heroDetailBody { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: flex-start; gap: calc(24px * var(--hs,1));
-  padding: calc(20px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
-  background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
-#homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
-/* ---- 角色页：完全复刻装备界面 HTML 稿 ---- */
-#homeUi .heroDetailBody { background: linear-gradient(180deg, #3a2c1c 0%, #241a10 40%, #1a120b 100%);
-  border: none; border-radius: 0; padding: 0; gap: 0; }
-#homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
-/* ===== 角色页：整页当底板，组件按比例铺满可用区域 ===== */
-#homeUi .heroesPage { padding-bottom: calc(170px * var(--hs,1)); }
-#homeUi .heroesPage .heroDetail { flex: 1; min-height: 0; margin-top: 0; max-width: none; }
-#homeUi .heroesPage .heroDetailBody { flex: 1; min-height: 0; }
-#homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
-/* ===== 角色展示区 stage（按剩余高度拉伸，无固定高） ===== */
-#homeUi .heroStage { position: relative; width: 100%; flex: 1 1 auto; min-height: calc(520px * var(--hs,1)); }
-#homeUi .heroAvatarBox { position: absolute; top: calc(4px * var(--hs,1)); left: calc(20px * var(--hs,1)); z-index: 5;
-  display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); }
-#homeUi .heroFace { position: relative; width: calc(104px * var(--hs,1)); height: calc(104px * var(--hs,1)); border-radius: 50%;
-  border: calc(4px * var(--hs,1)) solid #f5a623; background: linear-gradient(135deg, #c98850, #7a4a22) center / contain no-repeat; }
-#homeUi .heroFace.locked { filter: grayscale(1) brightness(.55); }
-#homeUi .heroLvBadge { position: absolute; top: calc(-8px * var(--hs,1)); left: calc(-12px * var(--hs,1));
-  background: linear-gradient(180deg, #ffd86b, #e0891f); color: #5a2d00; font-size: calc(22px * var(--hs,1)); font-weight: 800;
-  padding: calc(1px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(20px * var(--hs,1)) calc(20px * var(--hs,1)) calc(20px * var(--hs,1)) calc(4px * var(--hs,1));
-  border: calc(2px * var(--hs,1)) solid #8a5a10; }
-#homeUi .heroNamePlate { background: rgba(0,0,0,.5); color: #ffd98a; font-size: calc(24px * var(--hs,1));
-  padding: calc(2px * var(--hs,1)) calc(14px * var(--hs,1)); border-radius: calc(6px * var(--hs,1));
-  border: calc(2px * var(--hs,1)) solid #6b5433; }
-#homeUi .heroRoleBadge { position: absolute; top: calc(112px * var(--hs,1)); left: calc(16px * var(--hs,1)); z-index: 5;
-  background: linear-gradient(180deg, #4a90d9, #2a5a9e); color: #fff;
-  font-size: calc(20px * var(--hs,1)); padding: calc(3px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); }
-#homeUi .heroSideBtns { position: absolute; left: calc(24px * var(--hs,1)); top: calc(190px * var(--hs,1));
-  display: flex; flex-direction: column; gap: calc(24px * var(--hs,1)); z-index: 5; }
-#homeUi .heroCircleBtn { width: calc(92px * var(--hs,1)); height: calc(92px * var(--hs,1)); border-radius: 50%;
-  background: rgba(0,0,0,.45); border: calc(4px * var(--hs,1)) solid #8a6a3a; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(2px * var(--hs,1)); }
-#homeUi .heroCircleBtn .ic { font-size: calc(36px * var(--hs,1)); line-height: 1; }
-#homeUi .heroCircleBtn .tx { font-size: calc(20px * var(--hs,1)); color: #ffd98a; }
-#homeUi .heroCircleBtn.dim { opacity: .4; }
-#homeUi .heroCircleBtn:active { transform: scale(.94); }
-#homeUi .heroCharModel { position: absolute; left: 50%; top: calc(12px * var(--hs,1)); transform: translateX(-58%); z-index: 2;
-  width: calc(300px * var(--hs,1)); height: calc(480px * var(--hs,1)); cursor: pointer;
-  background: radial-gradient(ellipse at 50% 30%, rgba(120,90,50,.35), transparent 70%) top / 100% 55% no-repeat,
-    center calc(30%) / contain no-repeat;
-  filter: drop-shadow(0 calc(8px * var(--hs,1)) calc(10px * var(--hs,1)) rgba(0,0,0,.6)); }
-#homeUi .heroCharModel.locked { filter: grayscale(1) brightness(.55); }
-#homeUi .heroWpnSlot { position: absolute; right: calc(236px * var(--hs,1)); top: calc(60px * var(--hs,1)); z-index: 5;
-  width: calc(96px * var(--hs,1)); text-align: center; cursor: pointer; }
-#homeUi .heroWpnIco { width: calc(76px * var(--hs,1)); height: calc(84px * var(--hs,1)); margin: 0 auto;
-  background: linear-gradient(180deg, #7ed957, #3a8a2a); clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
-  border: calc(2px * var(--hs,1)) solid #cfe; box-sizing: border-box;
-  display: flex; align-items: center; justify-content: center; font-size: calc(36px * var(--hs,1)); }
-#homeUi .heroWpnStep { margin-top: calc(4px * var(--hs,1)); background: rgba(0,0,0,.55); color: #cfe;
-  font-size: calc(20px * var(--hs,1)); padding: calc(1px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); display: inline-block; }
-#homeUi .heroWpnCost { font-size: calc(18px * var(--hs,1)); color: #ffd76a; margin-top: calc(2px * var(--hs,1)); }
-#homeUi .heroGemBtn { position: absolute; right: calc(256px * var(--hs,1)); top: calc(220px * var(--hs,1)); z-index: 5;
-  display: flex; flex-direction: column; align-items: center; gap: calc(2px * var(--hs,1)); cursor: pointer; }
-#homeUi .heroGemLines { font-size: calc(40px * var(--hs,1)); color: #9ab; letter-spacing: calc(-4px * var(--hs,1)); line-height: 1; }
-#homeUi .heroGemTx { background: rgba(0,0,0,.5); color: #cde; font-size: calc(20px * var(--hs,1));
-  padding: calc(1px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); }
-#homeUi .heroEquipPanel { position: absolute; right: calc(20px * var(--hs,1)); top: calc(48px * var(--hs,1)); z-index: 5;
-  display: grid; grid-template-columns: repeat(2, calc(132px * var(--hs,1))); grid-auto-rows: calc(148px * var(--hs,1));
-  gap: calc(16px * var(--hs,1)); }
-#homeUi .heroEquipCell { background: linear-gradient(180deg, #5a4a30, #3a2c18);
-  border: calc(4px * var(--hs,1)) solid #8a6a3a; border-radius: calc(12px * var(--hs,1));
-  position: relative; padding: calc(6px * var(--hs,1)); cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(4px * var(--hs,1)); }
-#homeUi .heroEquipCell:active { transform: scale(.96); }
-#homeUi .heroEquipCell .step { position: absolute; top: calc(4px * var(--hs,1)); left: calc(4px * var(--hs,1)); z-index: 2;
-  background: linear-gradient(180deg, #ffd86b, #e0891f); color: #5a2d00; font-size: calc(18px * var(--hs,1));
-  padding: calc(0px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); font-weight: 700; }
-#homeUi .heroEquipCell .ico { font-size: calc(64px * var(--hs,1)); line-height: 1; filter: drop-shadow(0 calc(2px * var(--hs,1)) calc(3px * var(--hs,1)) rgba(0,0,0,.5)); }
-#homeUi .heroEquipCell .ico.dim { opacity: .4; }
-#homeUi .heroEquipCell .lvtx { text-align: center; color: #ffe9b8; font-size: calc(18px * var(--hs,1)); line-height: 1.2; }
-#homeUi .heroEquipCell .lvtx.dim { color: #6b7d88; }
-#homeUi .heroEquipCell .stars { position: absolute; bottom: calc(4px * var(--hs,1)); left: calc(6px * var(--hs,1)); right: calc(6px * var(--hs,1));
-  display: flex; gap: calc(2px * var(--hs,1)); justify-content: center; }
-#homeUi .gemDot { width: calc(12px * var(--hs,1)); height: calc(12px * var(--hs,1)); border-radius: calc(3px * var(--hs,1)); transform: rotate(45deg); }
-#homeUi .heroFlameBadge { position: absolute; left: 50%; bottom: calc(56px * var(--hs,1)); transform: translateX(-90%); z-index: 5;
-  display: flex; align-items: center; gap: calc(8px * var(--hs,1));
-  background: linear-gradient(180deg, #3a2a1a, #241808); border: calc(4px * var(--hs,1)) solid #c8862a;
-  border-radius: calc(999px * var(--hs,1)); padding: calc(4px * var(--hs,1)) calc(28px * var(--hs,1)) calc(4px * var(--hs,1)) calc(14px * var(--hs,1)); }
-#homeUi .heroFlameBadge .fire { font-size: calc(40px * var(--hs,1)); filter: drop-shadow(0 0 calc(6px * var(--hs,1)) #f80); line-height: 1; }
-#homeUi .heroFlameBadge b { color: #ffe9b8; font-size: calc(34px * var(--hs,1)); font-variant-numeric: tabular-nums; }
-#homeUi .heroFlameBadge .infoI { font-style: italic; font-weight: 700; font-size: calc(22px * var(--hs,1)); color: #fff;
-  background: #c8862a; border-radius: 50%; width: calc(26px * var(--hs,1)); height: calc(26px * var(--hs,1));
-  line-height: calc(26px * var(--hs,1)); text-align: center; margin-left: calc(4px * var(--hs,1)); }
-#homeUi .heroLockTip { position: absolute; right: calc(20px * var(--hs,1)); top: calc(120px * var(--hs,1)); z-index: 5;
-  width: calc(280px * var(--hs,1)); text-align: center; color: #8fa0ab; font-size: calc(24px * var(--hs,1)); }
-/* ===== 方案 & 锻造行 ===== */
-#homeUi .heroPlanRow { width: 100%; display: flex; align-items: center; gap: calc(10px * var(--hs,1));
-  padding: calc(6px * var(--hs,1)) calc(20px * var(--hs,1)) calc(14px * var(--hs,1)); flex: none; }
-#homeUi .heroPlanTab { min-width: calc(56px * var(--hs,1)); height: calc(56px * var(--hs,1)); border-radius: calc(28px * var(--hs,1));
-  padding: 0 calc(14px * var(--hs,1)); background: rgba(0,0,0,.5); border: calc(2px * var(--hs,1)) solid #6b5433;
-  color: #cbb387; font-size: calc(24px * var(--hs,1)); display: flex; align-items: center; justify-content: center; }
-#homeUi .heroPlanTab.active { background: linear-gradient(180deg, #ffd86b, #e0891f); color: #5a2d00;
-  font-weight: 700; border-color: #8a5a10; }
-#homeUi .heroForgeBtn { margin-left: auto; height: calc(64px * var(--hs,1)); padding: 0 calc(30px * var(--hs,1));
-  border-radius: calc(32px * var(--hs,1)); background: linear-gradient(180deg, #ffd86b, #e0891f);
-  border: calc(3px * var(--hs,1)) solid #8a5a10; color: #5a2d00; font-weight: 700; font-size: calc(26px * var(--hs,1));
-  display: flex; align-items: center; cursor: pointer; position: relative;
-  box-shadow: 0 calc(4px * var(--hs,1)) calc(8px * var(--hs,1)) rgba(0,0,0,.4); }
-#homeUi .heroForgeBtn.dim { opacity: .6; }
-#homeUi .heroForgeBtn:active { transform: translateY(calc(2px * var(--hs,1))); }
-/* ===== 背包标题行 ===== */
-#homeUi .heroBagHead { width: 100%; display: flex; align-items: center; gap: calc(14px * var(--hs,1));
-  padding: calc(4px * var(--hs,1)) calc(24px * var(--hs,1)) calc(12px * var(--hs,1)); flex: none; }
-#homeUi .heroBagTitle { color: #ffd98a; font-size: calc(28px * var(--hs,1)); font-weight: 700; }
-#homeUi .heroBagFilter { flex: 1; height: calc(56px * var(--hs,1)); border-radius: calc(28px * var(--hs,1));
-  background: rgba(0,0,0,.5); border: calc(2px * var(--hs,1)) solid #6b5433; color: #cbb387;
-  display: flex; align-items: center; justify-content: center; font-size: calc(24px * var(--hs,1)); }
-#homeUi .heroBagMerge { height: calc(58px * var(--hs,1)); padding: 0 calc(24px * var(--hs,1)); border-radius: calc(29px * var(--hs,1));
-  background: linear-gradient(180deg, #ffd86b, #e0891f); border: calc(3px * var(--hs,1)) solid #8a5a10;
-  color: #5a2d00; font-weight: 700; font-size: calc(24px * var(--hs,1)); display: flex; align-items: center; cursor: pointer; position: relative; }
-#homeUi .heroBagMerge::after { content: ""; position: absolute; top: calc(-4px * var(--hs,1)); right: calc(-4px * var(--hs,1));
-  width: calc(16px * var(--hs,1)); height: calc(16px * var(--hs,1)); border-radius: 50%; background: #e33; }
-/* ===== 六列背包网格 ===== */
-#homeUi .heroBagGrid { width: 100%; flex: 1; min-height: calc(300px * var(--hs,1)); overflow-y: auto;
-  padding: calc(8px * var(--hs,1)) calc(18px * var(--hs,1)); display: grid; grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: calc(104px * var(--hs,1)); gap: calc(10px * var(--hs,1)); background: rgba(0,0,0,.25);
-  align-content: start; }
-#homeUi .heroBagCell { border-radius: calc(8px * var(--hs,1)); position: relative; cursor: pointer;
-  border: calc(3px * var(--hs,1)) solid #4a3a24;
-  display: flex; align-items: center; justify-content: center; font-size: calc(48px * var(--hs,1)); }
-#homeUi .heroBagCell:active { transform: scale(.94); }
-#homeUi .heroBagCell .slotIc { opacity: .95; }
-#homeUi .heroBagCell .cnt { position: absolute; bottom: calc(2px * var(--hs,1)); right: calc(6px * var(--hs,1));
-  color: #ffe9b8; font-size: calc(18px * var(--hs,1)); text-shadow: 0 calc(1px * var(--hs,1)) calc(2px * var(--hs,1)) #000; }
-#homeUi .heroBagEmpty { grid-column: 1 / -1; text-align: center; color: #8fa0ab; font-size: calc(24px * var(--hs,1));
-  padding: calc(40px * var(--hs,1)) 0; }
-/* ===== 分类标签 ===== */
-#homeUi .heroCatTabs { width: 100%; display: flex; padding: calc(10px * var(--hs,1)) calc(18px * var(--hs,1)) calc(14px * var(--hs,1));
-  gap: calc(4px * var(--hs,1)); flex: none; }
-#homeUi .heroCat { flex: 1; text-align: center; padding: calc(12px * var(--hs,1)) 0; font-size: calc(26px * var(--hs,1));
-  color: #cbb387; position: relative; border-radius: calc(14px * var(--hs,1)) calc(14px * var(--hs,1)) 0 0;
-  background: rgba(0,0,0,.35); border: calc(2px * var(--hs,1)) solid #4a3a24; border-bottom: none; }
-#homeUi .heroCat.active { background: linear-gradient(180deg, #e8a93a, #b5761f); color: #fff8e8;
-  font-weight: 700; box-shadow: 0 calc(-2px * var(--hs,1)) calc(6px * var(--hs,1)) rgba(0,0,0,.4); }
-#homeUi .heroCat .dot { position: absolute; top: calc(4px * var(--hs,1)); right: calc(10px * var(--hs,1));
-  width: calc(14px * var(--hs,1)); height: calc(14px * var(--hs,1)); border-radius: 50%; background: #e33; }
-#homeUi .heroAvatar { width: calc(110px * var(--hs,1)); height: calc(110px * var(--hs,1)); flex: none; border-radius: calc(12px * var(--hs,1));
-  background: rgba(255,255,255,.06) center / contain no-repeat; }
-#homeUi .heroAvatar.detail { width: calc(220px * var(--hs,1)); height: calc(240px * var(--hs,1)); cursor: pointer; }
-#homeUi .heroAvatar.locked { filter: grayscale(1) brightness(.55); }
-#homeUi .heroAvatar.shop { width: calc(84px * var(--hs,1)); height: calc(84px * var(--hs,1)); }
-#homeUi .heroShopBox { display: flex; flex-direction: column; gap: calc(16px * var(--hs,1)); width: 100%;
-  max-width: calc(900px * var(--hs,1)); }
-#homeUi .heroInfo { flex: 1; min-width: calc(300px * var(--hs,1)); }
-#homeUi .heroName { font-size: calc(36px * var(--hs,1)); font-weight: 800; color: #ecf1f1; }
-#homeUi .heroRole { font-size: calc(26px * var(--hs,1)); color: #8fa0ab; margin-top: calc(4px * var(--hs,1)); }
-#homeUi .heroCardBtn { flex: none; border: none; border-radius: calc(12px * var(--hs,1)); cursor: pointer;
-  padding: calc(12px * var(--hs,1)) calc(26px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); font-weight: 800;
-  color: #062028; background: linear-gradient(180deg, #ffe9a8, #e8a027); }
-#homeUi .heroCardBtn:active { transform: translateY(calc(2px * var(--hs,1))); }
-#homeUi .heroCardBtn.cyan { background: linear-gradient(180deg, #b3f0ff, #4db8dd); }
-#homeUi .heroLv { font-size: calc(26px * var(--hs,1)); color: #ffd76a; margin-top: calc(4px * var(--hs,1)); }
-#homeUi .heroBtnCol { flex: none; display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
-#homeUi .heroShowcase { flex: none; width: calc(340px * var(--hs,1)); display: flex; flex-direction: column; align-items: center; gap: calc(10px * var(--hs,1)); }
-#homeUi .heroAvatar.inLineup { border: calc(3px * var(--hs,1)) solid rgba(255,204,85,.8); }
-#homeUi .equipSectionLab { width: 100%; font-size: calc(28px * var(--hs,1)); color: #8fa0ab; letter-spacing: calc(4px * var(--hs,1)); }
-#homeUi .equipSlots { display: flex; flex-direction: column; gap: calc(14px * var(--hs,1)); width: 100%; }
-#homeUi .equipRow { display: flex; align-items: center; gap: calc(18px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(20px * var(--hs,1));
-  border-radius: calc(14px * var(--hs,1)); background: rgba(6,12,18,.6); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.2); }
+/* ===== 弹窗 ===== */
+#homeUi .protoMask { position: absolute; inset: 0; background: rgba(4,8,16,.72); z-index: 200;
+  display: flex; align-items: center; justify-content: center; padding: calc(40px * var(--hs,1)); }
+#homeUi .mbox { width: 100%; max-height: 82%; overflow-y: auto; background: linear-gradient(180deg, #22355c, #14203a);
+  border: 1px solid #4a6a9a; border-radius: calc(28px * var(--hs,1)); padding: calc(32px * var(--hs,1)) calc(28px * var(--hs,1));
+  box-shadow: 0 20px 50px rgba(0,0,0,.6); }
+#homeUi .mHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: calc(20px * var(--hs,1)); }
+#homeUi .mHead h3 { font-size: calc(32px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .mClose { background: #0d1930; border: 1px solid #33507a; color: #8ba3c7; width: calc(52px * var(--hs,1)); height: calc(52px * var(--hs,1));
+  border-radius: 50%; cursor: pointer; font-size: calc(24px * var(--hs,1)); }
+#homeUi .mSub { font-size: calc(22px * var(--hs,1)); color: #8ba3c7; margin-bottom: calc(20px * var(--hs,1)); }
+#homeUi .mRow { display: flex; justify-content: space-between; align-items: center; background: #0d1930; border: 1px solid #33507a;
+  border-radius: calc(18px * var(--hs,1)); padding: calc(20px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); font-size: calc(24px * var(--hs,1)); gap: calc(16px * var(--hs,1)); }
+#homeUi .bagTabs { display: flex; gap: calc(12px * var(--hs,1)); margin-bottom: calc(24px * var(--hs,1)); }
+#homeUi .bagTabs button { flex: 1; height: calc(56px * var(--hs,1)); border-radius: calc(14px * var(--hs,1)); border: 1px solid #33507a;
+  background: #101d38; color: #8ba3c7; font-family: inherit; font-size: calc(24px * var(--hs,1)); font-weight: 700; cursor: pointer; }
+#homeUi .bagTabs button.on { color: #ffe9a8; border-color: #8a6a20; background: #1c2c4d; }
+#homeUi .bagGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(16px * var(--hs,1)); }
+#homeUi .bcell { position: relative; border-radius: calc(18px * var(--hs,1)); background: radial-gradient(circle at 50% 30%, #1a2a4a, #0d1626);
+  border: 1px solid #33507a; height: calc(124px * var(--hs,1)); display: flex; align-items: center; justify-content: center; font-size: calc(48px * var(--hs,1)); cursor: pointer; }
+#homeUi .bcell.r3 { border-color: #3a8ad0; }
+#homeUi .bcell.r4 { border-color: #9a5ce0; }
+#homeUi .bcell.r5 { border-color: #e0a23c; }
+#homeUi .bcell em { position: absolute; right: calc(6px * var(--hs,1)); bottom: calc(4px * var(--hs,1)); font-style: normal;
+  font-size: calc(18px * var(--hs,1)); color: #dce8f7; font-weight: 700; text-shadow: 0 1px 2px #000; }
+#homeUi .sqRow { display: flex; gap: calc(16px * var(--hs,1)); justify-content: center; margin-bottom: calc(24px * var(--hs,1)); }
+#homeUi .sqSlot { width: calc(132px * var(--hs,1)); height: calc(148px * var(--hs,1)); border-radius: calc(20px * var(--hs,1));
+  background: radial-gradient(circle at 50% 30%, #2a4470, #0d1626); border: 1px solid #8a6a20; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8px * var(--hs,1)); font-size: calc(48px * var(--hs,1)); }
+#homeUi .sqSlot span { font-size: calc(20px * var(--hs,1)); color: #dce8f7; font-weight: 700; }
+#homeUi .sqSlot.empty { border-style: dashed; border-color: #33507a; color: #4a608a; }
+#homeUi .cand { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(16px * var(--hs,1)); }
+#homeUi .candB { border: 1px solid #33507a; background: #101d38; border-radius: calc(18px * var(--hs,1)); padding: calc(16px * var(--hs,1)) calc(4px * var(--hs,1));
+  cursor: pointer; font-family: inherit; color: #dce8f7; display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
+#homeUi .equipRow { display: flex; align-items: center; gap: calc(16px * var(--hs,1)); padding: calc(16px * var(--hs,1)) calc(20px * var(--hs,1));
+  border-radius: calc(18px * var(--hs,1)); background: #0d1930; border: 1px solid #33507a; margin-bottom: calc(16px * var(--hs,1)); }
 #homeUi .equipInfo { flex: 1; min-width: 0; }
-#homeUi .equipName { font-size: calc(30px * var(--hs,1)); font-weight: 700; }
-#homeUi .equipStat { font-size: calc(26px * var(--hs,1)); color: #8fa0ab; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .equipName { font-size: calc(26px * var(--hs,1)); font-weight: 700; }
+#homeUi .equipStat { font-size: calc(22px * var(--hs,1)); color: #8ba3c7; margin-top: calc(4px * var(--hs,1)); }
 
-/* ---- 核心页：技能升级三卡 ---- */
-#homeUi .abilityCards { width: 100%; max-width: calc(920px * var(--hs,1)); display: grid;
-  grid-template-columns: 1fr 1fr 1fr; gap: calc(18px * var(--hs,1)); align-content: start;
-  flex: 1; min-height: 0; overflow-y: auto; padding: calc(4px * var(--hs,1)) calc(2px * var(--hs,1)); }
-#homeUi .abilityCard { display: flex; flex-direction: column; align-items: center; gap: calc(8px * var(--hs,1));
-  border-radius: calc(14px * var(--hs,1)); background: rgba(6,12,18,.72);
-  border: calc(3px * var(--hs,1)) solid rgba(120,150,170,.35); padding: calc(16px * var(--hs,1)) calc(12px * var(--hs,1)); }
-#homeUi .abilityIconWin { width: calc(120px * var(--hs,1)); height: calc(120px * var(--hs,1)); flex: none;
-  border-radius: 50%; background: rgba(255,255,255,.08) center / 72% no-repeat;
-  border: calc(4px * var(--hs,1)) solid rgba(255,204,85,.55);
-  box-shadow: 0 0 calc(14px * var(--hs,1)) rgba(255,204,85,.25) inset; }
-#homeUi .abilityName { font-size: calc(28px * var(--hs,1)); font-weight: 800; color: #ecf1f1; }
-#homeUi .abilityLv { font-size: calc(24px * var(--hs,1)); color: #ffd76a; }
-#homeUi .abilityDesc { font-size: calc(20px * var(--hs,1)); color: #8fa0ab; text-align: center;
-  line-height: 1.35; min-height: calc(56px * var(--hs,1)); }
+/* ===== 底部导航 ===== */
+#homeUi .tabbar { flex: none; height: calc(150px * var(--hs,1)); display: flex; align-items: center; justify-content: space-around; position: relative; z-index: 20;
+  background: linear-gradient(180deg, #182947, #0b1426); border-top: 1px solid #33507a; }
+#homeUi .tabbar::before { content: ''; position: absolute; top: -1px; left: 8%; right: 8%; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(240,177,62,.55), transparent); }
+#homeUi .tab { background: none; border: none; cursor: pointer; font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1));
+  color: #7e93b8; font-size: calc(22px * var(--hs,1)); font-weight: 700; padding: calc(12px * var(--hs,1)) calc(8px * var(--hs,1)); position: relative; }
+#homeUi .tab .ticon { width: calc(52px * var(--hs,1)); height: calc(52px * var(--hs,1)); display: flex; align-items: center; justify-content: center;
+  font-size: calc(42px * var(--hs,1)); filter: grayscale(.4); transition: .2s; }
+#homeUi .tab.on { color: #ffe9a8; }
+#homeUi .tab.on .ticon { filter: none; transform: translateY(calc(-4px * var(--hs,1))) scale(1.12); filter: drop-shadow(0 0 8px rgba(245,196,81,.8)); }
+#homeUi .tab.on::after { content: ''; position: absolute; top: calc(-18px * var(--hs,1)); left: 50%; transform: translateX(-50%);
+  width: calc(52px * var(--hs,1)); height: calc(6px * var(--hs,1)); border-radius: 99px;
+  background: linear-gradient(90deg, transparent, #f5c451, transparent); box-shadow: 0 0 8px #f5c451; }
+#homeUi .tab.main { margin-top: calc(-60px * var(--hs,1)); width: calc(128px * var(--hs,1)); height: calc(128px * var(--hs,1)); border-radius: 50%; color: #5a3a08;
+  background: linear-gradient(180deg, #ffe9a6, #f0b13e 55%, #c9861f); border: 2px solid #8a5c12;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 #7c520f, 0 8px 20px rgba(240,177,62,.45);
+  font-size: calc(22px * var(--hs,1)); animation: huiMain 2.4s ease-in-out infinite; }
+#homeUi .tab.main .ticon { font-size: calc(48px * var(--hs,1)); filter: none; }
+#homeUi .tab.main.on::after { display: none; }
+@keyframes huiMain { 0%, 100% { box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 #7c520f, 0 8px 20px rgba(240,177,62,.45); }
+  50% { box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 #7c520f, 0 8px 30px rgba(240,177,62,.75); } }
 
-/* ---- 编队按钮与弹出面板 ---- */
-#homeUi .lineupOpen { margin-top: calc(20px * var(--hs,1)); min-width: calc(360px * var(--hs,1));
-  padding: calc(18px * var(--hs,1)) calc(50px * var(--hs,1)); border-radius: calc(16px * var(--hs,1)); cursor: pointer;
-  font-size: calc(32px * var(--hs,1)); font-weight: 800; color: #062028; letter-spacing: calc(3px * var(--hs,1));
-  border: none; filter: drop-shadow(0 calc(5px * var(--hs,1)) 0 rgba(0,0,0,.4));
-  background: linear-gradient(180deg, #b3f0ff, #4db8dd); }
-#homeUi .lineupOpen:active { transform: translateY(calc(3px * var(--hs,1))); }
-#homeUi .lineupPanelOverlay { position: fixed; inset: 0; z-index: 9200; display: flex; align-items: center; justify-content: center;
-  background: rgba(2,6,10,.85); pointer-events: auto; }
-#homeUi .lineupPanelCard { display: flex; flex-direction: column; align-items: center; gap: calc(24px * var(--hs,1));
-  width: calc(960px * var(--hs,1)); max-height: 86vh; overflow-y: auto; padding: calc(36px * var(--hs,1));
-  border-radius: calc(22px * var(--hs,1)); background: linear-gradient(180deg, #17222c, #0c141c);
-  border: calc(3px * var(--hs,1)) solid rgba(255,204,85,.5); box-shadow: 0 calc(16px * var(--hs,1)) 0 rgba(0,0,0,.5); }
-#homeUi .lineupPanelTitle { font-size: calc(48px * var(--hs,1)); font-weight: 800; color: #ffd76a; letter-spacing: calc(6px * var(--hs,1)); }
-#homeUi .lineupRow.center { justify-content: center; }
-#homeUi .lineupPool { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(20px * var(--hs,1)); width: 100%; }
-#homeUi .lineupPoolItem { width: calc(170px * var(--hs,1)); height: calc(200px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
-  background: rgba(10,18,26,.72) center / contain no-repeat; border: calc(3px * var(--hs,1)) solid rgba(120,150,170,.35);
-  cursor: pointer; position: relative; transition: transform .12s; }
-#homeUi .lineupPoolItem:active { transform: scale(.94); }
-#homeUi .lineupPoolItem.active { border-color: rgba(255,204,85,.85); box-shadow: 0 0 calc(16px * var(--hs,1)) rgba(255,204,85,.35); }
-#homeUi .lineupPoolName { position: absolute; left: 0; right: 0; bottom: calc(6px * var(--hs,1)); text-align: center;
-  font-size: calc(24px * var(--hs,1)); color: #ecf1f1; text-shadow: 0 calc(2px * var(--hs,1)) 0 rgba(0,0,0,.8); }
-#homeUi .lineupClose { align-self: center; }
+/* ===== 广告层/水印 ===== */
+#homeUi .adOverlay { position: absolute; inset: 0; z-index: 400; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(24px * var(--hs,1)); background: rgba(4,8,16,.92); }
+#homeUi .adTitle { font-size: calc(40px * var(--hs,1)); color: #ffe9a8; font-weight: 800; }
+#homeUi .adCountdown { font-size: calc(120px * var(--hs,1)); color: #5cc8ff; font-weight: 900; }
+#homeUi .adTip { font-size: calc(24px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .homeStamp { position: absolute; right: calc(16px * var(--hs,1)); bottom: calc(160px * var(--hs,1)); font-size: calc(16px * var(--hs,1));
+  color: rgba(140,170,210,.4); z-index: 5; pointer-events: none; }
 `;
         document.head.appendChild(style);
     }
