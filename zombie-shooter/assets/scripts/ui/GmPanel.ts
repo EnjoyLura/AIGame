@@ -47,6 +47,8 @@ export class GmPanel extends Component {
         root.appendChild(body);
         this._body = body;
 
+        // ---- 战斗调试 ----
+        const gBattle = this._addGroup(body, '战斗调试');
         // 引擎性能统计与游戏伤害统计独立；使用 Cocos 3.8.8 的实际 profiler API。
         const statsBtn = document.createElement('button');
         const syncStats = () => {
@@ -60,40 +62,42 @@ export class GmPanel extends Component {
             else profiler.showStats();
             syncStats();
         };
-        body.appendChild(statsBtn);
+        gBattle.appendChild(statsBtn);
+        this._addButton(gBattle, '升级', () => this._bm()?.gmLevelUp());
+        this._addButton(gBattle, '技能全解锁', () => this._bm()?.gmUnlockAbilities());
+        this._addButton(gBattle, '冷却清零', () => this._bm()?.gmResetCooldowns());
+        this._addButton(gBattle, '大招充满', () => this._bm()?.gmFullCharge());
 
-        // ---- 常规调试 ----
-        this._addButton(body, '升级', () => this._bm()?.gmLevelUp());
-        this._addButton(body, '技能全解锁', () => this._bm()?.gmUnlockAbilities());
-        const muteBtn = document.createElement('button');
-        muteBtn.textContent = '♪ 音效:开';
-        this._styleButton(muteBtn);
-        muteBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.unlock();
-            const m = !SoundFx.muted;
-            SoundFx.setMuted(m);
-            muteBtn.textContent = m ? '♪ 音效:关' : '♪ 音效:开';
-        };
-        body.appendChild(muteBtn);
-        this._addButton(body, '冷却清零', () => this._bm()?.gmResetCooldowns());
-        this._addButton(body, '大招充满', () => this._bm()?.gmFullCharge());
-        this._addButton(body, '清屏', () => this._bm()?.gmKillAll());
-        this._addButton(body, '下一波', () => this._bm()?.gmNextWave());
-        this._addButton(body, '车回满', () => this._bm()?.gmVehicleRefill());
-        this._addButton(body, '车打空(失败)', () => this._bm()?.gmVehicleFail());
-        this._addButton(body, '体力回满', () => {
-            GameManager.instance.res.add('stamina', BattleConfig.STAMINA_MAX);
-        });
-        this._addButton(body, '金币+1000', () => {
+        // ---- 波次与怪物 ----
+        const gWave = this._addGroup(body, '波次与怪物');
+        this._addButton(gWave, '清屏', () => this._bm()?.gmKillAll());
+        this._addButton(gWave, '下一波', () => this._bm()?.gmNextWave());
+        this._addButton(gWave, '车回满', () => this._bm()?.gmVehicleRefill());
+        this._addButton(gWave, '车打空(失败)', () => this._bm()?.gmVehicleFail());
+        // 指定怪型刷新（单测行为，不占波次进度）
+        const mobRow = document.createElement('div');
+        mobRow.style.cssText = 'display:flex;gap:4px;';
+        gWave.appendChild(mobRow);
+        this._addButton(mobRow, '小怪', () => this._bm()?.gmSpawnMonster('stoneape'));
+        this._addButton(mobRow, '狗群', () => this._bm()?.gmSpawnMonster('dog'));
+        this._addButton(mobRow, '野猪', () => this._bm()?.gmSpawnMonster('boar'));
+        this._addButton(mobRow, '双足熊', () => this._bm()?.gmSpawnMonster('bear'));
+        this._addButton(mobRow, '疯鹰', () => this._bm()?.gmSpawnMonster('eagle'));
+
+        // ---- 资源与解锁 ----
+        const gRes = this._addGroup(body, '资源与解锁');
+        this._addButton(gRes, '金币+1000', () => {
             GameManager.instance.addGold(1000);
             SoundFx.play('coin');
         });
-        this._addButton(body, '钻石+100', () => {
+        this._addButton(gRes, '钻石+100', () => {
             GameManager.instance.res.add('diamond', 100);
             SoundFx.play('coin');
         });
-        this._addButton(body, '解锁全部英雄', () => {
+        this._addButton(gRes, '体力回满', () => {
+            GameManager.instance.res.add('stamina', BattleConfig.STAMINA_MAX);
+        });
+        this._addButton(gRes, '解锁全部英雄', () => {
             const gm = GameManager.instance;
             for (const d of HERO_DEFS) {
                 if (!gm.isHeroOwned(d.id)) {
@@ -104,20 +108,11 @@ export class GmPanel extends Component {
             SoundFx.play('coin');
         });
 
-        // ---- 指定怪型刷新（单测行为，不占波次进度） ----
-        const mobRow = document.createElement('div');
-        mobRow.style.cssText = 'display:flex;gap:4px;';
-        body.appendChild(mobRow);
-        this._addButton(mobRow, '小怪', () => this._bm()?.gmSpawnMonster('stoneape'));
-        this._addButton(mobRow, '狗群', () => this._bm()?.gmSpawnMonster('dog'));
-        this._addButton(mobRow, '野猪', () => this._bm()?.gmSpawnMonster('boar'));
-        this._addButton(mobRow, '双足熊', () => this._bm()?.gmSpawnMonster('bear'));
-        this._addButton(mobRow, '疯鹰', () => this._bm()?.gmSpawnMonster('eagle'));
-
-        // ---- 号位开关：输入 1~4 + 切换按钮（再次点击同一号位即关闭） ----
+        // ---- 号位开关 ----
+        const gSlot = this._addGroup(body, '号位开关');
         const row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:4px;align-items:center;';
-        body.appendChild(row);
+        gSlot.appendChild(row);
 
         const input = document.createElement('input');
         input.type = 'number';
@@ -157,11 +152,46 @@ export class GmPanel extends Component {
         status.style.cssText =
             'padding:2px 6px;background:rgba(20,30,40,.75);color:#9be7ff;' +
             'border-radius:4px;max-width:220px;text-align:right;';
-        body.appendChild(status);
+        gSlot.appendChild(status);
         this._status = status;
         this._refreshStatus();
 
+        // ---- 设置 ----
+        const gSet = this._addGroup(body, '设置');
+        const muteBtn = document.createElement('button');
+        muteBtn.textContent = '♪ 音效:开';
+        this._styleButton(muteBtn);
+        muteBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            const m = !SoundFx.muted;
+            SoundFx.setMuted(m);
+            muteBtn.textContent = m ? '♪ 音效:关' : '♪ 音效:开';
+        };
+        gSet.appendChild(muteBtn);
+
         document.body.appendChild(root);
+    }
+
+    /** 创建一个可折叠分组：标题条（默认收起）+ 内容容器；返回内容容器 */
+    private _addGroup(parent: HTMLDivElement, title: string): HTMLDivElement {
+        const head = document.createElement('button');
+        head.textContent = `▸ ${title}`;
+        head.style.cssText =
+            'padding:4px 8px;background:rgba(20,30,40,.9);color:#4fc3f7;border:1px solid #4fc3f7;' +
+            'border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;min-width:180px;text-align:center;';
+        head.onclick = (e) => {
+            e.stopPropagation();
+            const open = content.style.display !== 'none';
+            content.style.display = open ? 'none' : 'flex';
+            head.textContent = (open ? '▸ ' : '▾ ') + title;
+        };
+        parent.appendChild(head);
+
+        const content = document.createElement('div');
+        content.style.cssText = 'display:none;flex-direction:column;gap:4px;align-items:flex-end;';
+        parent.appendChild(content);
+        return content;
     }
 
     onDestroy(): void {
