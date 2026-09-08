@@ -80,8 +80,9 @@ class ProjectileBasicAttack implements BasicAttack {
         }
         const m = this._owner.multishotStacks;
         const v = this._owner.volleyStacks;
-        // 连射/齐射每层单发伤害 ×0.8（弹数换伤）
-        const damage = Math.round(this._owner.stats.atk * Math.pow(BASIC_ENHANCE_DMG_STEP, m + v));
+        // 连射/齐射每层单发伤害 ×0.8（弹数换伤）；普攻等级每级 +30%
+        const damage = Math.round(this._owner.stats.atk * this._owner.basicAbilityDmgMul
+            * Math.pow(BASIC_ENHANCE_DMG_STEP, m + v));
         const speed = this._owner.def.bulletSpeed;
         const radius = BattleConfig.BULLET_RADIUS * (this._owner.def.weapon === 'sniper' ? 1.4 : 1);
         const pierce = !!this._owner.def.pierce;
@@ -300,8 +301,9 @@ class LaserBasicAttack implements BasicAttack {
             }
         }
 
-        // 单束秒伤 = 属性攻击 × 连射减伤（连射=多束，每束同伤害）
-        const perBeamAtk = this._owner.stats.atk * (buff ? buff.damageMul : 1)
+        // 单束秒伤 = 属性攻击 × 普攻等级 × 连射减伤（连射=多束，每束同伤害）
+        const perBeamAtk = this._owner.stats.atk * this._owner.basicAbilityDmgMul
+            * (buff ? buff.damageMul : 1)
             * Math.pow(BASIC_ENHANCE_DMG_STEP, this._owner.multishotStacks);
 
         for (let i = 0; i < this._slots.length; i++) {
@@ -1083,6 +1085,23 @@ export class HeroCombatController {
 
     levelUpSkill(): void { this._skill.levelUp(); }
     levelUpUltimate(): void { this._ultimate.levelUp(); }
+
+    /** 开局注入持久化技能等级（主城技能升级页购买，缺省 1；局内升级卡在此基础上继续升） */
+    initAbilityLevels(basic: number, skill: number, ultimate: number): void {
+        this._basicAbilityLevel = basic;
+        this._skill.level = Math.max(1, Math.min(ABILITY_MAX_LEVEL, skill));
+        this._ultimate.level = Math.max(1, Math.min(ABILITY_MAX_LEVEL, ultimate));
+        this._skill.resetCooldown();
+        this._ultimate.resetCooldown();
+    }
+
+    /** 持久化普攻等级（普攻等级影响基础伤害，供普攻读取） */
+    private _basicAbilityLevel = 1;
+    get basicAbilityLevel(): number { return this._basicAbilityLevel; }
+    /** 普攻等级伤害乘区（每级 +30%，与技能同曲线；Lv.1 = 1.0） */
+    get basicAbilityDmgMul(): number {
+        return 1 + ABILITY_LEVEL_DMG_BONUS * (this._basicAbilityLevel - 1);
+    }
 
     /** 普攻强化 buff（buff 类技能驱动；null=未强化） */
     private _buff: BasicBuff | null = null;

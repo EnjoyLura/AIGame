@@ -1,4 +1,14 @@
 import { GameManager } from './GameManager';
+import { ABILITY_MAX_LEVEL } from '../battle/HeroDef';
+
+/** 技能槽位（持久化升级用）：普攻/技能/大招 */
+export type AbilitySlot = 'basic' | 'skill' | 'ultimate';
+export const ABILITY_SLOTS: AbilitySlot[] = ['basic', 'skill', 'ultimate'];
+export const ABILITY_SLOT_NAMES: Record<AbilitySlot, string> = {
+    basic: '普攻', skill: '技能', ultimate: '大招',
+};
+/** 技能升级费用曲线（金币）：Lv.1→2 = ABILITY_UPGRADE_BASE_COST，每级翻倍 */
+export const ABILITY_UPGRADE_BASE_COST = 300;
 
 /**
  * 英雄成长系统：英雄等级 + 五槽装备 + 主武器强化 + 武器核心。
@@ -282,6 +292,38 @@ export class HeroSystem {
             return false;
         }
         delete this._gm.weaponCores[heroId];
+        this._gm.save();
+        return true;
+    }
+
+    // ================= 技能等级（持久化） =================
+
+    private _abilityKey(heroId: string, slot: AbilitySlot): string {
+        return `${heroId}:${slot}`;
+    }
+
+    /** 持久化技能等级（缺省 1；战斗开局注入，局内升级卡在其上继续升） */
+    abilityLevel(heroId: string, slot: AbilitySlot): number {
+        return this._gm.skillLevels[this._abilityKey(heroId, slot)] ?? 1;
+    }
+
+    isAbilityMaxLevel(heroId: string, slot: AbilitySlot): boolean {
+        return this.abilityLevel(heroId, slot) >= ABILITY_MAX_LEVEL;
+    }
+
+    abilityUpgradeCost(heroId: string, slot: AbilitySlot): number {
+        return Math.round(ABILITY_UPGRADE_BASE_COST * Math.pow(2, this.abilityLevel(heroId, slot) - 1));
+    }
+
+    /** 金币升级技能；成功返回 true（未拥有英雄/已满级拒绝） */
+    upgradeAbility(heroId: string, slot: AbilitySlot): boolean {
+        if (!this._gm.isHeroOwned(heroId) || this.isAbilityMaxLevel(heroId, slot)) {
+            return false;
+        }
+        if (!this._gm.res.spend('gold', this.abilityUpgradeCost(heroId, slot))) {
+            return false;
+        }
+        this._gm.skillLevels[this._abilityKey(heroId, slot)] = this.abilityLevel(heroId, slot) + 1;
         this._gm.save();
         return true;
     }

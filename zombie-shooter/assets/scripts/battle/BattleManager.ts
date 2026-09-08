@@ -1251,6 +1251,13 @@ export class BattleManager extends Component {
             hero.init(def);
             // 装备的射速/射程加成（攻击乘区在 beginRun 统一结算）
             HeroSystem.instance.applyEquipStats(hero);
+            // 持久化技能等级注入（主城核心页购买；局内升级卡在此基础上继续升）
+            const hs = HeroSystem.instance;
+            hero.combat.initAbilityLevels(
+                hs.abilityLevel(def.id, 'basic'),
+                hs.abilityLevel(def.id, 'skill'),
+                hs.abilityLevel(def.id, 'ultimate'),
+            );
             this._heroes.push(hero);
         }
         // 图标栏重新绑定新英雄（重开时英雄整体重建）

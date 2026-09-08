@@ -18,6 +18,8 @@ export class Hero extends Component {
     interval = 1;
     range = 800;
     private _combat: HeroCombatController = null!;
+    /** 战斗控制器（部署时注入持久化技能等级等场景读取） */
+    get combat(): HeroCombatController { return this._combat; }
     /** 立绘子节点（AssetLib 就绪后替换代码占位，缺图回退） */
     private _artNode: Node = null!;
     private _artApplied = false;

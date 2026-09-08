@@ -8,8 +8,8 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue } from '../core/HeroSystem';
-import { HERO_DEFS } from '../battle/HeroDef';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, EQUIP_UPGRADE_STEP, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot } from '../core/HeroSystem';
+import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID } from '../battle/StageData';
 
 /** 看广告单次发放体力 */
@@ -52,6 +52,10 @@ export class HomeUi extends Component {
     /** 角色编队页：英雄详情区容器（左右切换选中索引） */
     private _heroDetailBodyEl: HTMLDivElement | null = null;
     private _heroSelIdx = 0;
+    /** 核心页（技能升级）：英雄展示容器 + 三技能卡容器 + 选中索引 */
+    private _coreBodyEl: HTMLDivElement | null = null;
+    private _coreCardsEl: HTMLDivElement | null = null;
+    private _coreSelIdx = 0;
     /** 贴图挂起队列：AssetLib 异步就绪后补挂（_refresh 轮询消化） */
     private _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
 
@@ -1104,6 +1108,199 @@ export class HomeUi extends Component {
         }
     }
 
+    // ================= 核心页（技能升级） =================
+
+    /** 核心页：顶部资源条 + 英雄左右切换 + 三张技能卡（普攻/技能/大招升级） */
+    private _buildCore(root: HTMLDivElement): void {
+        const page = document.createElement('div');
+        page.className = 'page';
+
+        // 顶部资源条（与商城/角色页共用元素引用）
+        const resRow = document.createElement('div');
+        resRow.className = 'mallResRow';
+        const mkRes = (id: 'gold' | 'diamond' | 'stamina') => {
+            const chip = document.createElement('div');
+            chip.className = 'mallRes';
+            const ico = document.createElement('i');
+            ico.className = 'mallResIco';
+            this._tex(`ui/res_${id}`, u => { ico.style.backgroundImage = u; });
+            const val = document.createElement('div');
+            val.className = 'mallResVal';
+            chip.appendChild(ico);
+            chip.appendChild(val);
+            resRow.appendChild(chip);
+            this._mallResEls[id] = val;
+        };
+        mkRes('gold');
+        mkRes('diamond');
+        mkRes('stamina');
+        page.appendChild(resRow);
+
+        // 英雄展示：左右箭头 + 详情（立绘/名字，由 _refreshCore 重建）
+        const detail = document.createElement('div');
+        detail.className = 'heroDetail';
+        const prev = document.createElement('div');
+        prev.className = 'heroArrow';
+        prev.textContent = '❮';
+        prev.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._coreSelIdx = (this._coreSelIdx + HERO_DEFS.length - 1) % HERO_DEFS.length;
+            this._refreshCore();
+        };
+        const next = document.createElement('div');
+        next.className = 'heroArrow';
+        next.textContent = '❯';
+        next.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._coreSelIdx = (this._coreSelIdx + 1) % HERO_DEFS.length;
+            this._refreshCore();
+        };
+        const body = document.createElement('div');
+        body.className = 'heroDetailBody';
+        detail.appendChild(prev);
+        detail.appendChild(body);
+        detail.appendChild(next);
+        page.appendChild(detail);
+        this._coreBodyEl = body;
+
+        // 技能升级区标题 + 三卡容器
+        const sec = document.createElement('div');
+        sec.className = 'homeSection';
+        sec.textContent = '━ 技 能 升 级 ━';
+        page.appendChild(sec);
+        const cards = document.createElement('div');
+        cards.className = 'abilityCards';
+        page.appendChild(cards);
+        this._coreCardsEl = cards;
+
+        root.appendChild(page);
+        this._pages.core = page;
+    }
+
+    /** 核心页刷新：英雄展示区与三张技能卡整块重建 */
+    private _refreshCore(): void {
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        const body = this._coreBodyEl;
+        const cardsBox = this._coreCardsEl;
+        if (!body || !cardsBox) {
+            return;
+        }
+        const def = HERO_DEFS[this._coreSelIdx % HERO_DEFS.length];
+        const owned = gm.isHeroOwned(def.id);
+        const weaponName = def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射';
+
+        // 英雄展示（居中）
+        body.innerHTML = '';
+        const showcase = document.createElement('div');
+        showcase.className = 'heroShowcase';
+        const avatar = document.createElement('div');
+        avatar.className = 'heroAvatar detail' + (owned ? '' : ' locked');
+        this._tex(`characters/hero_${def.id}`, u => { avatar.style.backgroundImage = u; });
+        if (owned) {
+            avatar.title = '前往角色页穿戴装备与养成';
+            avatar.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._switchPage('heroes');
+            };
+        } else {
+            avatar.title = '未拥有，前往商城解锁';
+            avatar.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._switchPage('mall');
+            };
+        }
+        const name = document.createElement('div');
+        name.className = 'heroName center';
+        name.textContent = def.name;
+        const role = document.createElement('div');
+        role.className = 'heroRole center';
+        role.textContent = `${def.role} · ${weaponName}` + (owned ? '' : ' · 未拥有');
+        showcase.appendChild(avatar);
+        showcase.appendChild(name);
+        showcase.appendChild(role);
+        body.appendChild(showcase);
+        if (!owned) {
+            const lockTip = document.createElement('div');
+            lockTip.className = 'equipStat';
+            lockTip.style.alignSelf = 'center';
+            lockTip.textContent = '解锁英雄后开放技能升级';
+            cardsBox.innerHTML = '';
+            cardsBox.appendChild(lockTip);
+            return;
+        }
+
+        // 三张技能卡
+        cardsBox.innerHTML = '';
+        const basicDesc = def.weapon === 'rifle' ? '连续射击单个目标'
+            : def.weapon === 'sniper' ? '高伤狙击单体目标'
+                : def.weapon === 'laser' ? '激光束持续灼烧目标'
+                    : '辐射弹群体溅射';
+        const slots: Array<{ slot: AbilitySlot; name: string; desc: string; icon: string }> = [
+            { slot: 'basic', name: '普攻', desc: basicDesc, icon: `icons/${def.id}_basic` },
+            { slot: 'skill', name: def.skill.name, desc: def.skill.desc, icon: `icons/${def.id}_skill` },
+            { slot: 'ultimate', name: def.ultimate.name, desc: def.ultimate.desc, icon: `icons/${def.id}_ultimate` },
+        ];
+        for (const info of slots) {
+            cardsBox.appendChild(this._mkAbilityCard(def.id, info.slot, info.name, info.desc, info.icon));
+        }
+    }
+
+    /** 单张技能卡：图标圆窗 + 名称/等级 + 描述 + 升级按钮 */
+    private _mkAbilityCard(heroId: string, slot: AbilitySlot, name: string, desc: string, iconKey: string): HTMLDivElement {
+        const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
+        const card = document.createElement('div');
+        card.className = 'abilityCard';
+
+        const iconWin = document.createElement('div');
+        iconWin.className = 'abilityIconWin';
+        this._tex(iconKey, u => { iconWin.style.backgroundImage = u; });
+        card.appendChild(iconWin);
+
+        const nameRow = document.createElement('div');
+        nameRow.className = 'abilityName';
+        nameRow.textContent = name;
+        card.appendChild(nameRow);
+
+        const lv = document.createElement('div');
+        lv.className = 'abilityLv';
+        const level = hs.abilityLevel(heroId, slot);
+        lv.textContent = hs.isAbilityMaxLevel(heroId, slot) ? '已满级' : `${level} 级`;
+        card.appendChild(lv);
+
+        const descEl = document.createElement('div');
+        descEl.className = 'abilityDesc';
+        descEl.textContent = desc + `（每级伤害 +${Math.round(ABILITY_LEVEL_DMG_BONUS * 100)}%）`;
+        card.appendChild(descEl);
+
+        const btn = document.createElement('button');
+        btn.className = 'heroCardBtn';
+        if (hs.isAbilityMaxLevel(heroId, slot)) {
+            btn.textContent = '已满级';
+            btn.disabled = true;
+        } else {
+            const cost = hs.abilityUpgradeCost(heroId, slot);
+            btn.textContent = `升 级 ${cost}金`;
+            btn.disabled = gm.gold < cost;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                if (hs.upgradeAbility(heroId, slot)) {
+                    SoundFx.play('buy');
+                    this._refreshCore();
+                }
+            };
+        }
+        btn.style.opacity = btn.disabled ? '0.45' : '1';
+        card.appendChild(btn);
+        return card;
+    }
+
     private _frameUrl(key: string): string | null {
         const frame: SpriteFrame | null = AssetLib.frame(key);
         const tex = (frame ? frame.texture : null) as (import('cc').Texture2D & { image?: { data?: unknown } }) | null;
@@ -1136,6 +1333,9 @@ export class HomeUi extends Component {
         }
         if (page === 'heroes') {
             this._refreshHeroes();
+        }
+        if (page === 'core') {
+            this._refreshCore();
         }
     }
 
@@ -1408,7 +1608,6 @@ export class HomeUi extends Component {
 
         // ---- 其余四页：商城/角色实装，其余建设中占位 ----
         const PLACEHOLDERS: Record<string, { icon: string; name: string; hint: string }> = {
-            core: { icon: '🧬', name: '核心', hint: '核心科技研发 · 建设中' },
             base: { icon: '🏰', name: '基地', hint: '基地建设与产出 · 建设中' },
         };
         for (const key of Object.keys(PLACEHOLDERS)) {
@@ -1430,6 +1629,9 @@ export class HomeUi extends Component {
             root.appendChild(page);
             this._pages[key] = page;
         }
+
+        // ---- 核心页（技能升级）----
+        this._buildCore(root);
 
         // ---- 商城页 / 角色编队页 ----
         this._buildMall(root);
@@ -1693,6 +1895,22 @@ export class HomeUi extends Component {
 #homeUi .equipInfo { flex: 1; min-width: 0; }
 #homeUi .equipName { font-size: calc(30px * var(--hs,1)); font-weight: 700; }
 #homeUi .equipStat { font-size: calc(26px * var(--hs,1)); color: #8fa0ab; margin-top: calc(4px * var(--hs,1)); }
+
+/* ---- 核心页：技能升级三卡 ---- */
+#homeUi .abilityCards { width: 100%; max-width: calc(920px * var(--hs,1)); display: grid;
+  grid-template-columns: 1fr 1fr 1fr; gap: calc(18px * var(--hs,1)); align-content: start;
+  flex: 1; min-height: 0; overflow-y: auto; padding: calc(4px * var(--hs,1)) calc(2px * var(--hs,1)); }
+#homeUi .abilityCard { display: flex; flex-direction: column; align-items: center; gap: calc(8px * var(--hs,1));
+  border-radius: calc(14px * var(--hs,1)); background: rgba(6,12,18,.72);
+  border: calc(3px * var(--hs,1)) solid rgba(120,150,170,.35); padding: calc(16px * var(--hs,1)) calc(12px * var(--hs,1)); }
+#homeUi .abilityIconWin { width: calc(120px * var(--hs,1)); height: calc(120px * var(--hs,1)); flex: none;
+  border-radius: 50%; background: rgba(255,255,255,.08) center / 72% no-repeat;
+  border: calc(4px * var(--hs,1)) solid rgba(255,204,85,.55);
+  box-shadow: 0 0 calc(14px * var(--hs,1)) rgba(255,204,85,.25) inset; }
+#homeUi .abilityName { font-size: calc(28px * var(--hs,1)); font-weight: 800; color: #ecf1f1; }
+#homeUi .abilityLv { font-size: calc(24px * var(--hs,1)); color: #ffd76a; }
+#homeUi .abilityDesc { font-size: calc(20px * var(--hs,1)); color: #8fa0ab; text-align: center;
+  line-height: 1.35; min-height: calc(56px * var(--hs,1)); }
 
 /* ---- 编队按钮与弹出面板 ---- */
 #homeUi .lineupOpen { margin-top: calc(20px * var(--hs,1)); min-width: calc(360px * var(--hs,1));

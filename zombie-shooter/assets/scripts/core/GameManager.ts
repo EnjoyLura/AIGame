@@ -2,7 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS } from '../battle/HeroDef';
-import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES } from './HeroSystem';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS } from './HeroSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -53,6 +53,8 @@ export class GameManager {
     weaponCores: Record<string, { id: string } | null> = {};
     /** 装备背包（账号级；购买入库，穿戴时绑定到英雄，卸下回背包） */
     bag: BagItem[] = [];
+    /** 技能等级（key = `${heroId}:${slot}`，slot=basic|skill|ultimate；缺省 1；读写走 HeroSystem） */
+    skillLevels: Record<string, number> = {};
 
     /** 金币兼容访问器（真身在资源仓库） */
     get gold(): number { return this.res.get('gold'); }
@@ -211,6 +213,7 @@ export class GameManager {
             weaponLv: this.weaponLv,
             weaponCores: this.weaponCores,
             bag: this.bag,
+            skillLevels: this.skillLevels,
             gold: this.gold,
             upgrades: this._upgrades,
             res: this.res.serialize(),
@@ -302,6 +305,22 @@ export class GameManager {
                         && typeof b.tier === 'number' && b.tier >= 1 && b.tier <= 4
                         && typeof b.lv === 'number' && b.lv >= 1;
                 }).map((b: BagItem) => ({ slot: b.slot, tier: b.tier, lv: Math.max(1, Math.floor(b.lv)) }));
+            }
+            // 技能等级（key=`${heroId}:${slot}`，等级钳 1~3）
+            if (data.skillLevels && typeof data.skillLevels === 'object') {
+                for (const k of Object.keys(data.skillLevels)) {
+                    const [heroId, slot] = k.split(':');
+                    const lv = data.skillLevels[k];
+                    if (!heroId || !slot || !HERO_DEFS.some(d => d.id === heroId)) {
+                        continue;
+                    }
+                    if ((ABILITY_SLOTS as string[]).indexOf(slot) < 0) {
+                        continue;
+                    }
+                    if (typeof lv === 'number' && lv >= 1 && lv <= 3) {
+                        this.skillLevels[k] = Math.floor(lv);
+                    }
+                }
             }
             if (data.gold !== undefined) {
                 this.res.add('gold', data.gold);
