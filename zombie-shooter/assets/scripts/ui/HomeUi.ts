@@ -139,8 +139,10 @@ export class HomeUi extends Component {
         const applyScale = () => {
             const canvas = document.querySelector('canvas');
             if (canvas) {
-                document.documentElement.style.setProperty('--hs',
-                    (canvas.getBoundingClientRect().width / 1080).toFixed(4));
+                const w = canvas.getBoundingClientRect().width;
+                // --hs：设计宽 1080 缩放；--pw：原型 430px 手机框等比缩放（interface.css 覆盖层用）
+                document.documentElement.style.setProperty('--hs', (w / 1080).toFixed(4));
+                document.documentElement.style.setProperty('--pw', (w / 430).toFixed(4));
             }
         };
         applyScale();
@@ -274,6 +276,14 @@ export class HomeUi extends Component {
         avatar.className = 'pAvatar';
         const face = document.createElement('div');
         face.textContent = '🎖️';
+        // 原型 interface.css：头像底图 = commander.png（照片），无 emoji
+        this._tex('characters/commander', u => {
+            face.style.backgroundImage = u;
+            face.style.backgroundSize = '180% auto';
+            face.style.backgroundPosition = 'center 8%';
+            face.style.backgroundRepeat = 'no-repeat';
+            face.textContent = '';
+        });
         avatar.appendChild(face);
         bar.appendChild(avatar);
         const info = document.createElement('div');
@@ -299,10 +309,21 @@ export class HomeUi extends Component {
         this._expNum = expnum;
         const reswrap = document.createElement('div');
         reswrap.className = 'reswrap';
-        const mkRes = (id: 'gold' | 'diamond' | 'stamina', ico: string) => {
+        const mkRes = (id: 'gold' | 'diamond' | 'stamina', texKey: string) => {
             const chip = document.createElement('div');
             chip.className = 'res';
-            chip.appendChild(document.createTextNode(ico + ' '));
+            const ico = document.createElement('span');
+            this._tex(texKey, u => {
+                ico.style.backgroundImage = u;
+                ico.style.backgroundSize = 'contain';
+                ico.style.backgroundRepeat = 'no-repeat';
+                ico.style.backgroundPosition = 'center';
+                ico.style.width = 'calc(22px * var(--pw,2.5))';
+                ico.style.height = 'calc(22px * var(--pw,2.5))';
+                ico.style.display = 'inline-block';
+                ico.textContent = '';
+            });
+            chip.appendChild(ico);
             const b = document.createElement('b');
             chip.appendChild(b);
             const add = document.createElement('span');
@@ -317,9 +338,9 @@ export class HomeUi extends Component {
             reswrap.appendChild(chip);
             this._topRes[id] = b;
         };
-        mkRes('gold', '🪙');
-        mkRes('diamond', '💎');
-        mkRes('stamina', '🍖');
+        mkRes('gold', 'ui/res_gold');
+        mkRes('diamond', 'ui/res_diamond');
+        mkRes('stamina', 'ui/res_stamina');
         bar.appendChild(reswrap);
         root.appendChild(bar);
     }
@@ -382,8 +403,10 @@ export class HomeUi extends Component {
                 icon.style.backgroundSize = 'contain';
                 icon.style.backgroundRepeat = 'no-repeat';
                 icon.style.backgroundPosition = 'center';
-                icon.style.width = 'calc(46px * var(--hs,1))';
-                icon.style.height = 'calc(46px * var(--hs,1))';
+                // 原型 interface.css：普通页签图标 34px、主钮图标 39px（430px 口径）
+                const iw = item.main ? 39 : 34;
+                icon.style.width = `calc(${iw}px * var(--pw,2.5))`;
+                icon.style.height = `calc(${iw}px * var(--pw,2.5))`;
                 icon.textContent = '';
             });
             nav.appendChild(btn);
@@ -452,6 +475,27 @@ export class HomeUi extends Component {
     // ================= 商店页 =================
 
     /** 商店页：礼包 banner + 四页签（英雄/装备/宝石/材料）+ 广告补给 + 双列商品网格 */
+    /**
+     * 原型人物照片挂载（interface.css 规则）：
+     * idx 0 = commander.png（特写），idx 1-3 = specialists.png 横向三联精灵图；
+     * mount 区分三种挂载的 background 尺寸（头像条/大立绘/小编队格）。
+     */
+    private _heroPhoto(idx: number, mount: 'pick' | 'figure' | 'slot'): { key: string; css: string } {
+        const key = idx <= 0 ? 'characters/commander' : 'characters/specialists';
+        const i = Math.max(0, idx - 1) * 50;
+        if (mount === 'pick') {
+            return idx <= 0
+                ? { key, css: 'background-size:160% auto;background-position:center 8%;background-repeat:no-repeat;' }
+                : { key, css: `background-size:300% auto;background-position:${i}% 10%;background-repeat:no-repeat;` };
+        }
+        if (mount === 'figure') {
+            return idx <= 0
+                ? { key, css: 'background-size:contain;background-position:center;background-repeat:no-repeat;' }
+                : { key, css: `background-size:300% 100%;background-position:${i}% center;background-repeat:no-repeat;` };
+        }
+        return { key, css: 'background-size:contain;background-position:center;background-repeat:no-repeat;' };
+    }
+
     /** 页面头部标题（对齐原型 screen-heading：h2 主标题 + small 副题） */
     private _mkHeading(h2: string, small: string): HTMLDivElement {
         const hd = document.createElement('div');
@@ -484,6 +528,13 @@ export class HomeUi extends Component {
             SoundFx.play('ui');
             this._toast('礼包系统即将开放，敬请期待');
         };
+        // 浅色主题：banner 底图 = escort.png 照片（interface.css：center 45%/cover），左暗渐变由 CSS ::after 完成
+        this._tex('scenes/escort', u => {
+            banner.style.backgroundImage = u;
+            banner.style.backgroundSize = 'cover';
+            banner.style.backgroundPosition = 'center 45%';
+            banner.style.backgroundRepeat = 'no-repeat';
+        });
         page.appendChild(banner);
 
         // 页签：英雄 / 装备 / 宝石 / 材料
@@ -761,11 +812,12 @@ export class HomeUi extends Component {
             b.className = 'hpick' + (i === this._heroSelIdx ? ' on' : '') + (owned ? '' : ' lock');
             const pic = document.createElement('span');
             pic.className = 'pic';
-            this._tex(`characters/hero_${d.id}`, u => {
+            pic.dataset.hero = String(i);
+            const photo = this._heroPhoto(i, 'pick');
+            this._tex(photo.key, u => {
                 pic.style.backgroundImage = u;
-                pic.style.backgroundSize = 'contain';
                 pic.style.backgroundRepeat = 'no-repeat';
-                pic.style.backgroundPosition = 'center';
+                pic.style.cssText += photo.css;
             });
             const nm = document.createElement('i');
             nm.textContent = d.name;
@@ -872,10 +924,12 @@ export class HomeUi extends Component {
         halo2.className = 'halo2';
         const emoji = document.createElement('div');
         emoji.className = 'heroEmoji' + (owned ? '' : ' lock');
-        this._tex(`characters/hero_${def.id}`, u => {
+        emoji.dataset.hero = String(idx);
+        const heroPhoto = this._heroPhoto(idx, 'figure');
+        this._tex(heroPhoto.key, u => {
             emoji.style.backgroundImage = u;
-            emoji.style.backgroundSize = 'contain';
             emoji.style.backgroundRepeat = 'no-repeat';
+            emoji.style.backgroundSize = 'contain';
             emoji.style.backgroundPosition = 'center';
         });
         emoji.title = owned ? (inLineup ? '点击下阵' : '点击上阵') : '未获得';
@@ -1296,7 +1350,7 @@ export class HomeUi extends Component {
     /** 关卡页：章节页签 + 波次进度轨道 + 护送场景（动画）+ 关卡信息 + 耐久宝箱 + 编队/出战 */
     private _buildStagePage(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'screen';
+        page.className = 'screen sStage';
         this._pages.battle = page;
 
         // 章节页签（1~5 关，未解锁灰态）
@@ -1343,6 +1397,13 @@ export class HomeUi extends Component {
         scene.appendChild(ar);
         page.appendChild(scene);
         this._sceneEl = scene;
+        // 浅色主题：场景底图 = escort.png 照片（interface.css：center 57%/cover），CSS 装饰子元素全部隐藏
+        this._tex('scenes/escort', u => {
+            scene.style.backgroundImage = u;
+            scene.style.backgroundSize = 'cover';
+            scene.style.backgroundPosition = 'center 57%';
+            scene.style.backgroundRepeat = 'no-repeat';
+        });
         this._sceneChipEl = scene.querySelector('.siChip');
         this._vehEl = scene.querySelector('.veh');
         this._mobsEl = scene.querySelector('.mobs');
@@ -1452,7 +1513,6 @@ export class HomeUi extends Component {
                 cls = w === WAVES_PER_STAGE - 1 ? 'cur' : (w === WAVES_PER_STAGE - 2 ? 'available' : 'lock');
             }
             dot.className = `dot ${cls}`;
-            dot.style.left = `${8 + w * 21}%`;
             const em = document.createElement('em');
             em.textContent = `${w + 1}`;
             dot.appendChild(em);
@@ -1489,7 +1549,7 @@ export class HomeUi extends Component {
 
         // 关卡信息
         if (this._siLvlEl) {
-            this._siLvlEl.innerHTML = `${stageId}-1<span style="font-size:calc(18px * var(--hs,1));color:#8ba3c7"> ${info.name.replace(/^\d+\./, '')}</span>`;
+            this._siLvlEl.textContent = `${stageId}-${1}`;
         }
         if (this._siPowEl) {
             this._siPowEl.textContent = (7600 + stageId * 1400).toLocaleString();
@@ -1595,13 +1655,14 @@ export class HomeUi extends Component {
                     if (id) {
                         const def = HERO_DEFS.find(d => d.id === id);
                         const pic = document.createElement('span');
-                        this._tex(`characters/hero_${id}`, u => {
+                        const hIdx = Math.max(0, HERO_DEFS.findIndex(d => d.id === id));
+                        const slotPhoto = this._heroPhoto(hIdx, 'slot');
+                        this._tex(slotPhoto.key, u => {
                             pic.style.backgroundImage = u;
-                            pic.style.width = 'calc(44px * var(--hs,1))';
-                            pic.style.height = 'calc(44px * var(--hs,1))';
-                            pic.style.backgroundSize = 'contain';
-                            pic.style.backgroundRepeat = 'no-repeat';
-                            pic.style.backgroundPosition = 'center';
+                            pic.style.width = 'calc(44px * var(--pw,2.5))';
+                            pic.style.height = 'calc(44px * var(--pw,2.5))';
+                            pic.style.display = 'inline-block';
+                            pic.style.cssText += slotPhoto.css;
                         });
                         const nm = document.createElement('span');
                         nm.textContent = def?.name ?? id;
@@ -1638,14 +1699,15 @@ export class HomeUi extends Component {
                     }
                     const ic = document.createElement('b');
                     const pic = document.createElement('span');
-                    this._tex(`characters/hero_${def.id}`, u => {
+                    const candIdx = HERO_DEFS.indexOf(def);
+                    const candPhoto = this._heroPhoto(candIdx, 'slot');
+                    this._tex(candPhoto.key, u => {
                         pic.style.backgroundImage = u;
-                        pic.style.width = 'calc(40px * var(--hs,1))';
-                        pic.style.height = 'calc(40px * var(--hs,1))';
+                        pic.style.width = 'calc(40px * var(--pw,2.5))';
+                        pic.style.height = 'calc(40px * var(--pw,2.5))';
                         pic.style.display = 'block';
-                        pic.style.backgroundSize = 'contain';
                         pic.style.backgroundRepeat = 'no-repeat';
-                        pic.style.backgroundPosition = 'center';
+                        pic.style.cssText += candPhoto.css;
                     });
                     ic.appendChild(pic);
                     const nm = document.createElement('span');
@@ -2371,6 +2433,288 @@ export class HomeUi extends Component {
 #homeUi .adTip { font-size: calc(24px * var(--hs,1)); color: #8ba3c7; }
 #homeUi .homeStamp { position: absolute; right: calc(16px * var(--hs,1)); bottom: calc(160px * var(--hs,1)); font-size: calc(16px * var(--hs,1));
   color: rgba(140,170,210,.4); z-index: 5; pointer-events: none; }
+
+/* ================================================================
+   浅色青瓷主题覆盖层 —— 一比一翻译 prototype-assets/interface.css
+   （原型第 317 行外链皮肤；像素口径 430px 手机框 × var(--pw)）
+   ================================================================ */
+#homeUi { letter-spacing: 0 !important;
+  background: #243f47; background-image: none;
+  color: #243e4d; }
+#homeUi .pAvatar, #homeUi .pinfo, #homeUi .pname, #homeUi .lvtag, #homeUi .expbar, #homeUi .expnum,
+#homeUi .reswrap, #homeUi .res, #homeUi .viewport, #homeUi .screen, #homeUi .panel, #homeUi .secTitle,
+#homeUi .btn, #homeUi .tag, #homeUi .toastEl, #homeUi .shopBanner, #homeUi .sbTxt, #homeUi .shopTabs,
+#homeUi .shopGrid, #homeUi .good, #homeUi .gIc, #homeUi .gName, #homeUi .gTag, #homeUi .gBuy, #homeUi .gHot,
+#homeUi .heroPick, #homeUi .hpick, #homeUi .heroHead, #homeUi .heroName, #homeUi .star, #homeUi .tagRow,
+#homeUi .powerBadge, #homeUi .heroMain, #homeUi .slotCol, #homeUi .slot, #homeUi .heroFigure, #homeUi .halo,
+#homeUi .halo2, #homeUi .heroEmoji, #homeUi .heroLv, #homeUi .statRow, #homeUi .stat, #homeUi .row3,
+#homeUi .chTabs, #homeUi .lvlTrack, #homeUi .dot, #homeUi .scene, #homeUi .sceneInfo, #homeUi .siChip,
+#homeUi .siHp, #homeUi .hpBar, #homeUi .sceneTitle, #homeUi .screenHeading, #homeUi .arrow, #homeUi .stageInfo,
+#homeUi .siBox, #homeUi .chests, #homeUi .chest, #homeUi .stageBtns, #homeUi .skillCard, #homeUi .sIcon,
+#homeUi .sInfo, #homeUi .sName, #homeUi .sDesc, #homeUi .sAct, #homeUi .sLv, #homeUi .skillHint,
+#homeUi .baseBanner, #homeUi .bbIc, #homeUi .bcard, #homeUi .bIc, #homeUi .bName, #homeUi .bDesc,
+#homeUi .protoMask, #homeUi .mbox, #homeUi .mHead, #homeUi .mClose, #homeUi .mSub, #homeUi .mRow,
+#homeUi .bagTabs, #homeUi .bagGrid, #homeUi .bcell, #homeUi .sqRow, #homeUi .sqSlot, #homeUi .cand,
+#homeUi .candB, #homeUi .tabbar, #homeUi .tab, #homeUi .res .add, #homeUi .expbar i, #homeUi .lvtag,
+#homeUi .frame::before, #homeUi .frame::after { animation: none; }
+
+/* --- 布局骨架 --- */
+#homeUi .topbar { display: grid; grid-template-columns: calc(44px * var(--pw,2.5)) 1fr; gap: calc(8px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
+  padding: calc(12px * var(--pw,2.5)) calc(16px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
+  background: linear-gradient(#50788c, #355b70); border-bottom: calc(3px * var(--pw,2.5)) solid #26485b; color: #fff; }
+#homeUi .pAvatar { height: calc(44px * var(--pw,2.5)); width: calc(44px * var(--pw,2.5)); border-radius: calc(8px * var(--pw,2.5));
+  background: #eab56c; padding: calc(2px * var(--pw,2.5)); grid-row: 1; }
+#homeUi .pAvatar > div { border-radius: calc(6px * var(--pw,2.5)); background-color: #d4e4eb; }
+#homeUi .pinfo { width: auto; display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: calc(2px * var(--pw,2.5)) calc(10px * var(--pw,2.5)); }
+#homeUi .pname { font-size: calc(14px * var(--pw,2.5)); grid-column: 1 / -1; }
+#homeUi .expnum { font-size: calc(10px * var(--pw,2.5)); color: #d5e5eb; margin: 0; }
+#homeUi .expbar { margin: 0; background: #25485d; border: none; height: calc(6px * var(--pw,2.5)); border-radius: 0; }
+#homeUi .expbar i { box-shadow: none; background: #89cbd5; border-radius: 0; }
+#homeUi .lvtag { background: #efc780; border: 1px solid #c7944b; color: #64421d; border-radius: calc(3px * var(--pw,2.5)); font-weight: inherit; }
+#homeUi .reswrap { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(7px * var(--pw,2.5)); }
+#homeUi .res { min-width: 0; border: 1px solid #274a5e; border-radius: calc(5px * var(--pw,2.5)); background: #294d62;
+  font-size: calc(12px * var(--pw,2.5)); padding: calc(4px * var(--pw,2.5)) calc(5px * var(--pw,2.5));
+  gap: calc(4px * var(--pw,2.5)); box-shadow: inset 0 1px 2px #183b53; border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .res b { color: #fff; flex: 1; }
+#homeUi .res .add { width: calc(24px * var(--pw,2.5)); height: calc(24px * var(--pw,2.5)); background: #789e6d;
+  color: #fff; border-radius: calc(4px * var(--pw,2.5)); margin: 0; font-size: calc(17px * var(--pw,2.5)); }
+#homeUi .viewport { background: #e6eef3; background-image: none; }
+#homeUi .screen { padding: calc(16px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) calc(20px * var(--pw,2.5)); }
+#homeUi .screen.sStage { padding: 0 0 calc(14px * var(--pw,2.5)); }
+#homeUi .panel { background: linear-gradient(#fcfdfe, #eaf1f5); border: 1px solid #b5c8d5;
+  border-radius: calc(8px * var(--pw,2.5)); box-shadow: 0 2px 0 #aebfcd55, inset 0 1px #fff; }
+#homeUi .frame::before, #homeUi .frame::after { display: none; content: none; }
+#homeUi .secTitle { font-size: calc(14px * var(--pw,2.5)); margin: calc(15px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
+  color: #355365; letter-spacing: 0; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .secTitle::before { background: #eb9843; height: calc(16px * var(--pw,2.5)); width: calc(4px * var(--pw,2.5)); }
+
+/* --- 按钮 / 标签 --- */
+#homeUi .btn { border-radius: calc(6px * var(--pw,2.5)); min-height: calc(44px * var(--pw,2.5)); box-shadow: none;
+  font-size: calc(14px * var(--pw,2.5)); }
+#homeUi .btn.gold { background: linear-gradient(#ffc06e, #f29a40 60%, #e88931); color: #58320f; border: 1px solid #c57b2e;
+  box-shadow: inset 0 2px #ffdb9d, 0 3px 0 #ad6626; }
+#homeUi .btn.blue { background: linear-gradient(#8db8cb, #6191ac); color: #173e52; border: 1px solid #527d96;
+  box-shadow: inset 0 2px #b4d5e4, 0 3px 0 #466c85; }
+#homeUi .btn.adBtn { background: linear-gradient(#8fc79a, #5b9a67); color: #17361f; border: 1px solid #4c8457;
+  box-shadow: inset 0 2px #b9dfc1, 0 3px 0 #41704b; }
+#homeUi .btn.dark { background: linear-gradient(#fafcfd, #d7e4ec); border: 1px solid #9fb7c7; color: #35566b;
+  box-shadow: 0 2px 0 #9fb7c7; }
+#homeUi .btn.sm { height: calc(44px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .btn.big { height: calc(50px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); font-size: calc(16px * var(--pw,2.5)); letter-spacing: 0; }
+#homeUi .tag { border-radius: calc(4px * var(--pw,2.5)); background: #e4edf3; color: #456477; font-size: calc(10px * var(--pw,2.5));
+  padding: calc(3px * var(--pw,2.5)) calc(6px * var(--pw,2.5)); border: 1px solid transparent; }
+#homeUi .tag.g { background: #fff1d8; border-color: #d7b279; color: #88551f; }
+#homeUi .tag.b { background: #dfedf5; color: #28637f; border-color: #97bacd; }
+#homeUi .tag.p { background: #eee5f2; color: #765188; border-color: #bda1cc; }
+#homeUi .goldT { color: #945d24; }
+
+/* --- Toast / 弹窗 --- */
+#homeUi .toastEl { background: #244b60; color: #fff; border: 1px solid #89abbf; border-radius: calc(7px * var(--pw,2.5));
+  white-space: normal; text-align: center; max-width: calc(100% - 32px); width: max-content; line-height: 1.6;
+  bottom: calc(95px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); font-weight: 700;
+  padding: calc(9px * var(--pw,2.5)) calc(18px * var(--pw,2.5)); }
+#homeUi .protoMask { background: #183b50b8; backdrop-filter: blur(4px); padding: calc(16px * var(--pw,2.5)); }
+#homeUi .mbox { background: #edf4f8; border: calc(2px * var(--pw,2.5)) solid #9db9ca; border-radius: calc(10px * var(--pw,2.5));
+  padding: calc(16px * var(--pw,2.5)); box-shadow: 0 15px 50px #12324366; }
+#homeUi .mHead h3 { font-size: calc(18px * var(--pw,2.5)); color: #31536a; }
+#homeUi .mHead { gap: calc(8px * var(--pw,2.5)); }
+#homeUi .mClose { height: calc(44px * var(--pw,2.5)); width: calc(44px * var(--pw,2.5)); flex: none; background: #dae6ee;
+  border-color: #a5becd; color: #365b70; border-radius: calc(6px * var(--pw,2.5)); font-size: calc(17px * var(--pw,2.5)); }
+#homeUi .mSub { font-size: calc(12px * var(--pw,2.5)); line-height: 1.7; color: #536f7f; }
+#homeUi .mRow { background: #fff; border-color: #c2d3df; border-radius: calc(5px * var(--pw,2.5)); gap: calc(8px * var(--pw,2.5));
+  flex-wrap: wrap; font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .bagTabs button { height: calc(44px * var(--pw,2.5)); background: #d7e4ed; color: #526d7d; border-color: #b1c6d5;
+  border-radius: calc(5px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .bagTabs button.on { background: #fff8e9; color: #8c5927; border-color: #d8ad74; box-shadow: inset 0 -2px #e9ab5c; }
+#homeUi .bcell { background: #dce8ef; border: 1px solid #b8cbd7; border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .bcell em { color: #395a6b; text-shadow: none; }
+#homeUi .sqRow { gap: calc(6px * var(--pw,2.5)); }
+#homeUi .sqSlot { min-width: 0; flex: 1; background: #d9e7ef; border: 1px solid #b8cbd7; border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .sqSlot span { color: #243e4d; }
+#homeUi .sqSlot.empty { border-style: dashed; border-color: #b8cbd7; color: #758994; }
+#homeUi .candB { background: #e1ebf2; border: 1px solid #b3c8d6; border-radius: calc(5px * var(--pw,2.5)); min-height: calc(64px * var(--pw,2.5)); color: #243e4d; }
+
+/* --- 商店页 --- */
+#homeUi .shopBanner { height: calc(125px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); border: 1px solid #a8bdc7;
+  background-color: #547b85; background-image: none; }
+#homeUi .shopBanner::after { content: ''; display: block; position: absolute; inset: 0; width: auto; height: auto;
+  border: 0; border-radius: 0; opacity: 1; z-index: 1; pointer-events: none;
+  background: linear-gradient(90deg, #163b50dd, transparent); }
+#homeUi .sbTxt h3 { font-size: calc(19px * var(--pw,2.5)); color: #fff; }
+#homeUi .sbTxt p { color: #e7eff0; }
+#homeUi .sbTxt .price { color: #ffce8f; margin-top: calc(7px * var(--pw,2.5)); }
+#homeUi .sbGift { font-size: 0; }
+#homeUi .sbTime { font-size: calc(10px * var(--pw,2.5)); }
+#homeUi .shopTabs { margin: calc(14px * var(--pw,2.5)) 0; gap: calc(5px * var(--pw,2.5)); }
+#homeUi .shopTabs button { height: calc(44px * var(--pw,2.5)); background: #d7e4ed; color: #526d7d; border-color: #b1c6d5;
+  border-radius: calc(5px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .shopTabs button.on { background: #fff8e9; color: #8c5927; border-color: #d8ad74; box-shadow: inset 0 -2px #e9ab5c; }
+#homeUi .good { padding: calc(10px * var(--pw,2.5)); }
+#homeUi .gIc { height: calc(92px * var(--pw,2.5)); background: linear-gradient(#e8f0f6, #d4e2eb); border-color: #b3c6d5;
+  border-radius: calc(5px * var(--pw,2.5)); font-size: calc(38px * var(--pw,2.5)); }
+#homeUi .gName { font-size: calc(15px * var(--pw,2.5)); }
+#homeUi .gTag { font-size: calc(11px * var(--pw,2.5)); margin: calc(4px * var(--pw,2.5)) 0 calc(10px * var(--pw,2.5)); }
+#homeUi .gBuy { height: calc(44px * var(--pw,2.5)); font-size: calc(14px * var(--pw,2.5)); }
+#homeUi .gHot { background: #b54f37; border-radius: calc(3px * var(--pw,2.5)); font-size: calc(9px * var(--pw,2.5));
+  top: calc(8px * var(--pw,2.5)); right: calc(7px * var(--pw,2.5)); box-shadow: none; }
+#homeUi .screenHeading { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 calc(14px * var(--pw,2.5)); }
+#homeUi .screenHeading h2 { font-size: calc(23px * var(--pw,2.5)); color: #264756; font-weight: 900; letter-spacing: 0; }
+#homeUi .screenHeading small { font-size: calc(11px * var(--pw,2.5)); color: #536f7f; font-weight: 700; margin: 0; }
+
+/* --- 英雄选择条 / 英雄页 --- */
+#homeUi .heroPick { padding: calc(4px * var(--pw,2.5)) 0 calc(10px * var(--pw,2.5)); gap: calc(8px * var(--pw,2.5)); }
+#homeUi .hpick { width: calc(60px * var(--pw,2.5)); color: #536f7f; }
+#homeUi .hpick .pic { height: calc(56px * var(--pw,2.5)); width: calc(54px * var(--pw,2.5)); background-color: #d9e6ef;
+  border: 2px solid #b5c9d7; border-radius: calc(6px * var(--pw,2.5)); }
+#homeUi .hpick.on .pic { box-shadow: 0 2px 0 #cc9854; border-color: #e5ac5e; transform: none; background-color: #fff0d9; }
+#homeUi .hpick.on { color: #855522; }
+#homeUi .hpick i { font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .hpick.lock::after { top: calc(5px * var(--pw,2.5)); right: calc(6px * var(--pw,2.5)); transform: none; }
+#homeUi .heroHead { align-items: flex-start; margin: calc(10px * var(--pw,2.5)) 0 calc(10px * var(--pw,2.5)); gap: calc(4px * var(--pw,2.5)); }
+#homeUi .heroName { font-size: calc(20px * var(--pw,2.5)); }
+#homeUi .star { display: block; margin: calc(3px * var(--pw,2.5)) 0 0; color: #b97620; text-shadow: none; }
+#homeUi .tagRow { flex-wrap: wrap; gap: calc(3px * var(--pw,2.5)); }
+#homeUi .powerBadge { padding: calc(6px * var(--pw,2.5)) calc(8px * var(--pw,2.5)); background: #fff1d9; border-color: #d2ad75;
+  color: #875623; border-radius: calc(5px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); box-shadow: none; }
+#homeUi .heroMain { grid-template-columns: calc(60px * var(--pw,2.5)) minmax(0, 1fr) calc(60px * var(--pw,2.5)); gap: calc(5px * var(--pw,2.5));
+  padding: calc(10px * var(--pw,2.5)) 0; background: linear-gradient(transparent, #d2e2eb); margin: 0 calc(-2px * var(--pw,2.5)); }
+#homeUi .heroFigure { height: calc(220px * var(--pw,2.5)); }
+#homeUi .halo, #homeUi .halo2 { display: none; }
+#homeUi .heroEmoji { width: 100%; max-width: calc(150px * var(--pw,2.5)); height: calc(190px * var(--pw,2.5)); filter: none; }
+#homeUi .heroLv { background: #eaf2f7; border-color: #aac0cf; border-radius: calc(4px * var(--pw,2.5));
+  padding: calc(4px * var(--pw,2.5)) calc(6px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); margin: 0; color: #236581; }
+#homeUi .slotCol { gap: calc(29px * var(--pw,2.5)); }
+#homeUi .slot { height: calc(48px * var(--pw,2.5)); width: calc(48px * var(--pw,2.5));
+  background: linear-gradient(#f9fbfc, #d5e4ed); border-color: #afc3d1; border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .slot.filled { border-color: #bc9b63; box-shadow: inset 0 0 0 2px #f7e8cb; }
+#homeUi .slot .sname { top: calc(-17px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: #536f7f; }
+#homeUi .slot .slv { border-radius: calc(3px * var(--pw,2.5)); background: #ecd1a0; border-color: #c69c5e; }
+#homeUi .statRow { gap: 0; margin: 0 0 calc(14px * var(--pw,2.5)); background: #f5f9fb; border-bottom: 1px solid #becfda; }
+#homeUi .stat { border: none; border-radius: 0; background: none; box-shadow: none; padding: calc(11px * var(--pw,2.5)) calc(2px * var(--pw,2.5));
+  font-size: calc(12px * var(--pw,2.5)); color: #536f7f; }
+#homeUi .stat b { font-size: calc(18px * var(--pw,2.5)); color: #243e4d; }
+#homeUi .row3 { gap: calc(8px * var(--pw,2.5)); }
+#homeUi .row3 .btn { font-size: calc(12px * var(--pw,2.5)); height: calc(46px * var(--pw,2.5)); min-width: 0; }
+
+/* --- 关卡页 --- */
+#homeUi .chTabs { padding: calc(12px * var(--pw,2.5)) calc(12px * var(--pw,2.5)) 0; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .chTabs button { height: calc(47px * var(--pw,2.5)); background: #d5e1e9; color: #526d7b; border: 1px solid #aec2cf;
+  border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .chTabs button b { font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .chTabs button span { font-size: calc(10px * var(--pw,2.5)); }
+#homeUi .chTabs button.on { background: #f8fbfd; border-color: #89a6b7; color: #2d5266; box-shadow: inset 0 -3px #e99a42; }
+#homeUi .chTabs button.lock { opacity: 1; color: #758994; background: #dae3e8; }
+#homeUi .lvlTrack { display: flex; justify-content: space-between; align-items: center;
+  margin: calc(9px * var(--pw,2.5)) calc(12px * var(--pw,2.5)) 0; height: calc(44px * var(--pw,2.5)); }
+#homeUi .lvlTrack::before { left: calc(12px * var(--pw,2.5)); right: calc(12px * var(--pw,2.5));
+  top: calc(21px * var(--pw,2.5)); background: #b7cbd7; height: calc(3px * var(--pw,2.5)); border-radius: 0; }
+#homeUi .dot { position: relative; left: auto !important; top: auto !important; transform: none !important;
+  width: calc(26px * var(--pw,2.5)); height: calc(44px * var(--pw,2.5)); border: 0; border-radius: calc(4px * var(--pw,2.5));
+  background: transparent; display: grid; place-items: center; box-shadow: none !important; color: #31596d; }
+#homeUi .dot::before { content: ''; position: absolute; inset: calc(10px * var(--pw,2.5)) calc(2px * var(--pw,2.5));
+  border: 1px solid #abc0ce; background: #dce7ee; border-radius: calc(4px * var(--pw,2.5)); z-index: -1; }
+#homeUi .dot.done { background: none; border: 0; }
+#homeUi .dot.done::before { background: #7299a9; border-color: #537e92; }
+#homeUi .dot.done em { color: white; }
+#homeUi .dot.cur { background: none; border: none; }
+#homeUi .dot.cur::before { inset: calc(7px * var(--pw,2.5)) 0; background: #f4b668; border: 2px solid white;
+  box-shadow: 0 0 0 1px #ce9142; }
+#homeUi .dot em { position: static; transform: none; font-size: calc(11px * var(--pw,2.5)); color: inherit; }
+#homeUi .dot.lock { color: #8a9fab; }
+#homeUi .scene, #homeUi .scene.c1, #homeUi .scene.c2, #homeUi .scene.c3 { height: calc(290px * var(--pw,2.5));
+  margin: calc(2px * var(--pw,2.5)) 0 0; border: 0; border-radius: 0; background-color: #8dbac0;
+  background-image: none; box-shadow: none; overflow: hidden; }
+#homeUi .scene > .sun, #homeUi .scene > .mtn, #homeUi .scene > .hill, #homeUi .scene > .ground, #homeUi .scene > .road,
+#homeUi .scene > .dash, #homeUi .scene > .water, #homeUi .scene > .mobs, #homeUi .scene > .veh, #homeUi .scene > .crew,
+#homeUi .scene > .plane, #homeUi .scene > .cloud, #homeUi .scene > .bolt { display: none !important; }
+#homeUi .scene::after { content: ''; position: absolute; inset: 55% 0 0; display: block; width: auto; height: auto;
+  border: 0; border-radius: 0; opacity: 1; z-index: 1; pointer-events: none;
+  background: linear-gradient(transparent, #173d4dcc); }
+#homeUi .sceneInfo { padding: calc(12px * var(--pw,2.5)); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .siChip { background: #f7fcf3ed; border: 1px solid #fff; border-radius: calc(4px * var(--pw,2.5));
+  color: #365360; font-size: calc(11px * var(--pw,2.5)); padding: calc(6px * var(--pw,2.5)) calc(8px * var(--pw,2.5));
+  box-shadow: 0 2px 6px #24465326; }
+#homeUi .siHp { background: #234b5be8; color: #fff; font-size: calc(10px * var(--pw,2.5));
+  padding: calc(6px * var(--pw,2.5)); border: 1px solid #8db4bd; border-radius: calc(4px * var(--pw,2.5));
+  gap: calc(4px * var(--pw,2.5)); }
+#homeUi .hpBar { width: calc(40px * var(--pw,2.5)); border: none; background: #173c49; height: calc(5px * var(--pw,2.5)); border-radius: 0; }
+#homeUi .hpBar i { background: #91ce93; }
+#homeUi .arrow { width: calc(44px * var(--pw,2.5)); height: calc(44px * var(--pw,2.5)); top: 43%;
+  background: #244a5d9c; border: 1px solid #c3dce291; color: #fff; border-radius: calc(6px * var(--pw,2.5)); font-size: calc(18px * var(--pw,2.5)); }
+#homeUi .arrow:hover { background: #244a5dd9; }
+#homeUi .sceneTitle { position: absolute; bottom: calc(17px * var(--pw,2.5)); left: calc(18px * var(--pw,2.5));
+  top: auto; right: auto; text-align: left; z-index: 3; color: #fff; text-shadow: 0 2px 4px #153c50; pointer-events: none; }
+#homeUi .sceneTitle small { font-size: calc(10px * var(--pw,2.5)); font-weight: 800; color: #fbd194; letter-spacing: 0; }
+#homeUi .sceneTitle h1 { font-size: calc(26px * var(--pw,2.5)); margin-top: calc(4px * var(--pw,2.5)); font-weight: 900; letter-spacing: 0; }
+#homeUi .sceneTitle p { font-size: calc(11px * var(--pw,2.5)); margin-top: calc(5px * var(--pw,2.5)); color: #e0eef1; }
+#homeUi .stageInfo { margin: 0; padding: calc(12px * var(--pw,2.5)); background: #f8fafb; border-bottom: 1px solid #bfced8; gap: 0; }
+#homeUi .siBox { background: none; border: none; border-radius: 0; box-shadow: none; padding: 0 calc(5px * var(--pw,2.5));
+  font-size: calc(10px * var(--pw,2.5)); color: #536f7f; }
+#homeUi .siBox + .siBox { border-left: 1px solid #c9d6df; }
+#homeUi .siBox b { font-size: calc(12px * var(--pw,2.5)); margin-top: calc(4px * var(--pw,2.5)); color: #243e4d; }
+#homeUi .siBox:first-child { flex: 1.5; }
+#homeUi .siBox b.ok { color: #267555; }
+#homeUi .siBox b.go { color: #9b5a20; }
+#homeUi .chests { margin: 0 calc(14px * var(--pw,2.5)); gap: calc(8px * var(--pw,2.5)); }
+#homeUi .chest { padding: calc(8px * var(--pw,2.5)) calc(3px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); min-width: 0; }
+#homeUi .chest .cic { height: calc(38px * var(--pw,2.5)); font-size: calc(28px * var(--pw,2.5));
+  width: calc(48px * var(--pw,2.5)); background-size: contain; background-repeat: no-repeat; background-position: center; }
+#homeUi .chest p { font-size: calc(10px * var(--pw,2.5)); color: #536f7f; }
+#homeUi .chest .tag { font-size: calc(9px * var(--pw,2.5)); border: none; background: none; padding: calc(3px * var(--pw,2.5)) 0;
+  white-space: normal; min-height: calc(40px * var(--pw,2.5)); display: grid !important; place-items: center; color: #456477; }
+#homeUi .chest.ready { background: #fff5dd; border: 1px solid #d5a254; }
+#homeUi .chest.got, #homeUi .chest.lock { opacity: 1; }
+#homeUi .chest.got .cic { opacity: .6; }
+#homeUi .chest .cbtn { height: calc(44px * var(--pw,2.5)); min-height: calc(44px * var(--pw,2.5)); width: 85%;
+  font-size: calc(12px * var(--pw,2.5)); margin-top: calc(3px * var(--pw,2.5)); }
+#homeUi .stageBtns { position: sticky; bottom: calc(-14px * var(--pw,2.5)); z-index: 10;
+  margin: calc(12px * var(--pw,2.5)) 0 calc(-14px * var(--pw,2.5)); padding: calc(10px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) calc(15px * var(--pw,2.5));
+  background: #e6eef3f5; border-top: 1px solid #cedce5; gap: calc(10px * var(--pw,2.5)); }
+#homeUi .stageBtns .btn.squad, #homeUi .stageBtns .btn.go { height: calc(49px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5)); }
+#homeUi .stageBtns .btn.go { font-size: calc(18px * var(--pw,2.5)); letter-spacing: 0; }
+
+/* --- 技能页 / 基地页 --- */
+#homeUi .skillCard { gap: calc(9px * var(--pw,2.5)); padding: calc(12px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
+  min-height: calc(132px * var(--pw,2.5)); align-items: center; margin-bottom: calc(10px * var(--pw,2.5)); }
+#homeUi .sIcon { width: calc(42px * var(--pw,2.5)); height: calc(48px * var(--pw,2.5)); background: #d8e8f1; border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .sName { font-size: calc(15px * var(--pw,2.5)); flex-wrap: wrap; gap: calc(4px * var(--pw,2.5)); }
+#homeUi .sDesc { font-size: calc(12px * var(--pw,2.5)); line-height: 1.7; color: #536f7f; }
+#homeUi .sAct { width: calc(76px * var(--pw,2.5)); }
+#homeUi .sAct .btn { padding: 0 calc(5px * var(--pw,2.5)); font-size: calc(11px * var(--pw,2.5)); width: 100%; }
+#homeUi .sLv { font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .skillHint { display: none; }
+#homeUi .baseBanner { border: none; border-radius: 0; background: #365f70; color: #fff;
+  margin: calc(-16px * var(--pw,2.5)) calc(-14px * var(--pw,2.5)) calc(16px * var(--pw,2.5));
+  padding: calc(22px * var(--pw,2.5)) calc(16px * var(--pw,2.5)); box-shadow: none; }
+#homeUi .baseBanner h3 { font-size: calc(16px * var(--pw,2.5)); }
+#homeUi .baseBanner .lvtag { font-size: calc(9px * var(--pw,2.5)); }
+#homeUi .baseBanner .pros { color: #d5e5e9; font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .prosBar { width: calc(150px * var(--pw,2.5)); height: calc(6px * var(--pw,2.5)); background: #1d3a46;
+  border: 1px solid #567c8c; border-radius: 99px; }
+#homeUi .bbIc { filter: none; }
+#homeUi .bcard { padding: calc(12px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); }
+#homeUi .bIc { background: #e3edf3; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5));
+  width: calc(58px * var(--pw,2.5)); height: calc(58px * var(--pw,2.5)); }
+#homeUi .bName { font-size: calc(15px * var(--pw,2.5)); }
+#homeUi .bDesc { font-size: calc(12px * var(--pw,2.5)); min-height: calc(36px * var(--pw,2.5)); line-height: 1.6; }
+#homeUi .bcard.locked { opacity: .7; }
+
+/* --- 底部导航 --- */
+#homeUi .tabbar { height: calc(78px * var(--pw,2.5)); padding: calc(3px * var(--pw,2.5)) calc(6px * var(--pw,2.5));
+  background: linear-gradient(#edf4f8, #c9dbe6); border-top: 2px solid #fff; box-shadow: 0 -3px 10px #294f681c;
+  gap: calc(2px * var(--pw,2.5)); }
+#homeUi .tabbar::before { display: none; content: none; }
+#homeUi .tab { color: #527085; flex: 1; font-size: calc(12px * var(--pw,2.5)); height: calc(64px * var(--pw,2.5));
+  padding: calc(4px * var(--pw,2.5)) 0; gap: 0; border-radius: calc(6px * var(--pw,2.5)); }
+#homeUi .tab .ticon { width: calc(36px * var(--pw,2.5)); height: calc(36px * var(--pw,2.5)); display: grid; place-items: center; filter: none; }
+#homeUi .tab.on { background: #fff8e5; color: #88551f; box-shadow: inset 0 -3px #e9a04f; }
+#homeUi .tab.on .ticon { transform: none; filter: none; }
+#homeUi .tab.on::after { display: none; content: none; }
+#homeUi .tab.main { flex: 1.12; width: auto; height: calc(68px * var(--pw,2.5)); margin-top: calc(-8px * var(--pw,2.5));
+  border-radius: calc(9px * var(--pw,2.5)); background: linear-gradient(#ffcd82, #eda052); border: 1px solid #cc8d45;
+  color: #67411b; box-shadow: inset 0 2px #ffe8bb, 0 3px #b27a35; font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .tab.main .ticon { width: calc(39px * var(--pw,2.5)); height: calc(39px * var(--pw,2.5)); font-size: 0; }
 `;
         document.head.appendChild(style);
     }
