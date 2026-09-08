@@ -57,6 +57,9 @@ export class HomeUi extends Component {
     private _sceneChipEl: HTMLDivElement | null = null;
     private _vehEl: HTMLDivElement | null = null;
     private _mobsEl: HTMLDivElement | null = null;
+    private _missionTitleEl: HTMLElement | null = null;
+    /** 已领取宝箱的关卡（对齐原型 claimedRewards：ready 领取后置 got） */
+    private _claimedChests = new Set<string>();
     private _siLvlEl: HTMLElement | null = null;
     private _siPowEl: HTMLElement | null = null;
     private _siStEl: HTMLElement | null = null;
@@ -449,10 +452,24 @@ export class HomeUi extends Component {
     // ================= 商店页 =================
 
     /** 商店页：礼包 banner + 四页签（英雄/装备/宝石/材料）+ 广告补给 + 双列商品网格 */
+    /** 页面头部标题（对齐原型 screen-heading：h2 主标题 + small 副题） */
+    private _mkHeading(h2: string, small: string): HTMLDivElement {
+        const hd = document.createElement('div');
+        hd.className = 'screenHeading';
+        const t = document.createElement('h2');
+        t.textContent = h2;
+        const s = document.createElement('small');
+        s.textContent = small;
+        hd.appendChild(t);
+        hd.appendChild(s);
+        return hd;
+    }
+
     private _buildMallPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.mall = page;
+        page.appendChild(this._mkHeading('补给商店', '每日精选'));
 
         // 限时礼包 banner（装饰，点击 toast）
         const banner = document.createElement('div');
@@ -705,6 +722,7 @@ export class HomeUi extends Component {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.heroes = page;
+        page.appendChild(this._mkHeading('英雄档案', '护卫队 / 04'));
         const pick = document.createElement('div');
         pick.className = 'heroPick';
         page.appendChild(pick);
@@ -1293,7 +1311,7 @@ export class HomeUi extends Component {
         page.appendChild(track);
         this._lvlTrackEl = track;
 
-        // 护送场景（CSS 动画：太阳/山丘/公路/载具/怪物 + 耐久角标 + 左右箭头）
+        // 护送场景（CSS 动画：太阳/山丘/公路/载具/怪物 + 任务标题 + 最佳耐久 + 左右箭头）
         const scene = document.createElement('div');
         scene.className = 'scene frame';
         scene.innerHTML = `<div class="sun"></div><div class="mtn"></div><div class="hill"></div>` +
@@ -1301,8 +1319,10 @@ export class HomeUi extends Component {
             `<div class="mobs"><span>🐺</span><span>🐗</span><span>🦅</span></div>` +
             `<div class="veh">🚚</div>` +
             `<div class="crew"><i></i><i></i><i></i><i></i></div>` +
+            `<div class="sceneTitle"><small>末日航线 / 护送行动</small><h1 class="missionTitle"></h1>` +
+            `<p>穿越荒原，让希望抵达下一站。</p></div>` +
             `<div class="sceneInfo"><div class="siChip"></div>` +
-            `<div class="siHp">🛡️ 难度 ×<b class="hpMul"></b></div></div>`;
+            `<div class="siHp">最佳耐久 <div class="hpBar"><i></i></div> 82%</div></div>`;
         const al = document.createElement('div');
         al.className = 'arrow l';
         al.textContent = '‹';
@@ -1326,6 +1346,7 @@ export class HomeUi extends Component {
         this._sceneChipEl = scene.querySelector('.siChip');
         this._vehEl = scene.querySelector('.veh');
         this._mobsEl = scene.querySelector('.mobs');
+        this._missionTitleEl = scene.querySelector('.missionTitle');
         this._arrowL = al;
         this._arrowR = ar;
 
@@ -1343,7 +1364,7 @@ export class HomeUi extends Component {
         // 耐久结算宝箱三档
         const chestTitle = document.createElement('div');
         chestTitle.className = 'secTitle';
-        chestTitle.textContent = '🛡️ 通关宝箱 · 越少受伤，奖励越丰厚';
+        chestTitle.textContent = '🎁 护送奖励 · 越少受伤，奖励越丰厚';
         page.appendChild(chestTitle);
         const chests = document.createElement('div');
         chests.className = 'chests';
@@ -1419,7 +1440,7 @@ export class HomeUi extends Component {
             tabs.appendChild(b);
         });
 
-        // 波次进度轨道（done = 已通关整关全部点亮 / 当前关 cur 高亮最后一格）
+        // 波次进度轨道（done = 已通关整关全部点亮 / 当前关 cur 高亮 + 下一格 available / 未达 lock）
         track.innerHTML = '';
         const clearedAll = stageId <= gm.stageCleared;
         for (let w = 0; w < WAVES_PER_STAGE; w++) {
@@ -1427,8 +1448,8 @@ export class HomeUi extends Component {
             let cls = 'lock';
             if (clearedAll) {
                 cls = 'done';
-            } else if (stageId === gm.stageCleared + 1 && w === WAVES_PER_STAGE - 1) {
-                cls = 'cur';
+            } else if (stageId === gm.stageCleared + 1) {
+                cls = w === WAVES_PER_STAGE - 1 ? 'cur' : (w === WAVES_PER_STAGE - 2 ? 'available' : 'lock');
             }
             dot.className = `dot ${cls}`;
             dot.style.left = `${8 + w * 21}%`;
@@ -1455,6 +1476,9 @@ export class HomeUi extends Component {
         }
         if (this._sceneChipEl) {
             this._sceneChipEl.textContent = `${info.name} ${theme.veh}`;
+        }
+        if (this._missionTitleEl) {
+            this._missionTitleEl.textContent = info.name.replace(/^\d+\./, '');
         }
         if (this._arrowL) {
             this._arrowL.style.visibility = stageId > 1 ? 'visible' : 'hidden';
@@ -1483,32 +1507,45 @@ export class HomeUi extends Component {
             }
         }
 
-        // 通关宝箱三档（已通关=可领，待挑战=锁，通关后可领=ready）
+        // 通关宝箱三档（对齐原型：耐久档位；当前关 ready 可领取，领取后置 got；宝箱用真贴图）
         chests.innerHTML = '';
-        const boxes: Array<[string, string, string, string, boolean]> = clearedAll
-            ? [['📦', '通关奖励', 'got', '已可领取', true], ['🎁', '无伤通关', 'got', '进阶挑战', false], ['🏆', '完美通关', 'lock', '敬请期待', false]]
+        const claimKey = `${stageId}`;
+        const claimed = this._claimedChests.has(claimKey);
+        const boxes: Array<[string, string, string]> = clearedAll
+            ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'got', '已领取'], ['满耐久通关', 'got', '已领取']]
             : stageId === gm.stageCleared + 1
-                ? [['📦', '通关奖励', 'ready', '', true], ['🎁', '无伤通关', 'lock', '进阶挑战', false], ['🏆', '完美通关', 'lock', '敬请期待', false]]
-                : [['📦', '通关奖励', 'lock', '通关后结算', true], ['🎁', '无伤通关', 'lock', '通关后结算', false], ['🏆', '完美通关', 'lock', '通关后结算', false]];
-        for (const [ic, label, st, tip, goldBox] of boxes) {
+                ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'ready', ''], ['满耐久通关', 'lock', '需完美护送']]
+                : [['耐久≥50%', 'lock', '通关后结算'], ['耐久≥75%', 'lock', '通关后结算'], ['满耐久通关', 'lock', '通关后结算']];
+        if (claimed && boxes[1][1] === 'ready') {
+            boxes[1][1] = 'got';
+            boxes[1][2] = '已领取';
+        }
+        for (const [label, st, tip] of boxes) {
             const c = document.createElement('div');
             c.className = `chest panel ${st}`;
             const cic = document.createElement('span');
             cic.className = 'cic';
-            cic.textContent = ic;
-            this._tex('ui/chest', u => { void u; });
+            this._tex('ui/chest', u => {
+                cic.style.backgroundImage = u;
+                cic.style.backgroundSize = 'contain';
+                cic.style.backgroundRepeat = 'no-repeat';
+                cic.style.backgroundPosition = 'center';
+            });
             c.appendChild(cic);
             const p = document.createElement('p');
             p.textContent = label;
             c.appendChild(p);
             if (st === 'ready') {
                 const b = document.createElement('button');
-                b.className = 'btn gold sm';
+                b.className = 'btn gold sm cbtn';
                 b.textContent = '领 取';
                 b.onclick = (e) => {
                     e.stopPropagation();
-                    // 通关奖励在结算面板发放，这里跳结算提示
-                    this._toast('通关奖励在战斗结算时发放');
+                    this._claimedChests.add(claimKey);
+                    SoundFx.play('coin');
+                    this._toast('领取成功：金币 ×3,000 + 精炼合金 ×10');
+                    this._refreshStagePage();
+                    this._refreshTop();
                 };
                 c.appendChild(b);
             } else {
@@ -1519,7 +1556,6 @@ export class HomeUi extends Component {
                 tag.textContent = tip;
                 c.appendChild(tag);
             }
-            void goldBox;
             chests.appendChild(c);
         }
 
@@ -1658,6 +1694,7 @@ export class HomeUi extends Component {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.core = page;
+        page.appendChild(this._mkHeading('战术研究', '技能成长'));
         const pick = document.createElement('div');
         pick.className = 'heroPick';
         page.appendChild(pick);
@@ -1668,7 +1705,7 @@ export class HomeUi extends Component {
         this._skillListEl = list;
         const hint = document.createElement('div');
         hint.className = 'skillHint';
-        hint.textContent = '—— 普攻 / 技能 / 大招 三线独立成长 · 战斗内三选一升级在此基础上继续 ——';
+        hint.textContent = '—— 普攻 / 技能 / 大招 三线独立成长 · 技能等级受研究所等级上限约束 ——';
         page.appendChild(hint);
         root.appendChild(page);
     }
@@ -2150,6 +2187,8 @@ export class HomeUi extends Component {
 #homeUi .dot { position: absolute; top: calc(8px * var(--hs,1)); width: calc(34px * var(--hs,1)); height: calc(34px * var(--hs,1));
   border-radius: 50%; background: #1a2947; border: 2px solid #3a567f; transform: translateX(-50%); z-index: 2; }
 #homeUi .dot.done { background: linear-gradient(180deg, #ffe9a8, #e0a23c); border-color: #8a5c12; box-shadow: 0 0 6px rgba(240,177,62,.5); }
+#homeUi .dot.available { background: linear-gradient(180deg, #ffe9a8, #e0a23c); border-color: #8a5c12; box-shadow: 0 0 10px rgba(240,177,62,.7); }
+#homeUi .dot.available em { color: #ffe9a8; }
 #homeUi .dot.cur { width: calc(44px * var(--hs,1)); height: calc(44px * var(--hs,1)); top: calc(2px * var(--hs,1));
   background: radial-gradient(circle, #fff2c8, #f0b13e); border-color: #fff; box-shadow: 0 0 14px rgba(245,196,81,.9); }
 #homeUi .dot em { position: absolute; top: calc(40px * var(--hs,1)); left: 50%; transform: translateX(-50%);
@@ -2192,6 +2231,18 @@ export class HomeUi extends Component {
   padding: calc(8px * var(--hs,1)) calc(20px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); font-weight: 700; }
 #homeUi .siHp { display: flex; align-items: center; gap: calc(8px * var(--hs,1)); background: rgba(10,20,38,.8);
   border: 1px solid #33507a; border-radius: calc(16px * var(--hs,1)); padding: calc(8px * var(--hs,1)) calc(16px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
+#homeUi .hpBar { width: calc(70px * var(--hs,1)); height: calc(6px * var(--hs,1)); border-radius: calc(99px * var(--hs,1));
+  background: #0a1426; border: 1px solid #2c405f; overflow: hidden; display: inline-block; }
+#homeUi .hpBar i { display: block; height: 100%; width: 82%; background: linear-gradient(90deg, #7fe08a, #3ad06a); }
+#homeUi .sceneTitle { position: absolute; top: calc(36px * var(--hs,1)); left: 0; right: 0; text-align: center; z-index: 5; pointer-events: none;
+  text-shadow: 0 2px 8px rgba(0,0,0,.6); }
+#homeUi .sceneTitle small { display: block; font-size: calc(20px * var(--hs,1)); color: #ffe9a8; letter-spacing: calc(4px * var(--hs,1)); }
+#homeUi .sceneTitle h1 { font-size: calc(44px * var(--hs,1)); font-weight: 900; color: #fff; letter-spacing: calc(6px * var(--hs,1));
+  margin-top: calc(4px * var(--hs,1)); }
+#homeUi .sceneTitle p { font-size: calc(18px * var(--hs,1)); color: #dce8f7; opacity: .8; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .screenHeading { margin-bottom: calc(20px * var(--hs,1)); }
+#homeUi .screenHeading h2 { font-size: calc(34px * var(--hs,1)); font-weight: 900; color: #ffe9a8; letter-spacing: calc(4px * var(--hs,1)); }
+#homeUi .screenHeading small { display: block; font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin-top: calc(4px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
 #homeUi .arrow { position: absolute; top: 46%; width: calc(68px * var(--hs,1)); height: calc(68px * var(--hs,1)); border-radius: 50%; z-index: 6; cursor: pointer;
   background: rgba(10,20,38,.6); border: 1px solid #4f7ab8; color: #ffe9a8; font-size: calc(36px * var(--hs,1)); font-weight: 900;
   display: flex; align-items: center; justify-content: center; }
@@ -2204,9 +2255,11 @@ export class HomeUi extends Component {
 #homeUi .siBox b.go { color: #ffe9a8; }
 #homeUi .chests { display: flex; gap: calc(16px * var(--hs,1)); }
 #homeUi .chest { flex: 1; text-align: center; padding: calc(20px * var(--hs,1)) calc(8px * var(--hs,1)) calc(16px * var(--hs,1)); }
-#homeUi .chest .cic { font-size: calc(64px * var(--hs,1)); display: block; }
+#homeUi .chest .cic { font-size: calc(64px * var(--hs,1)); display: block; width: calc(72px * var(--hs,1)); height: calc(72px * var(--hs,1));
+  margin: 0 auto; }
 #homeUi .chest p { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin-top: calc(8px * var(--hs,1)); }
 #homeUi .chest.ready { border-color: #8a6a20; animation: huiChest 1.8s ease-in-out infinite; }
+#homeUi .chest .cbtn { margin-top: calc(6px * var(--hs,1)); }
 @keyframes huiChest { 0%, 100% { box-shadow: 0 0 6px rgba(240,177,62,.2); } 50% { box-shadow: 0 0 18px rgba(240,177,62,.55); } }
 #homeUi .chest.got { opacity: .55; }
 #homeUi .chest.got .cic { filter: grayscale(1); }
