@@ -702,8 +702,9 @@ export class HomeUi extends Component {
         this._pages.heroes = page;
     }
 
-    /** 角色页刷新：立绘铺满整页作底板，小组件（头像铭牌/功能圆钮/武器槽/核心/
-     *  装备格/战力徽章）全部浮在底板上，下方为背包网格 */
+    /** 角色页刷新：完全复刻装备界面 HTML 稿布局——
+     *  stage（左上头像铭牌/左侧圆钮/中央立绘/盾形武器/宝石钮/右侧 2×3 装备格/火焰战力牌）
+     *  + 方案锻造行 + 背包标题行 + 六列背包网格 + 分类标签 */
     private _refreshHeroes(): void {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
@@ -712,41 +713,22 @@ export class HomeUi extends Component {
             return;
         }
         body.innerHTML = '';
-        body.className = 'heroDetailBody col base';
+        body.className = 'heroDetailBody col';
         const def = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length];
         const owned = gm.isHeroOwned(def.id);
         const inLineup = gm.isInLineup(def.id);
         const weaponName = def.weapon === 'rifle' ? '步枪' : def.weapon === 'sniper' ? '狙击' : def.weapon === 'laser' ? '激光' : '辐射';
 
-        // ---- 整页底板：英雄立绘铺满（点击 = 上阵切换 / 未拥有跳商城）----
-        const model = document.createElement('div');
-        model.className = 'heroModel' + (owned ? '' : ' locked');
-        this._tex(`characters/hero_${def.id}`, u => { model.style.backgroundImage = u; });
-        model.title = owned ? '点击切换上阵' : '未拥有，前往商城解锁';
-        model.onclick = (e) => {
-            e.stopPropagation();
-            if (!owned) {
-                SoundFx.play('ui');
-                this._switchPage('mall');
-                return;
-            }
-            SoundFx.unlock();
-            if (gm.toggleLineupMember(def.id)) {
-                SoundFx.play('ui');
-                this._refreshHeroes();
-            }
-        };
-        body.appendChild(model);
+        // ===== 角色展示区（.stage） =====
+        const stage = document.createElement('div');
+        stage.className = 'heroStage';
 
-        // 左上：头像 + 等级角标 + 名牌 + 定位徽章（浮在底板上）
+        // 左上：avatar-box（头像+等级角标+名牌）+ badge-role
         const avatarBox = document.createElement('div');
         avatarBox.className = 'heroAvatarBox';
         const faceWrap = document.createElement('div');
-        faceWrap.className = 'heroFaceWrap';
-        const face = document.createElement('div');
-        face.className = 'heroFace' + (owned ? '' : ' locked');
-        this._tex(`characters/hero_${def.id}`, u => { face.style.backgroundImage = u; });
-        faceWrap.appendChild(face);
+        faceWrap.className = 'heroFace';
+        this._tex(`characters/hero_${def.id}`, u => { faceWrap.style.backgroundImage = u; });
         if (owned) {
             const lv = document.createElement('div');
             lv.className = 'heroLvBadge';
@@ -758,13 +740,13 @@ export class HomeUi extends Component {
         plate.textContent = def.name;
         const roleBadge = document.createElement('div');
         roleBadge.className = 'heroRoleBadge';
-        roleBadge.textContent = `${def.role} · ${weaponName}` + (owned ? (inLineup ? ' · 上阵' : '') : ' · 未拥有');
+        roleBadge.textContent = `${def.role} · ${weaponName}` + (owned ? (inLineup ? ' · 上阵中' : '') : ' · 未拥有');
         avatarBox.appendChild(faceWrap);
         avatarBox.appendChild(plate);
         avatarBox.appendChild(roleBadge);
-        body.appendChild(avatarBox);
+        stage.appendChild(avatarBox);
 
-        // 左侧功能圆钮：上阵/下阵 + 升级（未拥有 = 去解锁）
+        // 左侧：side-btns 两个圆形功能钮（上阵/下阵 + 升级；未拥有 = 解锁跳商城）
         const side = document.createElement('div');
         side.className = 'heroSideBtns';
         const mkSide = (ic: string, tx: string, onTap: () => void, dim = false) => {
@@ -800,10 +782,30 @@ export class HomeUi extends Component {
                 this._switchPage('mall');
             }));
         }
-        body.appendChild(side);
+        stage.appendChild(side);
+
+        // 中央：char-model 英雄立绘（点击 = 上阵切换 / 未拥有跳商城）
+        const model = document.createElement('div');
+        model.className = 'heroCharModel' + (owned ? '' : ' locked');
+        this._tex(`characters/hero_${def.id}`, u => { model.style.backgroundImage = u; });
+        model.title = owned ? '点击切换上阵' : '未拥有，前往商城解锁';
+        model.onclick = (e) => {
+            e.stopPropagation();
+            if (!owned) {
+                SoundFx.play('ui');
+                this._switchPage('mall');
+                return;
+            }
+            SoundFx.unlock();
+            if (gm.toggleLineupMember(def.id)) {
+                SoundFx.play('ui');
+                this._refreshHeroes();
+            }
+        };
+        stage.appendChild(model);
 
         if (owned) {
-            // 主武器槽（立绘右侧）：显示等级，点击强化
+            // 右上：shield-slot 主武器（盾形 + 等级阶标，点击强化）
             const wpn = document.createElement('div');
             wpn.className = 'heroWpnSlot';
             const wpnMax = hs.isWeaponMaxLevel(def.id);
@@ -819,14 +821,14 @@ export class HomeUi extends Component {
                     this._refreshHeroes();
                 }
             };
-            body.appendChild(wpn);
+            stage.appendChild(wpn);
 
-            // 武器核心（主武器下方）：已嵌 = 点击拆除；未嵌 = 点击嵌入推荐件
+            // 武器下方：gem-btn 宝石钮（武器核心，嵌入/拆除）
             const core = hs.weaponCore(def.id);
             const gem = document.createElement('div');
             gem.className = 'heroGemBtn';
             if (core) {
-                gem.innerHTML = `<div class="heroGemIco" style="color:${EQUIP_TIER_COLORS[core.tier - 1]}">💠</div>` +
+                gem.innerHTML = `<div class="heroGemLines" style="color:${EQUIP_TIER_COLORS[core.tier - 1]}">◆◆◆</div>` +
                     `<div class="heroGemTx">${core.name}</div>`;
                 gem.title = `${core.desc}（点击拆除）`;
                 gem.onclick = (e) => {
@@ -840,7 +842,7 @@ export class HomeUi extends Component {
                 const rec = WEAPON_CORE_DEFS.slice()
                     .sort((a, b) => (a.tier - b.tier) || (a.baseCost - b.baseCost))[0] ?? null;
                 if (rec) {
-                    gem.innerHTML = `<div class="heroGemIco">💠</div><div class="heroGemTx">嵌入核心</div>`;
+                    gem.innerHTML = `<div class="heroGemLines">◆◆◆</div><div class="heroGemTx">宝石</div>`;
                     gem.title = `推荐 ${rec.name} · ${rec.desc}（${rec.baseCost}金，点击嵌入）`;
                     gem.onclick = (e) => {
                         e.stopPropagation();
@@ -850,69 +852,108 @@ export class HomeUi extends Component {
                         }
                     };
                 } else {
-                    gem.innerHTML = `<div class="heroGemIco">💠</div><div class="heroGemTx">暂无核心</div>`;
+                    gem.innerHTML = `<div class="heroGemLines">◆◆◆</div><div class="heroGemTx">暂无</div>`;
                 }
             }
-            body.appendChild(gem);
-        } else {
-            const lock = document.createElement('div');
-            lock.className = 'equipStat';
-            lock.style.cssText = 'position:absolute;right:0;top:calc(30px * var(--hs,1));width:calc(280px * var(--hs,1));text-align:center;';
-            lock.textContent = '解锁英雄后开放装备栏与武器养成';
-            body.appendChild(lock);
-        }
+            stage.appendChild(gem);
 
-        // 右侧：六槽装备格 2×3
-        const panel = document.createElement('div');
-        panel.className = 'heroEquipPanel';
-        if (owned) {
+            // 右侧：equip-panel 六槽装备格 2×3
+            const panel = document.createElement('div');
+            panel.className = 'heroEquipPanel';
             for (const slot of EQUIP_SLOTS) {
                 panel.appendChild(this._mkEquipCell(def.id, slot));
             }
-        }
-        body.appendChild(panel);
+            stage.appendChild(panel);
 
-        // 底部战力徽章（🔥 + 战力值）
-        const power = document.createElement('div');
-        power.className = 'heroFlameBadge';
-        if (owned) {
+            // 底部：flame-badge 火焰战力牌
+            const power = document.createElement('div');
+            power.className = 'heroFlameBadge';
             const pw = Math.round(def.atk * hs.atkMulOf(def.id) * 10);
-            power.innerHTML = `<span class="powerFlame">🔥</span><span class="powerNum">${pw}</span>`;
+            power.innerHTML = `<span class="fire">🔥</span><b>${pw}</b><i class="infoI">i</i>`;
             power.title = `Lv.${hs.heroLevel(def.id)} · 武器 Lv.${hs.weaponLevel(def.id)} · 装备/核心加成`;
+            stage.appendChild(power);
         } else {
-            power.innerHTML = `<span class="powerFlame">🔥</span><span class="powerNum">---</span>`;
+            const lock = document.createElement('div');
+            lock.className = 'heroLockTip';
+            lock.textContent = '解锁英雄后开放装备栏与武器养成';
+            stage.appendChild(lock);
         }
-        body.appendChild(power);
+        body.appendChild(stage);
 
+        // ===== 方案 & 锻造行（.plan-row） =====
+        const planRow = document.createElement('div');
+        planRow.className = 'heroPlanRow';
+        if (owned) {
+            const plans = ['1 方案1 ⚙️', '2', '3', '4', '5'];
+            for (let i = 0; i < plans.length; i++) {
+                const tab = document.createElement('div');
+                tab.className = 'heroPlanTab' + (i === 0 ? ' active' : '');
+                tab.textContent = plans[i];
+                planRow.appendChild(tab);
+            }
+            const more = document.createElement('div');
+            more.className = 'heroPlanTab';
+            more.textContent = '»';
+            planRow.appendChild(more);
+            // 锻造钮 = 武器强化（带红点）
+            const forge = document.createElement('div');
+            forge.className = 'heroForgeBtn';
+            const wpnMax = hs.isWeaponMaxLevel(def.id);
+            forge.innerHTML = wpnMax ? '⚒ 武器已满级' : `⚒ 武器强化 ${hs.weaponUpgradeCost(def.id)}金`;
+            forge.title = wpnMax ? '武器已满级' : '点击强化武器攻击力';
+            if (wpnMax) {
+                forge.classList.add('dim');
+            }
+            forge.onclick = (e) => {
+                e.stopPropagation();
+                if (wpnMax) {
+                    return;
+                }
+                SoundFx.unlock();
+                if (hs.upgradeWeapon(def.id)) {
+                    SoundFx.play('buy');
+                    this._refreshHeroes();
+                }
+            };
+            planRow.appendChild(forge);
+        }
+        body.appendChild(planRow);
 
-        // ---- 背包区：标题行 + 六列网格（点击格子打开对应槽位穿戴面板）----
+        // ===== 背包标题行（.bag-head：标题 + 筛选 + 一键合成） =====
         const bagHead = document.createElement('div');
-        bagHead.className = 'bagHead';
+        bagHead.className = 'heroBagHead';
         const bagTitle = document.createElement('div');
-        bagTitle.className = 'bagTitle';
+        bagTitle.className = 'heroBagTitle';
         bagTitle.textContent = '🎒 我的背包';
-        const bagCount = document.createElement('div');
-        bagCount.className = 'bagCount';
-        bagCount.textContent = `共 ${gm.bag.length} 件`;
+        const filter = document.createElement('div');
+        filter.className = 'heroBagFilter';
+        filter.textContent = '🔼 全部';
+        const merge = document.createElement('div');
+        merge.className = 'heroBagMerge';
+        merge.textContent = '一键合成';
+        merge.title = '敬请期待';
         bagHead.appendChild(bagTitle);
-        bagHead.appendChild(bagCount);
+        bagHead.appendChild(filter);
+        bagHead.appendChild(merge);
         body.appendChild(bagHead);
 
+        // ===== 六列背包网格（.bag-grid） =====
         const grid = document.createElement('div');
-        grid.className = 'bagGrid';
+        grid.className = 'heroBagGrid';
         if (gm.bag.length === 0) {
             const tip = document.createElement('div');
-            tip.className = 'bagEmptyTip';
+            tip.className = 'heroBagEmpty';
             tip.textContent = '背包空空如也，去商城购买装备部件吧';
             grid.appendChild(tip);
         } else {
             for (const item of gm.bag) {
                 const cell = document.createElement('div');
-                cell.className = 'bagCell';
+                cell.className = 'heroBagCell';
                 cell.style.borderColor = EQUIP_TIER_COLORS[item.tier - 1];
-                cell.innerHTML = `<span class="bagCellTier" style="color:${EQUIP_TIER_COLORS[item.tier - 1]}">${EQUIP_TIER_NAMES[item.tier - 1]}</span>` +
-                    `<span class="bagCellIco">${SLOT_EMOJI[item.slot] ?? '📦'}</span>`;
-                cell.title = `${bagItemName(item)} · 强化 Lv.${item.lv}（点击穿戴）`;
+                cell.style.background = `linear-gradient(180deg, ${EQUIP_TIER_COLORS[item.tier - 1]}22, #241a10)`;
+                cell.innerHTML = `<span class="slotIc">${SLOT_EMOJI[item.slot]}</span>` +
+                    `<span class="cnt">Lv.${item.lv}</span>`;
+                cell.title = `${bagItemName(item)} · ${EQUIP_TIER_NAMES[item.tier - 1]}（点击穿戴）`;
                 cell.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.play('ui');
@@ -922,14 +963,26 @@ export class HomeUi extends Component {
             }
         }
         body.appendChild(grid);
+
+        // ===== 分类标签（.cat-tabs：宝石/装备/材料/芯片，装饰） =====
+        const cats = document.createElement('div');
+        cats.className = 'heroCatTabs';
+        const catDefs: Array<[string, boolean]> = [['宝石', false], ['装备', true], ['材料', true], ['芯片', false]];
+        for (const [name, active] of catDefs) {
+            const c = document.createElement('div');
+            c.className = 'heroCat' + (active ? ' active' : '');
+            c.innerHTML = name + (name === '装备' ? '<span class="dot"></span>' : '');
+            cats.appendChild(c);
+        }
+        body.appendChild(cats);
     }
 
-    /** 六槽装备格（复刻稿 equip-cell）：品质描边 + 品质角标 + 部位图标 + 强化等级，点击弹出穿戴面板 */
+    /** 六槽装备格（复刻稿 equip-cell）：品质角标 + 部位图标 + 强化等级 + 宝石点，点击弹出穿戴面板 */
     private _mkEquipCell(heroId: string, slot: EquipSlot): HTMLDivElement {
         const hs = HeroSystem.instance;
         const cur = hs.equipped(heroId, slot);
         const cell = document.createElement('div');
-        cell.className = 'equipCell';
+        cell.className = 'heroEquipCell';
         if (cur) {
             let tier: 1 | 2 | 3 | 4 = 1;
             let name = '';
@@ -944,16 +997,19 @@ export class HomeUi extends Component {
                 }
             }
             cell.style.borderColor = EQUIP_TIER_COLORS[tier - 1];
+            // 宝石点：品质数=tier 个品质色点，其余绿点，共 4 点（复刻稿 stars 装饰）
+            const dots = [1, 2, 3, 4].map(n =>
+                `<i class="gemDot" style="background:${n <= tier ? EQUIP_TIER_COLORS[tier - 1] : '#58c05a'}"></i>`).join('');
             cell.innerHTML =
-                `<span class="equipCellTier">${EQUIP_TIER_NAMES[tier - 1]}</span>` +
-                `<div class="equipCellIco">${SLOT_EMOJI[slot]}</div>` +
-                `<div class="equipCellLv">${name} Lv.${cur.lv}</div>`;
+                `<span class="step">${EQUIP_TIER_NAMES[tier - 1]}</span>` +
+                `<div class="ico">${SLOT_EMOJI[slot]}</div>` +
+                `<div class="lvtx" style="color:${EQUIP_TIER_COLORS[tier - 1]}">${name} Lv.${cur.lv}</div>` +
+                `<div class="stars">${dots}</div>`;
             cell.title = `${EQUIP_SLOT_NAMES[slot]}：${name}（点击管理）`;
         } else {
             cell.innerHTML =
-                `<span class="equipCellTier dim">空</span>` +
-                `<div class="equipCellIco dim">${SLOT_EMOJI[slot]}</div>` +
-                `<div class="equipCellLv dim">${EQUIP_SLOT_NAMES[slot]}</div>`;
+                `<div class="ico dim">${SLOT_EMOJI[slot]}</div>` +
+                `<div class="lvtx dim">${EQUIP_SLOT_NAMES[slot]}</div>`;
         }
         cell.onclick = (e) => {
             e.stopPropagation();
@@ -1853,91 +1909,136 @@ export class HomeUi extends Component {
   padding: calc(20px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
   background: rgba(10,18,26,.72); border: calc(2px * var(--hs,1)) solid rgba(120,150,170,.25); }
 #homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
-/* ---- 角色页复刻布局：立绘整页底板 + 小组件浮层 + 背包网格 ---- */
-#homeUi .heroDetailBody.base { position: relative; min-height: calc(980px * var(--hs,1)); overflow: hidden;
-  padding: calc(20px * var(--hs,1)); }
-#homeUi .heroModel { position: absolute; inset: 0; z-index: 0; cursor: pointer;
-  background: radial-gradient(ellipse at 50% 24%, rgba(255,190,90,.14), transparent 60%),
-    center calc(30%) / contain no-repeat;
-  filter: drop-shadow(0 calc(8px * var(--hs,1)) calc(10px * var(--hs,1)) rgba(0,0,0,.6)); }
-#homeUi .heroModel.locked { filter: grayscale(1) brightness(.55); }
-#homeUi .heroDetailBody.base > *:not(.heroModel):not(.bagGrid):not(.bagHead) { z-index: 5; }
-#homeUi .heroAvatarBox { position: absolute; top: calc(4px * var(--hs,1)); left: calc(8px * var(--hs,1)); z-index: 5;
+/* ---- 角色页：完全复刻装备界面 HTML 稿 ---- */
+#homeUi .heroDetailBody { background: linear-gradient(180deg, #3a2c1c 0%, #241a10 40%, #1a120b 100%);
+  border: none; border-radius: 0; padding: 0; gap: 0; }
+#homeUi .heroDetailBody.col { flex-direction: column; flex-wrap: nowrap; }
+/* ===== 角色展示区 stage ===== */
+#homeUi .heroStage { position: relative; width: 100%; height: calc(600px * var(--hs,1)); flex: none; }
+#homeUi .heroAvatarBox { position: absolute; top: calc(4px * var(--hs,1)); left: calc(20px * var(--hs,1)); z-index: 5;
   display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); }
-#homeUi .heroFaceWrap { position: relative; }
-#homeUi .heroFace { width: calc(96px * var(--hs,1)); height: calc(96px * var(--hs,1)); border-radius: 50%;
-  border: calc(3px * var(--hs,1)) solid #f5a623; background: rgba(255,255,255,.08) center / contain no-repeat; }
+#homeUi .heroFace { position: relative; width: calc(104px * var(--hs,1)); height: calc(104px * var(--hs,1)); border-radius: 50%;
+  border: calc(4px * var(--hs,1)) solid #f5a623; background: linear-gradient(135deg, #c98850, #7a4a22) center / contain no-repeat; }
 #homeUi .heroFace.locked { filter: grayscale(1) brightness(.55); }
-#homeUi .heroLvBadge { position: absolute; top: calc(-8px * var(--hs,1)); left: calc(-10px * var(--hs,1));
-  background: linear-gradient(180deg, #ffd86b, #e0891f); color: #5a2d00; font-size: calc(20px * var(--hs,1)); font-weight: 800;
-  padding: calc(2px * var(--hs,1)) calc(10px * var(--hs,1)); border-radius: calc(16px * var(--hs,1)) calc(16px * var(--hs,1)) calc(16px * var(--hs,1)) calc(4px * var(--hs,1)); }
+#homeUi .heroLvBadge { position: absolute; top: calc(-8px * var(--hs,1)); left: calc(-12px * var(--hs,1));
+  background: linear-gradient(180deg, #ffd86b, #e0891f); color: #5a2d00; font-size: calc(22px * var(--hs,1)); font-weight: 800;
+  padding: calc(1px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(20px * var(--hs,1)) calc(20px * var(--hs,1)) calc(20px * var(--hs,1)) calc(4px * var(--hs,1));
+  border: calc(2px * var(--hs,1)) solid #8a5a10; }
 #homeUi .heroNamePlate { background: rgba(0,0,0,.5); color: #ffd98a; font-size: calc(24px * var(--hs,1));
-  padding: calc(2px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(6px * var(--hs,1));
+  padding: calc(2px * var(--hs,1)) calc(14px * var(--hs,1)); border-radius: calc(6px * var(--hs,1));
   border: calc(2px * var(--hs,1)) solid #6b5433; }
-#homeUi .heroRoleBadge { background: linear-gradient(180deg, #4a90d9, #2a5a9e); color: #fff;
-  font-size: calc(18px * var(--hs,1)); padding: calc(2px * var(--hs,1)) calc(10px * var(--hs,1)); border-radius: calc(4px * var(--hs,1)); }
-#homeUi .heroSideBtns { position: absolute; left: calc(10px * var(--hs,1)); top: calc(200px * var(--hs,1));
-  display: flex; flex-direction: column; gap: calc(16px * var(--hs,1)); z-index: 5; }
-#homeUi .heroCircleBtn { width: calc(84px * var(--hs,1)); height: calc(84px * var(--hs,1)); border-radius: 50%;
-  background: rgba(0,0,0,.45); border: calc(3px * var(--hs,1)) solid #8a6a3a; cursor: pointer;
+#homeUi .heroRoleBadge { position: absolute; top: calc(112px * var(--hs,1)); left: calc(16px * var(--hs,1)); z-index: 5;
+  background: linear-gradient(180deg, #4a90d9, #2a5a9e); color: #fff;
+  font-size: calc(20px * var(--hs,1)); padding: calc(3px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); }
+#homeUi .heroSideBtns { position: absolute; left: calc(24px * var(--hs,1)); top: calc(190px * var(--hs,1));
+  display: flex; flex-direction: column; gap: calc(24px * var(--hs,1)); z-index: 5; }
+#homeUi .heroCircleBtn { width: calc(92px * var(--hs,1)); height: calc(92px * var(--hs,1)); border-radius: 50%;
+  background: rgba(0,0,0,.45); border: calc(4px * var(--hs,1)) solid #8a6a3a; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(2px * var(--hs,1)); }
-#homeUi .heroCircleBtn .ic { font-size: calc(34px * var(--hs,1)); line-height: 1; }
-#homeUi .heroCircleBtn .tx { font-size: calc(18px * var(--hs,1)); color: #ffd98a; }
+#homeUi .heroCircleBtn .ic { font-size: calc(36px * var(--hs,1)); line-height: 1; }
+#homeUi .heroCircleBtn .tx { font-size: calc(20px * var(--hs,1)); color: #ffd98a; }
 #homeUi .heroCircleBtn.dim { opacity: .4; }
 #homeUi .heroCircleBtn:active { transform: scale(.94); }
-#homeUi .heroWpnSlot { position: absolute; right: calc(24px * var(--hs,1)); top: calc(36px * var(--hs,1)); z-index: 5;
-  width: calc(120px * var(--hs,1)); text-align: center; cursor: pointer; }
+#homeUi .heroCharModel { position: absolute; left: 50%; top: calc(12px * var(--hs,1)); transform: translateX(-58%); z-index: 2;
+  width: calc(300px * var(--hs,1)); height: calc(480px * var(--hs,1)); cursor: pointer;
+  background: radial-gradient(ellipse at 50% 30%, rgba(120,90,50,.35), transparent 70%) top / 100% 55% no-repeat,
+    center calc(30%) / contain no-repeat;
+  filter: drop-shadow(0 calc(8px * var(--hs,1)) calc(10px * var(--hs,1)) rgba(0,0,0,.6)); }
+#homeUi .heroCharModel.locked { filter: grayscale(1) brightness(.55); }
+#homeUi .heroWpnSlot { position: absolute; right: calc(236px * var(--hs,1)); top: calc(60px * var(--hs,1)); z-index: 5;
+  width: calc(96px * var(--hs,1)); text-align: center; cursor: pointer; }
 #homeUi .heroWpnIco { width: calc(76px * var(--hs,1)); height: calc(84px * var(--hs,1)); margin: 0 auto;
   background: linear-gradient(180deg, #7ed957, #3a8a2a); clip-path: polygon(0 0, 100% 0, 100% 65%, 50% 100%, 0 65%);
+  border: calc(2px * var(--hs,1)) solid #cfe; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center; font-size: calc(36px * var(--hs,1)); }
 #homeUi .heroWpnStep { margin-top: calc(4px * var(--hs,1)); background: rgba(0,0,0,.55); color: #cfe;
-  font-size: calc(18px * var(--hs,1)); padding: calc(1px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(4px * var(--hs,1)); display: inline-block; }
+  font-size: calc(20px * var(--hs,1)); padding: calc(1px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); display: inline-block; }
 #homeUi .heroWpnCost { font-size: calc(18px * var(--hs,1)); color: #ffd76a; margin-top: calc(2px * var(--hs,1)); }
-#homeUi .heroGemBtn { position: absolute; right: calc(30px * var(--hs,1)); top: calc(230px * var(--hs,1)); z-index: 5;
+#homeUi .heroGemBtn { position: absolute; right: calc(256px * var(--hs,1)); top: calc(220px * var(--hs,1)); z-index: 5;
   display: flex; flex-direction: column; align-items: center; gap: calc(2px * var(--hs,1)); cursor: pointer; }
-#homeUi .heroGemIco { font-size: calc(44px * var(--hs,1)); filter: drop-shadow(0 0 calc(6px * var(--hs,1)) rgba(120,180,255,.6)); line-height: 1; }
-#homeUi .heroGemTx { background: rgba(0,0,0,.5); color: #cde; font-size: calc(18px * var(--hs,1));
-  padding: calc(1px * var(--hs,1)) calc(10px * var(--hs,1)); border-radius: calc(4px * var(--hs,1)); }
-#homeUi .heroEquipPanel { position: absolute; right: calc(10px * var(--hs,1)); top: calc(24px * var(--hs,1)); z-index: 4;
-  display: grid; grid-template-columns: repeat(2, calc(160px * var(--hs,1))); grid-auto-rows: calc(150px * var(--hs,1));
-  gap: calc(12px * var(--hs,1)); }
-#homeUi .equipCell { background: linear-gradient(180deg, #5a4a30, #3a2c18);
-  border: calc(3px * var(--hs,1)) solid #8a6a3a; border-radius: calc(10px * var(--hs,1));
-  position: relative; padding: calc(4px * var(--hs,1)); cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; }
-#homeUi .equipCell:active { transform: scale(.96); }
-#homeUi .equipCellTier { position: absolute; top: calc(4px * var(--hs,1)); left: calc(6px * var(--hs,1)); z-index: 2;
-  font-size: calc(16px * var(--hs,1)); font-weight: 700; color: #ffd76a; }
-#homeUi .equipCellTier.dim { color: #6b7d88; font-weight: 400; }
-#homeUi .equipCellIco { font-size: calc(64px * var(--hs,1)); line-height: 1; filter: drop-shadow(0 calc(2px * var(--hs,1)) calc(3px * var(--hs,1)) rgba(0,0,0,.5)); }
-#homeUi .equipCellIco.dim { opacity: .45; }
-#homeUi .equipCellLv { text-align: center; color: #ffe9b8; font-size: calc(18px * var(--hs,1)); margin-top: calc(4px * var(--hs,1)); }
-#homeUi .equipCellLv.dim { color: #6b7d88; }
-#homeUi .heroFlameBadge { position: absolute; left: 50%; bottom: calc(6px * var(--hs,1)); transform: translateX(-90%); z-index: 5;
+#homeUi .heroGemLines { font-size: calc(40px * var(--hs,1)); color: #9ab; letter-spacing: calc(-4px * var(--hs,1)); line-height: 1; }
+#homeUi .heroGemTx { background: rgba(0,0,0,.5); color: #cde; font-size: calc(20px * var(--hs,1));
+  padding: calc(1px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); }
+#homeUi .heroEquipPanel { position: absolute; right: calc(20px * var(--hs,1)); top: calc(48px * var(--hs,1)); z-index: 5;
+  display: grid; grid-template-columns: repeat(2, calc(132px * var(--hs,1))); grid-auto-rows: calc(148px * var(--hs,1));
+  gap: calc(16px * var(--hs,1)); }
+#homeUi .heroEquipCell { background: linear-gradient(180deg, #5a4a30, #3a2c18);
+  border: calc(4px * var(--hs,1)) solid #8a6a3a; border-radius: calc(12px * var(--hs,1));
+  position: relative; padding: calc(6px * var(--hs,1)); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(4px * var(--hs,1)); }
+#homeUi .heroEquipCell:active { transform: scale(.96); }
+#homeUi .heroEquipCell .step { position: absolute; top: calc(4px * var(--hs,1)); left: calc(4px * var(--hs,1)); z-index: 2;
+  background: linear-gradient(180deg, #ffd86b, #e0891f); color: #5a2d00; font-size: calc(18px * var(--hs,1));
+  padding: calc(0px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(6px * var(--hs,1)); font-weight: 700; }
+#homeUi .heroEquipCell .ico { font-size: calc(64px * var(--hs,1)); line-height: 1; filter: drop-shadow(0 calc(2px * var(--hs,1)) calc(3px * var(--hs,1)) rgba(0,0,0,.5)); }
+#homeUi .heroEquipCell .ico.dim { opacity: .4; }
+#homeUi .heroEquipCell .lvtx { text-align: center; color: #ffe9b8; font-size: calc(18px * var(--hs,1)); line-height: 1.2; }
+#homeUi .heroEquipCell .lvtx.dim { color: #6b7d88; }
+#homeUi .heroEquipCell .stars { position: absolute; bottom: calc(4px * var(--hs,1)); left: calc(6px * var(--hs,1)); right: calc(6px * var(--hs,1));
+  display: flex; gap: calc(2px * var(--hs,1)); justify-content: center; }
+#homeUi .gemDot { width: calc(12px * var(--hs,1)); height: calc(12px * var(--hs,1)); border-radius: calc(3px * var(--hs,1)); transform: rotate(45deg); }
+#homeUi .heroFlameBadge { position: absolute; left: 50%; bottom: calc(56px * var(--hs,1)); transform: translateX(-90%); z-index: 5;
   display: flex; align-items: center; gap: calc(8px * var(--hs,1));
-  background: linear-gradient(180deg, #3a2a1a, #241808); border: calc(3px * var(--hs,1)) solid #c8862a;
-  border-radius: calc(999px * var(--hs,1)); padding: calc(4px * var(--hs,1)) calc(26px * var(--hs,1)) calc(4px * var(--hs,1)) calc(12px * var(--hs,1)); }
-#homeUi .powerNum { font-size: calc(38px * var(--hs,1)); font-weight: 800; color: #ffe9b8;
-  text-shadow: 0 calc(3px * var(--hs,1)) 0 rgba(0,0,0,.45); font-variant-numeric: tabular-nums; line-height: 1; }
-#homeUi .powerFlame { font-size: calc(38px * var(--hs,1)); line-height: 1; filter: drop-shadow(0 0 calc(6px * var(--hs,1)) #f80); }
-/* ---- 背包区 ---- */
-#homeUi .bagHead { width: 100%; display: flex; align-items: center; gap: calc(14px * var(--hs,1));
-  padding: calc(10px * var(--hs,1)) calc(8px * var(--hs,1)); flex: none; position: relative; z-index: 5;
-  margin-top: calc(640px * var(--hs,1)); }
-#homeUi .bagTitle { color: #ffd98a; font-size: calc(28px * var(--hs,1)); font-weight: 700; }
-#homeUi .bagCount { color: #8fa0ab; font-size: calc(20px * var(--hs,1)); margin-left: auto; }
-#homeUi .bagGrid { width: 100%; flex: 1; min-height: calc(240px * var(--hs,1)); overflow-y: auto;
-  padding: calc(10px * var(--hs,1)); display: grid; grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: calc(88px * var(--hs,1)); gap: calc(8px * var(--hs,1)); background: rgba(0,0,0,.25);
-  border-radius: calc(10px * var(--hs,1)); align-content: start; }
-#homeUi .bagCell { border-radius: calc(8px * var(--hs,1)); position: relative; cursor: pointer;
-  background: linear-gradient(180deg, #3a2c1c, #241a10); border: calc(3px * var(--hs,1)) solid #4a3a24;
-  display: flex; align-items: center; justify-content: center; font-size: calc(40px * var(--hs,1)); }
-#homeUi .bagCell:active { transform: scale(.94); }
-#homeUi .bagCellTier { position: absolute; top: calc(2px * var(--hs,1)); left: calc(4px * var(--hs,1));
-  font-size: calc(14px * var(--hs,1)); opacity: .9; }
-#homeUi .bagEmptyTip { grid-column: 1 / -1; text-align: center; color: #8fa0ab; font-size: calc(22px * var(--hs,1));
-  padding: calc(30px * var(--hs,1)) 0; }
+  background: linear-gradient(180deg, #3a2a1a, #241808); border: calc(4px * var(--hs,1)) solid #c8862a;
+  border-radius: calc(999px * var(--hs,1)); padding: calc(4px * var(--hs,1)) calc(28px * var(--hs,1)) calc(4px * var(--hs,1)) calc(14px * var(--hs,1)); }
+#homeUi .heroFlameBadge .fire { font-size: calc(40px * var(--hs,1)); filter: drop-shadow(0 0 calc(6px * var(--hs,1)) #f80); line-height: 1; }
+#homeUi .heroFlameBadge b { color: #ffe9b8; font-size: calc(34px * var(--hs,1)); font-variant-numeric: tabular-nums; }
+#homeUi .heroFlameBadge .infoI { font-style: italic; font-weight: 700; font-size: calc(22px * var(--hs,1)); color: #fff;
+  background: #c8862a; border-radius: 50%; width: calc(26px * var(--hs,1)); height: calc(26px * var(--hs,1));
+  line-height: calc(26px * var(--hs,1)); text-align: center; margin-left: calc(4px * var(--hs,1)); }
+#homeUi .heroLockTip { position: absolute; right: calc(20px * var(--hs,1)); top: calc(120px * var(--hs,1)); z-index: 5;
+  width: calc(280px * var(--hs,1)); text-align: center; color: #8fa0ab; font-size: calc(24px * var(--hs,1)); }
+/* ===== 方案 & 锻造行 ===== */
+#homeUi .heroPlanRow { width: 100%; display: flex; align-items: center; gap: calc(10px * var(--hs,1));
+  padding: calc(6px * var(--hs,1)) calc(20px * var(--hs,1)) calc(14px * var(--hs,1)); flex: none; }
+#homeUi .heroPlanTab { min-width: calc(56px * var(--hs,1)); height: calc(56px * var(--hs,1)); border-radius: calc(28px * var(--hs,1));
+  padding: 0 calc(14px * var(--hs,1)); background: rgba(0,0,0,.5); border: calc(2px * var(--hs,1)) solid #6b5433;
+  color: #cbb387; font-size: calc(24px * var(--hs,1)); display: flex; align-items: center; justify-content: center; }
+#homeUi .heroPlanTab.active { background: linear-gradient(180deg, #ffd86b, #e0891f); color: #5a2d00;
+  font-weight: 700; border-color: #8a5a10; }
+#homeUi .heroForgeBtn { margin-left: auto; height: calc(64px * var(--hs,1)); padding: 0 calc(30px * var(--hs,1));
+  border-radius: calc(32px * var(--hs,1)); background: linear-gradient(180deg, #ffd86b, #e0891f);
+  border: calc(3px * var(--hs,1)) solid #8a5a10; color: #5a2d00; font-weight: 700; font-size: calc(26px * var(--hs,1));
+  display: flex; align-items: center; cursor: pointer; position: relative;
+  box-shadow: 0 calc(4px * var(--hs,1)) calc(8px * var(--hs,1)) rgba(0,0,0,.4); }
+#homeUi .heroForgeBtn.dim { opacity: .6; }
+#homeUi .heroForgeBtn:active { transform: translateY(calc(2px * var(--hs,1))); }
+/* ===== 背包标题行 ===== */
+#homeUi .heroBagHead { width: 100%; display: flex; align-items: center; gap: calc(14px * var(--hs,1));
+  padding: calc(4px * var(--hs,1)) calc(24px * var(--hs,1)) calc(12px * var(--hs,1)); flex: none; }
+#homeUi .heroBagTitle { color: #ffd98a; font-size: calc(28px * var(--hs,1)); font-weight: 700; }
+#homeUi .heroBagFilter { flex: 1; height: calc(56px * var(--hs,1)); border-radius: calc(28px * var(--hs,1));
+  background: rgba(0,0,0,.5); border: calc(2px * var(--hs,1)) solid #6b5433; color: #cbb387;
+  display: flex; align-items: center; justify-content: center; font-size: calc(24px * var(--hs,1)); }
+#homeUi .heroBagMerge { height: calc(58px * var(--hs,1)); padding: 0 calc(24px * var(--hs,1)); border-radius: calc(29px * var(--hs,1));
+  background: linear-gradient(180deg, #ffd86b, #e0891f); border: calc(3px * var(--hs,1)) solid #8a5a10;
+  color: #5a2d00; font-weight: 700; font-size: calc(24px * var(--hs,1)); display: flex; align-items: center; cursor: pointer; position: relative; }
+#homeUi .heroBagMerge::after { content: ""; position: absolute; top: calc(-4px * var(--hs,1)); right: calc(-4px * var(--hs,1));
+  width: calc(16px * var(--hs,1)); height: calc(16px * var(--hs,1)); border-radius: 50%; background: #e33; }
+/* ===== 六列背包网格 ===== */
+#homeUi .heroBagGrid { width: 100%; flex: 1; min-height: calc(300px * var(--hs,1)); overflow-y: auto;
+  padding: calc(8px * var(--hs,1)) calc(18px * var(--hs,1)); display: grid; grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: calc(104px * var(--hs,1)); gap: calc(10px * var(--hs,1)); background: rgba(0,0,0,.25);
+  align-content: start; }
+#homeUi .heroBagCell { border-radius: calc(8px * var(--hs,1)); position: relative; cursor: pointer;
+  border: calc(3px * var(--hs,1)) solid #4a3a24;
+  display: flex; align-items: center; justify-content: center; font-size: calc(48px * var(--hs,1)); }
+#homeUi .heroBagCell:active { transform: scale(.94); }
+#homeUi .heroBagCell .slotIc { opacity: .95; }
+#homeUi .heroBagCell .cnt { position: absolute; bottom: calc(2px * var(--hs,1)); right: calc(6px * var(--hs,1));
+  color: #ffe9b8; font-size: calc(18px * var(--hs,1)); text-shadow: 0 calc(1px * var(--hs,1)) calc(2px * var(--hs,1)) #000; }
+#homeUi .heroBagEmpty { grid-column: 1 / -1; text-align: center; color: #8fa0ab; font-size: calc(24px * var(--hs,1));
+  padding: calc(40px * var(--hs,1)) 0; }
+/* ===== 分类标签 ===== */
+#homeUi .heroCatTabs { width: 100%; display: flex; padding: calc(10px * var(--hs,1)) calc(18px * var(--hs,1)) calc(14px * var(--hs,1));
+  gap: calc(4px * var(--hs,1)); flex: none; }
+#homeUi .heroCat { flex: 1; text-align: center; padding: calc(12px * var(--hs,1)) 0; font-size: calc(26px * var(--hs,1));
+  color: #cbb387; position: relative; border-radius: calc(14px * var(--hs,1)) calc(14px * var(--hs,1)) 0 0;
+  background: rgba(0,0,0,.35); border: calc(2px * var(--hs,1)) solid #4a3a24; border-bottom: none; }
+#homeUi .heroCat.active { background: linear-gradient(180deg, #e8a93a, #b5761f); color: #fff8e8;
+  font-weight: 700; box-shadow: 0 calc(-2px * var(--hs,1)) calc(6px * var(--hs,1)) rgba(0,0,0,.4); }
+#homeUi .heroCat .dot { position: absolute; top: calc(4px * var(--hs,1)); right: calc(10px * var(--hs,1));
+  width: calc(14px * var(--hs,1)); height: calc(14px * var(--hs,1)); border-radius: 50%; background: #e33; }
 #homeUi .heroAvatar { width: calc(110px * var(--hs,1)); height: calc(110px * var(--hs,1)); flex: none; border-radius: calc(12px * var(--hs,1));
   background: rgba(255,255,255,.06) center / contain no-repeat; }
 #homeUi .heroAvatar.detail { width: calc(220px * var(--hs,1)); height: calc(240px * var(--hs,1)); cursor: pointer; }
