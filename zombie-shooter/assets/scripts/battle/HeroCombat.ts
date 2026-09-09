@@ -1152,7 +1152,24 @@ export class HeroCombatController {
         slot: DamageSlotKey = 'basic'): void {
         const from = this.muzzleWorldPosition();
         const dir = new Vec3();
-        Vec3.subtract(dir, target.enemy.node.position, from);
+        // 预瞄提前量：怪物在弹丸飞行时间内继续下压，直接瞄当前帧位置必然打在目标"身后"。
+        // 迭代求相遇时间 t（两次收敛足够：直线运动下第二次误差 < 1px），瞄准 t 后的预测位置。
+        // 怪物纵向恒速（verticalSpeed 已含下压/冲刺/蓄力定身三态），纯直线外推无加速度项。
+        {
+            const tp = target.enemy.node.position;
+            const vs = target.enemy.verticalSpeed; // 向下为正
+            const dvx = tp.x - from.x;
+            const dvy = tp.y - from.y;
+            const dist = Math.sqrt(dvx * dvx + dvy * dvy) || 1;
+            let t = dist / speed;
+            for (let i = 0; i < 2; i++) {
+                const ny = tp.y - vs * t;
+                const ndx = tp.x - from.x;
+                const ndy = ny - from.y;
+                t = Math.sqrt(ndx * ndx + ndy * ndy) / speed;
+            }
+            Vec3.subtract(dir, new Vec3(tp.x, tp.y - vs * t, tp.z ?? 0), from);
+        }
         if (angle !== 0) {
             const x = dir.x * Math.cos(angle) - dir.y * Math.sin(angle);
             const y = dir.x * Math.sin(angle) + dir.y * Math.cos(angle);

@@ -32,6 +32,17 @@ export class Enemy extends Component {
     radius = 30;
     touchDamage = 10;
     private _behavior: MonsterBehavior = 'chaser';
+    /** 当前垂直下压速度（px/s，向下为正）：射击预瞄用。
+     *  垂直下压/冲刺 = 实际移速；蓄力定身 = 0。所有行为最终都只有纵向位移，可线性外推。 */
+    get verticalSpeed(): number {
+        if (this._behavior === 'charger' && this._chargeState === 'dash') {
+            return this._dashSpeed;
+        }
+        if (this._behavior === 'charger' && this._chargeState === 'windup') {
+            return 0;
+        }
+        return this.speed;
+    }
     /** 行走动效参数（按怪型在 init 配置） */
     private _walkPhase = 0;
     private _walkFreq = 9;
