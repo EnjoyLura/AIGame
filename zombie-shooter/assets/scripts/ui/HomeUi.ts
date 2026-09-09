@@ -8,9 +8,9 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
-import { STAGES, FINAL_STAGE_ID, stageInfo } from '../battle/StageData';
+import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves } from '../battle/StageData';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -1467,6 +1467,18 @@ export class HomeUi extends Component {
         this._siPowEl = info.querySelector('.siPow');
         this._siStEl = info.querySelector('.siSt');
 
+        // 通关结算奖励预览：金币区间 + 装备/核心/稀有杂物掉落率（真数据公式）
+        const lootPrev = document.createElement('div');
+        lootPrev.className = 'lootPrev panel';
+        lootPrev.innerHTML = `<div class="lpHead">⚔️ 通关结算奖励预览</div>` +
+            `<div class="lpRow"><span class="lpIc">🪙</span><span class="lpLab">金币收益区间</span><b class="lpVal lpGold"></b></div>` +
+            `<div class="lpRow"><span class="lpIc">🎁</span><span class="lpLab">装备掉落率</span><b class="lpVal lpEquip"></b></div>` +
+            `<div class="lpRow"><span class="lpIc">⚙️</span><span class="lpLab">英雄核心掉落率</span><b class="lpVal lpCore"></b></div>` +
+            `<div class="lpRow"><span class="lpIc">💎</span><span class="lpLab">稀有杂物掉落率</span><b class="lpVal lpRare"></b></div>` +
+            `<p class="lpNote">※ 掉率随关卡难度提升 · 装备强化等级 +1~+3 随机</p>`;
+        page.appendChild(lootPrev);
+        this._lootPrevEl = lootPrev;
+
         // 耐久结算宝箱三档
         const chestTitle = document.createElement('div');
         chestTitle.className = 'secTitle';
@@ -1504,6 +1516,8 @@ export class HomeUi extends Component {
     }
 
     private _squadBtn: HTMLButtonElement | null = null;
+    /** 战斗页掉落预览容器（_refreshStagePage 填充金币区间与掉率） */
+    private _lootPrevEl: HTMLDivElement | null = null;
 
     /** 关卡页刷新：章节页签/进度点/场景内容/信息/宝箱（真数据 STAGES + stageCleared） */
     private _refreshStagePage(): void {
@@ -1674,6 +1688,37 @@ export class HomeUi extends Component {
         if (go) {
             go.style.opacity = gm.canStartRun() ? '1' : '0.45';
             go.title = gm.canStartRun() ? '' : `体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`;
+        }
+
+        // 掉落预览数值：金币区间（结算公式折算 ±15% 浮动）+ 各档掉率（含关卡加成）
+        if (this._lootPrevEl) {
+            const waves = stageWaves(stageId);
+            let kills = 0;
+            for (const w of waves) {
+                kills += Math.round(w.count * (1 + w.eliteChance));
+            }
+            const goldMul = gm.metaGoldMul() * gm.depotGoldMul();
+            const mid = (kills * 2 + WAVES_PER_STAGE * 15) * goldMul;
+            const lo = Math.round(mid * 0.85);
+            const hi = Math.round(mid * 1.15);
+            const rates = lootRateText(stageId);
+            const q = (c: string) => this._lootPrevEl?.querySelector('.' + c);
+            const gold = q('lpGold');
+            if (gold) {
+                gold.textContent = `${lo.toLocaleString()} ~ ${hi.toLocaleString()}`;
+            }
+            const eq = q('lpEquip');
+            if (eq) {
+                eq.textContent = rates.equip;
+            }
+            const co = q('lpCore');
+            if (co) {
+                co.textContent = rates.core;
+            }
+            const ra = q('lpRare');
+            if (ra) {
+                ra.textContent = rates.rare;
+            }
         }
         this._applyPendingTex();
     }
@@ -2422,6 +2467,14 @@ export class HomeUi extends Component {
 #homeUi .chest.got .cic { filter: grayscale(1); }
 #homeUi .chest.lock { opacity: .7; }
 #homeUi .chest.lock .cic { filter: grayscale(.7) brightness(.8); }
+#homeUi .lootPrev { margin: calc(24px * var(--hs,1)) 0 0; padding: calc(20px * var(--hs,1)) calc(24px * var(--hs,1)); }
+#homeUi .lootPrev .lpHead { font-size: calc(24px * var(--hs,1)); font-weight: 900; color: #ffe9a8; letter-spacing: calc(2px * var(--hs,1)); margin-bottom: calc(12px * var(--hs,1)); }
+#homeUi .lootPrev .lpRow { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); padding: calc(7px * var(--hs,1)) 0; }
+#homeUi .lootPrev .lpIc { font-size: calc(24px * var(--hs,1)); flex: none; }
+#homeUi .lootPrev .lpLab { flex: 1; font-size: calc(21px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .lootPrev .lpVal { font-size: calc(24px * var(--hs,1)); font-weight: 900; color: #dce8f7; font-variant-numeric: tabular-nums; }
+#homeUi .lootPrev .lpVal.lpGold { color: #ffd76a; }
+#homeUi .lootPrev .lpNote { font-size: calc(17px * var(--hs,1)); color: #6b83a5; margin-top: calc(8px * var(--hs,1)); }
 #homeUi .stageBtns { display: flex; gap: calc(20px * var(--hs,1)); margin-top: calc(28px * var(--hs,1)); }
 #homeUi .stageBtns .btn.squad { flex: 1; height: calc(88px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); }
 #homeUi .stageBtns .btn.go { flex: 1.7; height: calc(88px * var(--hs,1)); font-size: calc(34px * var(--hs,1)); letter-spacing: calc(6px * var(--hs,1)); }
@@ -2786,6 +2839,15 @@ export class HomeUi extends Component {
   background: #e6eef3f5; border-top: 1px solid #cedce5; gap: calc(10px * var(--pw,2.5)); }
 #homeUi .stageBtns .btn.squad, #homeUi .stageBtns .btn.go { height: calc(49px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5)); }
 #homeUi .stageBtns .btn.go { font-size: calc(18px * var(--pw,2.5)); letter-spacing: 0; }
+#homeUi .lootPrev { margin: calc(10px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) 0; padding: calc(10px * var(--pw,2.5)) calc(14px * var(--pw,2.5));
+  background: #fdfefe; }
+#homeUi .lootPrev .lpHead { font-size: calc(13px * var(--pw,2.5)); color: #8c5927; letter-spacing: 0; margin-bottom: calc(5px * var(--pw,2.5)); }
+#homeUi .lootPrev .lpRow { padding: calc(3px * var(--pw,2.5)) 0; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .lootPrev .lpIc { font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .lootPrev .lpLab { font-size: calc(11px * var(--pw,2.5)); color: #536f7f; }
+#homeUi .lootPrev .lpVal { font-size: calc(12px * var(--pw,2.5)); color: #243e4d; }
+#homeUi .lootPrev .lpVal.lpGold { color: #a8690f; }
+#homeUi .lootPrev .lpNote { font-size: calc(9px * var(--pw,2.5)); color: #758994; margin-top: calc(4px * var(--pw,2.5)); }
 
 /* --- 技能页 / 基地页 --- */
 #homeUi .skillCard { gap: calc(9px * var(--pw,2.5)); padding: calc(12px * var(--pw,2.5)) calc(10px * var(--pw,2.5));

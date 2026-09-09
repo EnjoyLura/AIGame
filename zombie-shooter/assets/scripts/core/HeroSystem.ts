@@ -247,25 +247,23 @@ function randomBagDrop(): BagItem | null {
  */
 export function rollStageClearDrops(stageId: number): LootDrop[] {
     const drops: LootDrop[] = [];
-    const gm = GameManager.instance;
-    // 关卡越深掉率小幅上浮（每关 +3% 相对值，封顶 +30%）
-    const luck = 1 + Math.min(0.3, (Math.max(1, stageId) - 1) * 0.03);
+    const luck = lootLuck(stageId);
     // ① 武器核心材料（珍贵）
-    if (Math.random() < 0.06 * luck) {
+    if (Math.random() < LOOT_RATES.core * luck) {
         const d = miscDef('mat_core');
         if (d) {
             drops.push({ kind: 'misc', tier: d.tier, id: d.id, name: d.name, ic: d.ic });
         }
     }
     // ② 稀有杂物（雷光石 / 改装图纸二选一）
-    if (Math.random() < 0.05 * luck) {
+    if (Math.random() < LOOT_RATES.rare * luck) {
         const d = miscDef(Math.random() < 0.5 ? 'gem_thunder' : 'mat_blueprint');
         if (d) {
             drops.push({ kind: 'misc', tier: d.tier, id: d.id, name: d.name, ic: d.ic });
         }
     }
-    // ③ 装备（品质阶梯：绿 40% 蓝 35% 紫 20% 金 5%；从背包池随机取部位）
-    if (Math.random() < 0.13 * luck) {
+    // ③ 装备（品质阶梯：绿 40% 蓝 35% 紫 20% 金 5%；部位从装备池随机）
+    if (Math.random() < LOOT_RATES.equip * luck) {
         const r = Math.random();
         const tier: 1 | 2 | 3 | 4 = r < 0.40 ? 1 : r < 0.75 ? 2 : r < 0.95 ? 3 : 4;
         const pool = EQUIPMENT_DEFS.filter(d => d.tier === tier);
@@ -280,7 +278,6 @@ export function rollStageClearDrops(stageId: number): LootDrop[] {
             }
         }
     }
-    void gm;
     return drops;
 }
 
@@ -302,6 +299,20 @@ export function grantLootDrops(drops: LootDrop[]): number {
         gm.save();
     }
     return n;
+}
+
+/** 掉落基础概率（rollStageClearDrops 与战斗页预览共用，改掉率只改这里） */
+export const LOOT_RATES = { core: 0.06, rare: 0.05, equip: 0.13 };
+/** 掉率随关卡上浮上限（每关 +3%，封顶 +30%） */
+export function lootLuck(stageId: number): number {
+    return 1 + Math.min(0.3, (Math.max(1, stageId) - 1) * 0.03);
+}
+
+/** 掉落概率文案（战斗页预览用）：各档位显示概率百分数 */
+export function lootRateText(stageId: number): { core: string; rare: string; equip: string } {
+    const k = lootLuck(stageId);
+    const pct = (v: number) => `${Math.round(v * k * 100)}%`;
+    return { core: pct(LOOT_RATES.core), rare: pct(LOOT_RATES.rare), equip: pct(LOOT_RATES.equip) };
 }
 
 /** 杂物库存表：id → 数量（存档持久化，缺省给一组初始物资） */
