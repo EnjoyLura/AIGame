@@ -946,10 +946,7 @@ export class HomeUi extends Component {
         colR.appendChild(mkSlot('wrist'));
         colR.appendChild(mkSlot('legs'));
         colR.appendChild(mkSlot('shoes'));
-        main.appendChild(colL);
-        main.appendChild(fig);
-        main.appendChild(colR);
-        // 右缘纵向按钮列：英雄核心 / 武器强化（用户红框指定落点，替代原 row3 前两钮）
+        // 右缘纵向按钮列：英雄核心 / 武器强化（英雄立绘与左槽列之间，用户指定落点）
         const side = document.createElement('div');
         side.className = 'sideActions';
         if (owned) {
@@ -974,7 +971,10 @@ export class HomeUi extends Component {
             side.appendChild(coreBtn);
             side.appendChild(wpnBtn);
         }
+        main.appendChild(colL);
         main.appendChild(side);
+        main.appendChild(fig);
+        main.appendChild(colR);
         body.appendChild(main);
 
         // 三维面板（攻击/战力口径真实；生命/防御占位推算）
@@ -2322,7 +2322,7 @@ export class HomeUi extends Component {
 #homeUi .powerBadge { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); background: linear-gradient(180deg, #2a3f66, #1a2947);
   border: 1px solid #8a6a20; border-radius: 99px; padding: calc(10px * var(--hs,1)) calc(24px * var(--hs,1));
   font-weight: 900; color: #ffe9a8; font-size: calc(28px * var(--hs,1)); box-shadow: 0 0 12px rgba(240,177,62,.2); }
-#homeUi .heroMain { display: grid; grid-template-columns: 1fr calc(300px * var(--hs,1)) 1fr auto; align-items: center; gap: calc(8px * var(--hs,1)); padding: calc(12px * var(--hs,1)) 0; }
+#homeUi .heroMain { display: grid; grid-template-columns: 1fr auto calc(300px * var(--hs,1)) 1fr; align-items: center; gap: calc(8px * var(--hs,1)); padding: calc(12px * var(--hs,1)) 0; }
 #homeUi .heroMain .sideActions { display: flex; flex-direction: column; gap: calc(16px * var(--hs,1)); }
 #homeUi .heroMain .sideActions .btn { width: calc(180px * var(--hs,1)); height: calc(60px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); padding: 0; }
 #homeUi .slotCol { display: flex; flex-direction: column; gap: calc(24px * var(--hs,1)); align-items: center; }
@@ -2710,7 +2710,7 @@ export class HomeUi extends Component {
 #homeUi .tagRow { flex-wrap: wrap; gap: calc(3px * var(--pw,2.5)); }
 #homeUi .powerBadge { padding: calc(6px * var(--pw,2.5)) calc(8px * var(--pw,2.5)); background: #fff1d9; border-color: #d2ad75;
   color: #875623; border-radius: calc(5px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); box-shadow: none; }
-#homeUi .heroMain { grid-template-columns: calc(60px * var(--pw,2.5)) minmax(0, 1fr) calc(60px * var(--pw,2.5)) auto; gap: calc(5px * var(--pw,2.5));
+#homeUi .heroMain { grid-template-columns: calc(60px * var(--pw,2.5)) auto minmax(0, 1fr) calc(60px * var(--pw,2.5)); gap: calc(5px * var(--pw,2.5));
   padding: calc(10px * var(--pw,2.5)) 0; background: linear-gradient(transparent, #d2e2eb); margin: 0 calc(-2px * var(--pw,2.5)); }
 #homeUi .heroMain .slotCol { justify-content: center; }
 #homeUi .heroMain .sideActions { align-self: stretch; justify-content: space-evenly; gap: 0; padding: calc(24px * var(--pw,2.5)) 0; }
