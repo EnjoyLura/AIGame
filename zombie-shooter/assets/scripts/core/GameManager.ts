@@ -248,8 +248,8 @@ export class GameManager {
     /** 指挥中心等级（全局成长上限锚点） */
     hqLevel(): number { return this.buildingLevel('hq'); }
 
-    /** 英雄等级上限（训练营：10 + 等级） */
-    heroLevelCap(): number { return 10 + this.buildingLevel('camp'); }
+    /** 全队攻击加成（训练营：每级 +6%，与局外火力叠乘；英雄等级玩法移除后的新效果） */
+    campAtkMul(): number { return 1 + 0.06 * this.buildingLevel('camp'); }
 
     /** 装备强化等级上限（军械库：5 + 等级） */
     equipUpgradeCap(): number { return 5 + this.buildingLevel('armory'); }
@@ -464,7 +464,7 @@ export interface BuildingDef {
 
 export const BUILDINGS: BuildingDef[] = [
     { id: 'hq', ic: '🏛️', name: '指挥中心', desc: l => `其他建筑等级上限 = 本级 +1（当前 Lv.${l + 1}）`, maxLevel: 10, baseCost: 800, costMul: 1.6, unlockHq: 0 },
-    { id: 'camp', ic: '🏕️', name: '训练营', desc: l => `英雄等级上限提升至 ${10 + l}`, maxLevel: 10, baseCost: 500, costMul: 1.5, unlockHq: 0 },
+    { id: 'camp', ic: '🏕️', name: '训练营', desc: l => `全队攻击 +${l * 6}%`, maxLevel: 10, baseCost: 500, costMul: 1.5, unlockHq: 0 },
     { id: 'armory', ic: '⚒️', name: '军械库', desc: l => `装备强化上限提升至 +${5 + l}`, maxLevel: 5, baseCost: 600, costMul: 1.55, unlockHq: 0 },
     { id: 'lab', ic: '🔬', name: '研究所', desc: l => `技能等级上限提升至 ${Math.min(ABILITY_MAX_LEVEL, 2 + l)}`, maxLevel: 1, baseCost: 1500, costMul: 1, unlockHq: 0 },
     { id: 'workshop', ic: '🚛', name: '载具工坊', desc: l => `载具耐久 +${l * 8}%`, maxLevel: 10, baseCost: 450, costMul: 1.45, unlockHq: 0 },

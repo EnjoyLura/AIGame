@@ -847,9 +847,8 @@ export class HomeUi extends Component {
         if (owned) {
             const stars = document.createElement('span');
             stars.className = 'star';
-            const lv = hs.heroLevel(def.id);
-            const starN = Math.min(5, 1 + Math.floor(lv / 4));
-            stars.textContent = '★'.repeat(starN) + '☆'.repeat(5 - starN);
+            // 星级：按品质固定 4 星（等级玩法移除，星级改为静态标签）
+            stars.textContent = '★★★★☆';
             hName.appendChild(document.createTextNode(def.name));
             hName.appendChild(stars);
         } else {
@@ -947,7 +946,7 @@ export class HomeUi extends Component {
         };
         const heroLv = document.createElement('div');
         heroLv.className = 'heroLv';
-        heroLv.textContent = owned ? `Lv.${hs.heroLevel(def.id)} · ${def.role}` : '未获得';
+        heroLv.textContent = owned ? def.role : '未获得';
         fig.appendChild(halo);
         fig.appendChild(halo2);
         fig.appendChild(emoji);
@@ -996,23 +995,28 @@ export class HomeUi extends Component {
             return;
         }
 
-        // 大升级按钮（英雄升级）
+        // 大按钮：上阵/回车（原英雄升级位，等级玩法移除后改为编队切换快捷入口）
         const up = document.createElement('button');
         up.className = 'btn gold big';
-        if (hs.isHeroMaxLevel(def.id)) {
-            up.textContent = '▲ 已满级';
-            up.disabled = true;
-        } else {
-            up.textContent = `▲ 英雄升级（消耗 🪙 ${hs.heroUpgradeCost(def.id).toLocaleString()}）`;
-            up.disabled = !gm.canUpgrade('atk') && gm.gold < hs.heroUpgradeCost(def.id);
+        if (inLineup) {
+            up.textContent = '▼ 点击下阵（编队 ' + gm.lineup.length + '/' + GameManager.LINEUP_MAX + '）';
             up.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.unlock();
-                if (hs.upgradeHero(def.id)) {
-                    SoundFx.play('buy');
-                    this._toast(`${def.name} 升至 Lv.${hs.heroLevel(def.id)}`);
+                if (gm.toggleLineupMember(def.id)) {
+                    SoundFx.play('ui');
                     this._refreshHeroes();
-                    this._refreshTop();
+                }
+            };
+        } else {
+            up.textContent = '▲ 点击上阵（编队 ' + gm.lineup.length + '/' + GameManager.LINEUP_MAX + '）';
+            up.disabled = gm.lineup.length >= GameManager.LINEUP_MAX;
+            up.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                if (gm.toggleLineupMember(def.id)) {
+                    SoundFx.play('ui');
+                    this._refreshHeroes();
                 }
             };
         }

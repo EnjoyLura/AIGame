@@ -12,13 +12,12 @@ export const ABILITY_SLOT_NAMES: Record<AbilitySlot, string> = {
 export const ABILITY_UPGRADE_BASE_COST = 300;
 
 /**
- * 英雄成长系统：英雄等级 + 五槽装备 + 主武器强化 + 武器核心。
- * - 等级：金币升级，每级攻击 +5%，上限 HERO_LEVEL_MAX。
+ * 英雄成长系统：五槽装备 + 主武器强化 + 武器核心（英雄等级玩法已移除）。
  * - 装备：每名英雄五槽（头盔/护甲/护腿/手套/战靴），固定装备池分四档品质，
  *   金币购买即穿上（同槽替换、旧件不返还），可继续金币强化（每级 +8% 本件属性）。
  * - 主武器：每英雄独立强化等级，每级攻击 +6%，上限 WEAPON_LEVEL_MAX。
  * - 武器核心：每英雄一个核心槽，嵌入后提供特殊效果（暴击/攻速/攻击加成），可替换。
- * - 数据真值存 GameManager（heroLevels / equips / weaponLv / weaponCores），
+ * - 数据真值存 GameManager（equips / weaponLv / weaponCores），
  *   本类只提供查询、消费与乘区计算；战斗侧在 beginRun 用 atkMulOf 合并攻击乘区、
  *   在部署后用 applyEquipStats 追加射速/射程/暴击加成。
  */
@@ -50,7 +49,7 @@ export interface EquipmentDef {
     baseCost: number;
 }
 
-/** 英雄等级上限与成长 */
+/** 英雄等级玩法已移除；常量保留占位防止外部引用断裂（无运行时消费） */
 export const HERO_LEVEL_MAX = 20;
 export const HERO_LEVEL_ATK_STEP = 0.05;
 export const HERO_UPGRADE_BASE_COST = 80;
@@ -196,37 +195,17 @@ export class HeroSystem {
 
     private get _gm(): GameManager { return GameManager.instance; }
 
-    // ================= 英雄等级 =================
+    // ================= 英雄等级（已移除等级玩法） =================
+    // 等级玩法下线：英雄不再有等级/升级，仅保留恒定 1 级的兼容读取
+    // （旧存档 heroLevels 字段留在存档中不读取不删除，防止回档）。
 
-    heroLevel(heroId: string): number {
-        return this._gm.heroLevels[heroId] ?? 1;
+    heroLevel(_heroId: string): number {
+        return 1;
     }
 
-    heroUpgradeCost(heroId: string): number {
-        return Math.round(HERO_UPGRADE_BASE_COST * Math.pow(HERO_UPGRADE_COST_MUL, this.heroLevel(heroId) - 1));
-    }
-
-    isHeroMaxLevel(heroId: string): boolean {
-        return this.heroLevel(heroId) >= this._gm.heroLevelCap();
-    }
-
-    /** 英雄等级攻击乘区（Lv.1 = 1.0） */
-    heroAtkMul(heroId: string): number {
-        return 1 + HERO_LEVEL_ATK_STEP * (this.heroLevel(heroId) - 1);
-    }
-
-    /** 金币升级英雄；成功返回 true（未拥有英雄不可升级） */
-    upgradeHero(heroId: string): boolean {
-        if (!this._gm.isHeroOwned(heroId) || this.isHeroMaxLevel(heroId)) {
-            return false;
-        }
-        const cost = this.heroUpgradeCost(heroId);
-        if (!this._gm.res.spend('gold', cost)) {
-            return false;
-        }
-        this._gm.heroLevels[heroId] = this.heroLevel(heroId) + 1;
-        this._gm.save();
-        return true;
+    /** 英雄等级攻击乘区：等级玩法移除后恒为 1.0 */
+    heroAtkMul(_heroId: string): number {
+        return 1;
     }
 
     // ================= 主武器强化 =================

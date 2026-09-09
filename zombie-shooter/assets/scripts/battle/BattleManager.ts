@@ -303,8 +303,8 @@ export class BattleManager extends Component {
         const hs = HeroSystem.instance;
         this._stageId = gm.currentStage;
         for (const h of this._heroes) {
-            // 最终攻击 = 基础 × 局外火力 × 英雄等级 × 装备
-            h.applyMetaAtk(gm.metaAtkMul() * hs.atkMulOf(h.def.id));
+            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 英雄乘区（武器×装备）
+            h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * hs.atkMulOf(h.def.id));
         }
         // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊
         this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul());
