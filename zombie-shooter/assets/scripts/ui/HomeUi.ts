@@ -1011,33 +1011,7 @@ export class HomeUi extends Component {
             return;
         }
 
-        // 大按钮：上阵/下阵（原英雄升级位，等级玩法移除后改为编队切换快捷入口）
-        const up = document.createElement('button');
-        up.className = 'btn gold big';
-        if (inLineup) {
-            up.textContent = '▼ 点击下阵（编队 ' + gm.lineup.length + '/' + GameManager.LINEUP_MAX + '）';
-            up.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                if (gm.toggleLineupMember(def.id)) {
-                    SoundFx.play('ui');
-                    this._refreshHeroes();
-                }
-            };
-        } else {
-            up.textContent = '▲ 点击上阵（编队 ' + gm.lineup.length + '/' + GameManager.LINEUP_MAX + '）';
-            up.disabled = gm.lineup.length >= GameManager.LINEUP_MAX;
-            up.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                if (gm.toggleLineupMember(def.id)) {
-                    SoundFx.play('ui');
-                    this._refreshHeroes();
-                }
-            };
-        }
-        up.style.opacity = up.disabled ? '0.6' : '1';
-        body.appendChild(up);
+        // 大按钮（上阵/下阵）已按需求移除：编队切换统一走关卡页护送编队弹窗
 
         // 底部内嵌物品栏：四页签（装备/宝石/材料/道具），点击物品弹详情
         const bar = document.createElement('div');
