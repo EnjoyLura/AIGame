@@ -8,7 +8,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo } from '../battle/StageData';
 
@@ -70,6 +70,8 @@ export class HomeUi extends Component {
     private _heroPickEl: HTMLDivElement | null = null;
     private _heroBodyEl: HTMLDivElement | null = null;
     private _heroSelIdx = 0;
+    /** 英雄页内嵌物品栏当前页签（equip/gem/mat/item） */
+    private _heroBagTab: 'equip' | 'gem' | 'mat' | 'item' = 'equip';
     /** 技能页 */
     private _skillPickEl: HTMLDivElement | null = null;
     private _skillListEl: HTMLDivElement | null = null;
@@ -1049,20 +1051,141 @@ export class HomeUi extends Component {
         up.style.opacity = up.disabled ? '0.6' : '1';
         body.appendChild(up);
 
-        // 底部按钮行：背包（英雄核心/武器强化已按用户红框移至英雄区右缘）
-        const row3 = document.createElement('div');
-        row3.className = 'row3';
-        const bagBtn = document.createElement('button');
-        bagBtn.className = 'btn dark';
-        bagBtn.textContent = '🎒 背包';
-        bagBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openBagModal(def.id);
+        // 底部内嵌物品栏：四页签（装备/宝石/材料/道具），点击物品弹详情
+        const bar = document.createElement('div');
+        bar.className = 'bagBar';
+        const tabs = document.createElement('div');
+        tabs.className = 'bagTabs';
+        const mkTab = (key: 'equip' | 'gem' | 'mat' | 'item', label: string) => {
+            const b = document.createElement('button');
+            if (this._heroBagTab === key) {
+                b.className = 'on';
+            }
+            b.textContent = label;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._heroBagTab = key;
+                this._refreshHeroes();
+            };
+            tabs.appendChild(b);
         };
-        row3.appendChild(bagBtn);
-        body.appendChild(row3);
+        mkTab('equip', '🛡️ 装备');
+        mkTab('gem', '💎 宝石');
+        mkTab('mat', '⚙️ 材料');
+        mkTab('item', '🧪 道具');
+        bar.appendChild(tabs);
+        const grid = document.createElement('div');
+        grid.className = 'bagGrid';
+        if (this._heroBagTab === 'equip') {
+            const items = gm.bag;
+            if (items.length === 0) {
+                const tip = document.createElement('p');
+                tip.className = 'mSub';
+                tip.textContent = '装备背包空空如也 · 去商店购买装备部件';
+                grid.appendChild(tip);
+            }
+            for (const it of items) {
+                const cell = document.createElement('div');
+                cell.className = `bcell r${it.tier <= 1 ? 2 : it.tier === 2 ? 3 : it.tier === 3 ? 4 : 5}`;
+                cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>+${it.lv}</em>`;
+                cell.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._openBagItemTip(def.id, { slot: it.slot, tier: it.tier, lv: it.lv });
+                };
+                grid.appendChild(cell);
+            }
+        } else {
+            for (const md of MISC_ITEM_DEFS) {
+                const n = hs.miscCount(md.id);
+                if (n <= 0) {
+                    continue;
+                }
+                const cell = document.createElement('div');
+                cell.className = `bcell r${md.tier}`;
+                cell.innerHTML = `${md.ic}<em>×${n}</em>`;
+                cell.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._openBagItemTip(def.id, md);
+                };
+                grid.appendChild(cell);
+            }
+            if (grid.children.length === 0) {
+                const tip = document.createElement('p');
+                tip.className = 'mSub';
+                tip.textContent = this._heroBagTab === 'gem' ? '暂无宝石 · 商店后续开放'
+                    : this._heroBagTab === 'mat' ? '暂无材料 · 关卡与商店产出'
+                        : '暂无道具 · 商城与活动产出';
+                grid.appendChild(tip);
+            }
+        }
+        bar.appendChild(grid);
+        body.appendChild(bar);
         this._applyPendingTex();
+    }
+
+    /** 内嵌物品栏物品详情弹窗：装备可穿戴（走穿戴面板），道具可用则显示使用按钮 */
+    private _openBagItemTip(heroId: string, src: BagItem | MiscItemDef): void {
+        const hs = HeroSystem.instance;
+        const isEquip = (src as BagItem).slot !== undefined;
+        const title = isEquip
+            ? `${bagItemName(src as BagItem)} · +${(src as BagItem).lv}`
+            : `${(src as MiscItemDef).ic} ${(src as MiscItemDef).name}`;
+        this._openModal(title, (box, close) => {
+            const info = document.createElement('p');
+            info.className = 'mSub';
+            if (isEquip) {
+                const it = src as BagItem;
+                const parts: string[] = [];
+                for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
+                    const v = Math.round(bagItemValue(it, key) * 100);
+                    if (v > 0) {
+                        parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
+                    }
+                }
+                info.innerHTML = `<b style="color:${EQUIP_TIER_COLORS[it.tier - 1]}">${EQUIP_TIER_NAMES[it.tier - 1]}${EQUIP_SLOT_NAMES[it.slot]}</b>` +
+                    ` · 强化 +${it.lv}<br>${parts.join(' ') || '无属性'}`;
+            } else {
+                const md = src as MiscItemDef;
+                const n = hs.miscCount(md.id);
+                info.innerHTML = `<b style="color:${EQUIP_TIER_COLORS[md.tier - 1]}">${md.name}</b> · 持有 ×${n}<br>${md.desc}`;
+            }
+            box.appendChild(info);
+            if (isEquip) {
+                const btn = document.createElement('button');
+                btn.className = 'btn gold big';
+                btn.textContent = '装 备';
+                btn.onclick = () => {
+                    close();
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._openEquipSlotPanel(heroId, (src as BagItem).slot);
+                };
+                box.appendChild(btn);
+            } else if (miscDef((src as MiscItemDef).id)?.use) {
+                const btn = document.createElement('button');
+                btn.className = 'btn gold big';
+                btn.textContent = '使 用';
+                btn.onclick = () => {
+                    if (hs.useMisc((src as MiscItemDef).id)) {
+                        SoundFx.play('buy');
+                        this._toast('使用成功');
+                        close();
+                        this._refreshHeroes();
+                    }
+                };
+                box.appendChild(btn);
+            }
+            const closeBar = document.createElement('button');
+            closeBar.className = 'btn dark sm';
+            closeBar.textContent = '关 闭';
+            closeBar.onclick = (e) => {
+                e.stopPropagation();
+                close();
+            };
+            box.appendChild(closeBar);
+        });
     }
 
     /** 弹窗：英雄核心（武器核心嵌入/拆除，口径同旧 gem 钮） */
@@ -1180,58 +1303,6 @@ export class HomeUi extends Component {
             }
             box.appendChild(row);
         });
-    }
-
-    /** 弹窗：指挥官背包（装备/材料双页签，真数据 gm.bag） */
-    private _openBagModal(heroId: string): void {
-        let tab: 'equip' | 'all' = 'equip';
-        const gm = GameManager.instance;
-        const render = (box: HTMLDivElement) => {
-            box.querySelector('.bagWrap')?.remove();
-            const wrap = document.createElement('div');
-            wrap.className = 'bagWrap';
-            const tabs = document.createElement('div');
-            tabs.className = 'bagTabs';
-            const mk = (key: 'equip' | 'all', label: string) => {
-                const b = document.createElement('button');
-                b.className = tab === key ? 'on' : '';
-                b.textContent = label;
-                b.onclick = (e) => {
-                    e.stopPropagation();
-                    tab = key;
-                    render(box);
-                };
-                tabs.appendChild(b);
-            };
-            mk('equip', '🛡️ 装备');
-            mk('all', '📦 全部');
-            wrap.appendChild(tabs);
-            const grid = document.createElement('div');
-            grid.className = 'bagGrid';
-            const items: BagItem[] = tab === 'equip' ? gm.bag : gm.bag;
-            if (items.length === 0) {
-                const tip = document.createElement('p');
-                tip.className = 'mSub';
-                tip.textContent = '背包空空如也 · 去商店购买装备部件';
-                grid.appendChild(tip);
-            }
-            for (const it of items) {
-                const cell = document.createElement('div');
-                cell.className = `bcell r${it.tier <= 1 ? 2 : it.tier === 2 ? 3 : it.tier === 3 ? 4 : 5}`;
-                cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>${it.lv}</em>`;
-                cell.title = `${bagItemName(it)}（点击穿戴）`;
-                cell.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.play('ui');
-                    document.querySelector('#homeUi .protoMask')?.remove();
-                    this._openEquipSlotPanel(heroId, it.slot);
-                };
-                grid.appendChild(cell);
-            }
-            wrap.appendChild(grid);
-            box.appendChild(wrap);
-        };
-        this._openModal('🎒 指挥官背包', (box) => render(box));
     }
 
     /** 穿戴面板（对齐原型 mbox 风格）：已穿件（强化/卸下）+ 背包件（穿戴） */
@@ -2449,6 +2520,11 @@ export class HomeUi extends Component {
 #homeUi .bcell.r5 { border-color: #e0a23c; }
 #homeUi .bcell em { position: absolute; right: calc(6px * var(--hs,1)); bottom: calc(4px * var(--hs,1)); font-style: normal;
   font-size: calc(18px * var(--hs,1)); color: #dce8f7; font-weight: 700; text-shadow: 0 1px 2px #000; }
+#homeUi .bagBar { margin-top: calc(20px * var(--hs,1)); padding: calc(20px * var(--hs,1)); border-radius: calc(22px * var(--hs,1));
+  background: linear-gradient(180deg, #1a2947, #14203a); border: 1px solid #33507a; }
+#homeUi .bagBar .bagTabs { margin-bottom: calc(16px * var(--hs,1)); }
+#homeUi .bagBar .bagGrid { grid-template-columns: repeat(5, 1fr); gap: calc(12px * var(--hs,1)); max-height: calc(300px * var(--hs,1)); overflow-y: auto; }
+#homeUi .bagBar .bcell { height: calc(110px * var(--hs,1)); font-size: calc(44px * var(--hs,1)); }
 #homeUi .sqRow { display: flex; gap: calc(16px * var(--hs,1)); justify-content: center; margin-bottom: calc(24px * var(--hs,1)); }
 #homeUi .sqSlot { width: calc(132px * var(--hs,1)); height: calc(148px * var(--hs,1)); border-radius: calc(20px * var(--hs,1));
   background: radial-gradient(circle at 50% 30%, #2a4470, #0d1626); border: 1px solid #8a6a20; cursor: pointer;
@@ -2516,7 +2592,7 @@ export class HomeUi extends Component {
 #homeUi .sInfo, #homeUi .sName, #homeUi .sDesc, #homeUi .sAct, #homeUi .sLv, #homeUi .skillHint,
 #homeUi .baseBanner, #homeUi .bbIc, #homeUi .bcard, #homeUi .bIc, #homeUi .bName, #homeUi .bDesc,
 #homeUi .protoMask, #homeUi .mbox, #homeUi .mHead, #homeUi .mClose, #homeUi .mSub, #homeUi .mRow,
-#homeUi .bagTabs, #homeUi .bagGrid, #homeUi .bcell, #homeUi .sqRow, #homeUi .sqSlot, #homeUi .cand,
+#homeUi .bagTabs, #homeUi .bagGrid, #homeUi .bcell, #homeUi .bagBar, #homeUi .sqRow, #homeUi .sqSlot, #homeUi .cand,
 #homeUi .candB, #homeUi .tabbar, #homeUi .tab, #homeUi .res .add, #homeUi .expbar i, #homeUi .lvtag,
 #homeUi .frame::before, #homeUi .frame::after { animation: none; }
 
@@ -2591,6 +2667,13 @@ export class HomeUi extends Component {
 #homeUi .bagTabs button.on { background: #fff8e9; color: #8c5927; border-color: #d8ad74; box-shadow: inset 0 -2px #e9ab5c; }
 #homeUi .bcell { background: #dce8ef; border: 1px solid #b8cbd7; border-radius: calc(5px * var(--pw,2.5)); }
 #homeUi .bcell em { color: #395a6b; text-shadow: none; }
+#homeUi .bagBar { margin-top: calc(10px * var(--pw,2.5)); padding: calc(10px * var(--pw,2.5));
+  background: linear-gradient(#eaf1f6, #dce8ef); border: 1px solid #b5c8d5; border-radius: calc(8px * var(--pw,2.5)); }
+#homeUi .bagBar .bagTabs { gap: calc(6px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .bagBar .bagTabs button { height: calc(38px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .bagBar .bagGrid { grid-template-columns: repeat(5, 1fr); gap: calc(6px * var(--pw,2.5)); max-height: calc(120px * var(--pw,2.5)); }
+#homeUi .bagBar .bcell { height: calc(52px * var(--pw,2.5)); font-size: calc(22px * var(--pw,2.5)); border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .bagBar .bcell em { font-size: calc(10px * var(--pw,2.5)); }
 #homeUi .sqRow { gap: calc(6px * var(--pw,2.5)); }
 #homeUi .sqSlot { min-width: 0; flex: 1; background: #d9e7ef; border: 1px solid #b8cbd7; border-radius: calc(5px * var(--pw,2.5)); }
 #homeUi .sqSlot span { color: #243e4d; }

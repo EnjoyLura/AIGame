@@ -172,6 +172,55 @@ export function bagItemCost(item: BagItem): number {
     return Math.round(120 * Math.pow(2.1, item.tier - 1));
 }
 
+// ================= 杂物背包（宝石/材料/道具） =================
+
+export type MiscKind = 'gem' | 'mat' | 'item';
+
+/** 道具使用效果（仅有 use 字段的道具可使用） */
+export interface MiscUseEffect {
+    type: 'stamina' | 'gold';
+    amount: number;
+}
+
+/** 杂物定义：宝石/材料/道具共用一张表，数量存 gm.misc */
+export interface MiscItemDef {
+    id: string;
+    kind: MiscKind;
+    name: string;
+    /** 展示 emoji（与 SLOT_EMOJI 同风格） */
+    ic: string;
+    /** 稀有度 2-5（决定格子边框色） */
+    tier: 2 | 3 | 4 | 5;
+    desc: string;
+    /** 使用效果（仅道具可有；无此字段 = 不可使用，详情不显示使用按钮） */
+    use?: MiscUseEffect;
+}
+
+/** 杂物表（对齐原型图 bag 数据：材料 4 种、宝石 4 种；道具为可用消耗品） */
+export const MISC_ITEM_DEFS: MiscItemDef[] = [
+    { id: 'mat_core', kind: 'mat', name: '英雄核心', ic: '⚙️', tier: 4, desc: '大招升级材料（基地·研究所使用）' },
+    { id: 'mat_alloy', kind: 'mat', name: '精炼合金', ic: '🔩', tier: 3, desc: '装备强化材料（穿戴面板强化消耗）' },
+    { id: 'mat_stone', kind: 'mat', name: '强化石', ic: '🧱', tier: 2, desc: '武器强化材料（武器强化消耗）' },
+    { id: 'mat_blueprint', kind: 'mat', name: '改装图纸', ic: '🔧', tier: 3, desc: '载具改装图纸（基地·载具工坊使用）' },
+    { id: 'gem_fire', kind: 'gem', name: '赤焰石', ic: '🔴', tier: 3, desc: '攻击加成宝石（后续开放镶嵌）' },
+    { id: 'gem_ice', kind: 'gem', name: '寒冰晶', ic: '🔵', tier: 3, desc: '防御加成宝石（后续开放镶嵌）' },
+    { id: 'gem_thunder', kind: 'gem', name: '雷光石', ic: '🟡', tier: 4, desc: '暴击加成宝石（后续开放镶嵌）' },
+    { id: 'gem_wind', kind: 'gem', name: '疾风羽', ic: '🟢', tier: 2, desc: '生命加成宝石（后续开放镶嵌）' },
+    { id: 'item_stamina', kind: 'item', name: '体力药水', ic: '⚡', tier: 3, desc: '使用后恢复 10 点体力', use: { type: 'stamina', amount: 10 } },
+    { id: 'item_goldbox', kind: 'item', name: '金币箱', ic: '🎁', tier: 3, desc: '使用后获得 100 金币', use: { type: 'gold', amount: 100 } },
+];
+
+export function miscDef(id: string): MiscItemDef | undefined {
+    return MISC_ITEM_DEFS.find(m => m.id === id);
+}
+
+/** 杂物库存表：id → 数量（存档持久化，缺省给一组初始物资） */
+export const MISC_STARTER: Record<string, number> = {
+    mat_core: 12, mat_alloy: 48, mat_stone: 320, mat_blueprint: 6,
+    gem_fire: 6, gem_ice: 4, gem_thunder: 2, gem_wind: 8,
+    item_stamina: 3, item_goldbox: 2,
+};
+
 /** 英雄解锁价格表（商城一次性买断；未收录的英雄不可购买） */
 export const HERO_PRICES: Record<string, number> = {
     rifle: 0,       // 初始拥有
@@ -505,5 +554,32 @@ export class HeroSystem {
             }
         }
         return best;
+    }
+
+    // ================= 杂物库存（宝石/材料/道具） =================
+
+    /** 杂物数量（未持有为 0） */
+    miscCount(id: string): number {
+        return this._gm.misc[id] ?? 0;
+    }
+
+    /** 使用一件道具：扣库存并发效果；不可用返回 false */
+    useMisc(id: string): boolean {
+        const def = miscDef(id);
+        if (!def || !def.use || this.miscCount(id) < 1) {
+            return false;
+        }
+        const gm = this._gm;
+        if (def.use.type === 'stamina') {
+            gm.res.add('stamina', def.use.amount);
+        } else if (def.use.type === 'gold') {
+            gm.res.add('gold', def.use.amount);
+        }
+        gm.misc[id] = this.miscCount(id) - 1;
+        if (gm.misc[id] <= 0) {
+            delete gm.misc[id];
+        }
+        gm.save();
+        return true;
     }
 }

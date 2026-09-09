@@ -2,7 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS, ABILITY_MAX_LEVEL } from '../battle/HeroDef';
-import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS } from './HeroSystem';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS, MISC_ITEM_DEFS, MISC_STARTER } from './HeroSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -53,6 +53,8 @@ export class GameManager {
     weaponCores: Record<string, { id: string } | null> = {};
     /** 装备背包（账号级；购买入库，穿戴时绑定到英雄，卸下回背包） */
     bag: BagItem[] = [];
+    /** 杂物库存（宝石/材料/道具，id → 数量；新档发初始物资） */
+    misc: Record<string, number> = { ...MISC_STARTER };
     /** 技能等级（key = `${heroId}:${slot}`，slot=basic|skill|ultimate；缺省 1；读写走 HeroSystem） */
     skillLevels: Record<string, number> = {};
     /** 基地建筑等级（key = BUILDINGS id；缺省 0；读写走 buildingLevel/buildingLevelCap） */
@@ -307,6 +309,7 @@ export class GameManager {
             weaponLv: this.weaponLv,
             weaponCores: this.weaponCores,
             bag: this.bag,
+            misc: this.misc,
             skillLevels: this.skillLevels,
             gold: this.gold,
             upgrades: this._upgrades,
@@ -400,6 +403,17 @@ export class GameManager {
                         && typeof b.tier === 'number' && b.tier >= 1 && b.tier <= 4
                         && typeof b.lv === 'number' && b.lv >= 1;
                 }).map((b: BagItem) => ({ slot: b.slot, tier: b.tier, lv: Math.max(1, Math.floor(b.lv)) }));
+            }
+            // 杂物库存（id 校验在 MISC_ITEM_DEFS 内，数量钳 >=0）
+            if (data.misc && typeof data.misc === 'object') {
+                const misc: Record<string, number> = {};
+                for (const d of MISC_ITEM_DEFS) {
+                    const n = (data.misc as Record<string, unknown>)[d.id];
+                    if (typeof n === 'number' && n > 0) {
+                        misc[d.id] = Math.floor(n);
+                    }
+                }
+                this.misc = misc;
             }
             // 技能等级（key=`${heroId}:${slot}`，等级钳 1~3）
             if (data.skillLevels && typeof data.skillLevels === 'object') {
