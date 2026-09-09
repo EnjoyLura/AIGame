@@ -214,6 +214,96 @@ export function miscDef(id: string): MiscItemDef | undefined {
     return MISC_ITEM_DEFS.find(m => m.id === id);
 }
 
+/** 掉落物描述：结算面板展示 + 落袋凭据（kind 决定入哪个包） */
+export interface LootDrop {
+    kind: 'equip' | 'core' | 'misc';
+    /** equip：品质；core/misc：MISC_ITEM_DEFS id */
+    slot?: EquipSlot;
+    tier: number;
+    id?: string;
+    name: string;
+    ic: string;
+}
+
+/** 掉落稀有度着色（与装备品质色一致，misc tier 5 金色） */
+export function lootDropColor(drop: LootDrop): string {
+    const t = Math.min(4, Math.max(1, Math.round(drop.tier)));
+    return EQUIP_TIER_COLORS[t - 1];
+}
+
+/** 背包内随机一件装备（掉落掷点用；背包为空返回 null） */
+function randomBagDrop(): BagItem | null {
+    const gm = GameManager.instance;
+    if (gm.bag.length === 0) {
+        return null;
+    }
+    return gm.bag[Math.floor(Math.random() * gm.bag.length)];
+}
+
+/**
+ * 关卡通关掉落掷点（小概率珍贵物，总掉率约 24%）：
+ * 1. 核心材料「英雄核心」6%；2. 稀有杂物（雷光石/改装图纸）5%；3. 装备 13%（品质阶梯内随机）。
+ * 命中多档时全部发放（掉落物之间独立掷点）。
+ */
+export function rollStageClearDrops(stageId: number): LootDrop[] {
+    const drops: LootDrop[] = [];
+    const gm = GameManager.instance;
+    // 关卡越深掉率小幅上浮（每关 +3% 相对值，封顶 +30%）
+    const luck = 1 + Math.min(0.3, (Math.max(1, stageId) - 1) * 0.03);
+    // ① 武器核心材料（珍贵）
+    if (Math.random() < 0.06 * luck) {
+        const d = miscDef('mat_core');
+        if (d) {
+            drops.push({ kind: 'misc', tier: d.tier, id: d.id, name: d.name, ic: d.ic });
+        }
+    }
+    // ② 稀有杂物（雷光石 / 改装图纸二选一）
+    if (Math.random() < 0.05 * luck) {
+        const d = miscDef(Math.random() < 0.5 ? 'gem_thunder' : 'mat_blueprint');
+        if (d) {
+            drops.push({ kind: 'misc', tier: d.tier, id: d.id, name: d.name, ic: d.ic });
+        }
+    }
+    // ③ 装备（品质阶梯：绿 40% 蓝 35% 紫 20% 金 5%；从背包池随机取部位）
+    if (Math.random() < 0.13 * luck) {
+        const r = Math.random();
+        const tier: 1 | 2 | 3 | 4 = r < 0.40 ? 1 : r < 0.75 ? 2 : r < 0.95 ? 3 : 4;
+        const pool = EQUIPMENT_DEFS.filter(d => d.tier === tier);
+        const def = (pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null)
+            ?? null;
+        if (def) {
+            drops.push({ kind: 'equip', slot: def.slot, tier: def.tier, name: def.name, ic: '🎁' });
+        } else {
+            const bagIt = randomBagDrop();
+            if (bagIt) {
+                drops.push({ kind: 'equip', slot: bagIt.slot, tier: bagIt.tier, name: bagItemName(bagIt), ic: '🎁' });
+            }
+        }
+    }
+    void gm;
+    return drops;
+}
+
+/** 掉落物入包（装备进装备背包随机强化等级 1~3，核心/杂物进杂物库存；返回成功入包数） */
+export function grantLootDrops(drops: LootDrop[]): number {
+    const gm = GameManager.instance;
+    let n = 0;
+    for (const drop of drops) {
+        if (drop.kind === 'equip' && drop.slot) {
+            const lv = 1 + Math.floor(Math.random() * 3);
+            gm.bag.push({ slot: drop.slot, tier: (Math.min(4, Math.max(1, drop.tier)) as 1 | 2 | 3 | 4), lv });
+            n++;
+        } else if ((drop.kind === 'core' || drop.kind === 'misc') && drop.id && miscDef(drop.id)) {
+            gm.misc[drop.id] = (gm.misc[drop.id] ?? 0) + 1;
+            n++;
+        }
+    }
+    if (n > 0) {
+        gm.save();
+    }
+    return n;
+}
+
 /** 杂物库存表：id → 数量（存档持久化，缺省给一组初始物资） */
 export const MISC_STARTER: Record<string, number> = {
     mat_core: 12, mat_alloy: 48, mat_stone: 320, mat_blueprint: 6,

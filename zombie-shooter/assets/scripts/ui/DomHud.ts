@@ -9,6 +9,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { SoundFx } from '../core/SoundFx';
 import { FINAL_STAGE_ID } from '../battle/StageData';
+import { LootDrop, lootDropColor } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 
 /** 伤害统计面板每英雄一行的可更新元素 */
@@ -62,13 +63,13 @@ export class DomHud extends Component {
     /** 通关结算面板（STAGE_CLEAR 时弹出，与失败结算互斥） */
     private _clearPanel: HTMLDivElement | null = null;
     private _clearTitle: HTMLDivElement | null = null;
-    private _clearLines: HTMLDivElement | null = null;
-    private _clearGold: HTMLDivElement | null = null;
+    /** 结算动态区：每次通关重建（统计芯片 + 掉落展示） */
+    private _clearBody: HTMLDivElement | null = null;
+    private _clearAdBtn: HTMLButtonElement | null = null;
     /** GOLD_EARNED 缓存：通关面板与失败面板共用金币数据源 */
     private _lastGoldEarned = 0;
     /** 结算"看广告金币×2"按钮（失败/通关各一） */
     private _failAdBtn: HTMLButtonElement | null = null;
-    private _clearAdBtn: HTMLButtonElement | null = null;
     /** 缩放系数：设计像素 → CSS 像素（FIXED_WIDTH：宽恒定 1080 设计像素） */
     private _scale = 1;
 
@@ -222,25 +223,75 @@ export class DomHud extends Component {
         });
     }
 
-    private _onStageClear(stageId: number, bonus: number): void {
+    private _onStageClear(stageId: number, bonus: number, drops: LootDrop[]): void {
         const gm = GameManager.instance;
         if (this._clearTitle) {
             const hasNext = stageId < FINAL_STAGE_ID;
             this._clearTitle.textContent = hasNext ? `第 ${stageId} 关 通 关` : '全 部 通 关';
             this._clearTitle.style.color = hasNext ? '#7bdc7b' : '#ffd76a';
         }
-        if (this._clearLines) {
-            this._clearLines.textContent =
-                `击杀怪物：${gm.kills}　　团队等级：Lv.${gm.level}`;
-        }
-        if (this._clearGold) {
+        // 动态区重建：统计芯片 + 金币 + 掉落展示（每次通关重新触发入场动画）
+        if (this._clearBody) {
+            const body = this._clearBody;
+            body.innerHTML = '';
+
+            // 统计三芯片：击杀 / 团队等级 / 金币收益
+            const chips = document.createElement('div');
+            chips.className = 'clChips';
+            const mkChip = (val: string, lab: string, cls: string) => {
+                const c = document.createElement('div');
+                c.className = 'clChip ' + cls;
+                const v = document.createElement('b');
+                v.textContent = val;
+                const l = document.createElement('span');
+                l.textContent = lab;
+                c.appendChild(v);
+                c.appendChild(l);
+                chips.appendChild(c);
+            };
             const earned = Number(this._lastGoldEarned) || 0;
-            this._clearGold.textContent =
-                `金币收益　+${earned}` + (bonus > 0 ? `（含首通奖励 +${bonus}）` : '');
+            mkChip(String(gm.kills), '击杀怪物', '');
+            mkChip(`Lv.${gm.level}`, '团队等级', '');
+            mkChip(`+${earned}`, '金币收益' + (bonus > 0 ? '（含首通）' : ''), 'gold');
+            body.appendChild(chips);
+
+            // 掉落区：有掉落才显示，逐项翻转弹出；无掉落给固定提示位
+            const loot = document.createElement('div');
+            loot.className = 'clLoot';
+            const head = document.createElement('div');
+            head.className = 'clLootHead';
+            head.textContent = drops.length > 0 ? '✨ 掉 落 获 得 ✨' : '本次通关没有掉落 · 再接再厉';
+            loot.appendChild(head);
+            const grid = document.createElement('div');
+            grid.className = 'clLootGrid';
+            drops.forEach((d, i) => {
+                const cell = document.createElement('div');
+                cell.className = `clDrop r${Math.min(5, Math.max(2, Math.round(d.tier)))}`;
+                cell.style.animationDelay = `${(0.55 + i * 0.28).toFixed(2)}s`;
+                const ic = document.createElement('span');
+                ic.className = 'clDropIc';
+                ic.textContent = d.ic;
+                const nm = document.createElement('span');
+                nm.className = 'clDropNm';
+                nm.textContent = d.name;
+                nm.style.color = lootDropColor(d);
+                cell.appendChild(ic);
+                cell.appendChild(nm);
+                grid.appendChild(cell);
+                // 掉落物落袋音效错峰播放
+                this.scheduleOnce(() => {
+                    SoundFx.play(d.tier >= 4 ? 'buy' : 'ui');
+                }, 0.6 + i * 0.28);
+            });
+            loot.appendChild(grid);
+            body.appendChild(loot);
         }
         this._syncAdButton(this._clearAdBtn);
         if (this._clearPanel) {
             this._clearPanel.style.display = 'flex';
+        }
+        if (drops.length > 0) {
+            SoundFx.play('buy');
         }
     }
 
@@ -665,17 +716,19 @@ export class DomHud extends Component {
         root.appendChild(fp);
         this._failPanel = fp;
 
-        // 关卡通关结算（STAGE_CLEAR）
+        // 关卡通关结算（STAGE_CLEAR）：重设计卡片 = 金字标题 + 统计芯片 + 掉落展示 + 双倍/返回
         const cp = document.createElement('div');
-        cp.className = 'menuOverlay';
+        cp.className = 'menuOverlay clearOverlay';
         cp.style.display = 'none';
         const ccard = document.createElement('div');
-        ccard.className = 'failCard';
+        ccard.className = 'clearCard';
         this._clearTitle = this._bigLabel('通 关', 72);
-        this._clearTitle.style.color = '#7bdc7b';
+        this._clearTitle.className = 'bigLabel clTitle';
+        this._clearTitle.style.fontSize = '';
         ccard.appendChild(this._clearTitle);
-        this._clearLines = this._label(ccard, 'failLine', '');
-        this._clearGold = this._label(ccard, 'failGold', '');
+        this._clearBody = document.createElement('div');
+        this._clearBody.className = 'clBody';
+        ccard.appendChild(this._clearBody);
         this._clearAdBtn = this._menuButton('', '#9ccc65', () => this._claimDoubleGold(this._clearAdBtn));
         ccard.appendChild(this._clearAdBtn);
         ccard.appendChild(this._menuButton('返 回 主 城', '#7bdc7b', () => {
@@ -938,6 +991,52 @@ export class DomHud extends Component {
     inset 0 0 calc(80px * var(--s,1)) rgba(255,167,38,.06); }
 #domHud .failLine { font-size: calc(42px * var(--s,1)); }
 #domHud .failGold { font-size: calc(42px * var(--s,1)); color: #ffd76a; }
+/* --- 通关结算重设计 --- */
+#domHud .clearOverlay { background: radial-gradient(ellipse at center, rgba(24,52,38,.78) 0%, rgba(0,0,0,.82) 100%); }
+#domHud .clearCard { display: flex; flex-direction: column; align-items: center; gap: calc(30px * var(--s,1));
+  width: calc(880px * var(--s,1)); padding: calc(48px * var(--s,1)) calc(30px * var(--s,1)) calc(44px * var(--s,1));
+  border-radius: calc(24px * var(--s,1)); background: linear-gradient(180deg, #2c4438 0%, #1e2f27 58%, #17241e 100%);
+  border: calc(3px * var(--s,1)) solid #7bdc7b;
+  box-shadow: 0 0 0 calc(3px * var(--s,1)) rgba(0,0,0,.55), 0 calc(16px * var(--s,1)) calc(48px * var(--s,1)) rgba(0,0,0,.6),
+    inset 0 0 calc(110px * var(--s,1)) rgba(123,220,123,.08);
+  animation: clCardIn .38s cubic-bezier(.34,1.56,.64,1); }
+@keyframes clCardIn { from { opacity: 0; transform: scale(.86) translateY(calc(30px * var(--s,1))); } }
+#domHud .clTitle { font-size: calc(84px * var(--s,1)); letter-spacing: calc(12px * var(--s,1));
+  background: linear-gradient(180deg, #eaffea 0%, #7bdc7b 55%, #3f9f4f 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.55));
+  animation: clTitleBounce .5s cubic-bezier(.34,1.8,.64,1) .1s both; }
+@keyframes clTitleBounce { from { opacity: 0; transform: scale(.4) rotate(-4deg); }
+  60% { opacity: 1; transform: scale(1.12) rotate(1deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+#domHud .clBody { display: flex; flex-direction: column; align-items: center; gap: calc(26px * var(--s,1)); width: 100%; }
+#domHud .clChips { display: flex; gap: calc(18px * var(--s,1)); animation: clFadeUp .4s ease-out .18s both; }
+@keyframes clFadeUp { from { opacity: 0; transform: translateY(calc(22px * var(--s,1))); } }
+#domHud .clChip { display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--s,1));
+  min-width: calc(230px * var(--s,1)); padding: calc(14px * var(--s,1)) calc(24px * var(--s,1));
+  border-radius: calc(16px * var(--s,1)); background: rgba(10,18,14,.55);
+  border: calc(2px * var(--s,1)) solid rgba(123,220,123,.25); }
+#domHud .clChip b { font-size: calc(42px * var(--s,1)); color: #dff5e4; font-variant-numeric: tabular-nums; }
+#domHud .clChip.gold b { color: #ffd76a; }
+#domHud .clChip span { font-size: calc(24px * var(--s,1)); color: #8fa898; letter-spacing: calc(3px * var(--s,1)); }
+#domHud .clLoot { display: flex; flex-direction: column; align-items: center; gap: calc(16px * var(--s,1));
+  width: calc(780px * var(--s,1)); padding: calc(18px * var(--s,1)) 0; border-radius: calc(16px * var(--s,1));
+  background: rgba(8,16,12,.45); border: calc(2px * var(--s,1)) dashed rgba(123,220,123,.3);
+  animation: clFadeUp .4s ease-out .32s both; }
+#domHud .clLootHead { font-size: calc(28px * var(--s,1)); color: #b9d9c2; letter-spacing: calc(6px * var(--s,1)); }
+#domHud .clLootGrid { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(16px * var(--s,1));
+  min-height: calc(150px * var(--s,1)); align-items: center; }
+#domHud .clDrop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(6px * var(--s,1));
+  width: calc(220px * var(--s,1)); height: calc(150px * var(--s,1)); border-radius: calc(14px * var(--s,1));
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.35));
+  border: calc(3px * var(--s,1)) solid rgba(123,220,123,.35);
+  opacity: 0; animation: clDropIn .45s cubic-bezier(.34,1.56,.64,1) both; }
+#domHud .clDrop.r3 { border-color: #5ab0f0; }
+#domHud .clDrop.r4 { border-color: #c07ef5; }
+#domHud .clDrop.r5 { border-color: #ffd76a; box-shadow: 0 0 calc(26px * var(--s,1)) rgba(255,215,106,.4); }
+#domHud .clDropIc { font-size: calc(58px * var(--s,1)); line-height: 1; filter: drop-shadow(0 calc(3px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5)); }
+#domHud .clDropNm { font-size: calc(27px * var(--s,1)); text-shadow: 0 calc(2px * var(--s,1)) calc(3px * var(--s,1)) rgba(0,0,0,.6); }
+@keyframes clDropIn { from { opacity: 0; transform: scale(.3) rotate(-10deg); }
+  65% { opacity: 1; transform: scale(1.14) rotate(2deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
 `;
         document.head.appendChild(style);
     }

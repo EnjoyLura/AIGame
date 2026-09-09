@@ -88,7 +88,8 @@ export class GameFlow {
         this._lastResult = result;
         this._setState('settle');
         if (result === 'clear') {
-            eventCenter.emit(GameEvent.STAGE_CLEAR, BattleManager.instance?.stageId ?? 1, BattleManager.instance?.takeClearBonus() ?? 0);
+            eventCenter.emit(GameEvent.STAGE_CLEAR, BattleManager.instance?.stageId ?? 1,
+                BattleManager.instance?.takeClearBonus() ?? 0, BattleManager.instance?.takeClearDrops() ?? []);
         } else {
             eventCenter.emit(GameEvent.GAME_OVER);
         }

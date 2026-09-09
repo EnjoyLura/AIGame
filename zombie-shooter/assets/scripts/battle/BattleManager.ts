@@ -22,7 +22,7 @@ import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
 import { stageWaves, stageInfo, FINAL_STAGE_ID } from './StageData';
 import { GameFlow } from '../core/GameFlow';
-import { HeroSystem } from '../core/HeroSystem';
+import { HeroSystem, LootDrop, rollStageClearDrops, grantLootDrops } from '../core/HeroSystem';
 import { HitParticle } from './HitParticle';
 import { MortarFx, MORTAR_FX } from './MortarFx';
 import { HomeUi } from '../ui/HomeUi';
@@ -1087,7 +1087,18 @@ export class BattleManager extends Component {
         if (this._clearBonus > 0) {
             gm.addGold(this._clearBonus);
         }
+        // 通关掉落掷点：小概率掉装备/核心/稀有杂物，入包后暂存供结算面板展示
+        this._clearDrops = rollStageClearDrops(this._stageId);
+        grantLootDrops(this._clearDrops);
         GameFlow.instance.endRun('clear');
+    }
+
+    /** 通关掉落暂存（GameFlow.endRun 广播 STAGE_CLEAR 时读取带走） */
+    private _clearDrops: LootDrop[] = [];
+    takeClearDrops(): LootDrop[] {
+        const v = this._clearDrops;
+        this._clearDrops = [];
+        return v;
     }
 
     /** 首通奖励暂存（GameFlow.endRun 广播 STAGE_CLEAR 时读取带走） */
