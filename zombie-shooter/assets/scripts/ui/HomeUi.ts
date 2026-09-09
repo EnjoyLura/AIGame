@@ -1839,6 +1839,7 @@ export class HomeUi extends Component {
         for (const c of cards) {
             const lv = hs.abilityLevel(def.id, c.slot);
             const maxed = hs.isAbilityMaxLevel(def.id, c.slot);
+            const locked = lv <= 0;
             const card = document.createElement('div');
             card.className = 'skillCard panel' + (c.ult ? ' frame' : '');
             const icon = document.createElement('div');
@@ -1865,7 +1866,7 @@ export class HomeUi extends Component {
             act.className = 'sAct';
             const lvEl = document.createElement('div');
             lvEl.className = 'sLv';
-            lvEl.textContent = maxed ? 'MAX' : `Lv.${lv}`;
+            lvEl.textContent = maxed ? 'MAX' : locked ? '未解锁' : `Lv.${lv}`;
             const btn = document.createElement('button');
             btn.className = `btn ${c.ult ? 'gold' : 'blue'} sm`;
             if (maxed) {
@@ -1873,14 +1874,14 @@ export class HomeUi extends Component {
                 btn.disabled = true;
             } else {
                 const cost = hs.abilityUpgradeCost(def.id, c.slot);
-                btn.textContent = `🪙 ${cost.toLocaleString()}`;
+                btn.textContent = locked ? `🔓 解锁 🪙 ${cost.toLocaleString()}` : `🪙 ${cost.toLocaleString()}`;
                 btn.disabled = gm.gold < cost;
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.unlock();
                     if (hs.upgradeAbility(def.id, c.slot)) {
                         SoundFx.play('buy');
-                        this._toast(`${c.n} 升至 Lv.${lv + 1}`);
+                        this._toast(locked ? `${c.n} 已解锁` : `${c.n} 升至 Lv.${lv + 1}`);
                         this._refreshSkillPage();
                         this._refreshTop();
                     }

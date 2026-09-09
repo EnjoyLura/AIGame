@@ -1086,11 +1086,11 @@ export class HeroCombatController {
     levelUpSkill(): void { this._skill.levelUp(); }
     levelUpUltimate(): void { this._ultimate.levelUp(); }
 
-    /** 开局注入持久化技能等级（主城技能升级页购买，缺省 1；局内升级卡在此基础上继续升） */
+    /** 开局注入持久化技能等级（主城技能页购买；缺省 0=未解锁，局内升级卡解锁/升级） */
     initAbilityLevels(basic: number, skill: number, ultimate: number): void {
-        this._basicAbilityLevel = basic;
-        this._skill.level = Math.max(1, Math.min(ABILITY_MAX_LEVEL, skill));
-        this._ultimate.level = Math.max(1, Math.min(ABILITY_MAX_LEVEL, ultimate));
+        this._basicAbilityLevel = Math.max(1, basic);
+        this._skill.level = Math.max(0, Math.min(ABILITY_MAX_LEVEL, skill));
+        this._ultimate.level = Math.max(0, Math.min(ABILITY_MAX_LEVEL, ultimate));
         this._skill.resetCooldown();
         this._ultimate.resetCooldown();
     }

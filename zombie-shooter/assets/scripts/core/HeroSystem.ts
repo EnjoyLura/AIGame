@@ -303,9 +303,12 @@ export class HeroSystem {
         return `${heroId}:${slot}`;
     }
 
-    /** 持久化技能等级（缺省 1；战斗开局注入，局内升级卡在其上继续升） */
+    /** 持久化技能等级（普攻缺省 1 恒可用；技能/大招缺省 0=未解锁，主城购买或局内升级卡解锁） */
     abilityLevel(heroId: string, slot: AbilitySlot): number {
-        return this._gm.skillLevels[this._abilityKey(heroId, slot)] ?? 1;
+        if (slot === 'basic') {
+            return this._gm.skillLevels[this._abilityKey(heroId, slot)] ?? 1;
+        }
+        return this._gm.skillLevels[this._abilityKey(heroId, slot)] ?? 0;
     }
 
     isAbilityMaxLevel(heroId: string, slot: AbilitySlot): boolean {
@@ -313,10 +316,12 @@ export class HeroSystem {
     }
 
     abilityUpgradeCost(heroId: string, slot: AbilitySlot): number {
-        return Math.round(ABILITY_UPGRADE_BASE_COST * Math.pow(2, this.abilityLevel(heroId, slot) - 1));
+        // 0 级（未解锁）也按 Lv.1→2 的价格购买（即解锁费），曲线不因 0 级打折
+        const lv = Math.max(1, this.abilityLevel(heroId, slot));
+        return Math.round(ABILITY_UPGRADE_BASE_COST * Math.pow(2, lv - 1));
     }
 
-    /** 金币升级技能；成功返回 true（未拥有英雄/已满级拒绝） */
+    /** 金币升级技能；成功返回 true（未拥有英雄/已满级拒绝；0 级购买视为解锁） */
     upgradeAbility(heroId: string, slot: AbilitySlot): boolean {
         if (!this._gm.isHeroOwned(heroId) || this.isAbilityMaxLevel(heroId, slot)) {
             return false;
