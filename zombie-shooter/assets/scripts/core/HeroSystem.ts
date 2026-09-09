@@ -1,5 +1,6 @@
 import { GameManager } from './GameManager';
 import { ABILITY_MAX_LEVEL } from '../battle/HeroDef';
+// HERO_LEVEL_MAX/EQUIP_UPGRADE_MAX 为未解锁基地时的基础上限；实际运行时上限由基地建筑等级动态决定
 
 /** 技能槽位（持久化升级用）：普攻/技能/大招 */
 export type AbilitySlot = 'basic' | 'skill' | 'ultimate';
@@ -206,7 +207,7 @@ export class HeroSystem {
     }
 
     isHeroMaxLevel(heroId: string): boolean {
-        return this.heroLevel(heroId) >= HERO_LEVEL_MAX;
+        return this.heroLevel(heroId) >= this._gm.heroLevelCap();
     }
 
     /** 英雄等级攻击乘区（Lv.1 = 1.0） */
@@ -308,7 +309,7 @@ export class HeroSystem {
     }
 
     isAbilityMaxLevel(heroId: string, slot: AbilitySlot): boolean {
-        return this.abilityLevel(heroId, slot) >= ABILITY_MAX_LEVEL;
+        return this.abilityLevel(heroId, slot) >= this._gm.abilityLevelCap();
     }
 
     abilityUpgradeCost(heroId: string, slot: AbilitySlot): number {
@@ -347,7 +348,7 @@ export class HeroSystem {
     }
 
     isEquipMaxLevel(state: EquipState): boolean {
-        return state.lv >= EQUIP_UPGRADE_MAX;
+        return state.lv >= this._gm.equipUpgradeCap();
     }
 
     /** 商城购买装备：扣金币后入背包（不直接上身）；defId 必须在装备池内 */

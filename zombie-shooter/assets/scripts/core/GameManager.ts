@@ -1,7 +1,7 @@
 import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
-import { HERO_DEFS } from '../battle/HeroDef';
+import { HERO_DEFS, ABILITY_MAX_LEVEL } from '../battle/HeroDef';
 import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS } from './HeroSystem';
 
 /**
@@ -55,6 +55,8 @@ export class GameManager {
     bag: BagItem[] = [];
     /** 技能等级（key = `${heroId}:${slot}`，slot=basic|skill|ultimate；缺省 1；读写走 HeroSystem） */
     skillLevels: Record<string, number> = {};
+    /** 基地建筑等级（key = BUILDINGS id；缺省 0；读写走 buildingLevel/buildingLevelCap） */
+    buildingLevels: Record<string, number> = {};
 
     /** 金币兼容访问器（真身在资源仓库） */
     get gold(): number { return this.res.get('gold'); }
@@ -122,9 +124,9 @@ export class GameManager {
         return true;
     }
 
-    /** 体力当前值（结算离线恢复后返回） */
+    /** 体力当前值（结算离线恢复后返回；上限含加油站加成） */
     stamina(): number {
-        return this.res.stamina(Math.floor(Date.now() / 1000), BattleConfig.STAMINA_MAX,
+        return this.res.stamina(Math.floor(Date.now() / 1000), this.staminaMax(),
             BattleConfig.STAMINA_REGEN_MINUTES * 60);
     }
 
@@ -175,14 +177,106 @@ export class GameManager {
     metaGoldMul(): number { return 1 + 0.1 * this.upgradeLevel('goldGain'); }
     metaXpMul(): number { return 1 + 0.08 * this.upgradeLevel('xpGain'); }
 
+    // ---- 基地建筑（升级提升繁荣度并解锁各系统成长上限） ----
+
+    /** 建筑当前等级（缺省 0） */
+    buildingLevel(id: string): number {
+        return this.buildingLevels[id] ?? 0;
+    }
+
+    /** 建筑升到下一级费用（等级线性 + 指数混合递增） */
+    buildingCost(id: string): number {
+        const def = BUILDINGS.find(b => b.id === id);
+        if (!def) {
+            return 0;
+        }
+        return Math.round(def.baseCost * Math.pow(def.costMul, this.buildingLevel(id)));
+    }
+
+    /** 建筑可否升级：已解锁（指挥中心或达解锁条件）+ 未达自身上限 + 未被指挥中心上限卡住 + 金币充足 */
+    canUpgradeBuilding(id: string): boolean {
+        const def = BUILDINGS.find(b => b.id === id);
+        if (!def) {
+            return false;
+        }
+        if (!this.isBuildingUnlocked(id)) {
+            return false;
+        }
+        if (this.buildingLevel(id) >= def.maxLevel) {
+            return false;
+        }
+        // 指挥中心约束：其余建筑等级上限 = 指挥中心等级 + 1
+        if (id !== 'hq' && this.buildingLevel(id) + 1 > this.buildingLevel('hq') + 1) {
+            return false;
+        }
+        return this.gold >= this.buildingCost(id);
+    }
+
+    /** 建筑是否已开放升级（雷达站需指挥中心 LV.6，其余默认开放） */
+    isBuildingUnlocked(id: string): boolean {
+        const def = BUILDINGS.find(b => b.id === id);
+        if (!def) {
+            return false;
+        }
+        return this.buildingLevel('hq') >= def.unlockHq;
+    }
+
+    /** 金币升级建筑；成功返回 true（扣金币并落盘） */
+    upgradeBuilding(id: string): boolean {
+        if (!this.canUpgradeBuilding(id)) {
+            return false;
+        }
+        if (!this.res.spend('gold', this.buildingCost(id))) {
+            return false;
+        }
+        this.buildingLevels[id] = this.buildingLevel(id) + 1;
+        this.save();
+        return true;
+    }
+
+    /** 繁荣度 = 全建筑等级总和（上限 = 各建筑 maxLevel 之和） */
+    prosperity(): { cur: number; max: number } {
+        let cur = 0;
+        let max = 0;
+        for (const b of BUILDINGS) {
+            cur += this.buildingLevel(b.id);
+            max += b.maxLevel;
+        }
+        return { cur, max };
+    }
+
+    /** 指挥中心等级（全局成长上限锚点） */
+    hqLevel(): number { return this.buildingLevel('hq'); }
+
+    /** 英雄等级上限（训练营：10 + 等级） */
+    heroLevelCap(): number { return 10 + this.buildingLevel('camp'); }
+
+    /** 装备强化等级上限（军械库：5 + 等级） */
+    equipUpgradeCap(): number { return 5 + this.buildingLevel('armory'); }
+
+    /** 技能/大招等级上限（研究所：2 + 等级，封顶 ABILITY_MAX_LEVEL=3） */
+    abilityLevelCap(): number { return Math.min(ABILITY_MAX_LEVEL, 2 + this.buildingLevel('lab')); }
+
+    /** 载具耐久乘区（载具工坊：每级 +8%） */
+    workshopVehHpMul(): number { return 1 + 0.08 * this.buildingLevel('workshop'); }
+
+    /** 金币获取乘区（补给仓库：每级 +6%，与赏金合同叠乘） */
+    depotGoldMul(): number { return 1 + 0.06 * this.buildingLevel('depot'); }
+
+    /** 体力上限（加油站：30 + 每级 4） */
+    staminaMax(): number { return BattleConfig.STAMINA_MAX + 4 * this.buildingLevel('station'); }
+
+    /** 经验获取乘区（雷达站：每级 +10%，与战术演练叠乘） */
+    radarXpMul(): number { return 1 + 0.1 * this.buildingLevel('radar'); }
+
     /** 升到下一级所需经验：L1→5，L2→9，L3→13……线性递增 */
     xpToNext(level: number): number {
         return 5 + (level - 1) * 4;
     }
 
-    /** 累加经验（带局外经验加成）；返回是否发生了升级（可连升，调用方逐次处理） */
+    /** 累加经验（带局外演练与基地雷达站加成）；返回是否发生了升级（可连升，调用方逐次处理） */
     addXp(value: number): boolean {
-        this.xp += Math.max(1, Math.round(value * this.metaXpMul()));
+        this.xp += Math.max(1, Math.round(value * this.metaXpMul() * this.radarXpMul()));
         let leveled = false;
         while (this.xp >= this.xpToNext(this.level)) {
             this.xp -= this.xpToNext(this.level);
@@ -216,6 +310,7 @@ export class GameManager {
             skillLevels: this.skillLevels,
             gold: this.gold,
             upgrades: this._upgrades,
+            buildingLevels: this.buildingLevels,
             res: this.res.serialize(),
         };
         sys.localStorage.setItem(GameManager.SAVE_KEY, JSON.stringify(data));
@@ -225,7 +320,7 @@ export class GameManager {
         const raw = sys.localStorage.getItem(GameManager.SAVE_KEY);
         if (!raw) {
             // 新存档：首次赠送满体力，避免 0 体力无获取途径卡死出战
-            this.res.add('stamina', BattleConfig.STAMINA_MAX);
+            this.res.add('stamina', this.staminaMax());
             return;
         }
         try {
@@ -327,7 +422,7 @@ export class GameManager {
             }
             // 资源系统上线前的旧存档没有 res 字段：补送满体力防止 0 体力卡死
             if (!data.res || !data.res.amounts) {
-                this.res.add('stamina', BattleConfig.STAMINA_MAX);
+                this.res.add('stamina', this.staminaMax());
             }
             this.res.deserialize(data.res ?? null);
             if (data.upgrades) {
@@ -335,11 +430,48 @@ export class GameManager {
                     this._upgrades[k] = data.upgrades[k] ?? 0;
                 }
             }
+            // 建筑等级：只接受合法建筑 id，等级钳 0~maxLevel；
+            // 旧档无该字段（建筑系统上线前）补发起步基地，防新上限锁死已有成长
+            if (data.buildingLevels && typeof data.buildingLevels === 'object') {
+                for (const b of BUILDINGS) {
+                    const lv = data.buildingLevels[b.id];
+                    if (typeof lv === 'number' && lv >= 1 && lv <= b.maxLevel) {
+                        this.buildingLevels[b.id] = Math.floor(lv);
+                    }
+                }
+            } else if (!data.skillLevels) {
+                this.buildingLevels = { hq: 3, camp: 2, armory: 1, lab: 1, workshop: 1, depot: 1, station: 1 };
+            }
         } catch {
             // 存档损坏时静默重置
         }
     }
 }
+
+/** 基地建筑定义（基地页升级 UI 与全局成长上限） */
+export interface BuildingDef {
+    id: string;
+    ic: string;
+    name: string;
+    /** 满级效果描述（按当前等级由调用方格式化） */
+    desc: (level: number) => string;
+    maxLevel: number;
+    baseCost: number;
+    costMul: number;
+    /** 需要指挥中心达到该等级才可升级（其余建筑 0=默认开放） */
+    unlockHq: number;
+}
+
+export const BUILDINGS: BuildingDef[] = [
+    { id: 'hq', ic: '🏛️', name: '指挥中心', desc: l => `其他建筑等级上限 = 本级 +1（当前 Lv.${l + 1}）`, maxLevel: 10, baseCost: 800, costMul: 1.6, unlockHq: 0 },
+    { id: 'camp', ic: '🏕️', name: '训练营', desc: l => `英雄等级上限提升至 ${10 + l}`, maxLevel: 10, baseCost: 500, costMul: 1.5, unlockHq: 0 },
+    { id: 'armory', ic: '⚒️', name: '军械库', desc: l => `装备强化上限提升至 +${5 + l}`, maxLevel: 5, baseCost: 600, costMul: 1.55, unlockHq: 0 },
+    { id: 'lab', ic: '🔬', name: '研究所', desc: l => `技能等级上限提升至 ${Math.min(ABILITY_MAX_LEVEL, 2 + l)}`, maxLevel: 1, baseCost: 1500, costMul: 1, unlockHq: 0 },
+    { id: 'workshop', ic: '🚛', name: '载具工坊', desc: l => `载具耐久 +${l * 8}%`, maxLevel: 10, baseCost: 450, costMul: 1.45, unlockHq: 0 },
+    { id: 'depot', ic: '📦', name: '补给仓库', desc: l => `金币获取 +${l * 6}%`, maxLevel: 10, baseCost: 400, costMul: 1.4, unlockHq: 0 },
+    { id: 'station', ic: '⛽', name: '加油站', desc: l => `体力上限 +${l * 4}`, maxLevel: 10, baseCost: 500, costMul: 1.45, unlockHq: 0 },
+    { id: 'radar', ic: '📡', name: '雷达站', desc: l => `经验获取 +${l * 10}%`, maxLevel: 5, baseCost: 1200, costMul: 1.5, unlockHq: 6 },
+];
 
 /** 局外强化定义（主城升级 UI 与成本曲线） */
 export interface MetaUpgradeDef {

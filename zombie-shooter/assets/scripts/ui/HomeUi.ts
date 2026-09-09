@@ -2,7 +2,7 @@ import { _decorator, Component, SpriteFrame } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, BUILD_STAMP, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
-import { GameManager, META_UPGRADES } from '../core/GameManager';
+import { GameManager, META_UPGRADES, BUILDINGS } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
 import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
@@ -357,7 +357,7 @@ export class HomeUi extends Component {
             diamond.textContent = String(gm.res.get('diamond'));
         }
         if (stamina) {
-            stamina.textContent = `${gm.stamina()}/${BattleConfig.STAMINA_MAX}`;
+            stamina.textContent = `${gm.stamina()}/${gm.staminaMax()}`;
         }
         // 经验条（占位口径：最远波次 / 100）
         if (this._expFill) {
@@ -709,7 +709,7 @@ export class HomeUi extends Component {
                     price: `${RES_NAME[item.price.res]} ${item.price.amount.toLocaleString()}`,
                     r: 3,
                     disabled: !gm.res.canSpend(item.price.res, item.price.amount)
-                        || (item.grant.res === 'stamina' && gm.stamina() >= BattleConfig.STAMINA_MAX)
+                        || (item.grant.res === 'stamina' && gm.stamina() >= gm.staminaMax())
                         || (!!item.canBuy && !item.canBuy()),
                     onTap: () => {
                         this._buyShopItem(item);
@@ -736,7 +736,7 @@ export class HomeUi extends Component {
             const adBtn = document.createElement('button');
             adBtn.className = 'btn adBtn gBuy';
             adBtn.textContent = '▶ 领体力';
-            const full = gm.stamina() >= BattleConfig.STAMINA_MAX;
+            const full = gm.stamina() >= gm.staminaMax();
             adBtn.disabled = left <= 0 || full;
             adBtn.style.opacity = adBtn.disabled ? '0.45' : '1';
             adBtn.onclick = (e) => {
@@ -1899,17 +1899,22 @@ export class HomeUi extends Component {
 
     // ================= 基地页 =================
 
-    /** 基地页：基地横幅（繁荣度）+ 建筑卡 2 列网格（第 5 格起挂 META_UPGRADES 真数据） */
+    /** 基地页：基地横幅（繁荣度，_refreshBase 刷新）+ 建筑卡 2 列网格（真数据 BUILDINGS + META_UPGRADES） */
     private _buildBasePage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.base = page;
         const banner = document.createElement('div');
         banner.className = 'baseBanner panel frame';
-        banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag">基地 LV.5</span></h3>` +
-            `<div class="pros">繁荣度 1,240 / 2,000 · 升级建筑提升繁荣度</div>` +
+        banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag"></span></h3>` +
+            `<div class="pros"></div>` +
             `<div class="prosBar"><i></i></div></div>`;
         page.appendChild(banner);
+        this._baseBannerEls = {
+            lv: banner.querySelector('.lvtag'),
+            pros: banner.querySelector('.pros'),
+            bar: banner.querySelector('.prosBar i'),
+        };
         const grid = document.createElement('div');
         grid.className = 'baseGrid';
         page.appendChild(grid);
@@ -1918,6 +1923,7 @@ export class HomeUi extends Component {
     }
 
     private _baseGridEl: HTMLDivElement | null = null;
+    private _baseBannerEls: { lv: HTMLElement | null; pros: HTMLElement | null; bar: HTMLElement | null } | null = null;
 
     private _refreshBase(): void {
         const gm = GameManager.instance;
@@ -1925,29 +1931,70 @@ export class HomeUi extends Component {
         if (!grid) {
             return;
         }
+        // 横幅：基地等级 = 指挥中心等级；繁荣度 = 建筑等级总和
+        const pro = gm.prosperity();
+        if (this._baseBannerEls) {
+            const { lv, pros, bar } = this._baseBannerEls;
+            if (lv) {
+                lv.textContent = `基地 LV.${gm.hqLevel()}`;
+            }
+            if (pros) {
+                pros.textContent = `繁荣度 ${pro.cur.toLocaleString()} / ${pro.max.toLocaleString()} · 升级建筑提升繁荣度与全局上限`;
+            }
+            if (bar) {
+                bar.style.width = `${pro.max > 0 ? Math.max(3, Math.round(pro.cur / pro.max * 100)) : 0}%`;
+            }
+        }
         grid.innerHTML = '';
-        // 建筑卡（视觉复刻，数值占位）
-        const buildings: Array<{ ic: string; n: string; lv: number; d: string }> = [
-            { ic: '🏛️', n: '指挥中心', lv: 5, d: '提升所有建筑等级上限' },
-            { ic: '🏕️', n: '训练营', lv: 4, d: '英雄等级上限 +2' },
-            { ic: '⚒️', n: '军械库', lv: 3, d: '装备强化等级上限 +1' },
-            { ic: '🔬', n: '研究所', lv: 4, d: '技能等级上限 +1' },
-        ];
-        for (const b of buildings) {
+        // 建筑卡（真数据 BUILDINGS：等级持久化，升级提升全局成长上限）
+        for (const b of BUILDINGS) {
+            const lv = gm.buildingLevel(b.id);
+            const maxed = lv >= b.maxLevel;
+            const unlocked = gm.isBuildingUnlocked(b.id);
+            const hqBlocked = !maxed && unlocked && b.id !== 'hq' && lv + 1 > gm.hqLevel() + 1;
             const card = document.createElement('div');
-            card.className = 'bcard panel';
-            card.innerHTML = `<div class="bIc">${b.ic}</div>` +
-                `<div class="bName">${b.n}<span>LV.${b.lv}</span></div>` +
-                `<div class="bDesc">${b.d}</div>`;
+            card.className = 'bcard panel' + (unlocked ? '' : ' locked');
+            const ic = document.createElement('div');
+            ic.className = 'bIc';
+            ic.textContent = b.ic;
+            card.appendChild(ic);
+            const nm = document.createElement('div');
+            nm.className = 'bName';
+            nm.innerHTML = `${b.name}<span>LV.${lv}</span>`;
+            card.appendChild(nm);
+            const ds = document.createElement('div');
+            ds.className = 'bDesc';
+            ds.textContent = maxed ? `${b.desc(lv)}（已满级）` : b.desc(lv + 1);
+            card.appendChild(ds);
             const btn = document.createElement('button');
-            btn.className = 'btn dark sm';
+            btn.className = 'btn gold sm';
             btn.style.width = '100%';
-            btn.textContent = '🔒 即将开放';
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                this._toast('基地建筑系统即将开放');
-            };
+            if (!unlocked) {
+                btn.textContent = `🔒 指挥中心 LV.${b.unlockHq} 解锁`;
+                btn.disabled = true;
+            } else if (maxed) {
+                btn.textContent = '已满级';
+                btn.disabled = true;
+            } else if (hqBlocked) {
+                btn.textContent = '🔒 先升级指挥中心';
+                btn.disabled = true;
+            } else {
+                const cost = gm.buildingCost(b.id);
+                btn.textContent = `🪙 ${cost.toLocaleString()}`;
+                btn.disabled = !gm.canUpgradeBuilding(b.id);
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    const nextLv = gm.buildingLevel(b.id) + 1;
+                    if (gm.upgradeBuilding(b.id)) {
+                        SoundFx.play('buy');
+                        this._toast(`${b.name} 升至 LV.${nextLv}`);
+                        this._refreshBase();
+                        this._refreshTop();
+                    }
+                };
+            }
+            btn.style.opacity = btn.disabled ? '0.5' : '1';
             card.appendChild(btn);
             grid.appendChild(card);
         }

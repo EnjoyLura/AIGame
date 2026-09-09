@@ -306,7 +306,8 @@ export class BattleManager extends Component {
             // 最终攻击 = 基础 × 局外火力 × 英雄等级 × 装备
             h.applyMetaAtk(gm.metaAtkMul() * hs.atkMulOf(h.def.id));
         }
-        this._vehicle.applyMetaHp(gm.metaVehHpMul());
+        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊
+        this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul());
         this._startWave(1);
         return true;
     }
@@ -601,10 +602,10 @@ export class BattleManager extends Component {
         this._bulletPool.put(bullet.node);
     }
 
-    /** 结算金币：击杀与波次折算，带局外赏金加成（GAME_OVER 前调用） */
+    /** 结算金币：击杀与波次折算，带局外赏金与基地仓库加成（GAME_OVER 前调用） */
     private _awardRunGold(): void {
         const gm = GameManager.instance;
-        const amount = Math.round((gm.kills * 2 + gm.wave * 15) * gm.metaGoldMul());
+        const amount = Math.round((gm.kills * 2 + gm.wave * 15) * gm.metaGoldMul() * gm.depotGoldMul());
         gm.addGold(amount);
         eventCenter.emit(GameEvent.GOLD_EARNED, amount);
     }
