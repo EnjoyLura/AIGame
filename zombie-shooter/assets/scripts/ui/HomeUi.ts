@@ -933,19 +933,7 @@ export class HomeUi extends Component {
             emoji.style.backgroundSize = 'contain';
             emoji.style.backgroundPosition = 'center';
         });
-        emoji.title = owned ? (inLineup ? '点击下阵' : '点击上阵') : '未获得';
-        emoji.onclick = (e) => {
-            e.stopPropagation();
-            if (!owned) {
-                this._toast('先到商店解锁英雄');
-                return;
-            }
-            SoundFx.unlock();
-            if (gm.toggleLineupMember(def.id)) {
-                SoundFx.play('ui');
-                this._refreshHeroes();
-            }
-        };
+        emoji.title = owned ? def.name : '未获得';
         const heroLv = document.createElement('div');
         heroLv.className = 'heroLv';
         heroLv.textContent = owned ? def.role : '未获得';
@@ -1023,7 +1011,7 @@ export class HomeUi extends Component {
             return;
         }
 
-        // 大按钮：上阵/回车（原英雄升级位，等级玩法移除后改为编队切换快捷入口）
+        // 大按钮：上阵/下阵（原英雄升级位，等级玩法移除后改为编队切换快捷入口）
         const up = document.createElement('button');
         up.className = 'btn gold big';
         if (inLineup) {
