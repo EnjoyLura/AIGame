@@ -75,6 +75,8 @@ export interface EquipState {
     id: string;
     /** 强化等级（1 起） */
     lv: number;
+    /** 已镶宝石（杂物 id 列表，按孔位顺序；空/缺省 = 无宝石） */
+    gems?: string[];
 }
 
 // ---- 主武器强化 ----
@@ -228,16 +230,48 @@ export const MISC_ITEM_DEFS: MiscItemDef[] = [
     { id: 'mat_alloy', kind: 'mat', name: '精炼合金', ic: '🔩', tier: 4, desc: '装备强化材料（穿戴面板强化消耗）' },
     { id: 'mat_stone', kind: 'mat', name: '强化石', ic: '🧱', tier: 2, desc: '武器强化材料（武器强化消耗）' },
     { id: 'mat_blueprint', kind: 'mat', name: '改装图纸', ic: '🔧', tier: 4, desc: '载具改装图纸（基地·载具工坊使用）' },
-    { id: 'gem_fire', kind: 'gem', name: '赤焰石', ic: '🔴', tier: 4, desc: '攻击加成宝石（后续开放镶嵌）' },
-    { id: 'gem_ice', kind: 'gem', name: '寒冰晶', ic: '🔵', tier: 3, desc: '防御加成宝石（后续开放镶嵌）' },
-    { id: 'gem_thunder', kind: 'gem', name: '雷光石', ic: '🟡', tier: 5, desc: '暴击加成宝石（后续开放镶嵌）' },
-    { id: 'gem_wind', kind: 'gem', name: '疾风羽', ic: '🟢', tier: 2, desc: '生命加成宝石（后续开放镶嵌）' },
+    { id: 'gem_fire', kind: 'gem', name: '赤焰石', ic: '🔴', tier: 4, desc: '攻击宝石 · 镶嵌装备：攻击 +6%' },
+    { id: 'gem_wind', kind: 'gem', name: '疾风羽', ic: '🟢', tier: 2, desc: '射速宝石 · 镶嵌装备：射速 +4%' },
+    { id: 'gem_ice', kind: 'gem', name: '寒冰晶', ic: '🔵', tier: 3, desc: '射程宝石 · 镶嵌装备：射程 +5%' },
+    { id: 'gem_thunder', kind: 'gem', name: '雷光石', ic: '🟡', tier: 5, desc: '暴击宝石 · 镶嵌装备：暴击率 +3%' },
     { id: 'item_stamina', kind: 'item', name: '体力药水', ic: '⚡', tier: 3, desc: '使用后恢复 10 点体力', use: { type: 'stamina', amount: 10 } },
     { id: 'item_goldbox', kind: 'item', name: '金币箱', ic: '🎁', tier: 3, desc: '使用后获得 100 金币', use: { type: 'gold', amount: 100 } },
 ];
 
 export function miscDef(id: string): MiscItemDef | undefined {
     return MISC_ITEM_DEFS.find(m => m.id === id);
+}
+
+// ================= 宝石镶嵌 =================
+
+/** 宝石镶嵌效果（镶嵌到已穿戴装备上生效；value 为百分比小数） */
+export interface GemEffect {
+    /** 镶嵌消耗的杂物 id（MISC_ITEM_DEFS 中 kind='gem'） */
+    miscId: string;
+    key: 'atkPct' | 'ratePct' | 'rangePct' | 'critPct';
+    value: number;
+}
+
+/** 宝石效果表：赤焰=攻、疾风=速、寒冰=程、雷光=暴击 */
+export const GEM_EFFECTS: GemEffect[] = [
+    { miscId: 'gem_fire', key: 'atkPct', value: 0.06 },
+    { miscId: 'gem_wind', key: 'ratePct', value: 0.04 },
+    { miscId: 'gem_ice', key: 'rangePct', value: 0.05 },
+    { miscId: 'gem_thunder', key: 'critPct', value: 0.03 },
+];
+
+export function gemEffect(miscId: string): GemEffect | undefined {
+    return GEM_EFFECTS.find(g => g.miscId === miscId);
+}
+
+/** 装备孔数按品质：白绿 1 孔、蓝紫 2 孔、橙红 3 孔 */
+export function gemSlots(tier: EquipTier): number {
+    return tier >= 5 ? 3 : tier >= 3 ? 2 : 1;
+}
+
+/** 镶嵌费用（金币/次，随品质上浮） */
+export function gemSocketCost(tier: EquipTier): number {
+    return 200 * tier;
 }
 
 /** 掉落物描述：结算面板展示 + 落袋凭据（kind 决定入哪个包） */
@@ -608,7 +642,74 @@ export class HeroSystem {
 
     /** 单件装备的属性值（含强化等级；返回百分比小数）——UI 展示用 */
     equipSlotValue(state: EquipState, key: 'atkPct' | 'ratePct' | 'rangePct'): number {
-        return this._equipValue(state, key);
+        return this._equipValue(state, key) + this._gemValue(state, key);
+    }
+
+    /** 单件装备上宝石对某属性的加成合计（critPct 也可查） */
+    private _gemValue(state: EquipState, key: 'atkPct' | 'ratePct' | 'rangePct' | 'critPct'): number {
+        let sum = 0;
+        for (const gid of state.gems ?? []) {
+            const eff = gemEffect(gid);
+            if (eff && eff.key === key) {
+                sum += eff.value;
+            }
+        }
+        return sum;
+    }
+
+    /** 某英雄某槽当前宝石列表（无装备返回空） */
+    equippedGems(heroId: string, slot: EquipSlot): string[] {
+        return this.equipped(heroId, slot)?.gems ?? [];
+    }
+
+    /** 某槽可镶孔数（按品质；无装备返回 0） */
+    gemSlotCount(heroId: string, slot: EquipSlot): number {
+        const state = this.equipped(heroId, slot);
+        if (!state) {
+            return 0;
+        }
+        const def = this.equipDef(state.id);
+        const tier = def?.tier ?? (state.id.startsWith('bag:') ? Number(state.id.split(':')[2]) : 1);
+        return gemSlots((isEquipTier(tier) ? tier : 1) as EquipTier);
+    }
+
+    /**
+     * 镶嵌宝石：消耗杂物库存宝石 + 金币费用，填入第一个空孔。
+     * 未拥有/无装备/孔满/库存或金币不足返回 false。
+     */
+    socketGem(heroId: string, slot: EquipSlot, miscId: string): boolean {
+        const state = this.equipped(heroId, slot);
+        const gm = this._gm;
+        if (!state || !this._gm.isHeroOwned(heroId) || !gemEffect(miscId)) {
+            return false;
+        }
+        const def = this.equipDef(state.id);
+        const tierRaw = def?.tier ?? (state.id.startsWith('bag:') ? Number(state.id.split(':')[2]) : 1);
+        const tier = (isEquipTier(tierRaw) ? tierRaw : 1) as EquipTier;
+        const gems = state.gems ?? (state.gems = []);
+        if (gems.length >= gemSlots(tier) || this.miscCount(miscId) < 1) {
+            return false;
+        }
+        if (!gm.res.spend('gold', gemSocketCost(tier))) {
+            return false;
+        }
+        gm.misc[miscId] = this.miscCount(miscId) - 1;
+        gems.push(miscId);
+        gm.save();
+        return true;
+    }
+
+    /** 拆卸某孔宝石（免费，宝石返还库存） */
+    unsocketGem(heroId: string, slot: EquipSlot, index: number): boolean {
+        const state = this.equipped(heroId, slot);
+        const gm = this._gm;
+        if (!state || !state.gems || index < 0 || index >= state.gems.length) {
+            return false;
+        }
+        const id = state.gems.splice(index, 1)[0];
+        gm.misc[id] = (gm.misc[id] ?? 0) + 1;
+        gm.save();
+        return true;
     }
 
     /** 单件装备的属性值（含强化等级；返回百分比小数）。bag: 前缀件按品质曲线取值 */
@@ -629,24 +730,26 @@ export class HeroSystem {
         return base * Math.pow(1 + EQUIP_UPGRADE_STEP, state.lv - 1);
     }
 
-    /** 某英雄装备+核心汇总乘区：atk=攻击、rate=射速（interval 除数）、range=射程 */
-    equipMulOf(heroId: string): { atk: number; rate: number; range: number } {
-        let atk = 0, rate = 0, range = 0;
+    /** 某英雄装备+核心+宝石汇总乘区：atk=攻击、rate=射速（interval 除数）、range=射程、crit=暴击加成 */
+    equipMulOf(heroId: string): { atk: number; rate: number; range: number; crit: number } {
+        let atk = 0, rate = 0, range = 0, crit = 0;
         for (const slot of EQUIP_SLOTS) {
             const state = this.equipped(heroId, slot);
             if (!state) {
                 continue;
             }
-            atk += this._equipValue(state, 'atkPct');
-            rate += this._equipValue(state, 'ratePct');
-            range += this._equipValue(state, 'rangePct');
+            atk += this._equipValue(state, 'atkPct') + this._gemValue(state, 'atkPct');
+            rate += this._equipValue(state, 'ratePct') + this._gemValue(state, 'ratePct');
+            range += this._equipValue(state, 'rangePct') + this._gemValue(state, 'rangePct');
+            crit += this._gemValue(state, 'critPct');
         }
         const core = this.weaponCore(heroId);
         if (core) {
             atk += core.atkPct ?? 0;
             rate += core.ratePct ?? 0;
+            crit += core.critPct ?? 0;
         }
-        return { atk: 1 + atk, rate: 1 + rate, range: 1 + range };
+        return { atk: 1 + atk, rate: 1 + rate, range: 1 + range, crit };
     }
 
     /** 英雄总攻击乘区（等级 × 主武器 × 装备；beginRun 与 metaAtkMul 相乘后进 applyMetaAtk） */
@@ -654,13 +757,13 @@ export class HeroSystem {
         return this.heroAtkMul(heroId) * this.weaponAtkMul(heroId) * this.equipMulOf(heroId).atk;
     }
 
-    /** 部署后把装备/核心的射速/射程/暴击加成追加到英雄实例（interval 缩小、range 放大） */
+    /** 部署后把装备/核心/宝石的射速/射程/暴击加成追加到英雄实例（interval 缩小、range 放大） */
     applyEquipStats(hero: { def: { id: string }; interval: number; range: number; critBonus?: number }): void {
         const mul = this.equipMulOf(hero.def.id);
         hero.interval = Math.max(0.12, hero.interval / mul.rate);
         hero.range = hero.range * mul.range;
         if (hero.critBonus !== undefined) {
-            hero.critBonus = this.weaponCore(hero.def.id)?.critPct ?? 0;
+            hero.critBonus = mul.crit;
         }
     }
 

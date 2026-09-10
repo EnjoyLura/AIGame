@@ -11,7 +11,7 @@ import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves } from '../battle/StageData';
 
@@ -1457,6 +1457,63 @@ export class HomeUi extends Component {
         });
     }
 
+    /** 宝石镶嵌选择面板：列出库存中的宝石（含效果与镶嵌费），点击镶嵌到空孔 */
+    private _openGemPickPanel(heroId: string, slot: EquipSlot): void {
+        const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
+        this._openModal('💎 选择宝石镶嵌', (box, close) => {
+            const state = hs.equipped(heroId, slot);
+            const def = state ? hs.equipDef(state.id) : null;
+            const tier = def?.tier ?? (state && state.id.startsWith('bag:') ? Number(state.id.split(':')[2]) as EquipTier : 1);
+            const cost = gemSocketCost(tier);
+            const tip = document.createElement('p');
+            tip.className = 'mSub';
+            tip.textContent = `镶嵌费用：🪙 ${cost}（拆卸免费返还）`;
+            box.appendChild(tip);
+            const ownedGems = GEM_EFFECTS.filter(g => HeroSystem.instance.miscCount(g.miscId) > 0);
+            if (ownedGems.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'mSub';
+                empty.textContent = '背包中没有宝石 · 通关掉落/商店获取';
+                box.appendChild(empty);
+            }
+            for (const g of ownedGems) {
+                const gd = miscDef(g.miscId)!;
+                const effTxt = (g.key === 'atkPct' ? '攻击' : g.key === 'ratePct' ? '射速' : g.key === 'rangePct' ? '射程' : '暴击')
+                    + `+${Math.round(g.value * 100)}%`;
+                const row = document.createElement('div');
+                row.className = 'equipRow';
+                row.innerHTML =
+                    `<div class="equipInfo"><div class="equipName" style="color:${EQUIP_TIER_COLORS[gd.tier - 1]}">${gd.ic} ${gd.name} ×${HeroSystem.instance.miscCount(g.miscId)}</div>` +
+                    `<div class="equipStat">${effTxt}</div></div>`;
+                const btn = document.createElement('button');
+                btn.className = 'btn gold sm';
+                btn.textContent = '镶 嵌';
+                btn.disabled = gm.gold < cost;
+                btn.onclick = () => {
+                    if (hs.socketGem(heroId, slot, g.miscId)) {
+                        SoundFx.play('buy');
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._refreshHeroes();
+                        this._openEquipSlotPanel(heroId, slot);
+                    }
+                };
+                row.appendChild(btn);
+                box.appendChild(row);
+            }
+            const back = document.createElement('button');
+            back.className = 'btn dark big';
+            back.style.marginTop = 'calc(12px * var(--hs,1))';
+            back.textContent = '返 回';
+            back.onclick = (e) => {
+                e.stopPropagation();
+                close();
+                this._openEquipSlotPanel(heroId, slot);
+            };
+            box.appendChild(back);
+        });
+    }
+
     /** 弹窗：英雄核心（武器核心嵌入/拆除，口径同旧 gem 钮） */
     private _openCoreModal(heroId: string): void {
         const hs = HeroSystem.instance;
@@ -1648,6 +1705,43 @@ export class HomeUi extends Component {
                 row.appendChild(info);
                 row.appendChild(wrap);
                 list.appendChild(row);
+
+                // ---- 宝石孔区：已镶宝石可拆卸，空孔选择库存宝石镶嵌 ----
+                const holes = hs.gemSlotCount(heroId, slot);
+                if (holes > 0) {
+                    const gemBox = document.createElement('div');
+                    gemBox.className = 'gemBox';
+                    const gems = hs.equippedGems(heroId, slot);
+                    for (let hi = 0; hi < holes; hi++) {
+                        const hole = document.createElement('div');
+                        hole.className = 'gemHole';
+                        const gid = gems[hi];
+                        if (gid) {
+                            const gd = miscDef(gid)!;
+                            const eff = GEM_EFFECTS.find(g => g.miscId === gid);
+                            const effTxt = eff ? (eff.key === 'atkPct' ? '攻击' : eff.key === 'ratePct' ? '射速' : eff.key === 'rangePct' ? '射程' : '暴击')
+                                + `+${Math.round(eff.value * 100)}%` : '';
+                            hole.innerHTML = `<span class="ghIc">${gd.ic}</span><span class="ghNm" style="color:${EQUIP_TIER_COLORS[gd.tier - 1]}">${gd.name}</span><span class="ghEff">${effTxt}</span>`;
+                            hole.title = '点击拆卸（宝石返还背包）';
+                            hole.onclick = () => {
+                                if (hs.unsocketGem(heroId, slot, hi)) {
+                                    SoundFx.play('ui');
+                                    document.querySelector('#homeUi .protoMask')?.remove();
+                                    this._refreshHeroes();
+                                    this._openEquipSlotPanel(heroId, slot);
+                                }
+                            };
+                        } else {
+                            hole.innerHTML = `<span class="ghIc dim">◇</span><span class="ghNm dim">空孔位</span><span class="ghEff">点击镶嵌</span>`;
+                            hole.onclick = () => {
+                                document.querySelector('#homeUi .protoMask')?.remove();
+                                this._openGemPickPanel(heroId, slot);
+                            };
+                        }
+                        gemBox.appendChild(hole);
+                    }
+                    list.appendChild(gemBox);
+                }
             }
             const items = hs.bagItemsOf(slot);
             if (items.length === 0) {
@@ -2735,6 +2829,18 @@ export class HomeUi extends Component {
 #homeUi .lbRow.me .lbName { color: #ffe9a8; }
 #homeUi .lbScore { flex: none; font-size: calc(24px * var(--hs,1)); color: #7ee0ff; font-weight: 800; }
 
+/* ===== 宝石镶嵌（穿戴面板孔位区） ===== */
+#homeUi .gemBox { display: flex; gap: calc(10px * var(--hs,1)); margin: calc(-4px * var(--hs,1)) 0 calc(8px * var(--hs,1)); }
+#homeUi .gemHole { flex: 1; display: flex; flex-direction: column; align-items: center; gap: calc(2px * var(--hs,1));
+  padding: calc(10px * var(--hs,1)) calc(6px * var(--hs,1)); border-radius: calc(12px * var(--hs,1));
+  background: radial-gradient(circle at 50% 20%, #1a2a4a, #0d1626); border: 1px dashed #33507a; cursor: pointer; }
+#homeUi .gemHole:active { transform: scale(.96); }
+#homeUi .gemHole .ghIc { font-size: calc(34px * var(--hs,1)); }
+#homeUi .gemHole .ghNm { font-size: calc(18px * var(--hs,1)); font-weight: 700; }
+#homeUi .gemHole .ghEff { font-size: calc(16px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .gemHole .dim { color: #4a608a; filter: grayscale(.4); }
+#homeUi .gemHole .ghEff.dim { color: #4a608a; }
+
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
 #homeUi .heroPick::-webkit-scrollbar { display: none; }
@@ -3393,6 +3499,16 @@ export class HomeUi extends Component {
 #homeUi .lbName { font-size: calc(14px * var(--pw,2.5)); color: #31536a; }
 #homeUi .lbRow.me .lbName { color: #945d24; }
 #homeUi .lbScore { font-size: calc(14px * var(--pw,2.5)); color: #1e6e9e; }
+
+/* --- 宝石镶嵌（青瓷浅色变体） --- */
+#homeUi .gemBox { gap: calc(6px * var(--pw,2.5)); margin: calc(-2px * var(--pw,2.5)) 0 calc(6px * var(--pw,2.5)); }
+#homeUi .gemHole { padding: calc(6px * var(--pw,2.5)) calc(4px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5));
+  background: #dce8ef; border: 1px dashed #9db9ca; }
+#homeUi .gemHole .ghIc { font-size: calc(20px * var(--pw,2.5)); }
+#homeUi .gemHole .ghNm { font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .gemHole .ghEff { font-size: calc(10px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .gemHole .dim { color: #8ba3b5; }
+#homeUi .gemHole .ghEff.dim { color: #8ba3b5; }
 `;
         document.head.appendChild(style);
     }

@@ -2,7 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS, ABILITY_MAX_LEVEL } from '../battle/HeroDef';
-import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS, MISC_ITEM_DEFS, MISC_STARTER, isEquipTier } from './HeroSystem';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS, MISC_ITEM_DEFS, MISC_STARTER, isEquipTier, miscDef, EquipState } from './HeroSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -45,8 +45,8 @@ export class GameManager {
     ownedHeroes: string[] = ['rifle'];
     /** 英雄等级（heroId → Lv，缺省 1；读写走 HeroSystem） */
     heroLevels: Record<string, number> = {};
-    /** 英雄装备（heroId → 槽位 → 装备状态；读写走 HeroSystem） */
-    equips: Record<string, Record<string, { id: string; lv: number } | null>> = {};
+    /** 英雄装备（heroId → 槽位 → 装备状态，含宝石孔；读写走 HeroSystem） */
+    equips: Record<string, Record<string, EquipState | null>> = {};
     /** 主武器强化等级（heroId → Lv，缺省 1；读写走 HeroSystem） */
     weaponLv: Record<string, number> = {};
     /** 武器核心（heroId → 已嵌核心 id；读写走 HeroSystem） */
@@ -371,7 +371,16 @@ export class GameManager {
                             if (!this.equips[d.id]) {
                                 this.equips[d.id] = {};
                             }
-                            this.equips[d.id][slot] = { id: st.id, lv: Math.max(1, Math.floor(st.lv)) };
+                            // 宝石孔：只接受合法宝石 id（kind='gem'），坏档丢弃整组
+                            let gems: string[] | undefined;
+                            if (Array.isArray(st.gems)) {
+                                const valid = st.gems.filter((g: unknown) =>
+                                    typeof g === 'string' && miscDef(g)?.kind === 'gem');
+                                if (valid.length > 0) {
+                                    gems = valid as string[];
+                                }
+                            }
+                            this.equips[d.id][slot] = { id: st.id, lv: Math.max(1, Math.floor(st.lv)), gems };
                         }
                     }
                 }
