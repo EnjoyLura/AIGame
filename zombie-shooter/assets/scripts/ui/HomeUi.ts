@@ -7,8 +7,9 @@ import { AssetLib } from '../core/AssetLib';
 import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
+import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves } from '../battle/StageData';
 
@@ -83,7 +84,12 @@ export class HomeUi extends Component {
     private _mallTabsEl: HTMLDivElement | null = null;
     private _mallGridEl: HTMLDivElement | null = null;
     private _mallTab: 'hero' | 'equip' | 'gem' | 'mat' | 'ad' = 'hero';
+    /** 商城页广告补给按钮（领取后刷新文案） */
     private _mallAdBtn: HTMLButtonElement | null = null;
+    /** 礼包服务（每日限购持久化） */
+    private _giftSvc = new GiftService();
+    /** 商城礼包 banner（红点刷新用） */
+    private _giftBannerEl: HTMLDivElement | null = null;
     private _mallAdLab: HTMLDivElement | null = null;
     /** 模拟广告层 */
     private _adOverlay: HTMLDivElement | null = null;
@@ -517,19 +523,21 @@ export class HomeUi extends Component {
         this._pages.mall = page;
         page.appendChild(this._mkHeading('补给商店', '每日精选'));
 
-        // 限时礼包 banner（装饰，点击 toast）
+        // 限时礼包 banner（点击打开礼包弹窗）
         const banner = document.createElement('div');
         banner.className = 'shopBanner frame';
         banner.innerHTML = `<div class="sbTxt"><h3>末日启程 · 超值礼包</h3>` +
-            `<p>自选超能力英雄 + 680钻石</p>` +
-            `<div class="price">💎 3,280 <s>💎 6,880</s></div></div>` +
+            `<p>每日免费补给 + 钻石礼包</p>` +
+            `<div class="price">🎁 立即查看 <s>限时特惠</s></div></div>` +
             `<div class="sbGift">🎁</div>` +
-            `<div class="sbTime">⏰ 限时特惠</div>`;
+            `<div class="sbTime giftDot">⏰ 限时特惠</div>`;
         banner.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
-            this._toast('礼包系统即将开放，敬请期待');
+            this._openGiftModal();
         };
+        // 每日免费补给未领时 banner 角标亮红点
+        this._refreshGiftDot(banner.querySelector('.giftDot') as HTMLElement);
         // 浅色主题：banner 底图 = escort.png 照片（interface.css：center 45%/cover），左暗渐变由 CSS ::after 完成
         this._tex('scenes/escort', u => {
             banner.style.backgroundImage = u;
@@ -538,6 +546,7 @@ export class HomeUi extends Component {
             banner.style.backgroundRepeat = 'no-repeat';
         });
         page.appendChild(banner);
+        this._giftBannerEl = banner;
 
         // 页签：英雄 / 装备 / 宝石 / 材料
         const tabs = document.createElement('div');
@@ -766,6 +775,159 @@ export class HomeUi extends Component {
         gm.save();
         SoundFx.play('buy');
         this._toast(`购买成功：${item.name}`);
+    }
+
+    // ================= 礼包系统 =================
+
+    /** 免费补给未领 → banner 角标加红点；已领恢复常态 */
+    private _refreshGiftDot(el: HTMLElement | null): void {
+        if (!el) {
+            return;
+        }
+        const freeDef = GIFT_PACKS.find(g => g.id === 'gift_free');
+        el.classList.toggle('dotOn', !!freeDef && !this._giftSvc.hasBoughtToday(freeDef));
+    }
+
+    /** 礼包中心弹窗：每日免费补给 + 钻石礼包，购买后掉落以结算样式翻出 */
+    private _openGiftModal(): void {
+        const gm = GameManager.instance;
+        this._openModal('🎁 限时礼包中心', (box) => {
+            box.classList.add('giftBox');
+            const list = document.createElement('div');
+            list.className = 'giftList';
+            for (const def of GIFT_PACKS) {
+                const left = this._giftSvc.remaining(def);
+                const free = def.price.amount <= 0;
+                const card = document.createElement('div');
+                card.className = `giftCard panel r${tierRank(def.tier)}`;
+                if (free && left >= def.dailyLimit) {
+                    card.classList.add('done');
+                }
+                // 角标：FREE / 划线原价
+                if (free) {
+                    const tag = document.createElement('span');
+                    tag.className = 'gTagTop free';
+                    tag.textContent = 'FREE';
+                    card.appendChild(tag);
+                } else if (def.originalPrice) {
+                    const tag = document.createElement('span');
+                    tag.className = 'gTagTop sale';
+                    tag.textContent = `省${Math.round((1 - def.price.amount / def.originalPrice) * 100)}%`;
+                    card.appendChild(tag);
+                }
+                const ic = document.createElement('div');
+                ic.className = 'giftIc';
+                ic.textContent = def.ic;
+                card.appendChild(ic);
+                const info = document.createElement('div');
+                info.className = 'giftInfo';
+                const name = document.createElement('b');
+                name.textContent = def.name;
+                info.appendChild(name);
+                const desc = document.createElement('p');
+                desc.textContent = def.desc;
+                info.appendChild(desc);
+                const entries = document.createElement('div');
+                entries.className = 'giftEntries';
+                entries.textContent = def.entries.map(e => e.label).join(' · ');
+                info.appendChild(entries);
+                card.appendChild(info);
+                const side = document.createElement('div');
+                side.className = 'giftSide';
+                const price = document.createElement('div');
+                price.className = 'giftPrice';
+                price.innerHTML = free
+                    ? '<em>免费</em>'
+                    : `💎 ${def.price.amount.toLocaleString()}${def.originalPrice ? ` <s>💎${def.originalPrice.toLocaleString()}</s>` : ''}`;
+                side.appendChild(price);
+                const buy = document.createElement('button');
+                buy.className = `btn ${free ? 'adBtn' : 'gold'}`;
+                const soldOut = left <= 0;
+                buy.textContent = soldOut ? '今日已购' : free ? '领 取' : '购 买';
+                buy.disabled = soldOut;
+                buy.style.opacity = soldOut ? '0.45' : '1';
+                buy.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    const r = this._giftSvc.buy(def);
+                    if (!r.ok) {
+                        SoundFx.play('ui');
+                        this._toast(r.reason ?? '购买失败');
+                        return;
+                    }
+                    SoundFx.play(r.drops.some(d => d.tier >= 5) ? 'buy' : 'coin');
+                    this._toast(free ? '每日补给已到账！' : `${def.name} 购买成功！`);
+                    this._refreshTop();
+                    this._refreshMall();
+                    this._refreshGiftDot(this._giftBannerEl?.querySelector('.giftDot') as HTMLElement | null);
+                    // 翻牌式展示获得物
+                    this._openGiftResultModal(def, r.drops);
+                };
+                side.appendChild(buy);
+                const quota = document.createElement('div');
+                quota.className = 'giftQuota';
+                quota.textContent = `今日剩余 ${left}/${def.dailyLimit}`;
+                side.appendChild(quota);
+                card.appendChild(side);
+                list.appendChild(card);
+            }
+            box.appendChild(list);
+            const note = document.createElement('p');
+            note.className = 'giftNote';
+            note.textContent = '钻石可用每日免费补给攒取 · 次数每日 0 点重置';
+            box.appendChild(note);
+        });
+    }
+
+    /** 礼包购买结果：获得物翻牌展示（复用结算掉落视觉） */
+    private _openGiftResultModal(def: GiftPackDef, drops: LootDrop[]): void {
+        this._openModal(`🎉 ${def.name}`, (box) => {
+            box.classList.add('giftBox');
+            const head = document.createElement('p');
+            head.className = 'giftResHead';
+            head.textContent = '获得以下物品：';
+            box.appendChild(head);
+            const grid = document.createElement('div');
+            grid.className = 'giftResGrid';
+            drops.forEach((d, i) => {
+                const cell = document.createElement('div');
+                cell.className = `clDrop r${tierRank(d.tier)}`;
+                cell.style.animationDelay = `${(0.1 + i * 0.15).toFixed(2)}s`;
+                const ic = document.createElement('span');
+                ic.className = 'clDropIc';
+                ic.textContent = d.ic;
+                const nm = document.createElement('span');
+                nm.className = 'clDropNm';
+                nm.textContent = d.name;
+                nm.style.color = lootDropColor(d);
+                cell.appendChild(ic);
+                cell.appendChild(nm);
+                grid.appendChild(cell);
+            });
+            // res 类内容（金币/钻石）没有 LootDrop 形态，展示为合并文本
+            const resParts: string[] = [];
+            for (const e of def.entries) {
+                if (e.kind === 'res') {
+                    resParts.push(e.label);
+                }
+            }
+            if (resParts.length > 0) {
+                const resRow = document.createElement('div');
+                resRow.className = 'giftResRow';
+                resRow.textContent = `＋ ${resParts.join('　')}`;
+                box.appendChild(resRow);
+            }
+            box.appendChild(grid);
+            const ok = document.createElement('button');
+            ok.className = 'btn gold giftOkBtn';
+            ok.textContent = '收 下';
+            ok.onclick = () => {
+                SoundFx.play('ui');
+                const mask = box.closest('.protoMask');
+                mask?.remove();
+            };
+            box.appendChild(ok);
+        });
     }
 
     // ================= 英雄页 =================
@@ -2321,6 +2483,50 @@ export class HomeUi extends Component {
   padding: calc(4px * var(--hs,1)) calc(16px * var(--hs,1)); border-radius: 99px 99px 99px 4px; box-shadow: 0 2px 6px rgba(0,0,0,.4); z-index: 2; }
 #homeUi .good.adCard .gIc { border-color: #2f9c4a; }
 
+/* ===== 礼包中心（banner 弹窗） ===== */
+#homeUi .giftBox .mHead h3 { color: #ffe9a8; }
+#homeUi .giftList { display: flex; flex-direction: column; gap: calc(16px * var(--hs,1)); }
+#homeUi .giftCard { display: flex; align-items: center; gap: calc(16px * var(--hs,1)); padding: calc(16px * var(--hs,1)); position: relative; }
+#homeUi .giftCard.done { filter: grayscale(.7) brightness(.75); }
+#homeUi .gTagTop { position: absolute; top: calc(-10px * var(--hs,1)); left: calc(-6px * var(--hs,1));
+  font-size: calc(18px * var(--hs,1)); font-weight: 800; padding: calc(3px * var(--hs,1)) calc(14px * var(--hs,1));
+  border-radius: 99px 99px 99px 4px; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); z-index: 2; }
+#homeUi .gTagTop.free { background: linear-gradient(180deg, #58c96b, #2f9c4a); }
+#homeUi .gTagTop.sale { background: linear-gradient(180deg, #ff8a5c, #e03a2a); }
+#homeUi .giftIc { flex: none; width: calc(96px * var(--hs,1)); height: calc(96px * var(--hs,1)); border-radius: calc(16px * var(--hs,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(52px * var(--hs,1));
+  background: radial-gradient(circle at 50% 30%, #2a4470, #101c34); border: 1px solid #3a567f; }
+#homeUi .giftCard.r4 .giftIc { border-color: #9a5ce0; }
+#homeUi .giftCard.r5 .giftIc { border-color: #ff9d45; box-shadow: 0 0 10px rgba(255,157,69,.4); }
+#homeUi .giftInfo { flex: 1; min-width: 0; }
+#homeUi .giftInfo b { font-size: calc(26px * var(--hs,1)); }
+#homeUi .giftInfo p { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .giftEntries { font-size: calc(18px * var(--hs,1)); color: #ffd9b0; margin-top: calc(8px * var(--hs,1)); line-height: 1.5; }
+#homeUi .giftSide { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: calc(8px * var(--hs,1)); width: calc(200px * var(--hs,1)); }
+#homeUi .giftPrice { text-align: center; font-weight: 900; font-size: calc(26px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .giftPrice em { font-style: normal; color: #7bdc7b; }
+#homeUi .giftPrice s { color: #c98a6a; font-size: calc(18px * var(--hs,1)); margin-left: calc(6px * var(--hs,1)); }
+#homeUi .giftSide .btn { width: 100%; height: calc(52px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); padding: 0; }
+#homeUi .giftQuota { text-align: center; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .giftNote { text-align: center; font-size: calc(18px * var(--hs,1)); color: #6a83a8; margin-top: calc(16px * var(--hs,1)); }
+#homeUi .giftResHead { text-align: center; font-size: calc(24px * var(--hs,1)); color: #b9d9c2; margin-bottom: calc(16px * var(--hs,1)); }
+#homeUi .giftResGrid { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(16px * var(--hs,1)); }
+#homeUi .giftResGrid .clDrop { width: calc(140px * var(--hs,1)); height: calc(140px * var(--hs,1)); border: 1px solid #3a567f;
+  border-radius: calc(16px * var(--hs,1)); background: radial-gradient(circle at 50% 30%, #1a2a4a, #0d1626);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8px * var(--hs,1));
+  opacity: 0; animation: giftDropIn .45s cubic-bezier(.34,1.56,.64,1) both; }
+#homeUi .giftResGrid .clDropIc { font-size: calc(48px * var(--hs,1)); }
+#homeUi .giftResGrid .clDropNm { font-size: calc(18px * var(--hs,1)); }
+#homeUi .giftResGrid .clDrop.r3 { border-color: #5ab0f0; }
+#homeUi .giftResGrid .clDrop.r4 { border-color: #c07ef5; }
+#homeUi .giftResGrid .clDrop.r5 { border-color: #ff9d45; box-shadow: 0 0 10px rgba(255,157,69,.35); }
+#homeUi .giftResGrid .clDrop.r6 { border-color: #ff5252; box-shadow: 0 0 12px rgba(255,82,82,.5); }
+#homeUi .giftResRow { text-align: center; font-size: calc(22px * var(--hs,1)); color: #ffe9a8; margin-top: calc(16px * var(--hs,1)); }
+#homeUi .giftOkBtn { width: 100%; margin-top: calc(20px * var(--hs,1)); height: calc(64px * var(--hs,1)); font-size: calc(26px * var(--hs,1)); }
+#homeUi .shopBanner .sbTime.dotOn::after { content: ''; display: inline-block; width: calc(12px * var(--hs,1)); height: calc(12px * var(--hs,1));
+  margin-left: calc(8px * var(--hs,1)); border-radius: 50%; background: #ff5252; box-shadow: 0 0 8px rgba(255,82,82,.8); vertical-align: middle; }
+@keyframes giftDropIn { from { transform: scale(.4) rotate(-8deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
 #homeUi .heroPick::-webkit-scrollbar { display: none; }
@@ -2900,6 +3106,43 @@ export class HomeUi extends Component {
   border-radius: calc(9px * var(--pw,2.5)); background: linear-gradient(#ffcd82, #eda052); border: 1px solid #cc8d45;
   color: #67411b; box-shadow: inset 0 2px #ffe8bb, 0 3px #b27a35; font-size: calc(12px * var(--pw,2.5)); }
 #homeUi .tab.main .ticon { width: calc(39px * var(--pw,2.5)); height: calc(39px * var(--pw,2.5)); font-size: 0; }
+
+/* --- 礼包中心（青瓷浅色变体） --- */
+#homeUi .giftBox .mbox { background: #edf4f8; }
+#homeUi .giftBox .mHead h3 { color: #88551f; }
+#homeUi .giftList { gap: calc(12px * var(--pw,2.5)); }
+#homeUi .giftCard { background: #e7eff5; border-color: #bdced8; border-radius: calc(8px * var(--pw,2.5));
+  gap: calc(10px * var(--pw,2.5)); padding: calc(10px * var(--pw,2.5)); }
+#homeUi .gTagTop { font-size: calc(11px * var(--pw,2.5)); padding: calc(2px * var(--pw,2.5)) calc(9px * var(--pw,2.5));
+  border-radius: 99px 99px 99px 3px; }
+#homeUi .giftIc { width: calc(54px * var(--pw,2.5)); height: calc(54px * var(--pw,2.5)); border-radius: calc(8px * var(--pw,2.5));
+  font-size: calc(30px * var(--pw,2.5)); background: #dce8ef; border-color: #b3c8d6; }
+#homeUi .giftCard.r4 .giftIc { border-color: #9a6cd0; }
+#homeUi .giftCard.r5 .giftIc { border-color: #e8892e; box-shadow: 0 0 5px rgba(232,137,46,.5); }
+#homeUi .giftInfo b { font-size: calc(15px * var(--pw,2.5)); color: #31536a; }
+#homeUi .giftInfo p { font-size: calc(12px * var(--pw,2.5)); color: #527085; margin-top: calc(2px * var(--pw,2.5)); }
+#homeUi .giftEntries { font-size: calc(11px * var(--pw,2.5)); color: #945d24; margin-top: calc(4px * var(--pw,2.5)); }
+#homeUi .giftSide { width: calc(110px * var(--pw,2.5)); gap: calc(5px * var(--pw,2.5)); }
+#homeUi .giftPrice { font-size: calc(14px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .giftPrice em { color: #2f9c4a; }
+#homeUi .giftPrice s { font-size: calc(11px * var(--pw,2.5)); color: #a98a72; margin-left: calc(4px * var(--pw,2.5)); }
+#homeUi .giftSide .btn { height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
+#homeUi .giftQuota { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .giftNote { font-size: calc(11px * var(--pw,2.5)); color: #7e97a8; margin-top: calc(10px * var(--pw,2.5)); }
+#homeUi .giftResHead { font-size: calc(14px * var(--pw,2.5)); color: #3f7a52; margin-bottom: calc(10px * var(--pw,2.5)); }
+#homeUi .giftResGrid { gap: calc(10px * var(--pw,2.5)); }
+#homeUi .giftResGrid .clDrop { width: calc(76px * var(--pw,2.5)); height: calc(76px * var(--pw,2.5));
+  border: 1px solid #b3c8d6; border-radius: calc(8px * var(--pw,2.5)); background: #dce8ef; gap: calc(4px * var(--pw,2.5)); }
+#homeUi .giftResGrid .clDropIc { font-size: calc(26px * var(--pw,2.5)); }
+#homeUi .giftResGrid .clDropNm { font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .giftResGrid .clDrop.r3 { border-color: #4a9fd6; }
+#homeUi .giftResGrid .clDrop.r4 { border-color: #9a6cd0; }
+#homeUi .giftResGrid .clDrop.r5 { border-color: #e8892e; box-shadow: 0 0 5px rgba(232,137,46,.45); }
+#homeUi .giftResGrid .clDrop.r6 { border-color: #e04848; box-shadow: 0 0 6px rgba(224,72,72,.5); }
+#homeUi .giftResRow { font-size: calc(13px * var(--pw,2.5)); color: #945d24; margin-top: calc(10px * var(--pw,2.5)); }
+#homeUi .giftOkBtn { height: calc(44px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5)); margin-top: calc(12px * var(--pw,2.5)); }
+#homeUi .shopBanner .sbTime.dotOn::after { width: calc(7px * var(--pw,2.5)); height: calc(7px * var(--pw,2.5));
+  margin-left: calc(5px * var(--pw,2.5)); background: #e04848; box-shadow: 0 0 5px rgba(224,72,72,.8); }
 `;
         document.head.appendChild(style);
     }
