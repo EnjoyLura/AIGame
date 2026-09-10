@@ -2397,6 +2397,80 @@ export class HomeUi extends Component {
     }
 
     /** 弹窗：护送编队（对齐原型 sq-slot + cand 网格，真数据 lineup） */
+    // ================= 基地建筑详情浮窗 =================
+
+    /** 建筑详情浮窗：功能介绍 + 当前/下一级效果 + 升级信息（基地页「详情」按钮触发） */
+    private _openBuildingInfoModal(id: string): void {
+        const gm = GameManager.instance;
+        const b = BUILDINGS.find(x => x.id === id);
+        if (!b) {
+            return;
+        }
+        this._openModal(`${b.ic} ${b.name}`, (box) => {
+            box.classList.add('binfoBox');
+            const lv = gm.buildingLevel(b.id);
+            const maxed = lv >= b.maxLevel;
+            const unlocked = gm.isBuildingUnlocked(b.id);
+            const hqBlocked = !maxed && unlocked && b.id !== 'hq' && lv + 1 > gm.hqLevel() + 1;
+
+            // 功能介绍
+            if (b.intro) {
+                const intro = document.createElement('p');
+                intro.className = 'biIntro';
+                intro.textContent = b.intro;
+                box.appendChild(intro);
+            }
+            // 等级进度
+            const lvRow = document.createElement('div');
+            lvRow.className = 'biLvRow';
+            lvRow.innerHTML = `<span>当前等级</span><b>LV.${lv} / ${b.maxLevel}</b>`;
+            box.appendChild(lvRow);
+            const bar = document.createElement('div');
+            bar.className = 'biBar';
+            const fill = document.createElement('i');
+            fill.style.width = `${Math.max(4, Math.round(lv / b.maxLevel * 100))}%`;
+            bar.appendChild(fill);
+            box.appendChild(bar);
+            // 当前效果 / 下一级
+            const curRow = document.createElement('div');
+            curRow.className = 'biEff';
+            curRow.innerHTML = `<em>当前效果</em><span>${lv > 0 ? b.desc(lv) : '尚未生效 · 升级后获得加成'}</span>`;
+            box.appendChild(curRow);
+            if (!maxed) {
+                const nextRow = document.createElement('div');
+                nextRow.className = 'biEff next';
+                nextRow.innerHTML = `<em>升到 LV.${lv + 1}</em><span>${b.desc(lv + 1)}</span>`;
+                box.appendChild(nextRow);
+                // 升级状态提示
+                const stRow = document.createElement('div');
+                stRow.className = 'biStatus';
+                const cost = gm.buildingCost(b.id);
+                if (!unlocked) {
+                    stRow.textContent = `🔒 需指挥中心 LV.${b.unlockHq} 解锁（当前 LV.${gm.hqLevel()}）`;
+                } else if (hqBlocked) {
+                    stRow.textContent = `🔒 受指挥中心上限约束（上限 LV.${gm.hqLevel() + 1}），先升级指挥中心`;
+                } else {
+                    stRow.textContent = `升级费用：🪙 ${cost.toLocaleString()}${gm.gold < cost ? '（金币不足）' : ''}`;
+                }
+                box.appendChild(stRow);
+            } else {
+                const stRow = document.createElement('div');
+                stRow.className = 'biStatus';
+                stRow.textContent = '✅ 已达满级';
+                box.appendChild(stRow);
+            }
+            const ok = document.createElement('button');
+            ok.className = 'btn gold big biOk';
+            ok.textContent = '知道了';
+            ok.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                box.closest('.protoMask')?.remove();
+            };
+            box.appendChild(ok);
+        });
+    }
+
     private _openSquadModal(): void {
         this._openModal('👥 护送编队', (box) => {
             const gm = GameManager.instance;
@@ -2742,6 +2816,17 @@ export class HomeUi extends Component {
             nm.className = 'bName';
             nm.innerHTML = `${b.name}<span>LV.${lv}</span>`;
             card.appendChild(nm);
+            // 详情浮窗按钮（右上角 ⓘ）
+            const infoBtn = document.createElement('button');
+            infoBtn.className = 'bInfoBtn';
+            infoBtn.textContent = 'ⓘ';
+            infoBtn.title = '建筑功能详情';
+            infoBtn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._openBuildingInfoModal(b.id);
+            };
+            card.appendChild(infoBtn);
             const ds = document.createElement('div');
             ds.className = 'bDesc';
             ds.textContent = maxed ? `${b.desc(lv)}（已满级）` : b.desc(lv + 1);
@@ -3150,6 +3235,29 @@ export class HomeUi extends Component {
 #homeUi .volWrap b { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; width: calc(64px * var(--hs,1)); text-align: right; }
 #homeUi .resetBtn { border-color: #8a3a2a !important; color: #ff9a8a !important; }
 
+/* ===== 建筑详情浮窗（基地页 ⓘ） ===== */
+#homeUi .bInfoBtn { position: absolute; top: calc(8px * var(--hs,1)); right: calc(8px * var(--hs,1)); z-index: 2;
+  width: calc(34px * var(--hs,1)); height: calc(34px * var(--hs,1)); border-radius: 50%;
+  border: 1px solid #3a567f; background: rgba(13,22,38,.8); color: #8ba3c7; font-size: calc(20px * var(--hs,1));
+  font-style: italic; font-weight: 800; font-family: serif; cursor: pointer; }
+#homeUi .bInfoBtn:active { transform: scale(.92); }
+#homeUi .binfoBox .mHead h3 { color: #ffe9a8; }
+#homeUi .biIntro { font-size: calc(22px * var(--hs,1)); line-height: 1.65; color: #b9cbe2;
+  background: rgba(20,32,58,.6); border: 1px solid #24365c; border-radius: calc(10px * var(--hs,1));
+  padding: calc(12px * var(--hs,1)) calc(16px * var(--hs,1)); margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .biLvRow { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: calc(8px * var(--hs,1)); }
+#homeUi .biLvRow span { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .biLvRow b { font-size: calc(24px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .biBar { height: calc(12px * var(--hs,1)); border-radius: 99px; background: #0d1930; border: 1px solid #33507a; overflow: hidden; margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .biBar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #5cc8ff, #7bdc7b); }
+#homeUi .biEff { background: rgba(20,32,58,.6); border: 1px solid #24365c; border-radius: calc(10px * var(--hs,1));
+  padding: calc(10px * var(--hs,1)) calc(16px * var(--hs,1)); margin-bottom: calc(10px * var(--hs,1)); }
+#homeUi .biEff em { display: block; font-style: normal; font-size: calc(18px * var(--hs,1)); color: #6a83a8; margin-bottom: calc(4px * var(--hs,1)); }
+#homeUi .biEff span { font-size: calc(22px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .biEff.next span { color: #7bdc7b; }
+#homeUi .biStatus { font-size: calc(20px * var(--hs,1)); color: #ffd9b0; margin: calc(4px * var(--hs,1)) 0 calc(14px * var(--hs,1)); }
+#homeUi .biOk { width: 100%; }
+
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
 #homeUi .heroPick::-webkit-scrollbar { display: none; }
@@ -3332,7 +3440,7 @@ export class HomeUi extends Component {
   border-radius: 99px; margin-top: calc(8px * var(--hs,1)); overflow: hidden; }
 #homeUi .prosBar i { display: block; height: 100%; width: 62%; background: linear-gradient(90deg, #f0b13e, #ffe9a8); }
 #homeUi .baseGrid { display: grid; grid-template-columns: 1fr 1fr; gap: calc(20px * var(--hs,1)); }
-#homeUi .bcard { padding: calc(20px * var(--hs,1)); text-align: center; }
+#homeUi .bcard { padding: calc(20px * var(--hs,1)); text-align: center; position: relative; }
 #homeUi .bIc { width: calc(104px * var(--hs,1)); height: calc(104px * var(--hs,1)); margin: 0 auto calc(12px * var(--hs,1)); border-radius: calc(24px * var(--hs,1));
   display: flex; align-items: center; justify-content: center; font-size: calc(52px * var(--hs,1));
   background: radial-gradient(circle at 50% 30%, #2a4470, #0d1626); border: 1px solid #33507a; }
@@ -3852,6 +3960,24 @@ export class HomeUi extends Component {
 #homeUi .volWrap input[type=range] { height: calc(12px * var(--pw,2.5)); }
 #homeUi .volWrap b { font-size: calc(12px * var(--pw,2.5)); color: #1e6e9e; width: calc(36px * var(--pw,2.5)); }
 #homeUi .resetBtn { border-color: #d8a08a !important; color: #b8503a !important; background: #f7ece6 !important; }
+
+/* --- 建筑详情浮窗（青瓷浅色变体） --- */
+#homeUi .bInfoBtn { width: calc(22px * var(--pw,2.5)); height: calc(22px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5));
+  border-color: #9db9ca; background: #dce8ef; color: #527085; top: calc(6px * var(--pw,2.5)); right: calc(6px * var(--pw,2.5)); }
+#homeUi .binfoBox .mbox { background: #edf4f8; }
+#homeUi .binfoBox .mHead h3 { color: #88551f; }
+#homeUi .biIntro { font-size: calc(13px * var(--pw,2.5)); color: #4a6a80; background: #e7eff5;
+  border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5)); padding: calc(7px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .biLvRow span { font-size: calc(12px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .biLvRow b { font-size: calc(14px * var(--pw,2.5)); color: #945d24; }
+#homeUi .biBar { height: calc(7px * var(--pw,2.5)); background: #cddce6; border-color: #b3c8d6; margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .biBar i { background: linear-gradient(90deg, #4a9fd6, #58b96b); }
+#homeUi .biEff { background: #e7eff5; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5)); padding: calc(6px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); margin-bottom: calc(6px * var(--pw,2.5)); }
+#homeUi .biEff em { font-size: calc(11px * var(--pw,2.5)); color: #7e97a8; margin-bottom: calc(2px * var(--pw,2.5)); }
+#homeUi .biEff span { font-size: calc(13px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .biEff.next span { color: #2f9c4a; }
+#homeUi .biStatus { font-size: calc(12px * var(--pw,2.5)); color: #945d24; margin: calc(2px * var(--pw,2.5)) 0 calc(8px * var(--pw,2.5)); }
+#homeUi .biOk { height: calc(44px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
 `;
         document.head.appendChild(style);
     }

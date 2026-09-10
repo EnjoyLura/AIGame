@@ -479,6 +479,8 @@ export interface BuildingDef {
     name: string;
     /** 满级效果描述（按当前等级由调用方格式化） */
     desc: (level: number) => string;
+    /** 建筑功能介绍（详情浮窗用，静态文案） */
+    intro?: string;
     maxLevel: number;
     baseCost: number;
     costMul: number;
@@ -487,14 +489,46 @@ export interface BuildingDef {
 }
 
 export const BUILDINGS: BuildingDef[] = [
-    { id: 'hq', ic: '🏛️', name: '指挥中心', desc: l => `其他建筑等级上限 = 本级 +1（当前 Lv.${l + 1}）`, maxLevel: 10, baseCost: 800, costMul: 1.6, unlockHq: 0 },
-    { id: 'camp', ic: '🏕️', name: '训练营', desc: l => `全队攻击 +${l * 6}%`, maxLevel: 10, baseCost: 500, costMul: 1.5, unlockHq: 0 },
-    { id: 'armory', ic: '⚒️', name: '军械库', desc: l => `装备强化上限提升至 +${5 + l}`, maxLevel: 5, baseCost: 600, costMul: 1.55, unlockHq: 0 },
-    { id: 'lab', ic: '🔬', name: '研究所', desc: l => `技能等级上限提升至 ${Math.min(ABILITY_MAX_LEVEL, 2 + l)}`, maxLevel: 1, baseCost: 1500, costMul: 1, unlockHq: 0 },
-    { id: 'workshop', ic: '🚛', name: '载具工坊', desc: l => `载具耐久 +${l * 8}%`, maxLevel: 10, baseCost: 450, costMul: 1.45, unlockHq: 0 },
-    { id: 'depot', ic: '📦', name: '补给仓库', desc: l => `金币获取 +${l * 6}%`, maxLevel: 10, baseCost: 400, costMul: 1.4, unlockHq: 0 },
-    { id: 'station', ic: '⛽', name: '加油站', desc: l => `体力上限 +${l * 4}`, maxLevel: 10, baseCost: 500, costMul: 1.45, unlockHq: 0 },
-    { id: 'radar', ic: '📡', name: '雷达站', desc: l => `经验获取 +${l * 10}%`, maxLevel: 5, baseCost: 1200, costMul: 1.5, unlockHq: 6 },
+    {
+        id: 'hq', ic: '🏛️', name: '指挥中心', maxLevel: 10, baseCost: 800, costMul: 1.6, unlockHq: 0,
+        desc: l => `其他建筑等级上限 = 本级 +1（当前 Lv.${l + 1}）`,
+        intro: '方舟基地的中枢。指挥中心决定其他所有建筑的可升级上限，优先提升它才能解锁更高的基地发展空间。',
+    },
+    {
+        id: 'camp', ic: '🏕️', name: '训练营', maxLevel: 10, baseCost: 500, costMul: 1.5, unlockHq: 0,
+        desc: l => `全队攻击 +${l * 6}%`,
+        intro: '护卫队员在此磨炼枪法与战术配合。每级为编队中所有英雄提供永久的攻击力加成，是队伍输出最稳定的成长来源。',
+    },
+    {
+        id: 'armory', ic: '⚒️', name: '军械库', maxLevel: 5, baseCost: 600, costMul: 1.55, unlockHq: 0,
+        desc: l => `装备强化上限提升至 +${5 + l}`,
+        intro: '维护与改造缴获的装备。提升等级可提高单件装备的强化等级上限，让装备在宝石镶嵌之外获得更多属性成长。',
+    },
+    {
+        id: 'lab', ic: '🔬', name: '研究所', maxLevel: 1, baseCost: 1500, costMul: 1, unlockHq: 0,
+        desc: l => `技能等级上限提升至 ${Math.min(ABILITY_MAX_LEVEL, 2 + l)}`,
+        intro: '消耗「英雄核心」把英雄的技能与大招升级到超过实战上限的等级。升级研究所后，技能升级页才会开放更高等级。',
+    },
+    {
+        id: 'workshop', ic: '🚛', name: '载具工坊', maxLevel: 10, baseCost: 450, costMul: 1.45, unlockHq: 0,
+        desc: l => `载具耐久 +${l * 8}%`,
+        intro: '加固护送车队的老爷车。载具是关卡里的最后防线，耐久越高能承受的怪物撕咬越多，无尽模式后期的必备投资。',
+    },
+    {
+        id: 'depot', ic: '📦', name: '补给仓库', maxLevel: 10, baseCost: 400, costMul: 1.4, unlockHq: 0,
+        desc: l => `金币获取 +${l * 6}%`,
+        intro: '统一管理战利品与赏金结算。每级提高战斗结算金币的获取百分比，收益乘区与赏金合同（局外强化）叠加生效。',
+    },
+    {
+        id: 'station', ic: '⛽', name: '加油站', maxLevel: 10, baseCost: 500, costMul: 1.45, unlockHq: 0,
+        desc: l => `体力上限 +${l * 4}`,
+        intro: '为车队储备燃油。每级提高体力上限，让你单次囤积更多体力连续出战；体力随时间自然恢复，上限越高囤得越多。',
+    },
+    {
+        id: 'radar', ic: '📡', name: '雷达站', maxLevel: 5, baseCost: 1200, costMul: 1.5, unlockHq: 6,
+        desc: l => `经验获取 +${l * 10}%`,
+        intro: '扫描战场情报加速团队成长。每级提高战斗经验的获取百分比，团队升级更快、局内三选一强化卡来得更频繁。需指挥中心 Lv.6 解锁。',
+    },
 ];
 
 /** 局外强化定义（主城升级 UI 与成本曲线） */
