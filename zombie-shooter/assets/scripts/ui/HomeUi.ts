@@ -11,7 +11,7 @@ import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves } from '../battle/StageData';
 
@@ -1344,6 +1344,18 @@ export class HomeUi extends Component {
         mkTab('mat', '⚙️ 材料');
         mkTab('item', '🧪 道具');
         bar.appendChild(tabs);
+        // 装备页签右上角挂「工坊」入口（合成/分解）
+        if (this._heroBagTab === 'equip') {
+            const forgeBtn = document.createElement('button');
+            forgeBtn.className = 'btn dark sm forgeBtn';
+            forgeBtn.textContent = '⚒️ 工坊';
+            forgeBtn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._openForgeModal();
+            };
+            tabs.appendChild(forgeBtn);
+        }
         const grid = document.createElement('div');
         grid.className = 'bagGrid';
         if (this._heroBagTab === 'equip') {
@@ -1393,6 +1405,127 @@ export class HomeUi extends Component {
         bar.appendChild(grid);
         body.appendChild(bar);
         this._applyPendingTex();
+    }
+
+    // ================= 背包工坊（合成/分解） =================
+
+    /** 工坊弹窗：合成区（同槽同品质 3→1）+ 分解区（单件产出材料 + 一键分解白绿） */
+    private _openForgeModal(): void {
+        const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
+        this._openModal('⚒️ 装备工坊', (box) => {
+            box.classList.add('forgeBox');
+            const rebuild = () => {
+                box.querySelectorAll('.fSec,.fNote').forEach(el => el.remove());
+                // ---- 合成区 ----
+                const secC = document.createElement('div');
+                secC.className = 'fSec';
+                secC.innerHTML = `<div class="fHead"><b>🔮 合成</b><span>同部位同品质 ×3 → 高一品质（保留最高强化级）</span></div>`;
+                let hasGroup = false;
+                for (const slot of EQUIP_SLOTS) {
+                    for (let tier = 1; tier <= 5; tier++) {
+                        const groups = combineGroupCount(slot, tier as EquipTier);
+                        if (groups <= 0) {
+                            continue;
+                        }
+                        hasGroup = true;
+                        const row = document.createElement('div');
+                        row.className = 'fRow';
+                        const cost = hs.combineCost((tier + 1) as EquipTier);
+                        const info = document.createElement('div');
+                        info.className = 'fInfo';
+                        info.innerHTML =
+                            `<b style="color:${EQUIP_TIER_COLORS[tier - 1]}">${SLOT_EMOJI[slot]} ${EQUIP_TIER_NAMES[tier - 1]}${EQUIP_SLOT_NAMES[slot]} ×3</b>` +
+                            `<span>→ <i style="color:${EQUIP_TIER_COLORS[tier]}">${EQUIP_TIER_NAMES[tier]}${EQUIP_SLOT_NAMES[slot]} ×1</i> · 🪙 ${cost}/组</span>`;
+                        row.appendChild(info);
+                        const btn = document.createElement('button');
+                        btn.className = 'btn gold sm';
+                        btn.textContent = `合成 ×${groups}`;
+                        btn.disabled = gm.gold < cost;
+                        btn.onclick = () => {
+                            if (hs.combine(null, slot, tier as EquipTier)) {
+                                SoundFx.play('buy');
+                                this._toast(`合成成功：${EQUIP_TIER_NAMES[tier]}${EQUIP_SLOT_NAMES[slot]}`);
+                                this._refreshTop();
+                                rebuild();
+                            } else {
+                                SoundFx.play('ui');
+                            }
+                        };
+                        row.appendChild(btn);
+                        secC.appendChild(row);
+                    }
+                }
+                if (!hasGroup) {
+                    const empty = document.createElement('p');
+                    empty.className = 'mSub';
+                    empty.textContent = '凑齐 3 件同部位同品质装备即可合成';
+                    secC.appendChild(empty);
+                }
+                box.appendChild(secC);
+                // ---- 分解区 ----
+                const secS = document.createElement('div');
+                secS.className = 'fSec';
+                secS.innerHTML = `<div class="fHead"><b>♻️ 分解</b><span>装备→强化石（紫+额外返还精炼合金）</span></div>`;
+                const bag = gm.bag;
+                if (bag.length === 0) {
+                    const empty = document.createElement('p');
+                    empty.className = 'mSub';
+                    empty.textContent = '背包中没有可分解的装备';
+                    secS.appendChild(empty);
+                }
+                bag.forEach((it, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'fRow';
+                    const info = document.createElement('div');
+                    info.className = 'fInfo';
+                    const alloy = salvageAlloyYield(it.tier);
+                    info.innerHTML =
+                        `<b style="color:${EQUIP_TIER_COLORS[it.tier - 1]}">${SLOT_EMOJI[it.slot]} ${bagItemName(it)} +${it.lv}</b>` +
+                        `<span>→ 🧱 ${salvageStoneYield(it.tier)}${alloy > 0 ? ` · 🔩 ${alloy}` : ''}</span>`;
+                    row.appendChild(info);
+                    const btn = document.createElement('button');
+                    btn.className = 'btn dark sm';
+                    btn.textContent = '分解';
+                    btn.onclick = () => {
+                        if (hs.salvage(index)) {
+                            SoundFx.play('ui');
+                            this._toast('分解完成，材料入包');
+                            this._refreshTop();
+                            rebuild();
+                        }
+                    };
+                    row.appendChild(btn);
+                    secS.appendChild(row);
+                });
+                // 一键分解白绿（保留蓝+）
+                const lowCount = bag.filter(it => it.tier <= 2).length;
+                if (lowCount > 0) {
+                    const quick = document.createElement('button');
+                    quick.className = 'btn dark big fQuick';
+                    quick.textContent = `一键分解白绿装备（${lowCount} 件）`;
+                    quick.onclick = () => {
+                        // 索引降序分解防串位
+                        for (let i = bag.length - 1; i >= 0; i--) {
+                            if (bag[i].tier <= 2) {
+                                hs.salvage(i);
+                            }
+                        }
+                        SoundFx.play('coin');
+                        this._toast(`已分解 ${lowCount} 件，强化石/合金入包`);
+                        this._refreshTop();
+                        rebuild();
+                    };
+                    secS.appendChild(quick);
+                }
+                box.appendChild(secS);
+                const note = document.createElement('p');
+                note.className = 'fNote giftNote';
+                note.textContent = '强化石用于武器强化 · 精炼合金用于装备强化（材料消耗口已打通）';
+                box.appendChild(note);
+            };
+            rebuild();
+        });
     }
 
     /** 内嵌物品栏物品详情弹窗：装备可穿戴（走穿戴面板），道具可用则显示使用按钮 */
@@ -2841,6 +2974,21 @@ export class HomeUi extends Component {
 #homeUi .gemHole .dim { color: #4a608a; filter: grayscale(.4); }
 #homeUi .gemHole .ghEff.dim { color: #4a608a; }
 
+/* ===== 装备工坊（合成/分解） ===== */
+#homeUi .forgeBtn { flex: none; width: calc(150px * var(--hs,1)); }
+#homeUi .fSec { margin-bottom: calc(18px * var(--hs,1)); }
+#homeUi .fHead { display: flex; align-items: baseline; gap: calc(12px * var(--hs,1)); margin-bottom: calc(10px * var(--hs,1)); }
+#homeUi .fHead b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .fHead span { font-size: calc(18px * var(--hs,1)); color: #6a83a8; }
+#homeUi .fRow { display: flex; align-items: center; gap: calc(12px * var(--hs,1)); padding: calc(10px * var(--hs,1)) calc(14px * var(--hs,1));
+  background: rgba(20,32,58,.6); border: 1px solid #24365c; border-radius: calc(10px * var(--hs,1)); margin-bottom: calc(8px * var(--hs,1)); }
+#homeUi .fInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(2px * var(--hs,1)); }
+#homeUi .fInfo b { font-size: calc(22px * var(--hs,1)); }
+#homeUi .fInfo span { font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .fRow .btn { flex: none; min-width: calc(140px * var(--hs,1)); height: calc(48px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
+#homeUi .fQuick { width: 100%; margin-top: calc(6px * var(--hs,1)); }
+#homeUi .fNote { text-align: center; }
+
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
 #homeUi .heroPick::-webkit-scrollbar { display: none; }
@@ -3509,6 +3657,19 @@ export class HomeUi extends Component {
 #homeUi .gemHole .ghEff { font-size: calc(10px * var(--pw,2.5)); color: #1e6e9e; }
 #homeUi .gemHole .dim { color: #8ba3b5; }
 #homeUi .gemHole .ghEff.dim { color: #8ba3b5; }
+
+/* --- 装备工坊（青瓷浅色变体） --- */
+#homeUi .forgeBtn { width: calc(76px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); padding: 0; }
+#homeUi .fSec { margin-bottom: calc(10px * var(--pw,2.5)); }
+#homeUi .fHead { gap: calc(7px * var(--pw,2.5)); margin-bottom: calc(6px * var(--pw,2.5)); }
+#homeUi .fHead b { font-size: calc(15px * var(--pw,2.5)); color: #88551f; }
+#homeUi .fHead span { font-size: calc(11px * var(--pw,2.5)); color: #7e97a8; }
+#homeUi .fRow { background: #e7eff5; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5));
+  gap: calc(7px * var(--pw,2.5)); padding: calc(6px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); margin-bottom: calc(5px * var(--pw,2.5)); }
+#homeUi .fInfo b { font-size: calc(13px * var(--pw,2.5)); color: #31536a; }
+#homeUi .fInfo span { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .fRow .btn { min-width: calc(76px * var(--pw,2.5)); height: calc(30px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); }
+#homeUi .fQuick { height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); margin-top: calc(4px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
 `;
         document.head.appendChild(style);
     }

@@ -274,6 +274,83 @@ export function gemSocketCost(tier: EquipTier): number {
     return 200 * tier;
 }
 
+// ================= 装备合成与分解（背包工坊） =================
+
+/** 合成消耗：同槽同品质 3 件 → 1 件更高品质（品质+1，最高 6） */
+export const COMBINE_COST_N = 3;
+/** 分解产出：件 → 强化石 ×N（按品质阶梯） */
+export function salvageStoneYield(tier: EquipTier): number {
+    return [0, 8, 16, 30, 50, 80, 120][Math.min(6, Math.max(1, tier))];
+}
+/** 分解产出：紫及以上额外返还精炼合金 ×N */
+export function salvageAlloyYield(tier: EquipTier): number {
+    return tier >= 4 ? tier - 3 : 0;
+}
+
+/**
+ * 背包合成：同 slot 同 tier 的 3 件合 1 件 tier+1（lv 取三件中最高强化级）。
+ * 成功返回新件；材料不足/已满品质返回 null（不改动背包）。
+ */
+function combineBagItems(slot: EquipSlot, tier: EquipTier): BagItem | null {
+    const gm = GameManager.instance;
+    if (tier >= 6) {
+        return null;
+    }
+    const idxAll: number[] = [];
+    gm.bag.forEach((it, i) => {
+        if (it.slot === slot && it.tier === tier) {
+            idxAll.push(i);
+        }
+    });
+    if (idxAll.length < COMBINE_COST_N) {
+        return null;
+    }
+    // 取强化等级最高的 3 件（索引降序删除防串位）
+    idxAll.sort((a, b) => gm.bag[b].lv - gm.bag[a].lv);
+    const used = idxAll.slice(0, COMBINE_COST_N);
+    const maxLv = used.reduce((m, i) => Math.max(m, gm.bag[i].lv), 1);
+    used.sort((a, b) => b - a);
+    for (const i of used) {
+        gm.bag.splice(i, 1);
+    }
+    const nextTier = (tier + 1) as EquipTier;
+    const newItem: BagItem = { slot, tier: nextTier, lv: maxLv };
+    gm.bag.push(newItem);
+    return newItem;
+}
+
+/** 背包某槽某品质可合成组数 */
+export function combineGroupCount(slot: EquipSlot, tier: EquipTier): number {
+    const gm = GameManager.instance;
+    let n = 0;
+    for (const it of gm.bag) {
+        if (it.slot === slot && it.tier === tier) {
+            n++;
+        }
+    }
+    return Math.floor(n / COMBINE_COST_N);
+}
+
+/**
+ * 背包分解：移除一件，产出强化石（各品质均有）与精炼合金（紫+）入杂物库存。
+ * index 非法返回 null；成功返回产出（用于展示）。
+ */
+export function salvageBagItem(index: number): { stone: number; alloy: number } | null {
+    const gm = GameManager.instance;
+    const item = gm.bag[index];
+    if (!item) {
+        return null;
+    }
+    gm.bag.splice(index, 1);
+    const stone = salvageStoneYield(item.tier);
+    const alloy = salvageAlloyYield(item.tier);
+    gm.misc['mat_stone'] = (gm.misc['mat_stone'] ?? 0) + stone;
+    if (alloy > 0) {
+        gm.misc['mat_alloy'] = (gm.misc['mat_alloy'] ?? 0) + alloy;
+    }
+    return { stone, alloy };
+}
+
 /** 掉落物描述：结算面板展示 + 落袋凭据（kind 决定入哪个包） */
 export interface LootDrop {
     kind: 'equip' | 'core' | 'misc';
@@ -710,6 +787,44 @@ export class HeroSystem {
         gm.misc[id] = (gm.misc[id] ?? 0) + 1;
         gm.save();
         return true;
+    }
+
+    // ================= 背包合成与分解 =================
+
+    /** 合成费用（金币/次，随目标品质上浮） */
+    combineCost(targetTier: EquipTier): number {
+        return 100 * targetTier;
+    }
+
+    /**
+     * 合成一组：扣金币费用 + 三件同槽同品质 → 一件更高品质。
+     * 成功返回新件；材料/金币不足或已满品质返回 null。
+     */
+    combine(heroId: string | null, slot: EquipSlot, tier: EquipTier): BagItem | null {
+        const gm = this._gm;
+        if (tier >= 6) {
+            return null;
+        }
+        if (!gm.res.spend('gold', this.combineCost((tier + 1) as EquipTier))) {
+            return null;
+        }
+        const item = combineBagItems(slot, tier);
+        if (!item) {
+            // 合成失败（材料被并发消耗）退还费用
+            gm.res.add('gold', this.combineCost((tier + 1) as EquipTier));
+            return null;
+        }
+        gm.save();
+        return item;
+    }
+
+    /** 分解一件背包装备（产出强化石/精炼合金入杂物库存）；成功返回产出 */
+    salvage(index: number): { stone: number; alloy: number } | null {
+        const out = salvageBagItem(index);
+        if (out) {
+            this._gm.save();
+        }
+        return out;
     }
 
     /** 单件装备的属性值（含强化等级；返回百分比小数）。bag: 前缀件按品质曲线取值 */
