@@ -9,6 +9,7 @@ import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
+import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
@@ -1026,6 +1027,50 @@ export class HomeUi extends Component {
             const note = document.createElement('p');
             note.className = 'giftNote';
             note.textContent = '完成任务领钻石 · 钻石可在商店购买礼包';
+            box.appendChild(note);
+        });
+    }
+
+    // ================= 排行榜 =================
+
+    /** 排行榜弹窗：积分榜（本地模拟对手，接入微信开放数据域时替换数据源） */
+    private _openLeaderboardModal(): void {
+        this._openModal('🏆 末日航线 · 排行榜', (box) => {
+            box.classList.add('lbBox');
+            const myScoreVal = myScore();
+            const head = document.createElement('div');
+            head.className = 'lbMy';
+            head.innerHTML = `<span>我的积分</span><b>${myScoreVal.toLocaleString()}</b>`;
+            box.appendChild(head);
+            const list = document.createElement('div');
+            list.className = 'lbList';
+            const rows = loadBoard();
+            rows.forEach((r, i) => {
+                const row = document.createElement('div');
+                row.className = 'lbRow' + (r.me ? ' me' : '');
+                const rank = document.createElement('span');
+                rank.className = 'lbRank';
+                const topCls = i === 0 ? ' gold' : i === 1 ? ' silver' : i === 2 ? ' bronze' : '';
+                rank.innerHTML = i < 3 ? `<i class="medal${topCls}">${['🥇', '🥈', '🥉'][i]}</i>` : `${i + 1}`;
+                row.appendChild(rank);
+                const ic = document.createElement('span');
+                ic.className = 'lbIc';
+                ic.textContent = r.ic;
+                row.appendChild(ic);
+                const nm = document.createElement('b');
+                nm.className = 'lbName';
+                nm.textContent = r.name;
+                row.appendChild(nm);
+                const sc = document.createElement('span');
+                sc.className = 'lbScore';
+                sc.textContent = r.score.toLocaleString();
+                row.appendChild(sc);
+                list.appendChild(row);
+            });
+            box.appendChild(list);
+            const note = document.createElement('p');
+            note.className = 'giftNote';
+            note.textContent = boardNote();
             box.appendChild(note);
         });
     }
@@ -2262,7 +2307,8 @@ export class HomeUi extends Component {
         banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag"></span></h3>` +
             `<div class="pros"></div>` +
             `<div class="prosBar"><i></i></div></div>` +
-            `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>`;
+            `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
+            `<button class="btn gold sm lbEntry">🏆 排行</button>`;
         const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
         questBtn.onclick = (e) => {
             e.stopPropagation();
@@ -2271,6 +2317,12 @@ export class HomeUi extends Component {
         };
         this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
         this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
+        const lbBtn = banner.querySelector('.lbEntry') as HTMLButtonElement;
+        lbBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openLeaderboardModal();
+        };
         page.appendChild(banner);
         this._baseBannerEls = {
             lv: banner.querySelector('.lvtag'),
@@ -2663,6 +2715,25 @@ export class HomeUi extends Component {
 #homeUi .qRight { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8px * var(--hs,1)); }
 #homeUi .qReward { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
 #homeUi .qRight .btn { min-width: calc(140px * var(--hs,1)); height: calc(48px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
+
+/* ===== 排行榜（基地页入口 + 弹窗） ===== */
+#homeUi .lbEntry { margin-left: 0; }
+#homeUi .lbBox .mHead h3 { color: #ffe9a8; }
+#homeUi .lbMy { display: flex; align-items: baseline; justify-content: space-between; background: linear-gradient(90deg, rgba(240,177,62,.16), transparent);
+  border: 1px solid #8a6a20; border-radius: calc(12px * var(--hs,1)); padding: calc(10px * var(--hs,1)) calc(20px * var(--hs,1)); margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .lbMy span { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .lbMy b { font-size: calc(32px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .lbList { display: flex; flex-direction: column; gap: calc(8px * var(--hs,1)); }
+#homeUi .lbRow { display: flex; align-items: center; gap: calc(12px * var(--hs,1)); padding: calc(8px * var(--hs,1)) calc(14px * var(--hs,1));
+  background: rgba(20,32,58,.6); border: 1px solid #24365c; border-radius: calc(10px * var(--hs,1)); }
+#homeUi .lbRow.me { border-color: #8a6a20; background: linear-gradient(90deg, rgba(240,177,62,.14), rgba(20,32,58,.6));
+  box-shadow: 0 0 10px rgba(240,177,62,.18); }
+#homeUi .lbRank { flex: none; width: calc(52px * var(--hs,1)); text-align: center; font-size: calc(22px * var(--hs,1)); color: #8ba3c7; font-weight: 800; }
+#homeUi .lbRank .medal { font-style: normal; font-size: calc(30px * var(--hs,1)); }
+#homeUi .lbIc { flex: none; font-size: calc(30px * var(--hs,1)); }
+#homeUi .lbName { flex: 1; min-width: 0; font-size: calc(24px * var(--hs,1)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#homeUi .lbRow.me .lbName { color: #ffe9a8; }
+#homeUi .lbScore { flex: none; font-size: calc(24px * var(--hs,1)); color: #7ee0ff; font-weight: 800; }
 
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
@@ -3303,6 +3374,25 @@ export class HomeUi extends Component {
 #homeUi .qRight { gap: calc(4px * var(--pw,2.5)); }
 #homeUi .qReward { font-size: calc(12px * var(--pw,2.5)); color: #1e6e9e; }
 #homeUi .qRight .btn { min-width: calc(76px * var(--pw,2.5)); height: calc(30px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); }
+
+/* --- 排行榜（青瓷浅色变体） --- */
+#homeUi .lbEntry { border-radius: calc(7px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); padding: 0 calc(10px * var(--pw,2.5)); }
+#homeUi .lbBox .mbox { background: #edf4f8; }
+#homeUi .lbBox .mHead h3 { color: #88551f; }
+#homeUi .lbMy { background: #fff8e5; border-color: #e9a04f; border-radius: calc(7px * var(--pw,2.5));
+  padding: calc(6px * var(--pw,2.5)) calc(10px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .lbMy span { font-size: calc(12px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .lbMy b { font-size: calc(18px * var(--pw,2.5)); color: #945d24; }
+#homeUi .lbList { gap: calc(5px * var(--pw,2.5)); }
+#homeUi .lbRow { background: #e7eff5; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5));
+  gap: calc(7px * var(--pw,2.5)); padding: calc(5px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); }
+#homeUi .lbRow.me { background: #fff8e5; border-color: #e9a04f; box-shadow: none; }
+#homeUi .lbRank { width: calc(28px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); color: #527085; }
+#homeUi .lbRank .medal { font-size: calc(17px * var(--pw,2.5)); }
+#homeUi .lbIc { font-size: calc(17px * var(--pw,2.5)); }
+#homeUi .lbName { font-size: calc(14px * var(--pw,2.5)); color: #31536a; }
+#homeUi .lbRow.me .lbName { color: #945d24; }
+#homeUi .lbScore { font-size: calc(14px * var(--pw,2.5)); color: #1e6e9e; }
 `;
         document.head.appendChild(style);
     }
