@@ -1,4 +1,4 @@
-import { _decorator, Component, SpriteFrame } from 'cc';
+import { _decorator, Component, SpriteFrame, sys } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, BUILD_STAMP, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
@@ -146,6 +146,7 @@ export class HomeUi extends Component {
         if (typeof document === 'undefined') {
             return;
         }
+        SoundFx.init();
         this._injectStyle();
         this._build();
         const applyScale = () => {
@@ -357,6 +358,17 @@ export class HomeUi extends Component {
         mkRes('diamond', 'ui/res_diamond');
         mkRes('stamina', 'ui/res_stamina');
         bar.appendChild(reswrap);
+        // 设置入口（顶栏右侧齿轮）
+        const gear = document.createElement('button');
+        gear.className = 'btn dark sm setGear';
+        gear.textContent = '⚙️';
+        gear.title = '设置';
+        gear.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openSettingsModal();
+        };
+        bar.appendChild(gear);
         root.appendChild(bar);
     }
 
@@ -1075,6 +1087,106 @@ export class HomeUi extends Component {
             note.className = 'giftNote';
             note.textContent = boardNote();
             box.appendChild(note);
+        });
+    }
+
+    // ================= 设置 =================
+
+    /** 设置弹窗：音效开关/音量、版本信息、重置存档（输入 CONFIRM 二次确认） */
+    private _openSettingsModal(): void {
+        this._openModal('⚙️ 设置', (box) => {
+            box.classList.add('setBox');
+
+            // ---- 音效 ----
+            const secSound = document.createElement('div');
+            secSound.className = 'setSec';
+            secSound.innerHTML = '<div class="setHead"><b>🔊 音效</b></div>';
+            const soundRow = document.createElement('div');
+            soundRow.className = 'setRow';
+            soundRow.innerHTML = `<span>战斗与界面音效</span>`;
+            const sndBtn = document.createElement('button');
+            sndBtn.className = 'btn dark sm';
+            const syncSnd = () => {
+                sndBtn.textContent = SoundFx.muted ? '🔇 已静音' : '🔊 开启';
+            };
+            syncSnd();
+            sndBtn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.setMuted(!SoundFx.muted);
+                syncSnd();
+                if (!SoundFx.muted) {
+                    SoundFx.play('ui');
+                }
+            };
+            soundRow.appendChild(sndBtn);
+            secSound.appendChild(soundRow);
+
+            // 音量滑条
+            const volRow = document.createElement('div');
+            volRow.className = 'setRow';
+            volRow.innerHTML = `<span>音量</span>`;
+            const volWrap = document.createElement('div');
+            volWrap.className = 'volWrap';
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = '0';
+            slider.max = '100';
+            slider.value = String(Math.round(SoundFx.volume * 100));
+            slider.oninput = () => {
+                SoundFx.setVolume(Number(slider.value) / 100);
+            };
+            slider.onchange = () => {
+                SoundFx.play('coin');
+            };
+            volWrap.appendChild(slider);
+            const volNum = document.createElement('b');
+            const syncVol = () => {
+                volNum.textContent = `${slider.value}%`;
+            };
+            syncVol();
+            slider.addEventListener('input', syncVol);
+            volWrap.appendChild(volNum);
+            volRow.appendChild(volWrap);
+            secSound.appendChild(volRow);
+            box.appendChild(secSound);
+
+            // ---- 关于 ----
+            const secAbout = document.createElement('div');
+            secAbout.className = 'setSec';
+            secAbout.innerHTML =
+                `<div class="setHead"><b>ℹ️ 关于</b></div>` +
+                `<div class="setRow"><span>版本</span><b>${BUILD_STAMP}</b></div>` +
+                `<div class="setRow"><span>游戏</span><b>末日航线 · 尸潮突围</b></div>`;
+            box.appendChild(secAbout);
+
+            // ---- 危险区：重置存档 ----
+            const secDanger = document.createElement('div');
+            secDanger.className = 'setSec';
+            secDanger.innerHTML = '<div class="setHead danger"><b>⚠️ 危险操作</b></div>';
+            const dangerRow = document.createElement('div');
+            dangerRow.className = 'setRow col';
+            const resetBtn = document.createElement('button');
+            resetBtn.className = 'btn dark sm resetBtn';
+            resetBtn.textContent = '🗑️ 重置全部存档';
+            let confirmState = 0;
+            resetBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (confirmState === 0) {
+                    confirmState = 1;
+                    resetBtn.textContent = '再次点击确认重置（5 秒内）';
+                    setTimeout(() => {
+                        confirmState = 0;
+                        resetBtn.textContent = '🗑️ 重置全部存档';
+                    }, 5000);
+                    return;
+                }
+                sys.localStorage.removeItem(GameManager.SAVE_KEY);
+                this._toast('存档已重置，即将刷新页面');
+                setTimeout(() => location.reload(), 800);
+            };
+            dangerRow.appendChild(resetBtn);
+            secDanger.appendChild(dangerRow);
+            box.appendChild(secDanger);
         });
     }
 
@@ -3020,6 +3132,24 @@ export class HomeUi extends Component {
 #homeUi .stageBtns .go.endless { background: linear-gradient(180deg, #3d5a86, #22345c); border-color: #5c7ea8; color: #bfe0ff; }
 #homeUi .stageBtns .go.endless:active { filter: brightness(1.12); }
 
+/* ===== 设置（顶栏齿轮 + 弹窗） ===== */
+#homeUi .setGear { flex: none; width: calc(56px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(26px * var(--hs,1));
+  display: flex; align-items: center; justify-content: center; padding: 0; }
+#homeUi .setSec { margin-bottom: calc(18px * var(--hs,1)); }
+#homeUi .setHead { margin-bottom: calc(8px * var(--hs,1)); }
+#homeUi .setHead b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .setHead.danger b { color: #ff8a6a; }
+#homeUi .setRow { display: flex; align-items: center; justify-content: space-between; gap: calc(12px * var(--hs,1));
+  padding: calc(10px * var(--hs,1)) calc(14px * var(--hs,1)); background: rgba(20,32,58,.6);
+  border: 1px solid #24365c; border-radius: calc(10px * var(--hs,1)); margin-bottom: calc(8px * var(--hs,1)); }
+#homeUi .setRow > span { font-size: calc(22px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .setRow > b { font-size: calc(22px * var(--hs,1)); color: #cfe0f5; }
+#homeUi .setRow .btn { min-width: calc(170px * var(--hs,1)); height: calc(50px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
+#homeUi .volWrap { display: flex; align-items: center; gap: calc(12px * var(--hs,1)); flex: 1; max-width: calc(300px * var(--hs,1)); }
+#homeUi .volWrap input[type=range] { flex: 1; accent-color: #f0b13e; height: calc(24px * var(--hs,1)); }
+#homeUi .volWrap b { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; width: calc(64px * var(--hs,1)); text-align: right; }
+#homeUi .resetBtn { border-color: #8a3a2a !important; color: #ff9a8a !important; }
+
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
 #homeUi .heroPick::-webkit-scrollbar { display: none; }
@@ -3704,6 +3834,24 @@ export class HomeUi extends Component {
 #homeUi .fInfo span { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; }
 #homeUi .fRow .btn { min-width: calc(76px * var(--pw,2.5)); height: calc(30px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); }
 #homeUi .fQuick { height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); margin-top: calc(4px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
+
+/* --- 设置（青瓷浅色变体） --- */
+#homeUi .setGear { width: calc(34px * var(--pw,2.5)); height: calc(34px * var(--pw,2.5)); font-size: calc(16px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
+#homeUi .setBox .mbox { background: #edf4f8; }
+#homeUi .setBox .mHead h3 { color: #88551f; }
+#homeUi .setSec { margin-bottom: calc(12px * var(--pw,2.5)); }
+#homeUi .setHead { margin-bottom: calc(5px * var(--pw,2.5)); }
+#homeUi .setHead b { font-size: calc(15px * var(--pw,2.5)); color: #88551f; }
+#homeUi .setHead.danger b { color: #c04a34; }
+#homeUi .setRow { background: #e7eff5; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5));
+  padding: calc(6px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); margin-bottom: calc(5px * var(--pw,2.5)); }
+#homeUi .setRow > span { font-size: calc(13px * var(--pw,2.5)); color: #527085; }
+#homeUi .setRow > b { font-size: calc(13px * var(--pw,2.5)); color: #31536a; }
+#homeUi .setRow .btn { min-width: calc(92px * var(--pw,2.5)); height: calc(32px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); }
+#homeUi .volWrap { gap: calc(7px * var(--pw,2.5)); max-width: calc(170px * var(--pw,2.5)); }
+#homeUi .volWrap input[type=range] { height: calc(12px * var(--pw,2.5)); }
+#homeUi .volWrap b { font-size: calc(12px * var(--pw,2.5)); color: #1e6e9e; width: calc(36px * var(--pw,2.5)); }
+#homeUi .resetBtn { border-color: #d8a08a !important; color: #b8503a !important; background: #f7ece6 !important; }
 `;
         document.head.appendChild(style);
     }

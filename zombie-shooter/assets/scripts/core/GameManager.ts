@@ -17,7 +17,8 @@ export class GameManager {
         return this._inst;
     }
 
-    private static readonly SAVE_KEY = 'zombie-shooter-save';
+    /** 主存档键（设置界面重置存档复用） */
+    static readonly SAVE_KEY = 'zombie-shooter-save';
 
     // ---- 运行时数据（每局重置） ----
     wave = 0;

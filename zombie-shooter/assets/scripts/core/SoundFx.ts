@@ -3,12 +3,18 @@
  * 短促、低沉、偏"打击感"的合成声。微信小游戏无 WebAudio 时自动静音。
  * 所有发声走统一入口并做 45ms 节流，避免同帧大量重复音爆音。
  */
+import { sys } from 'cc';
+
 type FxName = 'shoot' | 'laser' | 'hit' | 'kill' | 'bigkill' | 'vehicleHit' | 'ready' | 'ui' | 'boom' | 'ult' | 'coin' | 'buy';
 
 export class SoundFx {
     private static _ctx: AudioContext | null = null;
     private static _muted = false;
     private static _last: Record<string, number> = {};
+    /** 主音量 0~1（设置界面可调，持久化） */
+    private static _volume = 1;
+    private static _ready = false;
+    private static readonly SET_KEY = 'zombie-shooter-sound';
 
     /** 首次用户交互后调用（浏览器自动播放策略） */
     static unlock(): void {
@@ -22,12 +28,51 @@ export class SoundFx {
         this._ctx = new AC() as AudioContext;
     }
 
+    /** 从 localStorage 恢复音量/静音设置（启动时调用一次） */
+    static init(): void {
+        if (SoundFx._ready || typeof sys === 'undefined') {
+            return;
+        }
+        try {
+            const raw = sys.localStorage.getItem(SoundFx.SET_KEY);
+            if (raw) {
+                const d = JSON.parse(raw);
+                SoundFx._muted = !!d.muted;
+                SoundFx._volume = typeof d.volume === 'number' ? Math.min(1, Math.max(0, d.volume)) : 1;
+            }
+        } catch {
+            // 坏档用默认值
+        }
+        SoundFx._ready = true;
+    }
+
     static setMuted(m: boolean): void {
         this._muted = m;
+        SoundFx._persist();
     }
 
     static get muted(): boolean {
         return this._muted;
+    }
+
+    static setVolume(v: number): void {
+        this._volume = Math.min(1, Math.max(0, v));
+        SoundFx._persist();
+    }
+
+    static get volume(): number {
+        return this._volume;
+    }
+
+    private static _persist(): void {
+        if (!SoundFx._ready || typeof sys === 'undefined') {
+            return;
+        }
+        try {
+            sys.localStorage.setItem(SoundFx.SET_KEY, JSON.stringify({ muted: SoundFx._muted, volume: SoundFx._volume }));
+        } catch {
+            // 音效设置非关键数据，写入失败静默
+        }
     }
 
     private static _tone(f1: number, f2: number, dur: number, vol: number, type: OscillatorType): void {
@@ -41,7 +86,7 @@ export class SoundFx {
         const t = ctx.currentTime;
         o.frequency.setValueAtTime(f1, t);
         o.frequency.exponentialRampToValueAtTime(Math.max(f2, 20), t + dur);
-        g.gain.setValueAtTime(vol, t);
+        g.gain.setValueAtTime(vol * this._volume, t);
         g.gain.exponentialRampToValueAtTime(0.001, t + dur);
         o.connect(g);
         g.connect(ctx.destination);
@@ -67,7 +112,7 @@ export class SoundFx {
         f.frequency.value = freq;
         const g = ctx.createGain();
         const t = ctx.currentTime;
-        g.gain.setValueAtTime(vol, t);
+        g.gain.setValueAtTime(vol * this._volume, t);
         g.gain.exponentialRampToValueAtTime(0.001, t + dur);
         src.connect(f);
         f.connect(g);
