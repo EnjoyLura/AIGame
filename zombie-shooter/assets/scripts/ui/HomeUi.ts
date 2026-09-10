@@ -8,6 +8,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
+import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
@@ -90,6 +91,8 @@ export class HomeUi extends Component {
     private _giftSvc = new GiftService();
     /** 商城礼包 banner（红点刷新用） */
     private _giftBannerEl: HTMLDivElement | null = null;
+    /** 基地页任务入口红点 */
+    private _questRedEl: HTMLElement | null = null;
     private _mallAdLab: HTMLDivElement | null = null;
     /** 模拟广告层 */
     private _adOverlay: HTMLDivElement | null = null;
@@ -927,6 +930,103 @@ export class HomeUi extends Component {
                 mask?.remove();
             };
             box.appendChild(ok);
+        });
+    }
+
+    // ================= 任务与成就 =================
+
+    /** 任务入口红点：有可领奖任务时点亮 */
+    private _refreshQuestRed(el: HTMLElement | null): void {
+        if (el) {
+            el.classList.toggle('on', QuestSystem.instance.hasClaimable());
+        }
+    }
+
+    /** 任务中心弹窗：每日任务（自然日重置）+ 成就（累计里程碑），进度条 + 领奖 */
+    private _openQuestModal(): void {
+        const qs = QuestSystem.instance;
+        this._openModal('📋 任务 · 成就', (box) => {
+            box.classList.add('questBox');
+            const mkSection = (title: string, sub: string) => {
+                const head = document.createElement('div');
+                head.className = 'qSecHead';
+                head.innerHTML = `<b>${title}</b><span>${sub}</span>`;
+                box.appendChild(head);
+            };
+            const mkRow = (def: QuestDef) => {
+                const done = qs.isComplete(def);
+                const claimed = qs.isClaimed(def);
+                const prog = qs.progress(def);
+                const row = document.createElement('div');
+                row.className = 'questRow panel' + (claimed ? ' done' : done ? ' ready' : '');
+                const ic = document.createElement('div');
+                ic.className = 'qIc';
+                ic.textContent = def.ic;
+                row.appendChild(ic);
+                const mid = document.createElement('div');
+                mid.className = 'qMid';
+                const nm = document.createElement('b');
+                nm.textContent = def.name;
+                mid.appendChild(nm);
+                const bar = document.createElement('div');
+                bar.className = 'qBar';
+                const fill = document.createElement('i');
+                fill.style.width = `${Math.max(claimed ? 100 : 0, Math.min(100, Math.round(prog / def.target * 100)))}%`;
+                bar.appendChild(fill);
+                mid.appendChild(bar);
+                const num = document.createElement('span');
+                num.className = 'qNum';
+                num.textContent = `${prog.toLocaleString()} / ${def.target.toLocaleString()}`;
+                mid.appendChild(num);
+                row.appendChild(mid);
+                const right = document.createElement('div');
+                right.className = 'qRight';
+                const reward: string[] = [];
+                if (def.reward.diamond) {
+                    reward.push(`💎${def.reward.diamond}`);
+                }
+                if (def.reward.gold) {
+                    reward.push(`🪙${def.reward.gold}`);
+                }
+                const rw = document.createElement('span');
+                rw.className = 'qReward';
+                rw.textContent = reward.join(' ');
+                right.appendChild(rw);
+                const btn = document.createElement('button');
+                btn.className = `btn sm ${done && !claimed ? 'gold' : 'dark'}`;
+                btn.textContent = claimed ? '已领取' : done ? '领 取' : '进行中';
+                btn.disabled = !done || claimed;
+                if (done && !claimed) {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.unlock();
+                        if (qs.claim(def)) {
+                            SoundFx.play('coin');
+                            this._toast(`领取成功：${def.name}`);
+                            this._refreshTop();
+                            // 整弹重开刷新状态 + 同步基地页红点
+                            document.querySelector('#homeUi .protoMask')?.remove();
+                            this._refreshQuestRed(this._questRedEl);
+                            this._openQuestModal();
+                        }
+                    };
+                }
+                right.appendChild(btn);
+                row.appendChild(right);
+                box.appendChild(row);
+            };
+            mkSection('📅 每日任务', '每日 0 点重置');
+            for (const def of QUEST_DEFS.filter(q => q.kind === 'daily')) {
+                mkRow(def);
+            }
+            mkSection('🏆 成就', '累计进度 · 一次性领奖');
+            for (const def of QUEST_DEFS.filter(q => q.kind === 'achv')) {
+                mkRow(def);
+            }
+            const note = document.createElement('p');
+            note.className = 'giftNote';
+            note.textContent = '完成任务领钻石 · 钻石可在商店购买礼包';
+            box.appendChild(note);
         });
     }
 
@@ -2161,7 +2261,16 @@ export class HomeUi extends Component {
         banner.className = 'baseBanner panel frame';
         banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag"></span></h3>` +
             `<div class="pros"></div>` +
-            `<div class="prosBar"><i></i></div></div>`;
+            `<div class="prosBar"><i></i></div></div>` +
+            `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>`;
+        const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
+        questBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openQuestModal();
+        };
+        this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
+        this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
         page.appendChild(banner);
         this._baseBannerEls = {
             lv: banner.querySelector('.lvtag'),
@@ -2526,6 +2635,34 @@ export class HomeUi extends Component {
 #homeUi .shopBanner .sbTime.dotOn::after { content: ''; display: inline-block; width: calc(12px * var(--hs,1)); height: calc(12px * var(--hs,1));
   margin-left: calc(8px * var(--hs,1)); border-radius: 50%; background: #ff5252; box-shadow: 0 0 8px rgba(255,82,82,.8); vertical-align: middle; }
 @keyframes giftDropIn { from { transform: scale(.4) rotate(-8deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+
+/* ===== 任务与成就（基地页入口 + 弹窗） ===== */
+#homeUi .questEntry { position: relative; margin-left: auto; flex: none; }
+#homeUi .questEntry .questRed { display: none; position: absolute; top: calc(-6px * var(--hs,1)); right: calc(-6px * var(--hs,1));
+  width: calc(16px * var(--hs,1)); height: calc(16px * var(--hs,1)); border-radius: 50%; background: #ff5252;
+  box-shadow: 0 0 8px rgba(255,82,82,.8); }
+#homeUi .questEntry .questRed.on { display: block; }
+#homeUi .qSecHead { display: flex; align-items: baseline; gap: calc(12px * var(--hs,1)); margin: calc(16px * var(--hs,1)) 0 calc(10px * var(--hs,1)); }
+#homeUi .qSecHead:first-child { margin-top: 0; }
+#homeUi .qSecHead b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .qSecHead span { font-size: calc(18px * var(--hs,1)); color: #6a83a8; }
+#homeUi .questRow { display: flex; align-items: center; gap: calc(14px * var(--hs,1)); padding: calc(12px * var(--hs,1)) calc(16px * var(--hs,1)); }
+#homeUi .questRow.ready { border-color: #8a6a20; box-shadow: 0 0 10px rgba(240,177,62,.25); }
+#homeUi .questRow.done { opacity: .55; filter: grayscale(.5); }
+#homeUi .qIc { flex: none; width: calc(72px * var(--hs,1)); height: calc(72px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(38px * var(--hs,1));
+  background: radial-gradient(circle at 50% 30%, #2a4470, #101c34); border: 1px solid #3a567f; }
+#homeUi .qMid { flex: 1; min-width: 0; }
+#homeUi .qMid b { font-size: calc(24px * var(--hs,1)); }
+#homeUi .qBar { height: calc(12px * var(--hs,1)); border-radius: 99px; background: #0d1930; border: 1px solid #33507a;
+  margin: calc(8px * var(--hs,1)) 0 calc(6px * var(--hs,1)); overflow: hidden; }
+#homeUi .qBar i { display: block; height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #5cc8ff, #7bdc7b); transition: width .4s ease; }
+#homeUi .questRow.ready .qBar i { background: linear-gradient(90deg, #ffe9a8, #f0b13e); }
+#homeUi .qNum { font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .qRight { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8px * var(--hs,1)); }
+#homeUi .qReward { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
+#homeUi .qRight .btn { min-width: calc(140px * var(--hs,1)); height: calc(48px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
 
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
@@ -3143,6 +3280,29 @@ export class HomeUi extends Component {
 #homeUi .giftOkBtn { height: calc(44px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5)); margin-top: calc(12px * var(--pw,2.5)); }
 #homeUi .shopBanner .sbTime.dotOn::after { width: calc(7px * var(--pw,2.5)); height: calc(7px * var(--pw,2.5));
   margin-left: calc(5px * var(--pw,2.5)); background: #e04848; box-shadow: 0 0 5px rgba(224,72,72,.8); }
+
+/* --- 任务与成就（青瓷浅色变体） --- */
+#homeUi .questEntry { border-radius: calc(7px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); padding: 0 calc(10px * var(--pw,2.5)); }
+#homeUi .questEntry .questRed { width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5));
+  top: calc(-3px * var(--pw,2.5)); right: calc(-3px * var(--pw,2.5)); background: #e04848; box-shadow: 0 0 5px rgba(224,72,72,.8); }
+#homeUi .questBox .mbox { background: #edf4f8; }
+#homeUi .questBox .mHead h3 { color: #88551f; }
+#homeUi .qSecHead { gap: calc(7px * var(--pw,2.5)); margin: calc(10px * var(--pw,2.5)) 0 calc(6px * var(--pw,2.5)); }
+#homeUi .qSecHead b { font-size: calc(15px * var(--pw,2.5)); color: #88551f; }
+#homeUi .qSecHead span { font-size: calc(11px * var(--pw,2.5)); color: #7e97a8; }
+#homeUi .questRow { background: #e7eff5; border: 1px solid #bdced8; border-radius: calc(8px * var(--pw,2.5));
+  gap: calc(8px * var(--pw,2.5)); padding: calc(7px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); }
+#homeUi .questRow.ready { border-color: #cc8d45; box-shadow: 0 0 6px rgba(233,160,79,.4); }
+#homeUi .qIc { width: calc(40px * var(--pw,2.5)); height: calc(40px * var(--pw,2.5)); border-radius: calc(8px * var(--pw,2.5));
+  font-size: calc(22px * var(--pw,2.5)); background: #dce8ef; border-color: #b3c8d6; }
+#homeUi .qMid b { font-size: calc(14px * var(--pw,2.5)); color: #31536a; }
+#homeUi .qBar { height: calc(7px * var(--pw,2.5)); background: #cddce6; border-color: #b3c8d6; margin: calc(5px * var(--pw,2.5)) 0 calc(3px * var(--pw,2.5)); }
+#homeUi .qBar i { background: linear-gradient(90deg, #4a9fd6, #58b96b); }
+#homeUi .questRow.ready .qBar i { background: linear-gradient(90deg, #f0b13e, #e8892e); }
+#homeUi .qNum { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .qRight { gap: calc(4px * var(--pw,2.5)); }
+#homeUi .qReward { font-size: calc(12px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .qRight .btn { min-width: calc(76px * var(--pw,2.5)); height: calc(30px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); }
 `;
         document.head.appendChild(style);
     }
