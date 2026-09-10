@@ -598,7 +598,13 @@ export class HeroSystem {
         return Math.round(ABILITY_UPGRADE_BASE_COST * Math.pow(2, lv - 1));
     }
 
-    /** 金币升级技能；成功返回 true（未拥有英雄/已满级拒绝；0 级购买视为解锁） */
+    /** 技能升级材料需求：英雄核心 ×N（等级越高耗越多；升级预览与扣料共用） */
+    abilityUpgradeCore(heroId: string, slot: AbilitySlot): number {
+        const lv = Math.max(1, this.abilityLevel(heroId, slot));
+        return lv;
+    }
+
+    /** 金币+英雄核心升级技能；成功返回 true（未拥有英雄/已满级拒绝；0 级购买视为解锁） */
     upgradeAbility(heroId: string, slot: AbilitySlot): boolean {
         if (!this._gm.isHeroOwned(heroId) || this.isAbilityMaxLevel(heroId, slot)) {
             return false;
@@ -606,6 +612,13 @@ export class HeroSystem {
         if (!this._gm.res.spend('gold', this.abilityUpgradeCost(heroId, slot))) {
             return false;
         }
+        // 材料消耗口：英雄核心不足则退回金币
+        const coreNeed = this.abilityUpgradeCore(heroId, slot);
+        if (this.miscCount('mat_core') < coreNeed) {
+            this._gm.res.add('gold', this.abilityUpgradeCost(heroId, slot));
+            return false;
+        }
+        this._gm.misc['mat_core'] = this.miscCount('mat_core') - coreNeed;
         this._gm.skillLevels[this._abilityKey(heroId, slot)] = this.abilityLevel(heroId, slot) + 1;
         this._gm.save();
         return true;

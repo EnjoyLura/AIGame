@@ -12,7 +12,7 @@ import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
-import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
+import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves } from '../battle/StageData';
 
 /** 看广告单次发放体力 */
@@ -2654,6 +2654,12 @@ export class HomeUi extends Component {
             const locked = lv <= 0;
             const card = document.createElement('div');
             card.className = 'skillCard panel' + (c.ult ? ' frame' : '');
+            card.title = '点击查看技能详情';
+            card.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._openAbilityModal(def.id, c.slot);
+            };
             const icon = document.createElement('div');
             icon.className = 'sIcon' + (c.ult ? ' ult' : c.t === '技能' ? ' s2' : '');
             icon.textContent = c.ic;
@@ -2708,6 +2714,111 @@ export class HomeUi extends Component {
             list.appendChild(card);
         }
         this._applyPendingTex();
+    }
+
+    /** 技能升级效果文案：当前等级伤害倍率描述 */
+    private _abilityEffectText(def: HeroDef, slot: AbilitySlot, lv: number): string {
+        if (slot === 'basic') {
+            return `基础射击伤害 ×${(1 + ABILITY_LEVEL_DMG_BONUS * Math.max(0, lv - 1)).toFixed(2)}`;
+        }
+        const ab = slot === 'ultimate' ? def.ultimate : def.skill;
+        const mul = ab.damageScale * (1 + ABILITY_LEVEL_DMG_BONUS * Math.max(0, lv - 1));
+        return `${ab.desc} · 伤害倍率 ×${mul.toFixed(2)}`;
+    }
+
+    /** 里程碑等级效果文案（技能浮窗展示；文案与数值设计约定，非运行时强绑定） */
+    private _abilityMilestones(slot: AbilitySlot): Array<{ lv: number; text: string }> {
+        if (slot === 'basic') {
+            return [{ lv: 2, text: '射击节奏微调，体感更顺滑' }, { lv: 3, text: '暴击伤害显著提升' }];
+        }
+        if (slot === 'ultimate') {
+            return [{ lv: 2, text: '效果范围/目标数 +30%' }, { lv: 3, text: '伤害倍率大幅提升，冷却小幅缩短' }];
+        }
+        return [{ lv: 2, text: '技能持续时间 +25%' }, { lv: 3, text: '伤害倍率大幅提升，冷却小幅缩短' }];
+    }
+
+    /**
+     * 技能详情浮窗（技能卡点击触发）：
+     * 升级效果对比 + 里程碑等级解锁 + 消耗物（金币+英雄核心）+ 升级按钮。
+     */
+    private _openAbilityModal(heroId: string, slot: AbilitySlot): void {
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        const def = HERO_DEFS.find(d => d.id === heroId);
+        if (!def || !gm.isHeroOwned(heroId)) {
+            return;
+        }
+        const titles: Record<AbilitySlot, string> = { basic: '🔫 基础射击', skill: '💫 技能', ultimate: '☄️ 大招' };
+        this._openModal(titles[slot], (box) => {
+            box.classList.add('abBox');
+            const lv = hs.abilityLevel(heroId, slot);
+            const maxed = hs.isAbilityMaxLevel(heroId, slot);
+            const locked = lv <= 0;
+            const cap = gm.abilityLevelCap();
+
+            const nm = document.createElement('div');
+            nm.className = 'abName';
+            const an = slot === 'ultimate' ? def.ultimate.name : slot === 'skill' ? def.skill.name : '基础射击';
+            nm.innerHTML = `<b>${an}</b><span class="lvtag">Lv.${lv}${maxed ? ' · MAX' : ''}</span>`;
+            box.appendChild(nm);
+
+            // 升级效果对比（当前 → 下一级）
+            const effCur = document.createElement('div');
+            effCur.className = 'abEff';
+            effCur.innerHTML = `<em>当前（Lv.${Math.max(1, lv)}）</em><span>${this._abilityEffectText(def, slot, Math.max(1, lv))}</span>`;
+            box.appendChild(effCur);
+            if (!maxed) {
+                const effNext = document.createElement('div');
+                effNext.className = 'abEff next';
+                effNext.innerHTML = `<em>升到 Lv.${lv + 1}</em><span>${this._abilityEffectText(def, slot, lv + 1)}</span>`;
+                box.appendChild(effNext);
+            }
+
+            // 里程碑等级效果
+            const msSec = document.createElement('div');
+            msSec.className = 'abMs';
+            msSec.innerHTML = '<div class="abMsHead">🏆 里程碑解锁</div>';
+            for (const m of this._abilityMilestones(slot)) {
+                const reach = lv >= m.lv;
+                const row = document.createElement('div');
+                row.className = 'abMsRow' + (reach ? ' reach' : '');
+                row.innerHTML = `<span class="abMsLv">Lv.${m.lv}</span><span>${m.text}${reach ? ' · ✅' : ''}</span>`;
+                msSec.appendChild(row);
+            }
+            box.appendChild(msSec);
+
+            // 消耗 + 升级按钮
+            const costRow = document.createElement('div');
+            costRow.className = 'abCost';
+            const btn = document.createElement('button');
+            btn.className = 'btn gold';
+            if (maxed) {
+                costRow.innerHTML = '<span>技能已达当前上限（研究所可提升上限）</span>';
+                btn.textContent = '已满级';
+                btn.disabled = true;
+            } else {
+                const cost = hs.abilityUpgradeCost(heroId, slot);
+                const core = hs.abilityUpgradeCore(heroId, slot);
+                const coreLeft = hs.miscCount('mat_core');
+                costRow.innerHTML = `<span>消耗：🪙 ${cost.toLocaleString()} · ⚙️ 英雄核心 ×${core}（余 ${coreLeft}）</span>`;
+                btn.textContent = locked ? '🔓 解 锁' : '升 级';
+                btn.disabled = gm.gold < cost || coreLeft < core;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (hs.upgradeAbility(heroId, slot)) {
+                        SoundFx.play('buy');
+                        this._toast(locked ? `${an} 已解锁` : `${an} 升至 Lv.${lv + 1}`);
+                        this._refreshTop();
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._refreshSkillPage();
+                        this._openAbilityModal(heroId, slot);
+                    }
+                };
+            }
+            costRow.appendChild(btn);
+            box.appendChild(costRow);
+        });
     }
 
     // ================= 基地页 =================
@@ -3232,6 +3343,30 @@ export class HomeUi extends Component {
 #homeUi .biEff.next span { color: #7bdc7b; }
 #homeUi .biStatus { font-size: calc(20px * var(--hs,1)); color: #ffd9b0; margin: calc(4px * var(--hs,1)) 0 calc(14px * var(--hs,1)); }
 #homeUi .biOk { width: 100%; }
+
+/* ===== 技能详情浮窗（技能卡点击） ===== */
+#homeUi .skillCard { cursor: pointer; }
+#homeUi .abBox .mHead h3 { color: #ffe9a8; }
+#homeUi .abName { display: flex; align-items: center; gap: calc(12px * var(--hs,1)); margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .abName b { font-size: calc(30px * var(--hs,1)); }
+#homeUi .abName .lvtag { font-size: calc(20px * var(--hs,1)); }
+#homeUi .abEff { background: rgba(20,32,58,.6); border: 1px solid #24365c; border-radius: calc(10px * var(--hs,1));
+  padding: calc(10px * var(--hs,1)) calc(16px * var(--hs,1)); margin-bottom: calc(10px * var(--hs,1)); }
+#homeUi .abEff em { display: block; font-style: normal; font-size: calc(18px * var(--hs,1)); color: #6a83a8; margin-bottom: calc(4px * var(--hs,1)); }
+#homeUi .abEff span { font-size: calc(22px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .abEff.next span { color: #7bdc7b; }
+#homeUi .abMs { margin: calc(14px * var(--hs,1)) 0; }
+#homeUi .abMsHead { font-size: calc(22px * var(--hs,1)); color: #ffe9a8; margin-bottom: calc(8px * var(--hs,1)); }
+#homeUi .abMsRow { display: flex; align-items: center; gap: calc(12px * var(--hs,1)); padding: calc(8px * var(--hs,1)) calc(12px * var(--hs,1));
+  border: 1px dashed #33507a; border-radius: calc(8px * var(--hs,1)); margin-bottom: calc(6px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .abMsRow.reach { border: 1px solid #8a6a20; background: rgba(240,177,62,.1); color: #ffe9a8; }
+#homeUi .abMsLv { flex: none; font-weight: 900; font-size: calc(20px * var(--hs,1)); }
+#homeUi .abMsRow span:last-child { font-size: calc(20px * var(--hs,1)); }
+#homeUi .abCost { display: flex; align-items: center; justify-content: space-between; gap: calc(12px * var(--hs,1));
+  background: rgba(20,32,58,.6); border: 1px solid #24365c; border-radius: calc(10px * var(--hs,1));
+  padding: calc(10px * var(--hs,1)) calc(16px * var(--hs,1)); }
+#homeUi .abCost > span { font-size: calc(20px * var(--hs,1)); color: #ffd9b0; }
+#homeUi .abCost .btn { min-width: calc(170px * var(--hs,1)); height: calc(54px * var(--hs,1)); font-size: calc(24px * var(--hs,1)); }
 
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
@@ -3924,6 +4059,26 @@ export class HomeUi extends Component {
 #homeUi .biEff.next span { color: #2f9c4a; }
 #homeUi .biStatus { font-size: calc(12px * var(--pw,2.5)); color: #945d24; margin: calc(2px * var(--pw,2.5)) 0 calc(8px * var(--pw,2.5)); }
 #homeUi .biOk { height: calc(44px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
+
+/* --- 技能详情浮窗（青瓷浅色变体） --- */
+#homeUi .abBox .mbox { background: #edf4f8; }
+#homeUi .abBox .mHead h3 { color: #88551f; }
+#homeUi .abName b { font-size: calc(17px * var(--pw,2.5)); color: #31536a; }
+#homeUi .abName .lvtag { font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .abEff { background: #e7eff5; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5)); padding: calc(6px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); margin-bottom: calc(6px * var(--pw,2.5)); }
+#homeUi .abEff em { font-size: calc(11px * var(--pw,2.5)); color: #7e97a8; margin-bottom: calc(2px * var(--pw,2.5)); }
+#homeUi .abEff span { font-size: calc(13px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .abEff.next span { color: #2f9c4a; }
+#homeUi .abMs { margin: calc(8px * var(--pw,2.5)) 0; }
+#homeUi .abMsHead { font-size: calc(14px * var(--pw,2.5)); color: #88551f; margin-bottom: calc(5px * var(--pw,2.5)); }
+#homeUi .abMsRow { gap: calc(7px * var(--pw,2.5)); padding: calc(5px * var(--pw,2.5)) calc(8px * var(--pw,2.5));
+  border: 1px dashed #9db9ca; border-radius: calc(6px * var(--pw,2.5)); margin-bottom: calc(4px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .abMsRow.reach { border: 1px solid #e9a04f; background: #fff8e5; color: #945d24; }
+#homeUi .abMsLv { font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .abMsRow span:last-child { font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .abCost { background: #e7eff5; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5)); padding: calc(6px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); gap: calc(7px * var(--pw,2.5)); }
+#homeUi .abCost > span { font-size: calc(12px * var(--pw,2.5)); color: #945d24; }
+#homeUi .abCost .btn { min-width: calc(92px * var(--pw,2.5)); height: calc(36px * var(--pw,2.5)); font-size: calc(14px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
 `;
         document.head.appendChild(style);
     }
