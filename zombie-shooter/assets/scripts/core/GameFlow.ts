@@ -2,6 +2,7 @@ import { GameEvent } from '../config/GameConfig';
 import { eventCenter } from './EventCenter';
 import { GameManager } from './GameManager';
 import { BattleManager } from '../battle/BattleManager';
+import { FINAL_STAGE_ID } from '../battle/StageData';
 
 /**
  * 游戏流程状态机：主城/战斗/结算三大状态收口，转移的唯一发起者。
@@ -60,19 +61,23 @@ export class GameFlow {
     }
 
     /** home → battle：出战。守卫失败返回 false（UI 据此回滚显示） */
-    startRun(): boolean {
+    startRun(endless = false): boolean {
         if (this._state !== 'home') {
-            console.warn(`[GameFlow] startRun 非法转移：当前 ${this._state}`);
+            console.warn(`[GameFlow] endRun 非法转移：当前 ${this._state}`.replace('endRun', 'startRun'));
             return false;
         }
         const gm = GameManager.instance;
         if (!gm.canStartRun() || !gm.stageUnlocked(gm.currentStage)) {
             return false;
         }
+        // 无尽模式解锁门槛：通关最后一关（防止跳过全部关卡内容）
+        if (endless && gm.stageCleared < FINAL_STAGE_ID) {
+            return false;
+        }
         // 先清场重开（_restart 会把实体/统计/运行时数据归零），再扣体力开波；
         // 顺序保证扣体力失败时不会留下半初始化的战斗现场
         eventCenter.emit(GameEvent.GAME_RESTART);
-        if (!BattleManager.instance?.beginRun()) {
+        if (!BattleManager.instance?.beginRun(endless)) {
             return false;
         }
         this._setState('battle');

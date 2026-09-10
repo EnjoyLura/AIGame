@@ -203,13 +203,16 @@ export class HomeUi extends Component {
         this._applyPendingTex();
     }
 
-    private _startBattle(): void {
+    private _startBattle(endless = false): void {
         if (!this._root) {
             return;
         }
         // 守卫（体力/解锁）与开波统一走流程状态机；失败回滚显示防止黑屏
-        if (!GameFlow.instance.startRun()) {
+        if (!GameFlow.instance.startRun(endless)) {
             this._refreshAll();
+            if (endless) {
+                this._toast('无尽模式需通关全部关卡后解锁');
+            }
             return;
         }
         this.hide();
@@ -2041,8 +2044,19 @@ export class HomeUi extends Component {
             SoundFx.unlock();
             this._startBattle();
         };
+        // 无尽模式入口：全通关解锁，波次无限+每 5 波里程碑奖励
+        const endlessAllClear = GameManager.instance.stageCleared >= FINAL_STAGE_ID;
+        const goEndless = document.createElement('button');
+        goEndless.className = 'btn dark go endless';
+        goEndless.textContent = endlessAllClear ? '♾️ 无尽模式' : '🔒 无尽模式';
+        goEndless.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            this._startBattle(true);
+        };
         btns.appendChild(squad);
         btns.appendChild(go);
+        btns.appendChild(goEndless);
         page.appendChild(btns);
         this._squadBtn = squad;
 
@@ -2989,6 +3003,10 @@ export class HomeUi extends Component {
 #homeUi .fQuick { width: 100%; margin-top: calc(6px * var(--hs,1)); }
 #homeUi .fNote { text-align: center; }
 
+/* ===== 无尽模式入口 ===== */
+#homeUi .stageBtns .go.endless { background: linear-gradient(180deg, #3d5a86, #22345c); border-color: #5c7ea8; color: #bfe0ff; }
+#homeUi .stageBtns .go.endless:active { filter: brightness(1.12); }
+
 /* ===== 英雄选择条 ===== */
 #homeUi .heroPick { display: flex; gap: calc(12px * var(--hs,1)); overflow-x: auto; padding-bottom: calc(12px * var(--hs,1)); }
 #homeUi .heroPick::-webkit-scrollbar { display: none; }
@@ -3517,6 +3535,7 @@ export class HomeUi extends Component {
   background: #e6eef3f5; border-top: 1px solid #cedce5; gap: calc(10px * var(--pw,2.5)); }
 #homeUi .stageBtns .btn.squad, #homeUi .stageBtns .btn.go { height: calc(49px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5)); }
 #homeUi .stageBtns .btn.go { font-size: calc(18px * var(--pw,2.5)); letter-spacing: 0; }
+#homeUi .stageBtns .go.endless { background: linear-gradient(#dfeaf1, #c3d6e2); border-color: #9db9ca; color: #4a7ba6; box-shadow: inset 0 1px #fff; }
 #homeUi .lootPrev { margin: calc(10px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) 0; padding: calc(10px * var(--pw,2.5)) calc(14px * var(--pw,2.5));
   background: #fdfefe; }
 #homeUi .lootPrev .lpHead { font-size: calc(13px * var(--pw,2.5)); color: #8c5927; letter-spacing: 0; margin-bottom: calc(5px * var(--pw,2.5)); }

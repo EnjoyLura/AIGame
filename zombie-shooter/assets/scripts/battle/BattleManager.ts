@@ -123,6 +123,13 @@ export class BattleManager extends Component {
     private _autoCastReadyAt = 0;
     /** 本局关卡 id（beginRun 时从 GameManager.currentStage 取，波次表按此查 StageData） */
     private _stageId = 1;
+    /** 无尽模式：末波清完不结算，按 ENDLESS_HP_SCALE 继续滚波（每 ENDLESS_MILESTONE 波发一次奖励） */
+    private _endless = false;
+    /** 无尽模式已领取的里程碑数（发奖幂等用） */
+    private _endlessMilestones = 0;
+
+    /** 结算口径：无尽模式失败时用 GAME_OVER 面板展示无尽波数 */
+    get isEndless(): boolean { return this._endless; }
 
     /** 只错开新施法；等待期间不耗充能、不锁定目标，普攻照常。 */
     tryBeginAutoCast(): boolean {
@@ -298,12 +305,14 @@ export class BattleManager extends Component {
     }
 
     /** 开波纯战斗部分（体力扣减与清场已由 GameFlow.startRun 完成）：应用局外强化并开启第一波 */
-    beginRun(): boolean {
+    beginRun(endless = false): boolean {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
         this._stageId = gm.currentStage;
+        this._endless = endless;
+        this._endlessMilestones = 0;
         for (const h of this._heroes) {
-            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 英雄乘区（武器×装备）
+            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 英雄乘区（武器×装备×宝石）
             h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * hs.atkMulOf(h.def.id));
         }
         // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊
@@ -346,8 +355,16 @@ export class BattleManager extends Component {
         if (this._waveCleared) {
             this._restTimer -= dt;
             if (this._restTimer <= 0) {
-                // 末波清完 → 通关结算（解锁下一关+回主城）；否则滚下一波
-                if (this._waveNumber >= stageWaves(this._stageId).length) {
+                // 无尽模式：永不通关，持续滚波（hp 逐波上浮）；每 5 波发一次里程碑奖励
+                if (this._endless) {
+                    if (this._waveNumber - this._endlessMilestones * BattleConfig.ENDLESS_MILESTONE_WAVES
+                        >= BattleConfig.ENDLESS_MILESTONE_WAVES) {
+                        this._endlessMilestones++;
+                        this._endlessReward();
+                    }
+                    this._startWave(this._waveNumber + 1);
+                } else if (this._waveNumber >= stageWaves(this._stageId).length) {
+                    // 末波清完 → 通关结算（解锁下一关+回主城）
                     this._clearStage();
                 } else {
                     this._startWave(this._waveNumber + 1);
@@ -608,6 +625,15 @@ export class BattleManager extends Component {
         const amount = Math.round((gm.kills * 2 + gm.wave * 15) * gm.metaGoldMul() * gm.depotGoldMul());
         gm.addGold(amount);
         eventCenter.emit(GameEvent.GOLD_EARNED, amount);
+    }
+
+    /** 无尽模式里程碑奖励：每 N 波发一次即时金币（HUD 弹幕提示） */
+    private _endlessReward(): void {
+        const gm = GameManager.instance;
+        const amount = Math.round(500 * this._endlessMilestones * gm.metaGoldMul() * gm.depotGoldMul());
+        gm.addGold(amount);
+        eventCenter.emit(GameEvent.GOLD_EARNED, amount);
+        eventCenter.emit(GameEvent.ENDLESS_MILESTONE, this._waveNumber, amount);
     }
 
     /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验） */

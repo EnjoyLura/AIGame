@@ -53,6 +53,8 @@ export const BattleConfig = {
     MONSTER_SPEED_SCALE: 0.68,
     /** 超出波次表后进入无尽模式，每波怪物血量倍率 */
     ENDLESS_HP_SCALE: 1.15,
+    /** 无尽模式每 N 波发放一次里程碑奖励 */
+    ENDLESS_MILESTONE_WAVES: 5,
     /** 波次总量/同屏上限 ×3；生成密度渐进至 ×3，并受最短间隔保护 */
     WAVE_SCALE: 3,
 } as const;
@@ -82,6 +84,8 @@ export const Palette = {
 /** 全局事件名：跨系统通信只允许走事件中心（core/EventCenter） */
 export enum GameEvent {
     WAVE_START = 'wave-start',
+    /** 无尽模式里程碑：参数 (波数, 奖励金币) */
+    ENDLESS_MILESTONE = 'endless-milestone',
     VEHICLE_HP_CHANGED = 'vehicle-hp-changed',
     XP_CHANGED = 'xp-changed',
     ENEMY_DEAD = 'enemy-dead',

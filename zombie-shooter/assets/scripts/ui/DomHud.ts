@@ -84,6 +84,7 @@ export class DomHud extends Component {
         eventCenter.on(GameEvent.VEHICLE_HP_CHANGED, this._onVehicleHpChanged, this);
         eventCenter.on(GameEvent.ENEMY_DEAD, this._onKill, this);
         eventCenter.on(GameEvent.GAME_OVER, this._onGameOver, this);
+        eventCenter.on(GameEvent.ENDLESS_MILESTONE, this._onEndlessMilestone, this);
         eventCenter.on(GameEvent.STAGE_CLEAR, this._onStageClear, this);
         eventCenter.on(GameEvent.GOLD_EARNED, this._onGoldEarned, this);
         window.addEventListener('resize', () => this._layout());
@@ -96,6 +97,7 @@ export class DomHud extends Component {
         eventCenter.off(GameEvent.VEHICLE_HP_CHANGED, this._onVehicleHpChanged, this);
         eventCenter.off(GameEvent.ENEMY_DEAD, this._onKill, this);
         eventCenter.off(GameEvent.GAME_OVER, this._onGameOver, this);
+        eventCenter.off(GameEvent.ENDLESS_MILESTONE, this._onEndlessMilestone, this);
         eventCenter.off(GameEvent.STAGE_CLEAR, this._onStageClear, this);
         this._root?.remove();
         this._root = null;
@@ -190,6 +192,19 @@ export class DomHud extends Component {
         if (this._failPanel) {
             this._failPanel.style.display = 'flex';
         }
+    }
+
+    /** 无尽里程碑弹幕：短暂浮动提示奖励到账（不暂停战斗） */
+    private _onEndlessMilestone(wave: number, amount: number): void {
+        if (!this._root) {
+            return;
+        }
+        const el = document.createElement('div');
+        el.className = 'endlessBanner';
+        el.textContent = `♾️ 第 ${wave} 波里程碑 · 金币 +${amount.toLocaleString()}`;
+        this._root.appendChild(el);
+        SoundFx.play('buy');
+        this.scheduleOnce(() => el.remove(), 3);
     }
 
     /** 结算双倍广告按钮：文案=本次收益金额，限次用完/无收益时隐藏 */
@@ -305,8 +320,9 @@ export class DomHud extends Component {
     /** 结算数据：读全局 GameManager 单例 */
     private _fillGameOver(): void {
         const gm = GameManager.instance;
+        const endless = BattleManager.instance?.isEndless ?? false;
         if (this._failWave) {
-            this._failWave.textContent = `抵达波次：第 ${gm.wave} 波`;
+            this._failWave.textContent = endless ? `无尽波数：第 ${gm.wave} 波` : `抵达波次：第 ${gm.wave} 波`;
         }
         if (this._failKill) {
             this._failKill.textContent = `击杀怪物：${gm.kills}`;
@@ -1010,6 +1026,16 @@ export class DomHud extends Component {
   60% { opacity: 1; transform: scale(1.12) rotate(1deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
 #domHud .clBody { display: flex; flex-direction: column; align-items: center; gap: calc(26px * var(--s,1)); width: 100%; }
 #domHud .clChips { display: flex; gap: calc(18px * var(--s,1)); animation: clFadeUp .4s ease-out .18s both; }
+
+/* ===== 无尽模式（里程碑弹幕） ===== */
+#domHud .endlessBanner { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); z-index: 320;
+  font-size: calc(26px * var(--s,1)); font-weight: 800; color: #ffe9a8; white-space: nowrap;
+  background: rgba(10,18,34,.82); border: 1px solid #8a6a20; border-radius: 99px;
+  padding: calc(10px * var(--s,1)) calc(28px * var(--s,1)); box-shadow: 0 0 16px rgba(240,177,62,.3);
+  animation: endlessBan 3s ease-out both; pointer-events: none; }
+@keyframes endlessBan { 0% { opacity: 0; transform: translateX(-50%) translateY(18px); }
+  12% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-14px); } }
 @keyframes clFadeUp { from { opacity: 0; transform: translateY(calc(22px * var(--s,1))); } }
 #domHud .clChip { display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--s,1));
   min-width: calc(230px * var(--s,1)); padding: calc(14px * var(--s,1)) calc(24px * var(--s,1));
