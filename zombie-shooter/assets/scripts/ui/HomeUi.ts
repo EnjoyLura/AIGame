@@ -55,7 +55,6 @@ export class HomeUi extends Component {
     private _expNum: HTMLDivElement | null = null;
     /** 关卡页动态元素 */
     private _stageTabsEl: HTMLDivElement | null = null;
-    private _lvlTrackEl: HTMLDivElement | null = null;
     private _sceneEl: HTMLDivElement | null = null;
     private _sceneChipEl: HTMLDivElement | null = null;
     private _vehEl: HTMLDivElement | null = null;
@@ -2066,12 +2065,6 @@ export class HomeUi extends Component {
         page.appendChild(tabs);
         this._stageTabsEl = tabs;
 
-        // 波次进度轨道（1~5 波 done/cur/lock 圆点）
-        const track = document.createElement('div');
-        track.className = 'lvlTrack';
-        page.appendChild(track);
-        this._lvlTrackEl = track;
-
         // 护送场景（CSS 动画：太阳/山丘/公路/载具/怪物 + 任务标题 + 最佳耐久 + 左右箭头）
         const scene = document.createElement('div');
         scene.className = 'scene frame';
@@ -2192,14 +2185,13 @@ export class HomeUi extends Component {
     /** 战斗页掉落预览容器（_refreshStagePage 填充金币区间与掉率） */
     private _lootPrevEl: HTMLDivElement | null = null;
 
-    /** 关卡页刷新：章节页签/进度点/场景内容/信息/宝箱（真数据 STAGES + stageCleared） */
+    /** 关卡页刷新：章节页签/场景内容/信息/宝箱（真数据 STAGES + stageCleared） */
     private _refreshStagePage(): void {
         const gm = GameManager.instance;
         const tabs = this._stageTabsEl;
-        const track = this._lvlTrackEl;
         const scene = this._sceneEl;
         const chests = this._chestsEl;
-        if (!tabs || !track || !scene || !chests) {
+        if (!tabs || !scene || !chests) {
             return;
         }
         const stageId = Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID);
@@ -2233,24 +2225,6 @@ export class HomeUi extends Component {
             tabs.appendChild(b);
         });
 
-        // 波次进度轨道（done = 已通关整关全部点亮 / 当前关 cur 高亮 + 下一格 available / 未达 lock）
-        track.innerHTML = '';
-        const clearedAll = stageId <= gm.stageCleared;
-        for (let w = 0; w < WAVES_PER_STAGE; w++) {
-            const dot = document.createElement('span');
-            let cls = 'lock';
-            if (clearedAll) {
-                cls = 'done';
-            } else if (stageId === gm.stageCleared + 1) {
-                cls = w === WAVES_PER_STAGE - 1 ? 'cur' : (w === WAVES_PER_STAGE - 2 ? 'available' : 'lock');
-            }
-            dot.className = `dot ${cls}`;
-            const em = document.createElement('em');
-            em.textContent = `${w + 1}`;
-            dot.appendChild(em);
-            track.appendChild(dot);
-        }
-
         // 场景内容
         scene.className = 'scene frame c' + ((stageId - 1) % 3 + 1);
         if (this._vehEl) {
@@ -2280,6 +2254,7 @@ export class HomeUi extends Component {
         }
 
         // 关卡信息
+        const clearedAll = stageId <= gm.stageCleared;
         if (this._siLvlEl) {
             this._siLvlEl.textContent = `${stageId}-${1}`;
         }
@@ -3321,18 +3296,6 @@ export class HomeUi extends Component {
 #homeUi .chTabs button.on { background: linear-gradient(180deg, #3a567f, #243a63); color: #ffe9a8; border-color: #8a6a20;
   box-shadow: 0 0 12px rgba(240,177,62,.2); }
 #homeUi .chTabs button.lock { opacity: .45; }
-#homeUi .lvlTrack { position: relative; margin: calc(40px * var(--hs,1)) calc(16px * var(--hs,1)) calc(40px * var(--hs,1)); height: calc(52px * var(--hs,1)); }
-#homeUi .lvlTrack::before { content: ''; position: absolute; top: calc(22px * var(--hs,1)); left: 6px; right: 6px; height: calc(6px * var(--hs,1));
-  border-radius: 99px; background: #22345a; }
-#homeUi .dot { position: absolute; top: calc(8px * var(--hs,1)); width: calc(34px * var(--hs,1)); height: calc(34px * var(--hs,1));
-  border-radius: 50%; background: #1a2947; border: 2px solid #3a567f; transform: translateX(-50%); z-index: 2; }
-#homeUi .dot.done { background: linear-gradient(180deg, #ffe9a8, #e0a23c); border-color: #8a5c12; box-shadow: 0 0 6px rgba(240,177,62,.5); }
-#homeUi .dot.available { background: linear-gradient(180deg, #ffe9a8, #e0a23c); border-color: #8a5c12; box-shadow: 0 0 10px rgba(240,177,62,.7); }
-#homeUi .dot.available em { color: #ffe9a8; }
-#homeUi .dot.cur { width: calc(44px * var(--hs,1)); height: calc(44px * var(--hs,1)); top: calc(2px * var(--hs,1));
-  background: radial-gradient(circle, #fff2c8, #f0b13e); border-color: #fff; box-shadow: 0 0 14px rgba(245,196,81,.9); }
-#homeUi .dot em { position: absolute; top: calc(40px * var(--hs,1)); left: 50%; transform: translateX(-50%);
-  font-style: normal; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; white-space: nowrap; }
 #homeUi .scene { height: calc(500px * var(--hs,1)); border-radius: calc(24px * var(--hs,1)); overflow: hidden; position: relative; margin-top: calc(28px * var(--hs,1));
   border: 1px solid #3a567f; box-shadow: 0 8px 24px rgba(0,0,0,.45);
   background: linear-gradient(180deg, #2b1b3d, #5a2e2a 45%, #8a4a2a 72%, #3a2a20); }
@@ -3542,7 +3505,7 @@ export class HomeUi extends Component {
 #homeUi .heroPick, #homeUi .hpick, #homeUi .heroHead, #homeUi .heroName, #homeUi .star, #homeUi .tagRow,
 #homeUi .powerBadge, #homeUi .heroMain, #homeUi .slotCol, #homeUi .slot, #homeUi .heroFigure, #homeUi .halo,
 #homeUi .halo2, #homeUi .heroEmoji, #homeUi .heroLv, #homeUi .statRow, #homeUi .stat, #homeUi .row3,
-#homeUi .chTabs, #homeUi .lvlTrack, #homeUi .dot, #homeUi .scene, #homeUi .sceneInfo, #homeUi .siChip,
+#homeUi .chTabs, #homeUi .scene, #homeUi .sceneInfo, #homeUi .siChip,
 #homeUi .siHp, #homeUi .hpBar, #homeUi .sceneTitle, #homeUi .screenHeading, #homeUi .arrow, #homeUi .stageInfo,
 #homeUi .siBox, #homeUi .chests, #homeUi .chest, #homeUi .stageBtns, #homeUi .skillCard, #homeUi .sIcon,
 #homeUi .sInfo, #homeUi .sName, #homeUi .sDesc, #homeUi .sAct, #homeUi .sLv, #homeUi .skillHint,
@@ -3720,23 +3683,6 @@ export class HomeUi extends Component {
 #homeUi .chTabs button span { font-size: calc(10px * var(--pw,2.5)); }
 #homeUi .chTabs button.on { background: #f8fbfd; border-color: #89a6b7; color: #2d5266; box-shadow: inset 0 -3px #e99a42; }
 #homeUi .chTabs button.lock { opacity: 1; color: #758994; background: #dae3e8; }
-#homeUi .lvlTrack { display: flex; justify-content: space-between; align-items: center;
-  margin: calc(9px * var(--pw,2.5)) calc(12px * var(--pw,2.5)) 0; height: calc(44px * var(--pw,2.5)); }
-#homeUi .lvlTrack::before { left: calc(12px * var(--pw,2.5)); right: calc(12px * var(--pw,2.5));
-  top: calc(21px * var(--pw,2.5)); background: #b7cbd7; height: calc(3px * var(--pw,2.5)); border-radius: 0; }
-#homeUi .dot { position: relative; left: auto !important; top: auto !important; transform: none !important;
-  width: calc(26px * var(--pw,2.5)); height: calc(44px * var(--pw,2.5)); border: 0; border-radius: calc(4px * var(--pw,2.5));
-  background: transparent; display: grid; place-items: center; box-shadow: none !important; color: #31596d; }
-#homeUi .dot::before { content: ''; position: absolute; inset: calc(10px * var(--pw,2.5)) calc(2px * var(--pw,2.5));
-  border: 1px solid #abc0ce; background: #dce7ee; border-radius: calc(4px * var(--pw,2.5)); z-index: -1; }
-#homeUi .dot.done { background: none; border: 0; }
-#homeUi .dot.done::before { background: #7299a9; border-color: #537e92; }
-#homeUi .dot.done em { color: white; }
-#homeUi .dot.cur { background: none; border: none; }
-#homeUi .dot.cur::before { inset: calc(7px * var(--pw,2.5)) 0; background: #f4b668; border: 2px solid white;
-  box-shadow: 0 0 0 1px #ce9142; }
-#homeUi .dot em { position: static; transform: none; font-size: calc(11px * var(--pw,2.5)); color: inherit; }
-#homeUi .dot.lock { color: #8a9fab; }
 #homeUi .scene, #homeUi .scene.c1, #homeUi .scene.c2, #homeUi .scene.c3 { height: calc(290px * var(--pw,2.5));
   margin: calc(2px * var(--pw,2.5)) 0 0; border: 0; border-radius: 0; background-color: #8dbac0;
   background-image: none; box-shadow: none; overflow: hidden; }
