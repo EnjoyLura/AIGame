@@ -29,16 +29,27 @@ export const EQUIP_SLOT_NAMES: Record<EquipSlot, string> = {
     head: '头盔', body: '护甲', legs: '护腿', gloves: '手套', wrist: '腕甲', shoes: '战靴',
 };
 
-/** 装备品质（tier 1-4）；品质越高属性与价格越高 */
-export const EQUIP_TIER_NAMES = ['普通', '优秀', '稀有', '史诗'];
-export const EQUIP_TIER_COLORS = ['#c8d2d8', '#7bd67b', '#5ab0f0', '#c07ef5'];
+/** 装备品质（tier 1-6 白绿蓝紫橙红）；品质越高属性与价格越高 */
+export const EQUIP_TIER_NAMES = ['普通', '优秀', '稀有', '史诗', '传说', '神话'];
+export const EQUIP_TIER_COLORS = ['#c8d2d8', '#7bd67b', '#5ab0f0', '#c07ef5', '#ff9d45', '#ff5252'];
+
+/** 品质合法性（六档） */
+export type EquipTier = 1 | 2 | 3 | 4 | 5 | 6;
+export function isEquipTier(t: number): t is EquipTier {
+    return t >= 1 && t <= 6;
+}
+
+/** 品质 → 展示档（bcell/good/clDrop 的 r 类名；白绿蓝紫橙红 = 1-6，白档不发光用 r1） */
+export function tierRank(tier: number): number {
+    return Math.min(6, Math.max(1, Math.round(tier)));
+}
 
 export interface EquipmentDef {
     id: string;
     slot: EquipSlot;
     name: string;
-    /** 品质 1-4 */
-    tier: 1 | 2 | 3 | 4;
+    /** 品质 1-6 */
+    tier: EquipTier;
     /** 属性加成（百分比小数，如 0.12 = +12%）；强化每级再乘 1.08 */
     atkPct?: number;
     /** 射速加成（interval 缩小） */
@@ -133,6 +144,20 @@ export const EQUIPMENT_DEFS: EquipmentDef[] = [
     { id: 'wrist_stable', slot: 'wrist', name: '稳枪腕甲', tier: 2, atkPct: 0.08, ratePct: 0.06, baseCost: 390 },
     { id: 'wrist_assault', slot: 'wrist', name: '突袭腕甲', tier: 3, atkPct: 0.13, ratePct: 0.10, baseCost: 980 },
     { id: 'wrist_rage', slot: 'wrist', name: '狂怒腕甲', tier: 4, atkPct: 0.20, ratePct: 0.16, baseCost: 2350 },
+    // ===== 传说（tier 5，橙）=====
+    { id: 'head_apex', slot: 'head', name: '天穹王冠', tier: 5, atkPct: 0.52, baseCost: 6200 },
+    { id: 'body_dragon', slot: 'body', name: '龙魂战甲', tier: 5, atkPct: 0.32, ratePct: 0.20, baseCost: 6400 },
+    { id: 'legs_comet', slot: 'legs', name: '彗星护腿', tier: 5, rangePct: 0.46, baseCost: 5900 },
+    { id: 'gloves_star', slot: 'gloves', name: '摘星手套', tier: 5, ratePct: 0.36, baseCost: 6100 },
+    { id: 'shoes_void', slot: 'shoes', name: '虚空之履', tier: 5, rangePct: 0.34, ratePct: 0.18, baseCost: 6000 },
+    { id: 'wrist_dawn', slot: 'wrist', name: '破晓腕甲', tier: 5, atkPct: 0.27, ratePct: 0.21, baseCost: 6300 },
+    // ===== 神话（tier 6，红）=====
+    { id: 'head_ragnarok', slot: 'head', name: '诸神黄昏', tier: 6, atkPct: 0.68, baseCost: 15800 },
+    { id: 'body_abyss', slot: 'body', name: '深渊主宰', tier: 6, atkPct: 0.42, ratePct: 0.26, baseCost: 16200 },
+    { id: 'legs_galaxy', slot: 'legs', name: '星河行军', tier: 6, rangePct: 0.60, baseCost: 15000 },
+    { id: 'gloves_eclipse', slot: 'gloves', name: '日蚀之握', tier: 6, ratePct: 0.47, baseCost: 15600 },
+    { id: 'shoes_photon', slot: 'shoes', name: '光子跃迁', tier: 6, rangePct: 0.44, ratePct: 0.23, baseCost: 15400 },
+    { id: 'wrist_blood', slot: 'wrist', name: '血月之刃', tier: 6, atkPct: 0.35, ratePct: 0.28, baseCost: 16000 },
 ];
 
 // ================= 背包系统 =================
@@ -141,8 +166,8 @@ export const EQUIPMENT_DEFS: EquipmentDef[] = [
 export interface BagItem {
     /** 部位槽位 */
     slot: EquipSlot;
-    /** 品质 1-4 */
-    tier: 1 | 2 | 3 | 4;
+    /** 品质 1-6 */
+    tier: EquipTier;
     /** 强化等级（购买时 1） */
     lv: number;
 }
@@ -154,9 +179,10 @@ export function bagItemFromDef(def: EquipmentDef): BagItem {
 
 /** 背包件的属性值（品质定基础，强化等级放大；与 EQUIPMENT_DEFS 数值对齐：tier n 基础≈同槽 tier n 件的 60%） */
 export function bagItemValue(item: BagItem, key: 'atkPct' | 'ratePct' | 'rangePct'): number {
-    // 背包件基础值 = 同槽同品质标准曲线：0.06 × tier × (1 + 0.05 × (tier-1))
-    const base = 0.06 * item.tier * (1 + 0.05 * (item.tier - 1));
-    if (base <= 0) {
+    // 背包件基础值 = 同槽同品质标准曲线（六档品质阶梯放大）
+    const curve = [0, 0.06, 0.13, 0.21, 0.30, 0.40, 0.52];
+    const base = curve[Math.min(6, Math.max(1, Math.round(item.tier)))];
+    if (!base) {
         return 0;
     }
     return base * Math.pow(1 + EQUIP_UPGRADE_STEP, item.lv - 1);
@@ -189,22 +215,22 @@ export interface MiscItemDef {
     name: string;
     /** 展示 emoji（与 SLOT_EMOJI 同风格） */
     ic: string;
-    /** 稀有度 2-5（决定格子边框色） */
-    tier: 2 | 3 | 4 | 5;
+    /** 稀有度 1-6（决定格子边框色，白绿蓝紫橙红） */
+    tier: EquipTier;
     desc: string;
     /** 使用效果（仅道具可有；无此字段 = 不可使用，详情不显示使用按钮） */
     use?: MiscUseEffect;
 }
 
-/** 杂物表（对齐原型图 bag 数据：材料 4 种、宝石 4 种；道具为可用消耗品） */
+/** 杂物表（对齐原型图 bag 数据：材料 4 种、宝石 4 种；道具为可用消耗品；品质白绿蓝紫橙红六档） */
 export const MISC_ITEM_DEFS: MiscItemDef[] = [
-    { id: 'mat_core', kind: 'mat', name: '英雄核心', ic: '⚙️', tier: 4, desc: '大招升级材料（基地·研究所使用）' },
-    { id: 'mat_alloy', kind: 'mat', name: '精炼合金', ic: '🔩', tier: 3, desc: '装备强化材料（穿戴面板强化消耗）' },
+    { id: 'mat_core', kind: 'mat', name: '英雄核心', ic: '⚙️', tier: 5, desc: '大招升级材料（基地·研究所使用）' },
+    { id: 'mat_alloy', kind: 'mat', name: '精炼合金', ic: '🔩', tier: 4, desc: '装备强化材料（穿戴面板强化消耗）' },
     { id: 'mat_stone', kind: 'mat', name: '强化石', ic: '🧱', tier: 2, desc: '武器强化材料（武器强化消耗）' },
-    { id: 'mat_blueprint', kind: 'mat', name: '改装图纸', ic: '🔧', tier: 3, desc: '载具改装图纸（基地·载具工坊使用）' },
-    { id: 'gem_fire', kind: 'gem', name: '赤焰石', ic: '🔴', tier: 3, desc: '攻击加成宝石（后续开放镶嵌）' },
+    { id: 'mat_blueprint', kind: 'mat', name: '改装图纸', ic: '🔧', tier: 4, desc: '载具改装图纸（基地·载具工坊使用）' },
+    { id: 'gem_fire', kind: 'gem', name: '赤焰石', ic: '🔴', tier: 4, desc: '攻击加成宝石（后续开放镶嵌）' },
     { id: 'gem_ice', kind: 'gem', name: '寒冰晶', ic: '🔵', tier: 3, desc: '防御加成宝石（后续开放镶嵌）' },
-    { id: 'gem_thunder', kind: 'gem', name: '雷光石', ic: '🟡', tier: 4, desc: '暴击加成宝石（后续开放镶嵌）' },
+    { id: 'gem_thunder', kind: 'gem', name: '雷光石', ic: '🟡', tier: 5, desc: '暴击加成宝石（后续开放镶嵌）' },
     { id: 'gem_wind', kind: 'gem', name: '疾风羽', ic: '🟢', tier: 2, desc: '生命加成宝石（后续开放镶嵌）' },
     { id: 'item_stamina', kind: 'item', name: '体力药水', ic: '⚡', tier: 3, desc: '使用后恢复 10 点体力', use: { type: 'stamina', amount: 10 } },
     { id: 'item_goldbox', kind: 'item', name: '金币箱', ic: '🎁', tier: 3, desc: '使用后获得 100 金币', use: { type: 'gold', amount: 100 } },
@@ -227,7 +253,7 @@ export interface LootDrop {
 
 /** 掉落稀有度着色（与装备品质色一致，misc tier 5 金色） */
 export function lootDropColor(drop: LootDrop): string {
-    const t = Math.min(4, Math.max(1, Math.round(drop.tier)));
+    const t = Math.min(6, Math.max(1, Math.round(drop.tier)));
     return EQUIP_TIER_COLORS[t - 1];
 }
 
@@ -262,10 +288,10 @@ export function rollStageClearDrops(stageId: number): LootDrop[] {
             drops.push({ kind: 'misc', tier: d.tier, id: d.id, name: d.name, ic: d.ic });
         }
     }
-    // ③ 装备（品质阶梯：绿 40% 蓝 35% 紫 20% 金 5%；部位从装备池随机）
+    // ③ 装备（品质阶梯：白 22% 绿 28% 蓝 25% 紫 15% 橙 7% 红 3%；部位从装备池随机）
     if (Math.random() < LOOT_RATES.equip * luck) {
         const r = Math.random();
-        const tier: 1 | 2 | 3 | 4 = r < 0.40 ? 1 : r < 0.75 ? 2 : r < 0.95 ? 3 : 4;
+        const tier: EquipTier = r < 0.22 ? 1 : r < 0.50 ? 2 : r < 0.75 ? 3 : r < 0.90 ? 4 : r < 0.97 ? 5 : 6;
         const pool = EQUIPMENT_DEFS.filter(d => d.tier === tier);
         const def = (pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null)
             ?? null;
@@ -288,7 +314,7 @@ export function grantLootDrops(drops: LootDrop[]): number {
     for (const drop of drops) {
         if (drop.kind === 'equip' && drop.slot) {
             const lv = 1 + Math.floor(Math.random() * 3);
-            gm.bag.push({ slot: drop.slot, tier: (Math.min(4, Math.max(1, drop.tier)) as 1 | 2 | 3 | 4), lv });
+            gm.bag.push({ slot: drop.slot, tier: (Math.min(6, Math.max(1, drop.tier)) as EquipTier), lv });
             n++;
         } else if ((drop.kind === 'core' || drop.kind === 'misc') && drop.id && miscDef(drop.id)) {
             gm.misc[drop.id] = (gm.misc[drop.id] ?? 0) + 1;
@@ -555,9 +581,9 @@ export class HeroSystem {
             this._gm.bag.push({ slot: def.slot, tier: def.tier, lv: cur.lv });
         } else if (cur.id.startsWith('bag:')) {
             const [, s, t] = cur.id.split(':');
-            const tier = Number(t) as 1 | 2 | 3 | 4;
+            const tier = Number(t);
             const slotOk = EQUIP_SLOTS.indexOf(s as EquipSlot) >= 0;
-            if (slotOk && tier >= 1 && tier <= 4) {
+            if (slotOk && isEquipTier(tier)) {
                 this._gm.bag.push({ slot: s as EquipSlot, tier, lv: cur.lv });
             }
         }
@@ -589,8 +615,8 @@ export class HeroSystem {
     private _equipValue(state: EquipState, key: 'atkPct' | 'ratePct' | 'rangePct'): number {
         if (state.id.startsWith('bag:')) {
             const [, , t] = state.id.split(':');
-            const tier = Number(t) as 1 | 2 | 3 | 4;
-            if (!(tier >= 1 && tier <= 4)) {
+            const tier = Number(t);
+            if (!isEquipTier(tier)) {
                 return 0;
             }
             return bagItemValue({ slot: 'head', tier, lv: state.lv }, key);

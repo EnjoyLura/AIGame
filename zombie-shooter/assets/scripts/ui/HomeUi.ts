@@ -8,7 +8,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves } from '../battle/StageData';
 
@@ -664,7 +664,7 @@ export class HomeUi extends Component {
                         ic: SLOT_EMOJI[slot], name: def.name,
                         tag: `${EQUIP_SLOT_NAMES[slot]} · ${EQUIP_TIER_NAMES[def.tier - 1]} · ${parts.join(' ')}`,
                         price: `🪙 ${def.baseCost.toLocaleString()}`,
-                        r: def.tier <= 1 ? 2 : def.tier === 2 ? 3 : def.tier === 3 ? 4 : 5,
+                        r: tierRank(def.tier),
                         hot: def.tier >= 4,
                         disabled: gm.gold < def.baseCost,
                         onTap: () => {
@@ -685,7 +685,7 @@ export class HomeUi extends Component {
                 mkGood({
                     ic: '💠', name: core.name, tag: core.desc,
                     price: `🪙 ${core.baseCost.toLocaleString()}`,
-                    r: core.tier <= 1 ? 3 : core.tier === 2 ? 4 : 5,
+                    r: tierRank(core.tier === 1 ? 3 : core.tier === 2 ? 5 : 4),
                     disabled: gm.gold < core.baseCost,
                     onTap: () => {
                         // 买核心入背包口径：直接挂到当前选中英雄（若未嵌）
@@ -882,9 +882,9 @@ export class HomeUi extends Component {
             sname.textContent = EQUIP_SLOT_NAMES[slot];
             el.appendChild(sname);
             if (cur) {
-                let tier: 1 | 2 | 3 | 4 = 1;
+                let tier: EquipTier = 1;
                 if (cur.id.startsWith('bag:')) {
-                    tier = Number(cur.id.split(':')[2]) as 1 | 2 | 3 | 4;
+                    tier = Number(cur.id.split(':')[2]) as EquipTier;
                 } else {
                     const d = hs.equipDef(cur.id);
                     tier = d ? d.tier : 1;
@@ -1049,7 +1049,7 @@ export class HomeUi extends Component {
             }
             for (const it of items) {
                 const cell = document.createElement('div');
-                cell.className = `bcell r${it.tier <= 1 ? 2 : it.tier === 2 ? 3 : it.tier === 3 ? 4 : 5}`;
+                cell.className = `bcell r${tierRank(it.tier)}`;
                 cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>+${it.lv}</em>`;
                 cell.onclick = (e) => {
                     e.stopPropagation();
@@ -1284,10 +1284,10 @@ export class HomeUi extends Component {
                 row.className = 'equipRow';
                 const info = document.createElement('div');
                 info.className = 'equipInfo';
-                let tier: 1 | 2 | 3 | 4 = 1;
+                let tier: EquipTier = 1;
                 let name = '';
                 if (cur.id.startsWith('bag:')) {
-                    tier = Number(cur.id.split(':')[2]) as 1 | 2 | 3 | 4;
+                    tier = Number(cur.id.split(':')[2]) as EquipTier;
                     name = bagItemName({ slot, tier, lv: cur.lv });
                 } else {
                     const d = hs.equipDef(cur.id);
@@ -2311,7 +2311,8 @@ export class HomeUi extends Component {
   border: 1px solid #3a567f; margin-bottom: calc(12px * var(--hs,1)); }
 #homeUi .good.r3 .gIc { border-color: #3a8ad0; box-shadow: 0 0 8px rgba(60,140,220,.35) inset; }
 #homeUi .good.r4 .gIc { border-color: #9a5ce0; box-shadow: 0 0 8px rgba(160,90,230,.4) inset; }
-#homeUi .good.r5 .gIc { border-color: #e0a23c; box-shadow: 0 0 10px rgba(240,170,60,.45) inset; }
+#homeUi .good.r5 .gIc { border-color: #ff9d45; box-shadow: 0 0 10px rgba(255,157,69,.45) inset; }
+#homeUi .good.r6 .gIc { border-color: #ff5252; box-shadow: 0 0 12px rgba(255,82,82,.55) inset, 0 0 10px rgba(255,82,82,.35); }
 #homeUi .gName { font-size: calc(26px * var(--hs,1)); font-weight: 700; }
 #homeUi .gTag { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; margin: calc(4px * var(--hs,1)) 0 calc(12px * var(--hs,1)); min-height: calc(48px * var(--hs,1)); line-height: 1.3; }
 #homeUi .gBuy { width: 100%; display: flex; align-items: center; justify-content: center; gap: calc(6px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(24px * var(--hs,1)); }
@@ -2532,7 +2533,8 @@ export class HomeUi extends Component {
   border: 1px solid #33507a; height: calc(124px * var(--hs,1)); display: flex; align-items: center; justify-content: center; font-size: calc(48px * var(--hs,1)); cursor: pointer; }
 #homeUi .bcell.r3 { border-color: #3a8ad0; }
 #homeUi .bcell.r4 { border-color: #9a5ce0; }
-#homeUi .bcell.r5 { border-color: #e0a23c; }
+#homeUi .bcell.r5 { border-color: #ff9d45; }
+#homeUi .bcell.r6 { border-color: #ff5252; box-shadow: 0 0 10px rgba(255,82,82,.5); }
 #homeUi .bcell em { position: absolute; right: calc(6px * var(--hs,1)); bottom: calc(4px * var(--hs,1)); font-style: normal;
   font-size: calc(18px * var(--hs,1)); color: #dce8f7; font-weight: 700; text-shadow: 0 1px 2px #000; }
 #homeUi .bagBar { margin-top: calc(20px * var(--hs,1)); padding: calc(20px * var(--hs,1)); border-radius: calc(22px * var(--hs,1));
@@ -2681,6 +2683,10 @@ export class HomeUi extends Component {
   border-radius: calc(5px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
 #homeUi .bagTabs button.on { background: #fff8e9; color: #8c5927; border-color: #d8ad74; box-shadow: inset 0 -2px #e9ab5c; }
 #homeUi .bcell { background: #dce8ef; border: 1px solid #b8cbd7; border-radius: calc(5px * var(--pw,2.5)); }
+#homeUi .bcell.r3 { border-color: #5a9ad0; }
+#homeUi .bcell.r4 { border-color: #a678d8; }
+#homeUi .bcell.r5 { border-color: #e8892e; }
+#homeUi .bcell.r6 { border-color: #e04848; box-shadow: 0 0 6px rgba(224,72,72,.45); }
 #homeUi .bcell em { color: #395a6b; text-shadow: none; }
 #homeUi .bagBar { margin-top: calc(10px * var(--pw,2.5)); padding: calc(10px * var(--pw,2.5));
   background: linear-gradient(#eaf1f6, #dce8ef); border: 1px solid #b5c8d5; border-radius: calc(8px * var(--pw,2.5)); }
@@ -2713,6 +2719,10 @@ export class HomeUi extends Component {
 #homeUi .good { padding: calc(10px * var(--pw,2.5)); }
 #homeUi .gIc { height: calc(92px * var(--pw,2.5)); background: linear-gradient(#e8f0f6, #d4e2eb); border-color: #b3c6d5;
   border-radius: calc(5px * var(--pw,2.5)); font-size: calc(38px * var(--pw,2.5)); }
+#homeUi .good.r3 .gIc { border-color: #5a9ad0; box-shadow: 0 0 5px rgba(90,154,208,.4) inset; }
+#homeUi .good.r4 .gIc { border-color: #a678d8; box-shadow: 0 0 5px rgba(166,120,216,.45) inset; }
+#homeUi .good.r5 .gIc { border-color: #e8892e; box-shadow: 0 0 6px rgba(232,137,46,.5) inset; }
+#homeUi .good.r6 .gIc { border-color: #e04848; box-shadow: 0 0 7px rgba(224,72,72,.6) inset, 0 0 6px rgba(224,72,72,.4); }
 #homeUi .gName { font-size: calc(15px * var(--pw,2.5)); }
 #homeUi .gTag { font-size: calc(11px * var(--pw,2.5)); margin: calc(4px * var(--pw,2.5)) 0 calc(10px * var(--pw,2.5)); }
 #homeUi .gBuy { height: calc(44px * var(--pw,2.5)); font-size: calc(14px * var(--pw,2.5)); }

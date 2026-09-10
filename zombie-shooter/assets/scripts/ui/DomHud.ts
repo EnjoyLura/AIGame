@@ -9,7 +9,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { SoundFx } from '../core/SoundFx';
 import { FINAL_STAGE_ID } from '../battle/StageData';
-import { LootDrop, lootDropColor } from '../core/HeroSystem';
+import { LootDrop, lootDropColor, tierRank } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 
 /** 伤害统计面板每英雄一行的可更新元素 */
@@ -266,7 +266,7 @@ export class DomHud extends Component {
             grid.className = 'clLootGrid';
             drops.forEach((d, i) => {
                 const cell = document.createElement('div');
-                cell.className = `clDrop r${Math.min(5, Math.max(2, Math.round(d.tier)))}`;
+                cell.className = `clDrop r${tierRank(d.tier)}`;
                 cell.style.animationDelay = `${(0.55 + i * 0.28).toFixed(2)}s`;
                 const ic = document.createElement('span');
                 ic.className = 'clDropIc';
@@ -280,7 +280,7 @@ export class DomHud extends Component {
                 grid.appendChild(cell);
                 // 掉落物落袋音效错峰播放
                 this.scheduleOnce(() => {
-                    SoundFx.play(d.tier >= 4 ? 'buy' : 'ui');
+                    SoundFx.play(d.tier >= 5 ? 'buy' : 'ui');
                 }, 0.6 + i * 0.28);
             });
             loot.appendChild(grid);
@@ -1032,7 +1032,9 @@ export class DomHud extends Component {
   opacity: 0; animation: clDropIn .45s cubic-bezier(.34,1.56,.64,1) both; }
 #domHud .clDrop.r3 { border-color: #5ab0f0; }
 #domHud .clDrop.r4 { border-color: #c07ef5; }
-#domHud .clDrop.r5 { border-color: #ffd76a; box-shadow: 0 0 calc(26px * var(--s,1)) rgba(255,215,106,.4); }
+#domHud .clDrop.r5 { border-color: #ff9d45; box-shadow: 0 0 calc(20px * var(--s,1)) rgba(255,157,69,.35); }
+#domHud .clDrop.r6 { border-color: #ff5252; box-shadow: 0 0 calc(28px * var(--s,1)) rgba(255,82,82,.5); animation: clDropIn .45s cubic-bezier(.34,1.56,.64,1) both, clRedPulse 1.4s ease-in-out infinite; }
+@keyframes clRedPulse { 0%, 100% { box-shadow: 0 0 calc(18px * var(--s,1)) rgba(255,82,82,.4); } 50% { box-shadow: 0 0 calc(38px * var(--s,1)) rgba(255,82,82,.75); } }
 #domHud .clDropIc { font-size: calc(58px * var(--s,1)); line-height: 1; filter: drop-shadow(0 calc(3px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5)); }
 #domHud .clDropNm { font-size: calc(27px * var(--s,1)); text-shadow: 0 calc(2px * var(--s,1)) calc(3px * var(--s,1)) rgba(0,0,0,.6); }
 @keyframes clDropIn { from { opacity: 0; transform: scale(.3) rotate(-10deg); }
