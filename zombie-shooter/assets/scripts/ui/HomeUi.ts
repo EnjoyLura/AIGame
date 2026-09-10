@@ -1748,17 +1748,22 @@ export class HomeUi extends Component {
                 row.appendChild(b);
             } else {
                 const cost = hs.weaponUpgradeCost(heroId);
-                row.innerHTML = `<span>强化至 +${lv + 1}（攻击加成 +${Math.round((Math.pow(1 + 0.05, lv + 1) - 1) * 100)}%）</span>`;
+                const stone = hs.weaponUpgradeStone(heroId);
+                const stoneLeft = hs.miscCount('mat_stone');
+                row.innerHTML = `<span>强化至 +${lv + 1}（攻击加成 +${Math.round((Math.pow(1 + 0.05, lv + 1) - 1) * 100)}%）</span>` +
+                    `<span class="matNeed">🪙 ${cost} · 🧱 强化石 ×${stone}（余 ${stoneLeft}）</span>`;
                 const b = document.createElement('button');
                 b.className = 'btn gold sm';
-                b.textContent = `🪙 ${cost} 强化`;
-                b.disabled = GameManager.instance.gold < cost;
+                b.textContent = '强 化';
+                b.disabled = GameManager.instance.gold < cost || stoneLeft < stone;
                 b.onclick = () => {
                     if (hs.upgradeWeapon(heroId)) {
                         SoundFx.play('buy');
                         this._toast(`武器强化至 +${lv + 1}`);
                         close();
                         this._refreshHeroes();
+                    } else {
+                        this._toast('材料不足：分解装备或通关掉落获取强化石');
                     }
                 };
                 row.appendChild(b);
@@ -1810,13 +1815,21 @@ export class HomeUi extends Component {
                 btn.className = 'btn gold sm';
                 if (!hs.isEquipMaxLevel(cur)) {
                     const cost = hs.equipUpgradeCost(cur);
-                    btn.textContent = `🪙 ${cost} 强化`;
-                    btn.disabled = gm.gold < cost;
+                    const alloy = hs.equipUpgradeAlloy(cur);
+                    const alloyLeft = hs.miscCount('mat_alloy');
+                    info.innerHTML =
+                        `<div class="equipName" style="color:${EQUIP_TIER_COLORS[tier - 1]}">当前：${name}</div>` +
+                        `<div class="equipStat">强化 +${cur.lv} · ${parts.join(' ') || '无属性'}</div>` +
+                        `<div class="equipStat matNeed">强化需 🪙 ${cost} · 🔩 精炼合金 ×${alloy}（余 ${alloyLeft}）</div>`;
+                    btn.textContent = '强 化';
+                    btn.disabled = gm.gold < cost || alloyLeft < alloy;
                     btn.onclick = () => {
                         if (hs.upgradeEquip(heroId, slot)) {
                             SoundFx.play('buy');
                             document.querySelector('#homeUi .protoMask')?.remove();
                             this._refreshHeroes();
+                        } else {
+                            this._toast('材料不足：分解紫装以上或礼包获取精炼合金');
                         }
                     };
                 } else {
@@ -3242,6 +3255,8 @@ export class HomeUi extends Component {
 #homeUi .equipInfo { flex: 1; min-width: 0; }
 #homeUi .equipName { font-size: calc(26px * var(--hs,1)); font-weight: 700; }
 #homeUi .equipStat { font-size: calc(22px * var(--hs,1)); color: #8ba3c7; margin-top: calc(4px * var(--hs,1)); }
+#homeUi .matNeed { color: #ffd9b0; font-size: calc(19px * var(--hs,1)); }
+#homeUi .mRow .matNeed { display: block; margin-top: calc(4px * var(--hs,1)); }
 
 /* ===== 底部导航 ===== */
 #homeUi .tabbar { flex: none; height: calc(150px * var(--hs,1)); display: flex; align-items: center; justify-content: space-around; position: relative; z-index: 20;

@@ -228,7 +228,7 @@ export interface MiscItemDef {
 export const MISC_ITEM_DEFS: MiscItemDef[] = [
     { id: 'mat_core', kind: 'mat', name: '英雄核心', ic: '⚙️', tier: 5, desc: '大招升级材料（基地·研究所使用）' },
     { id: 'mat_alloy', kind: 'mat', name: '精炼合金', ic: '🔩', tier: 4, desc: '装备强化材料（穿戴面板强化消耗）' },
-    { id: 'mat_stone', kind: 'mat', name: '强化石', ic: '🧱', tier: 2, desc: '武器强化材料（武器强化消耗）' },
+    { id: 'mat_stone', kind: 'mat', name: '强化石', ic: '🧱', tier: 2, desc: '武器强化材料（分解装备/关卡产出）' },
     { id: 'mat_blueprint', kind: 'mat', name: '改装图纸', ic: '🔧', tier: 4, desc: '载具改装图纸（基地·载具工坊使用）' },
     { id: 'gem_fire', kind: 'gem', name: '赤焰石', ic: '🔴', tier: 4, desc: '攻击宝石 · 镶嵌装备：攻击 +6%' },
     { id: 'gem_wind', kind: 'gem', name: '疾风羽', ic: '🟢', tier: 2, desc: '射速宝石 · 镶嵌装备：射速 +4%' },
@@ -505,6 +505,11 @@ export class HeroSystem {
         return Math.round(WEAPON_UPGRADE_BASE_COST * Math.pow(WEAPON_UPGRADE_COST_MUL, this.weaponLevel(heroId) - 1));
     }
 
+    /** 武器强化材料需求：强化石 ×N（随等级缓增） */
+    weaponUpgradeStone(heroId: string): number {
+        return 2 + Math.floor((this.weaponLevel(heroId) - 1) / 2);
+    }
+
     isWeaponMaxLevel(heroId: string): boolean {
         return this.weaponLevel(heroId) >= WEAPON_LEVEL_MAX;
     }
@@ -514,7 +519,7 @@ export class HeroSystem {
         return 1 + WEAPON_ATK_STEP * (this.weaponLevel(heroId) - 1);
     }
 
-    /** 金币强化主武器；成功返回 true */
+    /** 金币+强化石强化主武器；成功返回 true */
     upgradeWeapon(heroId: string): boolean {
         if (!this._gm.isHeroOwned(heroId) || this.isWeaponMaxLevel(heroId)) {
             return false;
@@ -522,6 +527,12 @@ export class HeroSystem {
         if (!this._gm.res.spend('gold', this.weaponUpgradeCost(heroId))) {
             return false;
         }
+        // 材料消耗口：强石化不足则退回金币
+        if (this.miscCount('mat_stone') < this.weaponUpgradeStone(heroId)) {
+            this._gm.res.add('gold', this.weaponUpgradeCost(heroId));
+            return false;
+        }
+        this._gm.misc['mat_stone'] = this.miscCount('mat_stone') - this.weaponUpgradeStone(heroId);
         this._gm.weaponLv[heroId] = this.weaponLevel(heroId) + 1;
         this._gm.save();
         return true;
@@ -618,6 +629,13 @@ export class HeroSystem {
         return Math.round(60 * tier * Math.pow(1.35, state.lv - 1));
     }
 
+    /** 装备强化材料需求：精炼合金 ×N（品质越高、等级越高需求越大） */
+    equipUpgradeAlloy(state: EquipState): number {
+        const def = this.equipDef(state.id);
+        const tier = def?.tier ?? (state.id.startsWith('bag:') ? Number(state.id.split(':')[2]) || 1 : 1);
+        return 1 + Math.floor((tier - 1) / 2) + Math.floor((state.lv - 1) / 3);
+    }
+
     isEquipMaxLevel(state: EquipState): boolean {
         return state.lv >= this._gm.equipUpgradeCap();
     }
@@ -703,7 +721,7 @@ export class HeroSystem {
         return true;
     }
 
-    /** 金币强化某槽当前装备（+8% 本件属性/级） */
+    /** 金币+精炼合金强化某槽当前装备（+8% 本件属性/级） */
     upgradeEquip(heroId: string, slot: EquipSlot): boolean {
         const state = this.equipped(heroId, slot);
         if (!state || this.isEquipMaxLevel(state) || !this._gm.isHeroOwned(heroId)) {
@@ -712,6 +730,12 @@ export class HeroSystem {
         if (!this._gm.res.spend('gold', this.equipUpgradeCost(state))) {
             return false;
         }
+        // 材料消耗口：精炼合金不足则退回金币
+        if (this.miscCount('mat_alloy') < this.equipUpgradeAlloy(state)) {
+            this._gm.res.add('gold', this.equipUpgradeCost(state));
+            return false;
+        }
+        this._gm.misc['mat_alloy'] = this.miscCount('mat_alloy') - this.equipUpgradeAlloy(state);
         state.lv++;
         this._gm.save();
         return true;
