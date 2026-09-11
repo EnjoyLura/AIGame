@@ -11,7 +11,7 @@ import { eventCenter } from './EventCenter';
  */
 
 /** 广告位 id */
-export type AdSlot = 'stamina' | 'doubleSettle';
+export type AdSlot = 'stamina' | 'doubleSettle' | 'recruit';
 
 interface SlotQuota {
     /** 自然日（本地时区 YYYY-MM-DD） */
@@ -33,6 +33,7 @@ export class AdService {
     private static readonly DAILY_LIMIT: Record<AdSlot, number> = {
         stamina: 3,
         doubleSettle: 3,
+        recruit: 1,
     };
 
     private _quotas: Partial<Record<AdSlot, SlotQuota>> = {};

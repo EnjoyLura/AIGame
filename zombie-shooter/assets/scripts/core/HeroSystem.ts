@@ -1,5 +1,6 @@
 import { GameManager } from './GameManager';
 import { QuestSystem } from './QuestSystem';
+import { RecruitSystem, STAR_ATK_STEP, STAR_RATE_STEP } from './RecruitSystem';
 import { ABILITY_MAX_LEVEL } from '../battle/HeroDef';
 // HERO_LEVEL_MAX/EQUIP_UPGRADE_MAX 为未解锁基地时的基础上限；实际运行时上限由基地建筑等级动态决定
 
@@ -468,6 +469,19 @@ export const HERO_PRICES: Record<string, number> = {
     radiation: 2000,
 };
 
+/**
+ * 星级攻击乘区（每星 +8%，0 星 = ×1，6 星 = ×1.48）。
+ * 独立成函数是因为装备工坊/排行榜等展示侧也需要单独口径。
+ */
+export function starAtkMul(heroId: string): number {
+    return 1 + RecruitSystem.instance.stars(heroId) * STAR_ATK_STEP;
+}
+
+/** 星级射速乘区（每星 +3%，0 星 = ×1，6 星 = ×1.18） */
+export function starRateMul(heroId: string): number {
+    return 1 + RecruitSystem.instance.stars(heroId) * STAR_RATE_STEP;
+}
+
 export class HeroSystem {
     static readonly HERO_PRICES = HERO_PRICES;
 
@@ -891,7 +905,10 @@ export class HeroSystem {
         return base * Math.pow(1 + EQUIP_UPGRADE_STEP, state.lv - 1);
     }
 
-    /** 某英雄装备+核心+宝石汇总乘区：atk=攻击、rate=射速（interval 除数）、range=射程、crit=暴击加成 */
+    /**
+     * 某英雄装备+核心+宝石汇总乘区：atk=攻击、rate=射速（interval 除数）、range=射程、crit=暴击加成。
+     * rate 里含星级射速加成（星级乘区无独立调用点，挂在此处让 applyEquipStats 的既有通道自动生效）。
+     */
     equipMulOf(heroId: string): { atk: number; rate: number; range: number; crit: number } {
         let atk = 0, rate = 0, range = 0, crit = 0;
         for (const slot of EQUIP_SLOTS) {
@@ -910,12 +927,13 @@ export class HeroSystem {
             rate += core.ratePct ?? 0;
             crit += core.critPct ?? 0;
         }
-        return { atk: 1 + atk, rate: 1 + rate, range: 1 + range, crit };
+        return { atk: 1 + atk, rate: starRateMul(heroId) + rate, range: 1 + range, crit };
     }
 
-    /** 英雄总攻击乘区（等级 × 主武器 × 装备；beginRun 与 metaAtkMul 相乘后进 applyMetaAtk） */
+    /** 英雄总攻击乘区（等级 × 主武器 × 装备 × 星级；beginRun 与 metaAtkMul 相乘后进 applyMetaAtk） */
     atkMulOf(heroId: string): number {
-        return this.heroAtkMul(heroId) * this.weaponAtkMul(heroId) * this.equipMulOf(heroId).atk;
+        return this.heroAtkMul(heroId) * this.weaponAtkMul(heroId)
+            * this.equipMulOf(heroId).atk * starAtkMul(heroId);
     }
 
     /** 部署后把装备/核心/宝石的射速/射程/暴击加成追加到英雄实例（interval 缩小、range 放大） */

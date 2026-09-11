@@ -18,6 +18,7 @@ import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES,
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDef, StageDifficulty } from '../battle/StageData';
 import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MILESTONE_EVERY } from '../core/TrialSystem';
+import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRICE_10, RECRUIT_PITY, RecruitResult } from '../core/RecruitSystem';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -1095,6 +1096,236 @@ export class HomeUi extends Component {
     }
 
     /**
+     * 英雄招募弹窗：保底进度 + 概率表 + 四英雄碎片库存 + 单抽/十连/看广告免费招募。
+     * 结果不在此展示，交由 _openRecruitResultModal 做揭示动画。
+     */
+    private _openRecruitModal(): void {
+        const rs = RecruitSystem.instance;
+        const gm = GameManager.instance;
+        const diam = gm.res.get('diamond');
+        this._openModal('🎖️ 英雄招募', (box) => {
+            box.classList.add('recruitBox');
+            // 头部：累计抽数 + 保底进度条
+            const head = document.createElement('div');
+            head.className = 'rcHead';
+            head.innerHTML = `<div class="rcHeadTop"><b>已招募 <i>${rs.totalRecruits}</i> 次</b>`
+                + `<span>距保底还差 ${rs.pityLeft} 抽</span></div>`;
+            const barWrap = document.createElement('div');
+            barWrap.className = 'rcBar';
+            const barIn = document.createElement('i');
+            barIn.style.width = `${Math.round((RECRUIT_PITY - rs.pityLeft) / RECRUIT_PITY * 100)}%`;
+            barWrap.appendChild(barIn);
+            head.appendChild(barWrap);
+            box.appendChild(head);
+
+            // 概率表
+            const rate = document.createElement('div');
+            rate.className = 'rcRate panel';
+            rate.innerHTML =
+                `<div class="rcRateRow hero"><span>🎖️ 英雄本体（未获得优先）</span><b>6%</b></div>` +
+                `<div class="rcRateRow r5"><span>⭐ 传说碎片 ×10</span><b>14%</b></div>` +
+                `<div class="rcRateRow r3"><span>🔷 稀有碎片 ×5</span><b>40%</b></div>` +
+                `<div class="rcRateRow r2"><span>🔹 普通碎片 ×2</span><b>40%</b></div>` +
+                `<div class="rcRateNote">🛡️ 十连必出稀有以上 · ${RECRUIT_PITY} 抽内必出英雄本体</div>`;
+            box.appendChild(rate);
+
+            // 四英雄碎片库存
+            const shardBox = document.createElement('div');
+            shardBox.className = 'rcShards';
+            const shardHead = document.createElement('div');
+            shardHead.className = 'rcShardsHead';
+            shardHead.textContent = '碎 片 库 存';
+            shardBox.appendChild(shardHead);
+            const shardGrid = document.createElement('div');
+            shardGrid.className = 'rcShardGrid';
+            HERO_DEFS.forEach((d, i) => {
+                const cell = document.createElement('div');
+                cell.className = 'rcShard';
+                const pic = document.createElement('span');
+                pic.className = 'rcShardPic';
+                const photo = this._heroPhoto(i, 'slot');
+                this._tex(photo.key, u => {
+                    pic.style.backgroundImage = u;
+                    pic.style.backgroundRepeat = 'no-repeat';
+                    pic.style.cssText += photo.css;
+                });
+                const info = document.createElement('span');
+                info.className = 'rcShardInfo';
+                const own = gm.isHeroOwned(d.id);
+                info.innerHTML = `<b>${d.name}</b><i>${rs.stars(d.id)}★ · 🔩${rs.shards(d.id)}</i>`;
+                if (!own) {
+                    cell.classList.add('lock');
+                }
+                cell.appendChild(pic);
+                cell.appendChild(info);
+                shardGrid.appendChild(cell);
+            });
+            shardBox.appendChild(shardGrid);
+            box.appendChild(shardBox);
+
+            // 抽卡按钮组
+            const btns = document.createElement('div');
+            btns.className = 'rcBtns';
+            const mkPull = (label: string, cost: number, count: 1 | 10) => {
+                const b = document.createElement('button');
+                b.className = 'btn big rcBtn' + (count === 10 ? ' gold' : '');
+                b.textContent = `${label}（💎 ${cost.toLocaleString()}）`;
+                b.disabled = diam < cost;
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    const got = rs.recruit(count);
+                    if (!got) {
+                        SoundFx.play('ui');
+                        this._toast('钻石不足');
+                        return;
+                    }
+                    SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
+                    this._refreshTop();
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._openRecruitResultModal(got);
+                };
+                btns.appendChild(b);
+            };
+            mkPull('单 抽', RECRUIT_PRICE_1, 1);
+            mkPull('十 连', RECRUIT_PRICE_10, 10);
+            box.appendChild(btns);
+
+            // 看广告免费招募（每日 1 次）
+            const left = AdService.instance.remaining('recruit');
+            const ad = document.createElement('button');
+            ad.className = 'btn big rcAdBtn';
+            ad.textContent = left > 0 ? `▶ 看广告免费招募（今日 ${left}/1）` : '▶ 今日免费招募已用完';
+            ad.disabled = left <= 0;
+            ad.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                AdService.instance.claimReward('recruit', () => {
+                    const got = rs.recruit(1, true);
+                    if (!got) {
+                        return;
+                    }
+                    SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
+                    this._refreshTop();
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._openRecruitResultModal(got);
+                });
+            };
+            box.appendChild(ad);
+            const note = document.createElement('p');
+            note.className = 'giftNote';
+            note.textContent = '抽到已拥有的英雄会转化为该英雄碎片，碎片用于升星';
+            box.appendChild(note);
+            this._applyPendingTex();
+        });
+    }
+
+    /** 招募结果浮窗：卡片错峰揭示（复用 giftDropIn 动画），十连带汇总行 */
+    private _openRecruitResultModal(results: RecruitResult[]): void {
+        const hasHero = results.some(r => r.kind === 'hero');
+        const shardTotal = results.reduce((n, r) => n + (r.shardN ?? 0), 0);
+        const heroCount = results.filter(r => r.kind === 'hero').length;
+        this._openModal(hasHero ? '🎖️ 招 募 大 成 功' : '🎖️ 招 募 结 果', (box) => {
+            box.classList.add('recruitResBox');
+            const grid = document.createElement('div');
+            grid.className = 'recruitResGrid' + (results.length > 1 ? ' many' : '');
+            results.forEach((r, i) => {
+                const idx = HERO_DEFS.findIndex(d => d.id === r.heroId);
+                const cell = document.createElement('div');
+                cell.className = `rcCard r${r.tierRank}` + (r.kind === 'hero' ? ' hero' : '');
+                cell.style.animationDelay = `${(0.1 + i * 0.15).toFixed(2)}s`;
+                // 英雄本体用立绘，碎片用 emoji
+                if (r.kind === 'hero' && idx >= 0) {
+                    const pic = document.createElement('span');
+                    pic.className = 'rcCardPic';
+                    const photo = this._heroPhoto(idx, 'figure');
+                    this._tex(photo.key, u => {
+                        pic.style.backgroundImage = u;
+                        pic.style.backgroundRepeat = 'no-repeat';
+                        pic.style.cssText += photo.css;
+                    });
+                    cell.appendChild(pic);
+                } else if (idx >= 0) {
+                    const pic = document.createElement('span');
+                    pic.className = 'rcCardPic';
+                    const photo = this._heroPhoto(idx, 'slot');
+                    this._tex(photo.key, u => {
+                        pic.style.backgroundImage = u;
+                        pic.style.backgroundRepeat = 'no-repeat';
+                        pic.style.cssText += photo.css;
+                    });
+                    cell.appendChild(pic);
+                } else {
+                    const ic = document.createElement('span');
+                    ic.className = 'rcCardIc';
+                    ic.textContent = r.ic;
+                    cell.appendChild(ic);
+                }
+                if (r.kind === 'hero') {
+                    const flag = document.createElement('span');
+                    flag.className = 'rcNew';
+                    flag.textContent = 'NEW!';
+                    cell.appendChild(flag);
+                } else if (r.duplicate) {
+                    const flag = document.createElement('span');
+                    flag.className = 'rcDup';
+                    flag.textContent = '转化为碎片';
+                    cell.appendChild(flag);
+                }
+                const nm = document.createElement('span');
+                nm.className = 'rcCardNm';
+                nm.textContent = r.kind === 'hero' ? r.name : `${r.name}`;
+                cell.appendChild(nm);
+                grid.appendChild(cell);
+                this.scheduleOnce(() => {
+                    SoundFx.play(r.kind === 'hero' ? 'bigkill' : r.tier === 'legend' ? 'buy' : 'ui');
+                }, 0.15 + i * 0.15);
+            });
+            box.appendChild(grid);
+            if (results.length > 1) {
+                const sum = document.createElement('div');
+                sum.className = 'rcSum';
+                sum.textContent = `本次获得：英雄 ×${heroCount} · 碎片 ×${shardTotal}`;
+                box.appendChild(sum);
+            }
+            // 再来一次（钻石够时显示）+ 关闭
+            const again = document.createElement('button');
+            again.className = 'btn gold big rcAgain';
+            again.textContent = results.length > 1
+                ? `再 来 一 次（💎 ${RECRUIT_PRICE_10.toLocaleString()}）`
+                : `再 来 一 次（💎 ${RECRUIT_PRICE_1.toLocaleString()}）`;
+            const cost = results.length > 1 ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;
+            again.disabled = GameManager.instance.res.get('diamond') < cost;
+            again.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                const got = RecruitSystem.instance.recruit(results.length > 1 ? 10 : 1);
+                if (!got) {
+                    SoundFx.play('ui');
+                    this._toast('钻石不足');
+                    return;
+                }
+                SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
+                this._refreshTop();
+                document.querySelector('#homeUi .protoMask')?.remove();
+                this._openRecruitResultModal(got);
+            };
+            box.appendChild(again);
+            const ok = document.createElement('button');
+            ok.className = 'btn big rcClose';
+            ok.textContent = '关 闭';
+            ok.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                document.querySelector('#homeUi .protoMask')?.remove();
+                this._refreshHeroes();
+            };
+            box.appendChild(ok);
+            this._applyPendingTex();
+        });
+    }
+
+    /**
      * 试炼之塔弹窗：层段网格（每 5 层一组）+ 选中层详情 + 挑战入口。
      * 格子状态：✅ 已通 / ▶ 可挑战（高亮）/ 🔒 未解锁；里程碑层（每 5 层）带 👑。
      */
@@ -1732,13 +1963,24 @@ export class HomeUi extends Component {
     private _refreshHeroes(): void {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
+        const rs = RecruitSystem.instance;
         const pick = this._heroPickEl;
         const body = this._heroBodyEl;
         if (!pick || !body) {
             return;
         }
-        // 横滑选择条
+        // 横滑选择条 + 招募入口
         pick.innerHTML = '';
+        const recruitBtn = document.createElement('button');
+        recruitBtn.className = 'hpick recruitEntry';
+        recruitBtn.innerHTML = '<span class="pic rcIc">🎖️</span><i>招募</i>';
+        recruitBtn.title = '英雄招募（抽卡）';
+        recruitBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openRecruitModal();
+        };
+        pick.appendChild(recruitBtn);
         HERO_DEFS.forEach((d, i) => {
             const owned = gm.isHeroOwned(d.id);
             const b = document.createElement('button');
@@ -1778,10 +2020,14 @@ export class HomeUi extends Component {
         const hName = document.createElement('div');
         hName.className = 'heroName';
         if (owned) {
+            // 星级 = 招募升星真实等级（0~6 星），不再是固定标签
+            const st = rs.stars(def.id);
             const stars = document.createElement('span');
             stars.className = 'star';
-            // 星级：按品质固定 4 星（等级玩法移除，星级改为静态标签）
-            stars.textContent = '★★★★☆';
+            stars.textContent = '★'.repeat(st) + '☆'.repeat(HERO_STAR_MAX - st);
+            stars.title = st >= HERO_STAR_MAX
+                ? '已满星'
+                : `升星进度 ${rs.shards(def.id)} / ${rs.starCost(def.id)} 碎片`;
             hName.appendChild(document.createTextNode(def.name));
             hName.appendChild(stars);
         } else {
@@ -1920,13 +2166,63 @@ export class HomeUi extends Component {
         if (owned) {
             mkStat('⚔️ 攻击', String(Math.round(def.atk * hs.atkMulOf(def.id))));
             mkStat('⚡ 战力', this._heroPower(def.id).toLocaleString());
-            mkStat('🛡️ 加成', `+${Math.round((hs.equipMulOf(def.id).atk - 1) * 100)}%`);
+            // 加成口径 = 装备+宝石+核心（不含星级，星级单独在升星条展示）
+            mkStat('🛡️ 装备加成', `+${Math.round((hs.equipMulOf(def.id).atk - 1) * 100)}%`);
         } else {
             mkStat('⚔️ 攻击', '---');
             mkStat('⚡ 战力', '---');
-            mkStat('🛡️ 加成', '---');
+            mkStat('🛡️ 装备加成', '---');
         }
         body.appendChild(stats);
+
+        // 升星条（仅已拥有英雄）：星级 + 碎片进度 + 升星按钮
+        if (owned) {
+            const st = rs.stars(def.id);
+            const cost = rs.starCost(def.id);
+            const have = rs.shards(def.id);
+            const bar = document.createElement('div');
+            bar.className = 'starBar panel' + (st >= HERO_STAR_MAX ? ' max' : '');
+            const line = document.createElement('div');
+            line.className = 'sbLine';
+            line.innerHTML = `<b class="sbStars">${'★'.repeat(st)}${'☆'.repeat(HERO_STAR_MAX - st)}</b>`
+                + `<span class="sbLv">${st} / ${HERO_STAR_MAX} 星</span>`;
+            bar.appendChild(line);
+            const prog = document.createElement('div');
+            prog.className = 'sbProg';
+            if (st >= HERO_STAR_MAX) {
+                prog.innerHTML = '<span class="sbDone">★ 已 满 星 ★ 该英雄已无升星空间</span>';
+            } else {
+                prog.innerHTML = `<span class="sbNum">碎片 <b>${have}</b> / ${cost}</span>`
+                    + `<span class="sbAdd">（招募重复获得可转碎片）</span>`;
+            }
+            bar.appendChild(prog);
+            const btn = document.createElement('button');
+            btn.className = 'btn gold sm sbBtn';
+            if (st >= HERO_STAR_MAX) {
+                btn.textContent = '已满星';
+                btn.disabled = true;
+            } else if (rs.canStarUp(def.id)) {
+                btn.textContent = `⚡ 升 星（−${cost} 碎片）`;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    const next = rs.starUp(def.id);
+                    if (next !== null) {
+                        SoundFx.play('buy');
+                        this._toast(`${def.name} 升至 ★${next}`);
+                        this._refreshTop();
+                        this._refreshHeroes();
+                    } else {
+                        SoundFx.play('ui');
+                    }
+                };
+            } else {
+                btn.textContent = `还差 ${cost - have} 片`;
+                btn.disabled = true;
+            }
+            bar.appendChild(btn);
+            body.appendChild(bar);
+        }
 
         if (!owned) {
             const unlock = document.createElement('button');
@@ -3952,6 +4248,67 @@ export class HomeUi extends Component {
 #homeUi .trialRewardNote { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; }
 #homeUi .trialGo { width: 100%; margin-top: calc(16px * var(--hs,1)); }
 
+/* ===== 英雄招募 + 升星（英雄页入口） ===== */
+#homeUi .hpick.recruitEntry .rcIc { font-size: calc(46px * var(--hs,1)); line-height: calc(72px * var(--hs,1)); background: none !important; }
+#homeUi .starBar { margin: calc(16px * var(--hs,1)) 0; padding: calc(18px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .starBar.max { border-color: #8a6a20; }
+#homeUi .sbLine { display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .sbStars { font-size: calc(32px * var(--hs,1)); color: #f0b13e; letter-spacing: calc(4px * var(--hs,1)); }
+#homeUi .starBar.max .sbStars { color: #ffd76a; text-shadow: 0 0 calc(12px * var(--hs,1)) rgba(240,177,62,.8); }
+#homeUi .sbLv { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .sbProg { display: flex; align-items: baseline; gap: calc(10px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .sbProg b { color: #ffe9a8; font-size: calc(24px * var(--hs,1)); }
+#homeUi .sbAdd { font-size: calc(17px * var(--hs,1)); color: #587099; }
+#homeUi .sbDone { color: #f0b13e; }
+#homeUi .sbBtn { width: 100%; }
+
+#homeUi .rcHead { display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); }
+#homeUi .rcHeadTop { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(22px * var(--hs,1)); }
+#homeUi .rcHeadTop i { color: #f0b13e; font-style: normal; font-size: calc(28px * var(--hs,1)); font-weight: 700; }
+#homeUi .rcHeadTop span { font-size: calc(19px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .rcBar { height: calc(14px * var(--hs,1)); background: #1a2c4a; border-radius: calc(8px * var(--hs,1)); overflow: hidden; border: 1px solid #2f4a72; }
+#homeUi .rcBar i { display: block; height: 100%; background: linear-gradient(90deg, #f0b13e, #ffe9a8); transition: width .3s; }
+#homeUi .rcRate { padding: calc(16px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(8px * var(--hs,1)); }
+#homeUi .rcRateRow { display: flex; justify-content: space-between; font-size: calc(21px * var(--hs,1)); color: #dce8f7; }
+#homeUi .rcRateRow b { color: #8ba3c7; }
+#homeUi .rcRateRow.hero span { color: #ffd76a; }
+#homeUi .rcRateRow.hero b { color: #ffd76a; }
+#homeUi .rcRateRow.r5 span { color: #ff9d45; }
+#homeUi .rcRateRow.r3 span { color: #5ab0f0; }
+#homeUi .rcRateRow.r2 span { color: #7bd67b; }
+#homeUi .rcRateNote { margin-top: calc(4px * var(--hs,1)); font-size: calc(18px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .rcShards { margin-top: calc(16px * var(--hs,1)); }
+#homeUi .rcShardsHead { font-size: calc(19px * var(--hs,1)); color: #8ba3c7; margin-bottom: calc(8px * var(--hs,1)); }
+#homeUi .rcShardGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(10px * var(--hs,1)); }
+#homeUi .rcShard { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); padding: calc(10px * var(--hs,1)); }
+#homeUi .rcShard.lock { opacity: .55; filter: grayscale(.7); }
+#homeUi .rcShardPic { flex: none; width: calc(52px * var(--hs,1)); height: calc(52px * var(--hs,1)); border-radius: calc(8px * var(--hs,1)); background-color: #2a4470; }
+#homeUi .rcShardInfo { display: flex; flex-direction: column; gap: calc(2px * var(--hs,1)); min-width: 0; }
+#homeUi .rcShardInfo b { font-size: calc(20px * var(--hs,1)); color: #dce8f7; }
+#homeUi .rcShardInfo i { font-style: normal; font-size: calc(18px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .rcBtns { display: flex; gap: calc(14px * var(--hs,1)); margin-top: calc(18px * var(--hs,1)); }
+#homeUi .rcBtn { flex: 1; }
+#homeUi .rcAdBtn { width: 100%; margin-top: calc(12px * var(--hs,1)); }
+#homeUi .recruitResGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(12px * var(--hs,1)); }
+#homeUi .recruitResGrid:not(.many) { grid-template-columns: 1fr; max-width: calc(300px * var(--hs,1)); margin: 0 auto; }
+#homeUi .rcCard { position: relative; padding: calc(12px * var(--hs,1)) calc(6px * var(--hs,1)); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1));
+  animation: giftDropIn .45s cubic-bezier(.2,1.5,.4,1) backwards; }
+#homeUi .rcCardPic { width: calc(96px * var(--hs,1)); height: calc(96px * var(--hs,1)); }
+#homeUi .rcCardIc { font-size: calc(64px * var(--hs,1)); line-height: 1; }
+#homeUi .rcCardNm { font-size: calc(18px * var(--hs,1)); color: #dce8f7; line-height: 1.3; }
+#homeUi .rcCard.hero { border-color: #ffd76a; box-shadow: 0 0 calc(18px * var(--hs,1)) rgba(255,215,106,.7); }
+#homeUi .rcCard.r5 { border-color: #ff9d45; }
+#homeUi .rcCard.r3 { border-color: #5ab0f0; }
+#homeUi .rcCard.r2 { border-color: #7bd67b; }
+#homeUi .rcNew { position: absolute; top: calc(-8px * var(--hs,1)); right: calc(-8px * var(--hs,1)); background: #ff5252; color: #fff;
+  font-size: calc(16px * var(--hs,1)); font-weight: 700; padding: calc(2px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(8px * var(--hs,1)); }
+#homeUi .rcDup { position: absolute; top: calc(4px * var(--hs,1)); left: 50%; transform: translateX(-50%); font-size: calc(14px * var(--hs,1));
+  color: #f0b13e; white-space: nowrap; }
+#homeUi .rcSum { margin-top: calc(18px * var(--hs,1)); text-align: center; font-size: calc(22px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .rcAgain { width: 100%; margin-top: calc(18px * var(--hs,1)); }
+#homeUi .rcClose { width: 100%; margin-top: calc(10px * var(--hs,1)); }
+
 /* ===== 个人主页（点头像弹出） ===== */
 #homeUi .pAvatar { cursor: pointer; }
 #homeUi .pfCard { display: flex; align-items: center; gap: calc(20px * var(--hs,1)); padding: calc(20px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); }
@@ -4882,6 +5239,59 @@ export class HomeUi extends Component {
 #homeUi .trialRewardRow b { color: #945d24; }
 #homeUi .trialRewardNote { font-size: calc(11px * var(--pw,2.5)); color: #527085; }
 #homeUi .trialGo { width: 100%; margin-top: calc(8px * var(--pw,2.5)); }
+
+/* --- 英雄招募 + 升星（青瓷浅色变体） --- */
+#homeUi .hpick.recruitEntry .rcIc { font-size: calc(23px * var(--pw,2.5)); line-height: calc(36px * var(--pw,2.5)); background: none !important; }
+#homeUi .starBar { margin: calc(8px * var(--pw,2.5)) 0; padding: calc(9px * var(--pw,2.5)); display: flex; flex-direction: column; gap: calc(5px * var(--pw,2.5)); }
+#homeUi .starBar.max { border-color: #e9a04f; }
+#homeUi .sbLine { display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .sbStars { font-size: calc(16px * var(--pw,2.5)); color: #e9a04f; letter-spacing: calc(2px * var(--pw,2.5)); }
+#homeUi .sbLv { font-size: calc(10px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .sbProg { display: flex; align-items: baseline; gap: calc(5px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .sbProg b { color: #945d24; font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .sbAdd { font-size: calc(9px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .sbDone { color: #945d24; }
+#homeUi .sbBtn { width: 100%; }
+
+#homeUi .rcHead { display: flex; flex-direction: column; gap: calc(5px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .rcHeadTop { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(11px * var(--pw,2.5)); color: #46647a; }
+#homeUi .rcHeadTop i { color: #945d24; font-style: normal; font-size: calc(14px * var(--pw,2.5)); font-weight: 700; }
+#homeUi .rcHeadTop span { font-size: calc(10px * var(--pw,2.5)); color: #527085; }
+#homeUi .rcBar { height: calc(7px * var(--pw,2.5)); background: #dbe6ec; border-radius: calc(4px * var(--pw,2.5)); overflow: hidden; border: 1px solid #bdced8; }
+#homeUi .rcBar i { display: block; height: 100%; background: linear-gradient(90deg, #e9a04f, #f3c98a); transition: width .3s; }
+#homeUi .rcRate { padding: calc(8px * var(--pw,2.5)); display: flex; flex-direction: column; gap: calc(4px * var(--pw,2.5)); }
+#homeUi .rcRateRow { display: flex; justify-content: space-between; font-size: calc(11px * var(--pw,2.5)); color: #46647a; }
+#homeUi .rcRateRow b { color: #6b8ba1; }
+#homeUi .rcRateRow.hero span, #homeUi .rcRateRow.hero b { color: #945d24; }
+#homeUi .rcRateNote { margin-top: calc(2px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: #527085; }
+#homeUi .rcShards { margin-top: calc(8px * var(--pw,2.5)); }
+#homeUi .rcShardsHead { font-size: calc(10px * var(--pw,2.5)); color: #6b8ba1; margin-bottom: calc(4px * var(--pw,2.5)); }
+#homeUi .rcShardGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: calc(5px * var(--pw,2.5)); }
+#homeUi .rcShard { display: flex; align-items: center; gap: calc(5px * var(--pw,2.5)); padding: calc(5px * var(--pw,2.5)); }
+#homeUi .rcShard.lock { opacity: .6; filter: grayscale(.7); }
+#homeUi .rcShardPic { flex: none; width: calc(26px * var(--pw,2.5)); height: calc(26px * var(--pw,2.5)); border-radius: calc(4px * var(--pw,2.5)); background-color: #d4e4eb; }
+#homeUi .rcShardInfo { display: flex; flex-direction: column; gap: calc(1px * var(--pw,2.5)); min-width: 0; }
+#homeUi .rcShardInfo b { font-size: calc(11px * var(--pw,2.5)); color: #46647a; }
+#homeUi .rcShardInfo i { font-style: normal; font-size: calc(10px * var(--pw,2.5)); color: #945d24; }
+#homeUi .rcBtns { display: flex; gap: calc(7px * var(--pw,2.5)); margin-top: calc(9px * var(--pw,2.5)); }
+#homeUi .rcBtn { flex: 1; }
+#homeUi .rcAdBtn { width: 100%; margin-top: calc(6px * var(--pw,2.5)); }
+#homeUi .recruitResGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .recruitResGrid:not(.many) { grid-template-columns: 1fr; max-width: calc(150px * var(--pw,2.5)); margin: 0 auto; }
+#homeUi .rcCard { position: relative; padding: calc(6px * var(--pw,2.5)) calc(3px * var(--pw,2.5)); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: calc(3px * var(--pw,2.5));
+  animation: giftDropIn .45s cubic-bezier(.2,1.5,.4,1) backwards; }
+#homeUi .rcCardPic { width: calc(48px * var(--pw,2.5)); height: calc(48px * var(--pw,2.5)); }
+#homeUi .rcCardIc { font-size: calc(32px * var(--pw,2.5)); line-height: 1; }
+#homeUi .rcCardNm { font-size: calc(9px * var(--pw,2.5)); color: #46647a; line-height: 1.3; }
+#homeUi .rcCard.hero { border-color: #e9a04f; box-shadow: 0 0 9px rgba(233,160,79,.65); }
+#homeUi .rcNew { position: absolute; top: calc(-4px * var(--pw,2.5)); right: calc(-4px * var(--pw,2.5)); background: #e2534f; color: #fff;
+  font-size: calc(8px * var(--pw,2.5)); font-weight: 700; padding: calc(1px * var(--pw,2.5)) calc(4px * var(--pw,2.5)); border-radius: calc(4px * var(--pw,2.5)); }
+#homeUi .rcDup { position: absolute; top: calc(2px * var(--pw,2.5)); left: 50%; transform: translateX(-50%); font-size: calc(7px * var(--pw,2.5));
+  color: #945d24; white-space: nowrap; }
+#homeUi .rcSum { margin-top: calc(9px * var(--pw,2.5)); text-align: center; font-size: calc(11px * var(--pw,2.5)); color: #527085; }
+#homeUi .rcAgain { width: 100%; margin-top: calc(9px * var(--pw,2.5)); }
+#homeUi .rcClose { width: 100%; margin-top: calc(5px * var(--pw,2.5)); }
 
 /* --- 个人主页（青瓷浅色变体） --- */
 #homeUi .pAvatar { cursor: pointer; }

@@ -5,12 +5,19 @@ import { eventCenter } from './EventCenter';
  * 玩家资源仓库（骨架）：统一持有各类资源数量，add/spend 走唯一入口并发变更事件，
  * UI 与经济系统只认资源 id，后续新增资源（皮肤碎片、抽卡券…）直接扩表。
  * 体力内置离线恢复（时间戳结算，回到上限后对齐当前时间）。
+ *
+ * 英雄碎片（shard_*）按英雄各占一个资源键：招募重复英雄时转入，升星时消耗。
+ * 碎片不进顶栏资源格（顶栏只渲染 gold/diamond/stamina 三格），仅在招募弹窗与升星条展示。
  */
 
-export type ResourceId = 'gold' | 'diamond' | 'stamina';
+export type ResourceId = 'gold' | 'diamond' | 'stamina'
+    | 'shard_rifle' | 'shard_sniper' | 'shard_laser' | 'shard_radiation';
 
 export class PlayerResources {
-    private _amounts: Record<ResourceId, number> = { gold: 0, diamond: 0, stamina: 0 };
+    private _amounts: Record<ResourceId, number> = {
+        gold: 0, diamond: 0, stamina: 0,
+        shard_rifle: 0, shard_sniper: 0, shard_laser: 0, shard_radiation: 0,
+    };
     /** 体力恢复结算时间戳（秒）；加载时由存档恢复，离线时长据此补体力 */
     private _staminaTs = 0;
 

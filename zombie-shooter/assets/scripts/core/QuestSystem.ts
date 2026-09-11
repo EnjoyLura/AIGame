@@ -3,6 +3,7 @@ import { GameManager } from './GameManager';
 import { GameEvent } from '../config/GameConfig';
 import { eventCenter } from './EventCenter';
 import { TrialSystem } from './TrialSystem';
+import { RecruitSystem } from './RecruitSystem';
 
 /**
  * 任务与成就系统（基地页入口）：
@@ -15,7 +16,8 @@ import { TrialSystem } from './TrialSystem';
 
 /** 任务/成就目标类型（与计数钩子一一对应） */
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
-    | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor';
+    | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
+    | 'recruits' | 'heroStars';
 
 export interface QuestDef {
     id: string;
@@ -60,6 +62,10 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_trial5', kind: 'achv', name: '登塔者', goal: 'trialFloor', target: 5, reward: { diamond: 40 }, ic: '🗼' },
     { id: 'a_trial15', kind: 'achv', name: '高塔征服者', goal: 'trialFloor', target: 15, reward: { diamond: 90 }, ic: '🧗' },
     { id: 'a_trial30', kind: 'achv', name: '塔顶挑战者', goal: 'trialFloor', target: 30, reward: { diamond: 200 }, ic: '👑' },
+    { id: 'a_recruit10', kind: 'achv', name: '招募新手', goal: 'recruits', target: 10, reward: { diamond: 30 }, ic: '🎖️' },
+    { id: 'a_recruit50', kind: 'achv', name: '人事主管', goal: 'recruits', target: 50, reward: { diamond: 80 }, ic: '📋' },
+    { id: 'a_star6', kind: 'achv', name: '一星闪耀', goal: 'heroStars', target: 6, reward: { diamond: 40 }, ic: '⭐' },
+    { id: 'a_star18', kind: 'achv', name: '群星舰队', goal: 'heroStars', target: 18, reward: { diamond: 150 }, ic: '✨' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -131,6 +137,8 @@ export class QuestSystem {
             case 'buildings': return Math.min(def.target, this._buildingSum(gm));
             case 'endlessWave': return Math.min(def.target, gm.bestWave);
             case 'trialFloor': return Math.min(def.target, TrialSystem.instance.maxFloor);
+            case 'recruits': return Math.min(def.target, RecruitSystem.instance.totalRecruits);
+            case 'heroStars': return Math.min(def.target, RecruitSystem.instance.starSum);
         }
     }
 
