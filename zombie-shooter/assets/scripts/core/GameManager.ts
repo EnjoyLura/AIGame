@@ -3,6 +3,7 @@ import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS, ABILITY_MAX_LEVEL } from '../battle/HeroDef';
 import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS, MISC_ITEM_DEFS, MISC_STARTER, isEquipTier, miscDef, EquipState } from './HeroSystem';
+import { talentXpMul } from './TalentSystem';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -30,6 +31,11 @@ export class GameManager {
     // ---- 持久化数据 ----
     bestWave = 0;
     totalKills = 0;
+    /**
+     * 账号累计升级次数（跨局累加，不像 level 那样每局重置）。
+     * 供天赋树派生天赋点用（每 5 级 1 点）；addXp 升级时递增并落盘。
+     */
+    totalLevels = 0;
     /** 已通关的最大关卡 id（0=未通关任何关；下一关=stageCleared+1，用于主城解锁） */
     stageCleared = 0;
     /** 当前选中的关卡 id（主城出战时带上；缺省=最新解锁关） */
@@ -302,14 +308,19 @@ export class GameManager {
         return 5 + (level - 1) * 4;
     }
 
-    /** 累加经验（带局外演练与基地雷达站加成）；返回是否发生了升级（可连升，调用方逐次处理） */
+    /** 累加经验（带局外演练/基地雷达站/天赋加成）；返回是否发生了升级（可连升，调用方逐次处理） */
     addXp(value: number): boolean {
-        this.xp += Math.max(1, Math.round(value * this.metaXpMul() * this.radarXpMul()));
+        this.xp += Math.max(1, Math.round(value * this.metaXpMul() * this.radarXpMul() * talentXpMul()));
         let leveled = false;
         while (this.xp >= this.xpToNext(this.level)) {
             this.xp -= this.xpToNext(this.level);
             this.level++;
+            this.totalLevels++;
             leveled = true;
+        }
+        // 累计等级要落盘（addXp 本身不存档；升级是低频事件，不会造成写放大）
+        if (leveled) {
+            this.save();
         }
         return leveled;
     }
@@ -326,6 +337,7 @@ export class GameManager {
         const data = {
             bestWave: this.bestWave,
             totalKills: this.totalKills,
+            totalLevels: this.totalLevels,
             stageCleared: this.stageCleared,
             currentStage: this.currentStage,
             lineup: [...this.lineup],
@@ -357,6 +369,8 @@ export class GameManager {
             const data = JSON.parse(raw);
             this.bestWave = data.bestWave ?? 0;
             this.totalKills = data.totalKills ?? 0;
+            // 账号累计升级次数（旧档无字段按 0 起，天赋点会从已有通关/塔层派生回来）
+            this.totalLevels = Math.max(0, Math.floor(data.totalLevels ?? 0));
             this.stageCleared = data.stageCleared ?? 0;
             this.currentStage = data.currentStage ?? 1;
             // 每关最高通关难度（旧档无字段视为全部未通）

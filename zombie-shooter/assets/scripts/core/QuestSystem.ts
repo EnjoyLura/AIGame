@@ -4,6 +4,7 @@ import { GameEvent } from '../config/GameConfig';
 import { eventCenter } from './EventCenter';
 import { TrialSystem } from './TrialSystem';
 import { RecruitSystem } from './RecruitSystem';
+import { TalentSystem } from './TalentSystem';
 
 /**
  * 任务与成就系统（基地页入口）：
@@ -17,7 +18,7 @@ import { RecruitSystem } from './RecruitSystem';
 /** 任务/成就目标类型（与计数钩子一一对应） */
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
-    | 'recruits' | 'heroStars';
+    | 'recruits' | 'heroStars' | 'talentPoints';
 
 export interface QuestDef {
     id: string;
@@ -66,6 +67,9 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_recruit50', kind: 'achv', name: '人事主管', goal: 'recruits', target: 50, reward: { diamond: 80 }, ic: '📋' },
     { id: 'a_star6', kind: 'achv', name: '一星闪耀', goal: 'heroStars', target: 6, reward: { diamond: 40 }, ic: '⭐' },
     { id: 'a_star18', kind: 'achv', name: '群星舰队', goal: 'heroStars', target: 18, reward: { diamond: 150 }, ic: '✨' },
+    { id: 'a_talent5', kind: 'achv', name: '初窥门径', goal: 'talentPoints', target: 5, reward: { diamond: 30 }, ic: '🌟' },
+    { id: 'a_talent12', kind: 'achv', name: '天赋异禀', goal: 'talentPoints', target: 12, reward: { diamond: 80 }, ic: '🌠' },
+    { id: 'a_talent22', kind: 'achv', name: '流派大成', goal: 'talentPoints', target: 22, reward: { diamond: 150 }, ic: '🏅' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -139,6 +143,8 @@ export class QuestSystem {
             case 'trialFloor': return Math.min(def.target, TrialSystem.instance.maxFloor);
             case 'recruits': return Math.min(def.target, RecruitSystem.instance.totalRecruits);
             case 'heroStars': return Math.min(def.target, RecruitSystem.instance.starSum);
+            // 天赋用"已投入点数"而非派生总点数：洗点会让进度回落，符合"真的练过这棵树"的语义
+            case 'talentPoints': return Math.min(def.target, TalentSystem.instance.spent);
         }
     }
 

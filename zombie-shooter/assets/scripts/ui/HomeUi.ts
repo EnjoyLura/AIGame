@@ -19,6 +19,7 @@ import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDef, StageDifficulty } from '../battle/StageData';
 import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MILESTONE_EVERY } from '../core/TrialSystem';
 import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRICE_10, RECRUIT_PITY, RecruitResult } from '../core/RecruitSystem';
+import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -100,6 +101,8 @@ export class HomeUi extends Component {
     private _questRedEl: HTMLElement | null = null;
     /** 基地页签到入口红点 */
     private _signinRedEl: HTMLElement | null = null;
+    /** 基地页天赋入口红点（有未分配点数时点亮） */
+    private _talentRedEl: HTMLElement | null = null;
     private _mallAdLab: HTMLDivElement | null = null;
     /** 模拟广告层 */
     private _adOverlay: HTMLDivElement | null = null;
@@ -407,6 +410,8 @@ export class HomeUi extends Component {
         if (this._expNum) {
             this._expNum.textContent = `最远波次 ${gm.bestWave} · 已通关 ${gm.stageCleared}/${FINAL_STAGE_ID} 章`;
         }
+        // 天赋点随经验/通关变化，顺带刷新入口红点（_refreshTop 是所有进度变动后的统一出口）
+        this._refreshTalentRed();
     }
 
     // ================= 底部导航 =================
@@ -978,6 +983,13 @@ export class HomeUi extends Component {
         }
     }
 
+    /** 天赋入口红点：有未分配的可用天赋点时点亮 */
+    private _refreshTalentRed(): void {
+        if (this._talentRedEl) {
+            this._talentRedEl.classList.toggle('on', TalentSystem.instance.available > 0);
+        }
+    }
+
     /** 个人主页浮窗（点头像弹出）：名片 + 战绩 + 养成 + 系统进度 + 账号信息 */
     private _openProfileModal(): void {
         const gm = GameManager.instance;
@@ -1077,6 +1089,7 @@ export class HomeUi extends Component {
             grow('📅', '累计签到', `${ss.totalDays} 天`);
             grow('✅', '成就达成', `${QUEST_DEFS.filter(q => qs.isClaimed(q)).length}/${QUEST_DEFS.length}`);
             grow('📬', '邮箱附件', `${MailSystem.instance.hasClaimable() ? '有可领取' : '已清空'}`);
+            grow('🌟', '天赋加点', `${TalentSystem.instance.spent}/${TalentSystem.instance.total} 点`);
             secSys.appendChild(grid3);
             box.appendChild(secSys);
 
@@ -1092,6 +1105,158 @@ export class HomeUi extends Component {
                 `<div class="pfAccRow"><span>称号晋升</span><b>${stage >= FINAL_STAGE_ID ? '已满称号' : `通关第 ${gm.stageCleared + 1} 关晋升`}</b></div>`;
             secAcc.appendChild(acc);
             box.appendChild(secAcc);
+        });
+    }
+
+    /**
+     * 天赋树弹窗：三分支并排 × 每支 5 节点竖排（节点间连线表示解锁先后）。
+     * 点数为进度派生（累计等级/通关/爬塔/招募），洗点免费无限次。
+     * 选中的节点在下方详情区就地更新，加点/洗点后重开本弹窗刷新整棵树。
+     */
+    private _openTalentModal(selId = 'fire_1'): void {
+        const ts = TalentSystem.instance;
+        this._openModal('🌟 天赋树', (box) => {
+            box.classList.add('talentBox');
+
+            // ---- 头部：可用点数 + 总进度 ----
+            const head = document.createElement('div');
+            head.className = 'talentHead';
+            head.innerHTML = `<div class="talentHeadTop"><b>可用天赋点 <i>${ts.available}</i></b>`
+                + `<span>已投 ${ts.spent} / 共 ${ts.total}</span></div>`;
+            const barWrap = document.createElement('div');
+            barWrap.className = 'talentBar';
+            const barIn = document.createElement('i');
+            barIn.style.width = `${ts.total > 0 ? Math.round(ts.spent / ts.total * 100) : 0}%`;
+            barWrap.appendChild(barIn);
+            head.appendChild(barWrap);
+            const src = document.createElement('div');
+            src.className = 'talentSrc';
+            src.textContent = '天赋点来源：累计等级每 5 级 +1 · 通关每关 +1 · 爬塔每 5 层 +1 · 招募每 10 抽 +1';
+            head.appendChild(src);
+            box.appendChild(head);
+
+            // ---- 三分支并排 ----
+            const row = document.createElement('div');
+            row.className = 'talentBranchRow';
+            for (const br of TALENT_BRANCHES) {
+                const col = document.createElement('div');
+                col.className = 'talentBranch';
+                const title = document.createElement('div');
+                title.className = 'tbTitle';
+                title.innerHTML = `<b>${TALENT_BRANCH_NAMES[br]}</b><i>${ts.spentIn(br)}/${branchPointTotal(br)} 点</i>`;
+                col.appendChild(title);
+                const nodes = document.createElement('div');
+                nodes.className = 'tbNodes';
+                for (const def of branchNodes(br)) {
+                    const lv = ts.level(def.id);
+                    const maxed = ts.isMaxed(def.id);
+                    const unlocked = ts.isUnlocked(def.id);
+                    const node = document.createElement('div');
+                    node.className = 'talentNode';
+                    if (maxed) {
+                        node.classList.add('maxed');
+                    } else if (!unlocked) {
+                        node.classList.add('lock');
+                    } else if (ts.canUpgrade(def.id)) {
+                        node.classList.add('can');
+                    }
+                    if (def.id === selId) {
+                        node.classList.add('sel');
+                    }
+                    node.innerHTML = `<span class="tnIc">${def.ic}</span>`
+                        + `<span class="tnLv">${def.maxLevel > 1 ? `${lv}/${def.maxLevel}` : (lv > 0 ? '已激活' : '未激活')}</span>`;
+                    node.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.play('ui');
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openTalentModal(def.id);
+                    };
+                    nodes.appendChild(node);
+                }
+                col.appendChild(nodes);
+                row.appendChild(col);
+            }
+            box.appendChild(row);
+
+            // ---- 详情区（就地更新，不重开弹窗） ----
+            const def = talentNode(selId) || TALENT_NODES[0];
+            const lv = ts.level(def.id);
+            const maxed = ts.isMaxed(def.id);
+            const unlocked = ts.isUnlocked(def.id);
+            const detail = document.createElement('div');
+            detail.className = 'talentDetail panel';
+            const nameLine = document.createElement('div');
+            nameLine.className = 'tdName';
+            nameLine.innerHTML = `<b>${def.ic} ${def.name}</b>`
+                + `<i>Lv.${lv}/${def.maxLevel} · ${TALENT_BRANCH_NAMES[def.branch]}线第 ${def.idx + 1} 层</i>`;
+            detail.appendChild(nameLine);
+            const descLine = document.createElement('div');
+            descLine.className = 'tdDesc';
+            descLine.textContent = def.desc(lv);
+            detail.appendChild(descLine);
+            const hint = document.createElement('div');
+            hint.className = 'tdHint';
+            if (maxed) {
+                hint.textContent = '✅ 已满级';
+            } else if (!unlocked) {
+                const prev = branchNodes(def.branch)[def.idx - 1];
+                hint.textContent = `🔒 需先将「${prev ? prev.name : '前置节点'}」点满`;
+            } else if (ts.available < def.pointCost) {
+                hint.textContent = `⚠️ 天赋点不足，还差 ${def.pointCost - ts.available} 点`;
+            } else {
+                hint.textContent = `消耗 ${def.pointCost} 点天赋点`;
+            }
+            detail.appendChild(hint);
+
+            const btns = document.createElement('div');
+            btns.className = 'tdBtns';
+            const up = document.createElement('button');
+            up.className = 'btn big gold';
+            up.textContent = maxed ? '✅ 已满级' : `🌟 加点（${def.pointCost} 点）`;
+            up.disabled = !ts.canUpgrade(def.id);
+            up.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                const lvNow = ts.upgrade(def.id);
+                if (lvNow === null) {
+                    SoundFx.play('ui');
+                    this._toast('加点失败');
+                    return;
+                }
+                SoundFx.play('coin');
+                this._toast(`${def.name} 升至 Lv.${lvNow}`);
+                this._refreshTop();
+                this._refreshTalentRed();
+                document.querySelector('#homeUi .protoMask')?.remove();
+                this._openTalentModal(def.id);
+            };
+            btns.appendChild(up);
+
+            const reset = document.createElement('button');
+            reset.className = 'btn big';
+            reset.textContent = '🔄 洗点';
+            reset.disabled = ts.spent <= 0;
+            // 二次确认：沿用设置页重置存档的两次点击模式，防误触
+            let confirm = false;
+            reset.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                if (!confirm) {
+                    confirm = true;
+                    reset.textContent = `⚠️ 再点一次确认洗点（退 ${ts.spent} 点）`;
+                    return;
+                }
+                const back = ts.reset();
+                SoundFx.play('bigkill');
+                this._toast(`洗点完成，退还 ${back} 点天赋点`);
+                this._refreshTop();
+                this._refreshTalentRed();
+                document.querySelector('#homeUi .protoMask')?.remove();
+                this._openTalentModal(def.id);
+            };
+            btns.appendChild(reset);
+            detail.appendChild(btns);
+            box.appendChild(detail);
         });
     }
 
@@ -3701,7 +3866,8 @@ export class HomeUi extends Component {
             `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
             `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>` +
             `<button class="btn gold sm lbEntry">🏆 排行</button>` +
-            `<button class="btn gold sm besEntry">📖 图鉴</button>`;
+            `<button class="btn gold sm besEntry">📖 图鉴</button>` +
+            `<button class="btn gold sm talentEntry">🌟 天赋<span class="questRed"></span></button>`;
         const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
         questBtn.onclick = (e) => {
             e.stopPropagation();
@@ -3730,6 +3896,14 @@ export class HomeUi extends Component {
             SoundFx.play('ui');
             this._openBestiaryModal();
         };
+        const talentBtn = banner.querySelector('.talentEntry') as HTMLButtonElement;
+        talentBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openTalentModal();
+        };
+        this._talentRedEl = talentBtn.querySelector('.questRed') as HTMLElement;
+        this._refreshTalentRed();
         page.appendChild(banner);
         this._baseBannerEls = {
             lv: banner.querySelector('.lvtag'),
@@ -4309,6 +4483,48 @@ export class HomeUi extends Component {
 #homeUi .rcAgain { width: 100%; margin-top: calc(18px * var(--hs,1)); }
 #homeUi .rcClose { width: 100%; margin-top: calc(10px * var(--hs,1)); }
 
+/* ===== 天赋树（基地横幅入口） ===== */
+#homeUi .talentHead { display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); }
+#homeUi .talentHeadTop { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(22px * var(--hs,1)); }
+#homeUi .talentHeadTop i { color: #8fe3ff; font-style: normal; font-size: calc(30px * var(--hs,1)); font-weight: 700; }
+#homeUi .talentHeadTop span { font-size: calc(19px * var(--hs,1)); color: #f0b13e; }
+#homeUi .talentBar { height: calc(14px * var(--hs,1)); background: #1a2c4a; border-radius: calc(8px * var(--hs,1)); overflow: hidden; border: 1px solid #2f4a72; }
+#homeUi .talentBar i { display: block; height: 100%; background: linear-gradient(90deg, #4aa8d8, #8fe3ff); transition: width .3s; }
+#homeUi .talentSrc { font-size: calc(17px * var(--hs,1)); color: #587099; line-height: 1.5; }
+
+#homeUi .talentBranchRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(14px * var(--hs,1)); }
+#homeUi .talentBranch { display: flex; flex-direction: column; min-width: 0; }
+#homeUi .tbTitle { text-align: center; margin-bottom: calc(10px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(2px * var(--hs,1)); }
+#homeUi .tbTitle b { font-size: calc(22px * var(--hs,1)); color: #dce8f7; }
+#homeUi .tbTitle i { font-style: normal; font-size: calc(17px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .tbNodes { display: flex; flex-direction: column; align-items: center; }
+#homeUi .talentNode { position: relative; width: calc(88px * var(--hs,1)); height: calc(88px * var(--hs,1)); flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(2px * var(--hs,1));
+  border: 2px solid #2f4a72; border-radius: calc(12px * var(--hs,1)); background: #16233a; cursor: pointer; }
+/* 节点间竖向连线：位于节点下方，撑满 5 行间距；末节点不画 */
+#homeUi .talentNode:not(:last-child) { margin-bottom: calc(30px * var(--hs,1)); }
+#homeUi .talentNode:not(:last-child)::after { content: ''; position: absolute; left: 50%; top: 100%;
+  transform: translateX(-50%); width: calc(4px * var(--hs,1)); height: calc(30px * var(--hs,1)); background: #2f4a72; }
+#homeUi .talentNode.maxed:not(:last-child)::after { background: #f0b13e; }
+#homeUi .talentNode.lock { opacity: .5; filter: grayscale(.8); border-color: #26364f; }
+#homeUi .talentNode.can { border-color: #4aa8d8; box-shadow: 0 0 calc(14px * var(--hs,1)) rgba(74,168,216,.65); animation: huiChest .9s ease-in-out infinite; }
+#homeUi .talentNode.maxed { border-color: #f0b13e; box-shadow: 0 0 calc(14px * var(--hs,1)) rgba(240,177,62,.6); }
+#homeUi .talentNode.sel { outline: calc(3px * var(--hs,1)) solid #8fe3ff; outline-offset: calc(3px * var(--hs,1)); }
+#homeUi .tnIc { font-size: calc(38px * var(--hs,1)); line-height: 1; }
+#homeUi .tnLv { font-size: calc(16px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .talentNode.maxed .tnLv { color: #ffd76a; }
+#homeUi .talentNode.can .tnLv { color: #8fe3ff; }
+
+#homeUi .talentDetail { margin-top: calc(18px * var(--hs,1)); padding: calc(18px * var(--hs,1));
+  display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .tdName { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10px * var(--hs,1)); }
+#homeUi .tdName b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .tdName i { font-style: normal; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .tdDesc { font-size: calc(21px * var(--hs,1)); color: #dce8f7; line-height: 1.5; }
+#homeUi .tdHint { font-size: calc(19px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .tdBtns { display: flex; gap: calc(14px * var(--hs,1)); margin-top: calc(4px * var(--hs,1)); }
+#homeUi .tdBtns .btn { flex: 1; }
+
 /* ===== 个人主页（点头像弹出） ===== */
 #homeUi .pAvatar { cursor: pointer; }
 #homeUi .pfCard { display: flex; align-items: center; gap: calc(20px * var(--hs,1)); padding: calc(20px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); }
@@ -4740,6 +4956,9 @@ export class HomeUi extends Component {
 #homeUi .bagTabs, #homeUi .bagGrid, #homeUi .bcell, #homeUi .bagBar, #homeUi .sqRow, #homeUi .sqSlot, #homeUi .cand,
 #homeUi .candB, #homeUi .tabbar, #homeUi .tab, #homeUi .res .add, #homeUi .expbar i, #homeUi .lvtag,
 #homeUi .frame::before, #homeUi .frame::after { animation: none; }
+
+/* 天赋可加点节点的脉冲：需在青瓷层基础规则之后声明，否则被上面的 animation:none 覆盖（同 trialCell.now 的处理） */
+#homeUi .talentNode.can { animation: huiChest .9s ease-in-out infinite; }
 
 /* --- 布局骨架 --- */
 #homeUi .topbar { display: grid; grid-template-columns: calc(44px * var(--pw,2.5)) 1fr; gap: calc(8px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
@@ -5292,6 +5511,48 @@ export class HomeUi extends Component {
 #homeUi .rcSum { margin-top: calc(9px * var(--pw,2.5)); text-align: center; font-size: calc(11px * var(--pw,2.5)); color: #527085; }
 #homeUi .rcAgain { width: 100%; margin-top: calc(9px * var(--pw,2.5)); }
 #homeUi .rcClose { width: 100%; margin-top: calc(5px * var(--pw,2.5)); }
+
+/* --- 天赋树（青瓷浅色变体） --- */
+#homeUi .talentEntry .questRed { top: calc(-4px * var(--pw,2.5)); right: calc(-4px * var(--pw,2.5)); width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); }
+#homeUi .talentHead { display: flex; flex-direction: column; gap: calc(5px * var(--pw,2.5)); margin-bottom: calc(10px * var(--pw,2.5)); }
+#homeUi .talentHeadTop { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(13px * var(--pw,2.5)); color: #527085; }
+#homeUi .talentHeadTop i { color: #2f7fa8; font-style: normal; font-size: calc(17px * var(--pw,2.5)); font-weight: 700; }
+#homeUi .talentHeadTop span { font-size: calc(12px * var(--pw,2.5)); color: #945d24; }
+#homeUi .talentBar { height: calc(7px * var(--pw,2.5)); background: #dbe8ee; border-radius: calc(4px * var(--pw,2.5)); overflow: hidden; border: 1px solid #c3d6de; }
+#homeUi .talentBar i { display: block; height: 100%; background: linear-gradient(90deg, #4aa8d8, #2f7fa8); }
+#homeUi .talentSrc { font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; line-height: 1.5; }
+
+#homeUi .talentBranchRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(7px * var(--pw,2.5)); }
+#homeUi .talentBranch { display: flex; flex-direction: column; min-width: 0; }
+#homeUi .tbTitle { text-align: center; margin-bottom: calc(5px * var(--pw,2.5)); display: flex; flex-direction: column; gap: 1px; }
+#homeUi .tbTitle b { font-size: calc(13px * var(--pw,2.5)); color: #46647a; }
+#homeUi .tbTitle i { font-style: normal; font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .tbNodes { display: flex; flex-direction: column; align-items: center; }
+#homeUi .talentNode { position: relative; width: calc(44px * var(--pw,2.5)); height: calc(44px * var(--pw,2.5)); flex: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  border: 1px solid #c3d6de; border-radius: calc(6px * var(--pw,2.5)); background: #f2f8fa; cursor: pointer; }
+#homeUi .talentNode:not(:last-child) { margin-bottom: calc(15px * var(--pw,2.5)); }
+#homeUi .talentNode:not(:last-child)::after { content: ''; position: absolute; left: 50%; top: 100%;
+  transform: translateX(-50%); width: calc(2px * var(--pw,2.5)); height: calc(15px * var(--pw,2.5)); background: #c3d6de; }
+#homeUi .talentNode.maxed:not(:last-child)::after { background: #e9a04f; }
+#homeUi .talentNode.lock { opacity: .5; filter: grayscale(.6); border-color: #dbe8ee; }
+#homeUi .talentNode.can { border-color: #2f7fa8; box-shadow: 0 0 7px #2f7fa877; animation: huiChest .9s ease-in-out infinite; }
+#homeUi .talentNode.maxed { border-color: #e9a04f; box-shadow: 0 0 7px #e9a04f88; }
+#homeUi .talentNode.sel { outline: calc(2px * var(--pw,2.5)) solid #4aa8d8; outline-offset: calc(2px * var(--pw,2.5)); }
+#homeUi .tnIc { font-size: calc(19px * var(--pw,2.5)); line-height: 1; }
+#homeUi .tnLv { font-size: calc(8px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .talentNode.maxed .tnLv { color: #945d24; }
+#homeUi .talentNode.can .tnLv { color: #2f7fa8; }
+
+#homeUi .talentDetail { margin-top: calc(9px * var(--pw,2.5)); padding: calc(9px * var(--pw,2.5));
+  display: flex; flex-direction: column; gap: calc(5px * var(--pw,2.5)); }
+#homeUi .tdName { display: flex; align-items: baseline; justify-content: space-between; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .tdName b { font-size: calc(14px * var(--pw,2.5)); color: #945d24; }
+#homeUi .tdName i { font-style: normal; font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .tdDesc { font-size: calc(12px * var(--pw,2.5)); color: #46647a; line-height: 1.5; }
+#homeUi .tdHint { font-size: calc(11px * var(--pw,2.5)); color: #2f7fa8; }
+#homeUi .tdBtns { display: flex; gap: calc(7px * var(--pw,2.5)); margin-top: calc(2px * var(--pw,2.5)); }
+#homeUi .tdBtns .btn { flex: 1; height: calc(34px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
 
 /* --- 个人主页（青瓷浅色变体） --- */
 #homeUi .pAvatar { cursor: pointer; }

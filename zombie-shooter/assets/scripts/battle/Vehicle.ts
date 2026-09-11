@@ -13,8 +13,8 @@ import { BattleManager } from './BattleManager';
  */
 @ccclass('Vehicle')
 export class Vehicle extends Component {
-    maxHp = BattleConfig.VEHICLE_MAX_HP;
-    hp = BattleConfig.VEHICLE_MAX_HP;
+    maxHp: number = BattleConfig.VEHICLE_MAX_HP;
+    hp: number = BattleConfig.VEHICLE_MAX_HP;
     /** UI/世界缩放系数（部署时由 BattleManager 注入） */
     uiScale = 1;
     private _artTried = false;
@@ -72,6 +72,15 @@ export class Vehicle extends Component {
         if (this.hp <= 0) {
             BattleManager.instance.gameOver();
         }
+    }
+
+    /** 回复耐久（天赋「自修复层」调用；只在损失耐久时才有意义，满了直接跳过不发事件） */
+    heal(amount: number): void {
+        if (amount <= 0 || this.hp >= this.maxHp || BattleManager.instance.isGameOver) {
+            return;
+        }
+        this.hp = Math.min(this.maxHp, this.hp + amount);
+        eventCenter.emit(GameEvent.VEHICLE_HP_CHANGED, this.hp, this.maxHp);
     }
 
     /** 占位绘制：占满宽度的车尾货厢 + 护栏 + 警示条纹（正式版替换为 Spine 载具尾部） */

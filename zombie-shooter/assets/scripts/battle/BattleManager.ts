@@ -23,6 +23,7 @@ import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
 import { stageWaves, stageInfo, FINAL_STAGE_ID, StageDifficulty, stageDiffDef, StageDiffDef } from './StageData';
 import { trialWaves, TrialSystem, trialFloorReward, rollTrialDrops } from '../core/TrialSystem';
+import { talentAtkMul, talentVehHpMul, talentGoldMul, talentCritChance, talentCritMulti, talentBiteReduce, talentVehRegen } from '../core/TalentSystem';
 import { GameFlow } from '../core/GameFlow';
 import { HeroSystem, LootDrop, rollStageClearDrops, grantLootDrops } from '../core/HeroSystem';
 import { HitParticle } from './HitParticle';
@@ -61,6 +62,8 @@ export class BattleManager extends Component {
     static instance: BattleManager = null!;
 
     private _vehicle: Vehicle = null!;
+    /** 天赋「自修复层」的浮点累加池：按帧累加小数，攒够 1 点才真正回血，避免被舍入吞掉 */
+    private _vehRegenPool = 0;
     private _heroes: Hero[] = [];
     private _enemies: Enemy[] = [];
     private _bullets: Bullet[] = [];
@@ -332,11 +335,12 @@ export class BattleManager extends Component {
         this._trialFloor = endless ? 0 : Math.max(0, Math.floor(trialFloor));
         this._difficulty = endless ? 0 : (Math.min(2, Math.max(0, Math.floor(diff))) as StageDifficulty);
         for (const h of this._heroes) {
-            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 英雄乘区（武器×装备×宝石）
-            h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * hs.atkMulOf(h.def.id));
+            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 天赋 × 英雄乘区（武器×装备×宝石×星级）
+            h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * talentAtkMul() * hs.atkMulOf(h.def.id));
         }
-        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊
-        this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul());
+        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊 × 天赋装甲线
+        this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul() * talentVehHpMul());
+        this._vehRegenPool = 0;
         this._startWave(1);
         return true;
     }
@@ -355,6 +359,7 @@ export class BattleManager extends Component {
             this._applyRoadArt();
         }
         this._scrollBg(dt);
+        this._tickVehicleRegen(dt);
 
         // ---- 刷怪流程 ----
         if (this._spawnLeft > 0) {
@@ -574,10 +579,11 @@ export class BattleManager extends Component {
         if (!this.isEnemyHandleValid(handle)) {
             return false;
         }
-        // 暴击率 = 基础 + 来源英雄的武器核心加成
+        // 暴击率 = 基础 + 来源英雄的武器核心加成 + 天赋「精准射击」
         const critBonus = sourceId ? (this._heroes.find(h => h.def.id === sourceId)?.critBonus ?? 0) : 0;
-        const crit = canCrit && Math.random() < BattleConfig.CRIT_CHANCE + critBonus;
-        const damage = Math.max(1, Math.round(baseDamage * (crit ? BattleConfig.CRIT_MULTI : 1)));
+        const crit = canCrit && Math.random() < BattleConfig.CRIT_CHANCE + critBonus + talentCritChance();
+        // 暴击伤害倍率 = 基础 + 天赋「穿透弹芯」
+        const damage = Math.max(1, Math.round(baseDamage * (crit ? BattleConfig.CRIT_MULTI + talentCritMulti() : 1)));
         const enemy = handle.enemy;
         this.spawnDamageNumber(enemy.node.worldPosition, damage, crit);
         this._recordDamage(sourceId, slot, damage);
@@ -649,7 +655,7 @@ export class BattleManager extends Component {
     /** 结算金币：击杀与波次折算，带局外赏金与基地仓库加成（GAME_OVER 前调用） */
     private _awardRunGold(): void {
         const gm = GameManager.instance;
-        const amount = Math.round((gm.kills * 2 + gm.wave * 15) * gm.metaGoldMul() * gm.depotGoldMul());
+        const amount = Math.round((gm.kills * 2 + gm.wave * 15) * gm.metaGoldMul() * gm.depotGoldMul() * talentGoldMul());
         gm.addGold(amount);
         eventCenter.emit(GameEvent.GOLD_EARNED, amount);
     }
@@ -657,16 +663,17 @@ export class BattleManager extends Component {
     /** 无尽模式里程碑奖励：每 N 波发一次即时金币（HUD 弹幕提示） */
     private _endlessReward(): void {
         const gm = GameManager.instance;
-        const amount = Math.round(500 * this._endlessMilestones * gm.metaGoldMul() * gm.depotGoldMul());
+        const amount = Math.round(500 * this._endlessMilestones * gm.metaGoldMul() * gm.depotGoldMul() * talentGoldMul());
         gm.addGold(amount);
         eventCenter.emit(GameEvent.GOLD_EARNED, amount);
         eventCenter.emit(GameEvent.ENDLESS_MILESTONE, this._waveNumber, amount);
     }
 
-    /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验） */
+    /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验）；天赋「减震结构/方舟壁垒」可削减该伤害 */
     onEnemyReachVehicle(enemy: Enemy): void {
         SoundFx.play('vehicleHit');
-        this._vehicle.takeDamage(enemy.touchDamage);
+        const dmg = Math.max(1, Math.round(enemy.touchDamage * (1 - talentBiteReduce())));
+        this._vehicle.takeDamage(dmg);
         const idx = this._enemies.indexOf(enemy);
         if (idx >= 0) {
             this._enemies.splice(idx, 1);
@@ -1793,6 +1800,24 @@ export class BattleManager extends Component {
             y += tile;
         }
         this._bgScroll.setPosition(0, y);
+    }
+
+    /** 天赋「自修复层」：按最大耐久的比例持续回血（未点该天赋时 regen 为 0，函数直接返回） */
+    private _tickVehicleRegen(dt: number): void {
+        const regen = talentVehRegen();
+        if (regen <= 0 || !this._vehicle || this._vehicle.hp <= 0) {
+            return;
+        }
+        if (this._vehicle.hp >= this._vehicle.maxHp) {
+            this._vehRegenPool = 0;
+            return;
+        }
+        this._vehRegenPool += this._vehicle.maxHp * regen * dt;
+        if (this._vehRegenPool >= 1) {
+            const whole = Math.floor(this._vehRegenPool);
+            this._vehRegenPool -= whole;
+            this._vehicle.heal(whole);
+        }
     }
 
     /** 美术路面就绪后替换代码背景：上下两张镜像 Sprite 循环滚动，压在所有节点最底层 */
