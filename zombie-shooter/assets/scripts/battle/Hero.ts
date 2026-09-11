@@ -178,6 +178,13 @@ export class Hero extends Component {
         this.atk = Math.round(this.atkBase * mul);
     }
 
+    /** 应用英雄羁绊的射速/射程/暴击加成（部署时调用一次，在装备加成之后；攻击/载具走 beginRun 乘区链） */
+    applyBondMods(rateMul: number, rangeMul: number, critAdd: number): void {
+        this.interval = Math.max(0.12, this.interval * rateMul);
+        this.range = this.range * rangeMul;
+        this.critBonus += critAdd;
+    }
+
     /** GM：开关本英雄「技能无冷却」；开启时技能未解锁则顺手解锁 */
     gmSetNoSkillCooldown(on: boolean): void {
         if (!this._combat) {

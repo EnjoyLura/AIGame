@@ -24,7 +24,7 @@ import { miscDef } from './HeroSystem';
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
     | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns' | 'expeditionRuns'
-    | 'reforges' | 'tunes' | 'bosses';
+    | 'reforges' | 'tunes' | 'bosses' | 'bonds';
 
 export interface QuestDef {
     id: string;
@@ -96,6 +96,9 @@ export const QUEST_DEFS: QuestDef[] = [
     // ---- BOSS 战 ----
     { id: 'a_boss1', kind: 'achv', name: 'BOSS 猎人', goal: 'bosses', target: 1, reward: { diamond: 30 }, ic: '👑' },
     { id: 'a_boss10', kind: 'achv', name: '屠戮者', goal: 'bosses', target: 10, reward: { diamond: 100 }, ic: '🏆' },
+    // ---- 英雄羁绊 ----
+    { id: 'a_bond1', kind: 'achv', name: '首次羁绊', goal: 'bonds', target: 1, reward: { diamond: 20 }, ic: '🤝' },
+    { id: 'a_bond3', kind: 'achv', name: '三线齐发', goal: 'bonds', target: 3, reward: { diamond: 60 }, ic: '🕸️' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -181,6 +184,8 @@ interface QuestSave {
     tunes: number;
     /** BOSS 击破数（BattleManager._onBossKilled +1） */
     bosses: number;
+    /** 单场同时激活羁绊条数的历史最高（HERO_BOND 事件上报；羁绊本身纯派生不落盘） */
+    bondBest: number;
 }
 
 export class QuestSystem {
@@ -196,7 +201,7 @@ export class QuestSystem {
 
     private _data: QuestSave = {
         dailyDate: '', dailyProgress: {}, dailyClaimed: [], activityClaimed: [], achvClaimed: [],
-        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0, reforges: 0, tunes: 0, bosses: 0,
+        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0, reforges: 0, tunes: 0, bosses: 0, bondBest: 0,
     };
 
     private constructor() {
@@ -237,6 +242,7 @@ export class QuestSystem {
             case 'reforges': return Math.min(def.target, this._data.reforges);
             case 'tunes': return Math.min(def.target, this._data.tunes);
             case 'bosses': return Math.min(def.target, this._data.bosses);
+            case 'bonds': return Math.min(def.target, this._data.bondBest);
         }
     }
 
@@ -430,6 +436,15 @@ export class QuestSystem {
         this._save();
     }
 
+    /** 出战时上报同时激活的羁绊条数（只记历史最高；降下去不影响成就进度） */
+    trackBond(activeCount: number): void {
+        const n = Math.max(0, Math.floor(activeCount ?? 0));
+        if (n > this._data.bondBest) {
+            this._data.bondBest = n;
+            this._save();
+        }
+    }
+
     // ================= 内部 =================
 
     /** 跨自然日重置每日进度与领奖记录 */
@@ -472,6 +487,10 @@ export class QuestSystem {
             this._data.ads++;
             this._save();
         }, this);
+        // 出战激活羁绊（BattleManager.beginRun 广播条数；只记历史最高）
+        eventCenter.on(GameEvent.HERO_BOND, (count: number) => {
+            this.trackBond(count);
+        }, this);
     }
 
     private static _today(): string {
@@ -508,6 +527,7 @@ export class QuestSystem {
                         reforges: Math.max(0, Math.floor(d.reforges ?? 0)),
                         tunes: Math.max(0, Math.floor(d.tunes ?? 0)),
                         bosses: Math.max(0, Math.floor(d.bosses ?? 0)),
+                        bondBest: Math.max(0, Math.floor(d.bondBest ?? 0)),
                     };
                 }
             }

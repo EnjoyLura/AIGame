@@ -24,6 +24,7 @@ import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
 import { stageWaves, stageInfo, FINAL_STAGE_ID, StageDifficulty, stageDiffDef, StageDiffDef, bossSpawnInfo, STAGE_BOSSES } from './StageData';
 import { rollEliteAffix } from './MonsterAffix';
 import { QuestSystem } from '../core/QuestSystem';
+import { bondAtkMul, bondRateMul, bondRangeMul, bondCritAdd, bondVehHpMul, activeBonds } from '../core/HeroBond';
 import { trialWaves, TrialSystem, trialFloorReward, rollTrialDrops } from '../core/TrialSystem';
 import { talentAtkMul, talentVehHpMul, talentGoldMul, talentCritChance, talentCritMulti, talentBiteReduce, talentVehRegen } from '../core/TalentSystem';
 import { tuneAtkMul, tuneVehHpMul, tuneRamReflect, tuneVehRegen as tuneToolboxRegen } from '../core/VehicleTuningSystem';
@@ -363,12 +364,16 @@ export class BattleManager extends Component {
         this._trialFloor = endless || this._dungeon ? 0 : Math.max(0, Math.floor(trialFloor));
         this._difficulty = endless ? 0 : (Math.min(2, Math.max(0, Math.floor(diff))) as StageDifficulty);
         for (const h of this._heroes) {
-            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 天赋 × 改装弹药架 × 英雄乘区（武器×装备×宝石×星级）
-            h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * talentAtkMul() * tuneAtkMul() * hs.atkMulOf(h.def.id));
+            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 天赋 × 改装弹药架 × 英雄羁绊 × 英雄乘区（武器×装备×宝石×星级）
+            h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * talentAtkMul() * tuneAtkMul()
+                * bondAtkMul() * hs.atkMulOf(h.def.id));
         }
-        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊 × 天赋装甲线 × 改装装甲板
-        this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul() * talentVehHpMul() * tuneVehHpMul());
+        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊 × 天赋装甲线 × 改装装甲板 × 英雄羁绊（末日航班）
+        this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul() * talentVehHpMul()
+            * tuneVehHpMul() * bondVehHpMul());
         this._vehRegenPool = 0;
+        // 羁绊激活数上报（成就：首次羁绊/三线齐发；纯派生无存档，计数归任务系统）
+        eventCenter.emit(GameEvent.HERO_BOND, activeBonds().length);
         this._startWave(1);
         return true;
     }
@@ -1484,6 +1489,8 @@ export class BattleManager extends Component {
             hero.init(def);
             // 装备的射速/射程加成（攻击乘区在 beginRun 统一结算）
             HeroSystem.instance.applyEquipStats(hero);
+            // 英雄羁绊的射速/射程/暴击加成（攻击/载具乘区在 beginRun 结算）
+            hero.applyBondMods(bondRateMul(), bondRangeMul(), bondCritAdd());
             // 持久化技能等级注入（主城核心页购买；局内升级卡在此基础上继续升）
             const hs = HeroSystem.instance;
             hero.combat.initAbilityLevels(

@@ -24,6 +24,7 @@ import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/Equipm
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
 import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
+import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -4156,6 +4157,37 @@ export class HomeUi extends Component {
                 const total = gm.lineup.reduce((s, id) => s + this._heroPower(id), 0);
                 sub.innerHTML = `最多上阵 ${GameManager.LINEUP_MAX} 名英雄护卫载具尾部 · 当前 <b class="goldT">${gm.lineup.length}/${GameManager.LINEUP_MAX}</b> · 总战力 <b class="goldT">${total.toLocaleString()}</b>`;
                 wrap.appendChild(sub);
+                // 英雄羁绊：激活金色高亮，未激活灰字注明条件（星级门槛实时派生）
+                const actives = activeBonds();
+                const bondLab = document.createElement('p');
+                bondLab.className = 'mSub';
+                bondLab.innerHTML = `英雄羁绊 · 已激活 <b class="goldT">${actives.length}/${BOND_DEFS.length}</b>`;
+                wrap.appendChild(bondLab);
+                for (const b of BOND_DEFS) {
+                    const on = actives.indexOf(b) >= 0;
+                    const row = document.createElement('div');
+                    row.className = 'bondRow' + (on ? ' on' : '');
+                    let cond: string;
+                    if (b.starSumNeed !== undefined) {
+                        let sum = 0;
+                        let allIn = gm.lineup.length >= GameManager.LINEUP_MAX;
+                        for (const id of b.members) {
+                            if (gm.lineup.indexOf(id) < 0) {
+                                allIn = false;
+                            }
+                            sum += RecruitSystem.instance.stars(id);
+                        }
+                        cond = allIn ? `星级合计 ${b.starSumNeed}★（当前 ${sum}★）` : '全员上阵';
+                    } else {
+                        const need = b.starNeed ?? 0;
+                        const names = b.members.map(id => HERO_DEFS.find(d => d.id === id)?.name ?? id);
+                        cond = `${names.join(' + ')} 双双 ${need}★`;
+                    }
+                    row.innerHTML =
+                        `<span class="bondIc">${b.ic}</span><span class="bondName">${b.name}</span>` +
+                        `<span class="bondDesc">${b.desc}</span><span class="bondState">${on ? '✅ 已激活' : cond}</span>`;
+                    wrap.appendChild(row);
+                }
                 const sq = document.createElement('div');
                 sq.className = 'sqRow';
                 for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
@@ -5743,6 +5775,15 @@ export class HomeUi extends Component {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(8px * var(--hs,1)); font-size: calc(48px * var(--hs,1)); }
 #homeUi .sqSlot span { font-size: calc(20px * var(--hs,1)); color: #dce8f7; font-weight: 700; }
 #homeUi .sqSlot.empty { border-style: dashed; border-color: #33507a; color: #4a608a; }
+#homeUi .bondRow { display: flex; align-items: center; gap: calc(12px * var(--hs,1)); padding: calc(12px * var(--hs,1)) calc(16px * var(--hs,1));
+  margin-bottom: calc(10px * var(--hs,1)); border-radius: calc(14px * var(--hs,1)); background: #0d1930; border: 1px solid #33507a;
+  font-size: calc(21px * var(--hs,1)); opacity: .55; }
+#homeUi .bondRow.on { opacity: 1; border-color: #8a6a20; background: #1c2c4d; }
+#homeUi .bondRow .bondIc { flex: none; font-size: calc(24px * var(--hs,1)); }
+#homeUi .bondRow .bondName { flex: none; font-weight: 700; color: #ffe9a8; }
+#homeUi .bondRow .bondDesc { flex: 1; color: #dce8f7; }
+#homeUi .bondRow .bondState { flex: none; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .bondRow.on .bondState { color: #9be29b; }
 #homeUi .cand { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(16px * var(--hs,1)); }
 #homeUi .candB { border: 1px solid #33507a; background: #101d38; border-radius: calc(18px * var(--hs,1)); padding: calc(16px * var(--hs,1)) calc(4px * var(--hs,1));
   cursor: pointer; font-family: inherit; color: #dce8f7; display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
@@ -5915,6 +5956,14 @@ export class HomeUi extends Component {
 #homeUi .sqSlot span { color: #243e4d; }
 #homeUi .sqSlot.empty { border-style: dashed; border-color: #b8cbd7; color: #758994; }
 #homeUi .candB { background: #e1ebf2; border: 1px solid #b3c8d6; border-radius: calc(5px * var(--pw,2.5)); min-height: calc(64px * var(--pw,2.5)); color: #243e4d; }
+#homeUi .bondRow { background: #fff; border-color: #c2d3df; border-radius: calc(5px * var(--pw,2.5)); font-size: calc(11px * var(--pw,2.5));
+  padding: calc(6px * var(--pw,2.5)) calc(8px * var(--pw,2.5)); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .bondRow.on { background: #fdf3d7; border-color: #d9b06a; }
+#homeUi .bondRow .bondIc { font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .bondRow .bondName { color: #88551f; }
+#homeUi .bondRow .bondDesc { color: #243e4d; }
+#homeUi .bondRow .bondState { font-size: calc(10px * var(--pw,2.5)); color: #758994; }
+#homeUi .bondRow.on .bondState { color: #2e7d43; }
 
 /* --- 商店页 --- */
 #homeUi .shopBanner { height: calc(125px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); border: 1px solid #a8bdc7;

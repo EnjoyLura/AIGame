@@ -116,6 +116,8 @@ export enum GameEvent {
     BOSS_HP = 'boss-hp',
     /** BOSS 被击破：参数 (奖励金币) */
     BOSS_DEAD = 'boss-dead',
+    /** 出战时激活的英雄羁绊条数：参数 (条数)；驱动羁绊成就计数 */
+    HERO_BOND = 'hero-bond',
     VEHICLE_HP_CHANGED = 'vehicle-hp-changed',
     XP_CHANGED = 'xp-changed',
     ENEMY_DEAD = 'enemy-dead',
