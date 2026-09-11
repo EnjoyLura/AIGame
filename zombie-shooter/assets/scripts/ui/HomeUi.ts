@@ -104,12 +104,8 @@ export class HomeUi extends Component {
     private _questRedEl: HTMLElement | null = null;
     /** 基地页签到入口红点 */
     private _signinRedEl: HTMLElement | null = null;
-    /** 基地页天赋入口红点（有未分配点数时点亮） */
+    /** 英雄页天赋入口红点（有未分配点数时点亮） */
     private _talentRedEl: HTMLElement | null = null;
-    /** 基地页副本入口红点（有剩余次数且体力足够时点亮） */
-    private _dungeonRedEl: HTMLElement | null = null;
-    /** 基地页远征入口红点（有已完成待领的派遣时点亮） */
-    private _expeditionRedEl: HTMLElement | null = null;
     /** 远征弹窗的秒级倒计时刷新定时器（弹窗关闭即清，防泄漏） */
     private _expTimer = 0;
     /** 基地区红点兜底轮询：倒计时归零没有事件驱动，靠低频轮询补亮 */
@@ -202,7 +198,7 @@ export class HomeUi extends Component {
         // 远征倒计时归零没有事件源（时间自己走），靠这个低频轮询兜底补亮红点：
         // 玩家切后台回来、或停留在基地页等任务到点时，入口红点不能一直不亮。
         this._expIdleTimer = setInterval(() => {
-            this._refreshExpeditionRed();
+            this._refreshEntryReds();
         }, 30000) as unknown as number;
         this.show();
     }
@@ -434,8 +430,7 @@ export class HomeUi extends Component {
         }
         // 天赋点随经验/通关变化，顺带刷新入口红点（_refreshTop 是所有进度变动后的统一出口）
         this._refreshTalentRed();
-        this._refreshDungeonRed();
-        this._refreshExpeditionRed();
+        this._refreshEntryReds();
     }
 
     // ================= 底部导航 =================
@@ -1007,36 +1002,37 @@ export class HomeUi extends Component {
         }
     }
 
-    /** 天赋入口红点：有未分配的可用天赋点时点亮 */
+    /** 天赋入口红点：有未分配的可用天赋点时点亮（英雄页选择条入口） */
     private _refreshTalentRed(): void {
         if (this._talentRedEl) {
             this._talentRedEl.classList.toggle('on', TalentSystem.instance.available > 0);
         }
     }
 
-    /** 副本入口红点：任一副本还有剩余次数、且体力足够打一次时点亮 */
-    private _refreshDungeonRed(): void {
-        if (!this._dungeonRedEl) {
+    /**
+     * 刷新基地页纯入口建筑卡的红点（副本/远征/试炼）。
+     * _refreshBase 重建卡片时会刷一遍；进度变动后由 _refreshTop 走这里增量补刷。
+     */
+    private _refreshEntryReds(): void {
+        const grid = this._baseGridEl;
+        if (!grid) {
             return;
         }
-        const ds = DungeonSystem.instance;
-        const staminaOk = GameManager.instance.stamina() >= DUNGEON_STAMINA_COST;
-        let anyLeft = false;
-        for (const def of DUNGEON_DEFS) {
-            if (ds.remaining(def.id) > 0) {
-                anyLeft = true;
+        const map: Record<string, string> = { trial: 'trial', dungeon: 'dungeon', expedition: 'expedition' };
+        const cards = grid.querySelectorAll('.bcard');
+        const ids = BUILDINGS.filter(b => b.pureEntry).map(b => b.id);
+        let i = 0;
+        for (const card of cards) {
+            const id = ids[i];
+            i++;
+            if (!id) {
                 break;
             }
+            const red = card.querySelector('.bcardRed');
+            if (red) {
+                this._refreshPureEntryRed(map[id] ?? id, red as HTMLElement);
+            }
         }
-        this._dungeonRedEl.classList.toggle('on', anyLeft && staminaOk);
-    }
-
-    /** 远征入口红点：有已完成待领的派遣时点亮（倒计时归零靠兜底轮询补亮） */
-    private _refreshExpeditionRed(): void {
-        if (!this._expeditionRedEl) {
-            return;
-        }
-        this._expeditionRedEl.classList.toggle('on', ExpeditionSystem.instance.hasClaimable());
     }
 
     /** 个人主页浮窗（点头像弹出）：名片 + 战绩 + 养成 + 系统进度 + 账号信息 */
@@ -2633,7 +2629,7 @@ export class HomeUi extends Component {
         if (!pick || !body) {
             return;
         }
-        // 横滑选择条 + 招募入口
+        // 横滑选择条 + 招募入口 + 天赋入口
         pick.innerHTML = '';
         const recruitBtn = document.createElement('button');
         recruitBtn.className = 'hpick recruitEntry';
@@ -2645,6 +2641,18 @@ export class HomeUi extends Component {
             this._openRecruitModal();
         };
         pick.appendChild(recruitBtn);
+        const talentBtn = document.createElement('button');
+        talentBtn.className = 'hpick talentEntry2';
+        talentBtn.innerHTML = '<span class="pic rcIc">🌟</span><i>天赋<span class="questRed"></span></i>';
+        talentBtn.title = '天赋树（可用点数分配）';
+        talentBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openTalentModal();
+        };
+        pick.appendChild(talentBtn);
+        this._talentRedEl = talentBtn.querySelector('.questRed') as HTMLElement;
+        this._refreshTalentRed();
         HERO_DEFS.forEach((d, i) => {
             const owned = gm.isHeroOwned(d.id);
             const b = document.createElement('button');
@@ -4408,12 +4416,7 @@ export class HomeUi extends Component {
             `<div class="pros"></div>` +
             `<div class="prosBar"><i></i></div></div>` +
             `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
-            `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>` +
-            `<button class="btn gold sm lbEntry">🏆 排行</button>` +
-            `<button class="btn gold sm besEntry">📖 图鉴</button>` +
-            `<button class="btn gold sm talentEntry">🌟 天赋<span class="questRed"></span></button>` +
-            `<button class="btn gold sm dungeonEntry">🏰 副本<span class="questRed"></span></button>` +
-            `<button class="btn gold sm expeditionEntry">🚀 远征<span class="questRed"></span></button>`;
+            `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>`;
         const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
         questBtn.onclick = (e) => {
             e.stopPropagation();
@@ -4430,42 +4433,6 @@ export class HomeUi extends Component {
         };
         this._refreshSigninRed(signinBtn.querySelector('.questRed') as HTMLElement);
         this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
-        const lbBtn = banner.querySelector('.lbEntry') as HTMLButtonElement;
-        lbBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openLeaderboardModal();
-        };
-        const besBtn = banner.querySelector('.besEntry') as HTMLButtonElement;
-        besBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openBestiaryModal();
-        };
-        const talentBtn = banner.querySelector('.talentEntry') as HTMLButtonElement;
-        talentBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openTalentModal();
-        };
-        this._talentRedEl = talentBtn.querySelector('.questRed') as HTMLElement;
-        this._refreshTalentRed();
-        const dungeonBtn = banner.querySelector('.dungeonEntry') as HTMLButtonElement;
-        dungeonBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openDungeonModal();
-        };
-        this._dungeonRedEl = dungeonBtn.querySelector('.questRed') as HTMLElement;
-        this._refreshDungeonRed();
-        const expBtn = banner.querySelector('.expeditionEntry') as HTMLButtonElement;
-        expBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openExpeditionModal();
-        };
-        this._expeditionRedEl = expBtn.querySelector('.questRed') as HTMLElement;
-        this._refreshExpeditionRed();
         page.appendChild(banner);
         this._baseBannerEls = {
             lv: banner.querySelector('.lvtag'),
@@ -4481,6 +4448,85 @@ export class HomeUi extends Component {
 
     private _baseGridEl: HTMLDivElement | null = null;
     private _baseBannerEls: { lv: HTMLElement | null; pros: HTMLElement | null; bar: HTMLElement | null } | null = null;
+
+    /** 纯入口建筑的进度描述（替代等级文案） */
+    private _pureEntryDesc(id: string): string {
+        if (id === 'trial') {
+            const ts = TrialSystem.instance;
+            return ts.maxFloor > 0
+                ? `已通关 ${ts.clearedCount} 层 · 可挑战第 ${ts.nextFloor} 层`
+                : '尚未登塔 · 从第 1 层开始';
+        }
+        if (id === 'dungeon') {
+            const ds = DungeonSystem.instance;
+            let left = 0;
+            for (const d of DUNGEON_DEFS) {
+                left += ds.remaining(d.id);
+            }
+            return `今日剩余 ${left} 次 · 产出强化石/合金/宝石`;
+        }
+        if (id === 'expedition') {
+            const es = ExpeditionSystem.instance;
+            return es.hasClaimable()
+                ? '✨ 有任务完成，可领取奖励'
+                : `今日剩余 ${es.remainingToday()} 次 · 5/15/30 分钟三档`;
+        }
+        if (id === 'bestiary') {
+            const { done, total } = BestiarySystem.instance.completion();
+            return `已记录 ${done}/${total} 种变异体`;
+        }
+        if (id === 'leaderboard') {
+            return `我的积分 ${myScore().toLocaleString()}`;
+        }
+        return '';
+    }
+
+    /** 纯入口建筑的按钮文案 */
+    private _pureEntryBtnText(id: string): string {
+        switch (id) {
+            case 'trial': {
+                const ts = TrialSystem.instance;
+                return ts.maxFloor > 0 ? `⚔️ 进入试炼 · 第 ${ts.nextFloor} 层` : '⚔️ 进入试炼';
+            }
+            case 'dungeon': return '⚔️ 进入副本';
+            case 'expedition': return '🚀 进入远征';
+            case 'bestiary': return '📖 查看图鉴';
+            case 'leaderboard': return '🏆 查看排行';
+            default: return '进 入';
+        }
+    }
+
+    /** 纯入口建筑的入口动作（与横幅按钮原有的 onclick 分发一致） */
+    private _enterPureEntry(id: string): void {
+        switch (id) {
+            case 'trial': this._openTrialModal(); break;
+            case 'dungeon': this._openDungeonModal(); break;
+            case 'expedition': this._openExpeditionModal(); break;
+            case 'bestiary': this._openBestiaryModal(); break;
+            case 'leaderboard': this._openLeaderboardModal(); break;
+        }
+    }
+
+    /** 纯入口建筑卡的红点：可领奖/可进入的玩法点亮（副本红点沿用「有次数且体力够」口径） */
+    private _refreshPureEntryRed(id: string, el: HTMLElement): void {
+        let on = false;
+        if (id === 'dungeon') {
+            const ds = DungeonSystem.instance;
+            const staminaOk = GameManager.instance.stamina() >= DUNGEON_STAMINA_COST;
+            for (const d of DUNGEON_DEFS) {
+                if (ds.remaining(d.id) > 0) {
+                    on = true;
+                    break;
+                }
+            }
+            on = on && staminaOk;
+        } else if (id === 'expedition') {
+            on = ExpeditionSystem.instance.hasClaimable();
+        } else if (id === 'trial') {
+            on = TrialSystem.instance.isFloorUnlocked(TrialSystem.instance.nextFloor);
+        }
+        el.classList.toggle('on', on);
+    }
 
     private _refreshBase(): void {
         const gm = GameManager.instance;
@@ -4532,12 +4578,9 @@ export class HomeUi extends Component {
             card.appendChild(infoBtn);
             const ds = document.createElement('div');
             ds.className = 'bDesc';
-            if (b.id === 'trial') {
-                // 试炼之塔：建筑描述改为塔进度（不走等级文案）
-                const ts = TrialSystem.instance;
-                ds.textContent = ts.maxFloor > 0
-                    ? `已通关 ${ts.clearedCount} 层 · 可挑战第 ${ts.nextFloor} 层`
-                    : '尚未登塔 · 从第 1 层开始';
+            if (b.pureEntry) {
+                // 纯入口建筑：描述走玩法进度而非等级文案
+                ds.textContent = this._pureEntryDesc(b.id);
             } else {
                 ds.textContent = maxed ? `${b.desc(lv)}（已满级）` : b.desc(lv + 1);
             }
@@ -4545,19 +4588,22 @@ export class HomeUi extends Component {
             const btn = document.createElement('button');
             btn.className = 'btn gold sm';
             btn.style.width = '100%';
-            if (b.id === 'trial') {
-                // 试炼之塔：纯入口建筑不参与升级，按钮即入口（显示下一可挑战层）
-                const ts = TrialSystem.instance;
+            if (b.pureEntry) {
+                // 纯入口建筑不参与升级，按钮即入口；可领/可刷时点亮红点
                 btn.className = 'btn blue sm';
-                btn.textContent = ts.maxFloor > 0 ? `⚔️ 进入试炼 · 第 ${ts.nextFloor} 层` : '⚔️ 进入试炼';
+                btn.textContent = this._pureEntryBtnText(b.id);
                 btn.disabled = !unlocked;
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.play('ui');
-                    this._openTrialModal();
+                    this._enterPureEntry(b.id);
                 };
                 btn.style.opacity = btn.disabled ? '0.5' : '1';
                 card.appendChild(btn);
+                const red = document.createElement('span');
+                red.className = 'bcardRed';
+                card.appendChild(red);
+                this._refreshPureEntryRed(b.id, red);
                 grid.appendChild(card);
                 continue;
             }
@@ -5008,7 +5054,16 @@ export class HomeUi extends Component {
 #homeUi .trialGo { width: 100%; margin-top: calc(16px * var(--hs,1)); }
 
 /* ===== 英雄招募 + 升星（英雄页入口） ===== */
-#homeUi .hpick.recruitEntry .rcIc { font-size: calc(46px * var(--hs,1)); line-height: calc(72px * var(--hs,1)); background: none !important; }
+#homeUi .hpick.recruitEntry .rcIc, #homeUi .hpick.talentEntry2 .rcIc { font-size: calc(46px * var(--hs,1)); line-height: calc(72px * var(--hs,1)); background: none !important; }
+#homeUi .talentEntry2 .questRed { display: none; position: absolute; top: calc(-2px * var(--hs,1)); right: calc(6px * var(--hs,1));
+  width: calc(16px * var(--hs,1)); height: calc(16px * var(--hs,1)); border-radius: 50%; background: #ff5252;
+  box-shadow: 0 0 8px rgba(255,82,82,.8); }
+#homeUi .talentEntry2 .questRed.on { display: block; }
+/* 基地纯入口建筑卡红点（右上角） */
+#homeUi .bcardRed { display: none; position: absolute; top: calc(-6px * var(--hs,1)); right: calc(-6px * var(--hs,1));
+  width: calc(18px * var(--hs,1)); height: calc(18px * var(--hs,1)); border-radius: 50%; background: #ff5252;
+  box-shadow: 0 0 8px rgba(255,82,82,.8); z-index: 2; }
+#homeUi .bcardRed.on { display: block; }
 #homeUi .starBar { margin: calc(16px * var(--hs,1)) 0; padding: calc(18px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
 #homeUi .starBar.max { border-color: #8a6a20; }
 #homeUi .sbLine { display: flex; align-items: baseline; justify-content: space-between; }
@@ -6152,7 +6207,11 @@ export class HomeUi extends Component {
 #homeUi .trialGo { width: 100%; margin-top: calc(8px * var(--pw,2.5)); }
 
 /* --- 英雄招募 + 升星（青瓷浅色变体） --- */
-#homeUi .hpick.recruitEntry .rcIc { font-size: calc(23px * var(--pw,2.5)); line-height: calc(36px * var(--pw,2.5)); background: none !important; }
+#homeUi .hpick.recruitEntry .rcIc, #homeUi .hpick.talentEntry2 .rcIc { font-size: calc(23px * var(--pw,2.5)); line-height: calc(36px * var(--pw,2.5)); background: none !important; }
+#homeUi .talentEntry2 .questRed { width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5));
+  top: calc(-2px * var(--pw,2.5)); right: calc(3px * var(--pw,2.5)); background: #e04848; box-shadow: 0 0 5px rgba(224,72,72,.8); }
+#homeUi .bcardRed { width: calc(10px * var(--pw,2.5)); height: calc(10px * var(--pw,2.5));
+  top: calc(-3px * var(--pw,2.5)); right: calc(-3px * var(--pw,2.5)); background: #e04848; box-shadow: 0 0 5px rgba(224,72,72,.8); }
 #homeUi .starBar { margin: calc(8px * var(--pw,2.5)) 0; padding: calc(9px * var(--pw,2.5)); display: flex; flex-direction: column; gap: calc(5px * var(--pw,2.5)); }
 #homeUi .starBar.max { border-color: #e9a04f; }
 #homeUi .sbLine { display: flex; align-items: baseline; justify-content: space-between; }

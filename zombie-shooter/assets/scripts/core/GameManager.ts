@@ -273,7 +273,11 @@ export class GameManager {
     prosperity(): { cur: number; max: number } {
         let cur = 0;
         let max = 0;
+        // 纯入口建筑（pureEntry）不参与繁荣度与升级经济，只提供弹窗入口
         for (const b of BUILDINGS) {
+            if (b.pureEntry) {
+                continue;
+            }
             cur += this.buildingLevel(b.id);
             max += b.maxLevel;
         }
@@ -542,6 +546,8 @@ export interface BuildingDef {
     costMul: number;
     /** 需要指挥中心达到该等级才可升级（其余建筑 0=默认开放） */
     unlockHq: number;
+    /** 纯入口建筑：不参与升级/繁荣度，建筑卡按钮特判为「进入 XXX」 */
+    pureEntry?: boolean;
 }
 
 export const BUILDINGS: BuildingDef[] = [
@@ -590,6 +596,32 @@ export const BUILDINGS: BuildingDef[] = [
         id: 'trial', ic: '🗼', name: '试炼之塔', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 2,
         desc: () => '挑战无尽高塔，每层首通得奖励',
         intro: '方舟基地的垂直试炼场。塔身无限向上，每层固定三波尸潮，越往上怪越硬——只有最精锐的车队能继续攀高。每 5 层设层段大奖（含装备保底），层内失败不扣进度，可反复挑战，且不消耗体力。',
+        pureEntry: true,
+    },
+    // ---- 纯入口建筑（不参与升级/繁荣度，只提供玩法入口） ----
+    {
+        id: 'dungeon', ic: '🏰', name: '资源副本', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 0,
+        desc: () => '金库/军械库/铸造厂/矿脉，每日产材料',
+        intro: '废土上的四类资源点：金库废墟产金币、军械库产强化石、铸造厂产精炼合金、晶体矿脉产宝石。每个副本每日 3 次，消耗体力进入，档位越高产出越丰。',
+        pureEntry: true,
+    },
+    {
+        id: 'expedition', ic: '🚀', name: '远征营地', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 0,
+        desc: () => '派英雄执行限时任务，到点领奖',
+        intro: '护卫队的出击营地。把英雄派去执行限时任务，真实时间到点回来领奖；队伍与任务属性越匹配，奖励倍率越高。每日 3 次派遣机会。',
+        pureEntry: true,
+    },
+    {
+        id: 'bestiary', ic: '📖', name: '情报室', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 0,
+        desc: () => '记录遭遇过的变异体图鉴',
+        intro: '整理车队一路遭遇的变异体情报。记录每种怪物的习性与弱点，解锁进度与战斗发现挂钩——遇到得越多，图鉴越完整。',
+        pureEntry: true,
+    },
+    {
+        id: 'leaderboard', ic: '🏆', name: '荣誉墙', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 0,
+        desc: () => '查看指挥官积分排行',
+        intro: '基地里挂着各路指挥官的战绩铭牌。通关进度、击杀、养成投入都折算成积分，与其他指挥官一较高下。',
+        pureEntry: true,
     },
 ];
 
