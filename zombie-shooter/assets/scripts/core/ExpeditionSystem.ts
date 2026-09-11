@@ -1,5 +1,7 @@
 import { sys } from 'cc';
 import { GameManager } from './GameManager';
+import { GameEvent } from '../config/GameConfig';
+import { eventCenter } from './EventCenter';
 import { HeroSystem } from './HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 import { miscDef } from './HeroSystem';
@@ -407,6 +409,7 @@ export class ExpeditionSystem {
             mult: matchMultiplier(def.attr, heroIds),
         });
         this._save();
+        eventCenter.emit(GameEvent.EXPEDITION_START, defId, heroIds.slice());
         return true;
     }
 
@@ -449,6 +452,7 @@ export class ExpeditionSystem {
         gm.save();
         this._data.runs = this._data.runs.filter(r => r.defId !== defId);
         this._save();
+        eventCenter.emit(GameEvent.EXPEDITION_DONE, defId, reward);
         return reward;
     }
 
