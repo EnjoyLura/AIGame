@@ -21,7 +21,9 @@ import { LevelUpPanel } from '../ui/LevelUpPanel';
 import { GmPanel } from '../ui/GmPanel';
 import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
-import { stageWaves, stageInfo, FINAL_STAGE_ID, StageDifficulty, stageDiffDef, StageDiffDef } from './StageData';
+import { stageWaves, stageInfo, FINAL_STAGE_ID, StageDifficulty, stageDiffDef, StageDiffDef, bossSpawnInfo, STAGE_BOSSES } from './StageData';
+import { rollEliteAffix } from './MonsterAffix';
+import { QuestSystem } from '../core/QuestSystem';
 import { trialWaves, TrialSystem, trialFloorReward, rollTrialDrops } from '../core/TrialSystem';
 import { talentAtkMul, talentVehHpMul, talentGoldMul, talentCritChance, talentCritMulti, talentBiteReduce, talentVehRegen } from '../core/TalentSystem';
 import { tuneAtkMul, tuneVehHpMul, tuneRamReflect, tuneVehRegen as tuneToolboxRegen } from '../core/VehicleTuningSystem';
@@ -132,6 +134,12 @@ export class BattleManager extends Component {
     private _stageId = 1;
     /** 无尽模式：末波清完不结算，按 ENDLESS_HP_SCALE 继续滚波（每 ENDLESS_MILESTONE 波发一次奖励） */
     private _endless = false;
+    /** BOSS 波进行中：清场后插入 BOSS、打完才回到正常推进（关末/无尽里程碑共用） */
+    private _bossWave = false;
+    /** 当前存活的 BOSS（null=无；击破后置空，防同一节点重复触发 BOSS 波） */
+    private _boss: Enemy | null = null;
+    /** 本局已击破的 BOSS 数（无尽 BOSS 奖励递增用） */
+    private _bossCount = 0;
     /** 无尽模式已领取的里程碑数（发奖幂等用） */
     private _endlessMilestones = 0;
     /** 本局关卡难度（0 普通/1 精英/2 噩梦；无尽恒 0） */
@@ -347,6 +355,9 @@ export class BattleManager extends Component {
         this._stageId = gm.currentStage;
         this._endless = endless;
         this._endlessMilestones = 0;
+        this._bossWave = false;
+        this._bossCount = 0;
+        this._boss = null;
         // 负数 = 资源副本（解码成 id+tier），正数 = 试炼之塔，0 = 常规关卡
         this._dungeon = endless ? null : dungeonFromCode(trialFloor);
         this._trialFloor = endless || this._dungeon ? 0 : Math.max(0, Math.floor(trialFloor));
@@ -391,8 +402,13 @@ export class BattleManager extends Component {
                 this._spawnLeft = Math.max(0, this._spawnLeft - spawned);
             }
         } else if (!this._waveCleared && this._enemies.length === 0) {
-            this._waveCleared = true;
-            this._restTimer = BattleConfig.WAVE_REST_TIME;
+            // 关末/无尽节点：清场不直接休息，先插入 BOSS 波（打完 BOSS 才回到推进流程）
+            if (this._pendingBoss()) {
+                this._startBossWave();
+            } else {
+                this._waveCleared = true;
+                this._restTimer = BattleConfig.WAVE_REST_TIME;
+            }
         }
         if (this._waveCleared) {
             this._restTimer -= dt;
@@ -612,6 +628,9 @@ export class BattleManager extends Component {
         this._recordDamage(sourceId, slot, damage);
         if (enemy.takeDamage(damage)) {
             this.killEnemy(enemy, sourceId);
+        } else if (enemy.isBoss) {
+            // BOSS 血条实时联动（击破走 BOSS_DEAD 收起）
+            eventCenter.emit(GameEvent.BOSS_HP, enemy.hp, enemy.maxHp);
         }
         return true;
     }
@@ -728,6 +747,14 @@ export class BattleManager extends Component {
         GameManager.instance.totalKills++;
         BestiarySystem.instance.trackKill(enemy.monsterId, enemy.isElite);
         eventCenter.emit(GameEvent.ENEMY_DEAD, GameManager.instance.kills);
+        // 分裂词缀：死亡点分裂小怪（在普通掉落链之后、节点回收前落位）
+        if (enemy.affixId === 'split') {
+            this._spawnSplitMinions(enemy);
+        }
+        // BOSS 击破：金币奖励 + 计数 + 成就（血条由 DomHud 收 BOSS_DEAD 收起）
+        if (enemy.isBoss) {
+            this._onBossKilled();
+        }
         if (sourceId) {
             const killer = this._heroes.find(h => h.def.id === sourceId);
             if (killer) {
@@ -1537,6 +1564,8 @@ export class BattleManager extends Component {
 
     private _startWave(waveNumber: number): void {
         this._waveNumber = waveNumber;
+        // BOSS 波已在上波清场时处理完（无尽推进/关末结算），复位等待下一个节点
+        this._bossWave = false;
         // 本关波次表（StageData 按关卡 id 与难度生成 / 试炼按塔层生成）；越界=通关后无尽滚波
         const table = this._waveTable();
         const idx = Math.min(waveNumber - 1, table.length - 1);
@@ -1584,11 +1613,13 @@ export class BattleManager extends Component {
         return spawned;
     }
 
-    /** 怪物入场：全部垂直下压。顶部为主，道路两侧中段切入（屏内、带缩放提示），疯鹰侧翼上半区入场 */
-    private _spawnEnemy(info: MonsterInfo, eliteChance: number, x?: number): void {
+    /** 怪物入场：全部垂直下压。顶部为主，道路两侧中段切入（屏内、带缩放提示），疯鹰侧翼上半区入场。
+     *  at 指定出生点时直接落位（分裂小怪用）；返回入场怪组件（BOSS 血条初始化用） */
+    private _spawnEnemy(info: MonsterInfo, eliteChance: number, x?: number, at?: Vec3): Enemy {
         let monster = info;
         if (info.tier === 0 && eliteChance > 0 && Math.random() < eliteChance) {
-            monster = { ...info, tier: 1 };
+            // 掷中精英：数值/体型放大 + 随机附带一条词缀（头顶徽标提示打法）
+            monster = { ...info, tier: 1, affix: rollEliteAffix() };
         }
 
         const node = this._enemyPool.get();
@@ -1598,7 +1629,9 @@ export class BattleManager extends Component {
 
         const roadsideX = (): number =>
             (Math.random() < 0.5 ? -1 : 1) * (BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36);
-        if (monster.behavior === 'diver') {
+        if (at) {
+            enemy.node.setPosition(at.x, at.y);
+        } else if (monster.behavior === 'diver') {
             // 疯鹰：两侧翼上半区入场，之后同样垂直下压
             enemy.node.setPosition(roadsideX(), (Math.random() * 0.35 + 0.5) * this._visH);
         } else {
@@ -1628,6 +1661,103 @@ export class BattleManager extends Component {
             }
         }
         this._enemies.push(enemy);
+        return enemy;
+    }
+
+    // ================= BOSS 战与精英词缀 =================
+
+    /** 清场后是否插入 BOSS 波：普通关卡末波压轴 / 无尽每 BOSS_EVERY_ENDLESS 波（副本与试炼不插） */
+    private _pendingBoss(): boolean {
+        if (this._dungeon || this._trialFloor > 0 || this._bossWave || this._boss) {
+            return false;
+        }
+        if (this._endless) {
+            return this._waveNumber % BattleConfig.BOSS_EVERY_ENDLESS === 0;
+        }
+        return this._waveNumber >= this._waveTable().length;
+    }
+
+    /** BOSS 波：单独刷出压轴 BOSS（无小怪骚扰），血条走 DomHud；击破后才推进波次或结算 */
+    private _startBossWave(): void {
+        const spawn = this._endless ? this._endlessBossSpawn() : bossSpawnInfo(this._stageId, this._difficulty);
+        if (!spawn) {
+            // 定义缺失兜底：跳过 BOSS 波直接按正常流程推进，不至于卡关
+            this._waveCleared = true;
+            this._restTimer = BattleConfig.WAVE_REST_TIME;
+            return;
+        }
+        this._bossWave = true;
+        const boss = this._spawnEnemy(spawn.info, 0);
+        this._boss = boss;
+        eventCenter.emit(GameEvent.WAVE_BOSS, spawn.name);
+        eventCenter.emit(GameEvent.BOSS_HP, boss.hp, boss.maxHp);
+    }
+
+    /** 无尽 BOSS：按里程碑序号在五个 BOSS 间轮换，数值取末关（尸潮深谷）同型怪；成长交给 _hpScale */
+    private _endlessBossSpawn(): { info: MonsterInfo; name: string } | null {
+        const milestone = Math.max(1, Math.floor(this._waveNumber / BattleConfig.BOSS_EVERY_ENDLESS));
+        const def = STAGE_BOSSES[(milestone - 1) % STAGE_BOSSES.length];
+        const stage = stageInfo(FINAL_STAGE_ID);
+        const base = stage.monsters.find(m => m.id === def.base);
+        if (!base) {
+            return null;
+        }
+        return { info: { ...base, tier: 2, hp: Math.round(base.hp * stage.hpMul) }, name: `无尽·${def.name}` };
+    }
+
+    /** BOSS 击破结算：金币奖励（难度/无尽轮次递增 × 金币乘区）+ 计数 + 成就；普通击杀链已计入图鉴 */
+    private _onBossKilled(): void {
+        this._boss = null;
+        this._bossCount++;
+        const gm = GameManager.instance;
+        const base = this._endless
+            ? 800 + 400 * this._bossCount
+            : 500 * stageDiffDef(this._difficulty).rewardMul;
+        const amount = Math.round(base * gm.metaGoldMul() * gm.depotGoldMul() * talentGoldMul());
+        gm.addGold(amount);
+        eventCenter.emit(GameEvent.GOLD_EARNED, amount);
+        eventCenter.emit(GameEvent.BOSS_DEAD, amount);
+        QuestSystem.instance.trackBoss();
+    }
+
+    /** 分裂词缀：死亡点分裂两只缩比小怪（约 35% 血/60% 半径，不带词缀、不占波次余额） */
+    private _spawnSplitMinions(host: Enemy): void {
+        const base = host.spawnInfo;
+        if (!base) {
+            return;
+        }
+        const mini: MonsterInfo = {
+            ...base,
+            tier: 0,
+            affix: undefined,
+            packSize: undefined,
+            hp: Math.max(10, Math.round(base.hp * BattleConfig.AFFIX_SPLIT_HP)),
+            speed: base.speed * BattleConfig.AFFIX_SPLIT_SPEED,
+            radius: Math.max(14, Math.round(base.radius * BattleConfig.AFFIX_SPLIT_RADIUS)),
+            touchDamage: Math.max(1, Math.round(base.touchDamage * 0.5)),
+        };
+        const p = host.node.position;
+        for (let i = 0; i < 2; i++) {
+            this._spawnEnemy(mini, 0, undefined, new Vec3(p.x + (i === 0 ? -30 : 30), p.y + (Math.random() * 20 - 10), 0));
+        }
+    }
+
+    /** 精英「治疗」词缀：为半径内受伤同伴回复生命（不含自己），返回实际回复的只数 */
+    healNearby(source: Enemy, range: number, amount: number): number {
+        let n = 0;
+        const r2 = range * range;
+        const sp = source.node.position;
+        for (const e of this._enemies) {
+            if (e === source || e.hp <= 0 || e.hp >= e.maxHp) {
+                continue;
+            }
+            const dx = e.node.position.x - sp.x;
+            const dy = e.node.position.y - sp.y;
+            if (dx * dx + dy * dy <= r2 && e.heal(amount)) {
+                n++;
+            }
+        }
+        return n;
     }
 
     private _hitEnemy(bullet: Bullet, enemy: Enemy, sourceId?: string): void {

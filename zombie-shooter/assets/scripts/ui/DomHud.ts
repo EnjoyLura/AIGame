@@ -55,6 +55,10 @@ export class DomHud extends Component {
     private _battleMenu: HTMLDivElement | null = null;
     /** 战斗页邮件浮窗 */
     private _mailOverlay: HTMLDivElement | null = null;
+    /** BOSS 血条（WAVE_BOSS 显示，BOSS_DEAD 收起） */
+    private _bossBarEl: HTMLDivElement | null = null;
+    private _bossNameEl: HTMLDivElement | null = null;
+    private _bossFill: HTMLDivElement | null = null;
     /** 战斗页设置浮窗 */
     private _settingsOverlay: HTMLDivElement | null = null;
     /** 菜单按钮上的邮件红点 */
@@ -91,6 +95,9 @@ export class DomHud extends Component {
         this._injectStyle();
         this._build();
         eventCenter.on(GameEvent.WAVE_START, this._onWaveStart, this);
+        eventCenter.on(GameEvent.WAVE_BOSS, this._onWaveBoss, this);
+        eventCenter.on(GameEvent.BOSS_HP, this._onBossHp, this);
+        eventCenter.on(GameEvent.BOSS_DEAD, this._onBossDead, this);
         eventCenter.on(GameEvent.XP_CHANGED, this._onXpChanged, this);
         eventCenter.on(GameEvent.VEHICLE_HP_CHANGED, this._onVehicleHpChanged, this);
         eventCenter.on(GameEvent.ENEMY_DEAD, this._onKill, this);
@@ -106,6 +113,9 @@ export class DomHud extends Component {
 
     onDestroy(): void {
         eventCenter.off(GameEvent.WAVE_START, this._onWaveStart, this);
+        eventCenter.off(GameEvent.WAVE_BOSS, this._onWaveBoss, this);
+        eventCenter.off(GameEvent.BOSS_HP, this._onBossHp, this);
+        eventCenter.off(GameEvent.BOSS_DEAD, this._onBossDead, this);
         eventCenter.off(GameEvent.XP_CHANGED, this._onXpChanged, this);
         eventCenter.off(GameEvent.VEHICLE_HP_CHANGED, this._onVehicleHpChanged, this);
         eventCenter.off(GameEvent.ENEMY_DEAD, this._onKill, this);
@@ -149,6 +159,10 @@ export class DomHud extends Component {
         if (this._waveEl) {
             this._waveEl.textContent = wave > total ? '无尽' : `${wave} / ${total}`;
         }
+        // 新一波开始 = 上一个 BOSS 波已结束，血条兜底收起
+        if (this._bossBarEl) {
+            this._bossBarEl.style.display = 'none';
+        }
         if (this._failPanel) {
             this._failPanel.style.display = 'none';
         }
@@ -156,12 +170,48 @@ export class DomHud extends Component {
             this._clearPanel.style.display = 'none';
         }
         this._root?.classList.remove('paused');
+        this._flashPopup(`第 ${wave} 波`);
+    }
+
+    /** 中央弹报（波次/BOSS 提示共用）：重排强制重播 CSS 动画 */
+    private _flashPopup(text: string): void {
         if (this._popupEl) {
-            this._popupEl.textContent = `第 ${wave} 波`;
+            this._popupEl.textContent = text;
             this._popupEl.classList.remove('play');
             void (this._popupEl as HTMLElement & { offsetWidth: number }).offsetWidth;
             this._popupEl.classList.add('play');
         }
+    }
+
+    /** BOSS 波开始：弹报预警 + 血条显示满血 */
+    private _onWaveBoss(name: unknown): void {
+        this._flashPopup(`⚠ BOSS 来袭 · ${String(name ?? '')}`);
+        if (this._bossNameEl) {
+            this._bossNameEl.textContent = `👑 ${String(name ?? 'BOSS')}`;
+        }
+        if (this._bossFill) {
+            this._bossFill.style.width = '100%';
+        }
+        if (this._bossBarEl) {
+            this._bossBarEl.style.display = '';
+        }
+    }
+
+    /** BOSS 受击：血条实时联动 */
+    private _onBossHp(hp: unknown, maxHp: unknown): void {
+        const cur = Number(hp ?? 0);
+        const max = Number(maxHp ?? 0);
+        if (this._bossFill) {
+            this._bossFill.style.width = `${(max > 0 ? Math.max(0, cur / max) : 0) * 100}%`;
+        }
+    }
+
+    /** BOSS 击破：收血条 + 弹报奖励 */
+    private _onBossDead(reward: unknown): void {
+        if (this._bossBarEl) {
+            this._bossBarEl.style.display = 'none';
+        }
+        this._flashPopup(`👑 BOSS 击破！奖励 🪙 ${Number(reward ?? 0).toLocaleString()}`);
     }
 
     private _onXpChanged(xp: number, need: number, level: number): void {
@@ -954,6 +1004,24 @@ export class DomHud extends Component {
         this._popupEl.className = 'popup';
         root.appendChild(this._popupEl);
 
+        // BOSS 血条：顶部中央，WAVE_BOSS 显示 / BOSS_DEAD 收起
+        const bossBar = document.createElement('div');
+        bossBar.className = 'bossBar';
+        bossBar.style.display = 'none';
+        const bossName = document.createElement('div');
+        bossName.className = 'bossName';
+        bossBar.appendChild(bossName);
+        const bossTrack = document.createElement('div');
+        bossTrack.className = 'bossTrack';
+        this._bossFill = document.createElement('div');
+        this._bossFill.className = 'bossFill';
+        this._bossFill.style.width = '100%';
+        bossTrack.appendChild(this._bossFill);
+        bossBar.appendChild(bossTrack);
+        root.appendChild(bossBar);
+        this._bossBarEl = bossBar;
+        this._bossNameEl = bossName;
+
         // 暂停菜单
         const pm = document.createElement('div');
         pm.className = 'menuOverlay';
@@ -1353,6 +1421,17 @@ export class DomHud extends Component {
   background: linear-gradient(90deg, #8a5a1e, #d99b42 60%, #ffcf7d); transition: width .25s ease; }
 #domHud .vehicleBar.warn .vehicleFill { background: linear-gradient(90deg, #a05a12, #ff8f3d 60%, #ffc37d); }
 #domHud .vehicleBar.danger .vehicleFill { background: linear-gradient(90deg, #8f1d1d, #ff4d4d 60%, #ff9d9d); }
+#domHud .bossBar { position: absolute; left: 50%; top: calc(196px * var(--s,1));
+  transform: translateX(-50%); width: calc(640px * var(--s,1)); display: flex; flex-direction: column;
+  align-items: center; gap: calc(6px * var(--s,1)); padding: calc(10px * var(--s,1)) calc(24px * var(--s,1));
+  border-radius: calc(16px * var(--s,1)); background: rgba(8,12,18,.72);
+  border: calc(2px * var(--s,1)) solid rgba(255,193,7,.45); }
+#domHud .bossName { font-size: calc(26px * var(--s,1)); color: #ffd75e; letter-spacing: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.85); }
+#domHud .bossTrack { width: 100%; height: calc(18px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+  background: rgba(0,0,0,.5); overflow: hidden; box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5); }
+#domHud .bossFill { height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #a3271d, #ef5350 55%, #ff9d7d); transition: width .2s ease; }
 #domHud .vehicleBar.danger { border-color: rgba(255,77,77,.6); animation: vehPulse 1s ease-in-out infinite; }
 #domHud .vehicleBar.hit { animation: vehShake .28s ease; }
 @keyframes vehPulse { 50% { box-shadow: 0 0 calc(24px * var(--s,1)) rgba(255,77,77,.55); } }

@@ -146,5 +146,40 @@ export function stageInfo(stageId: number): StageInfo {
     return STAGES[idx];
 }
 
+// ================= BOSS 战 =================
+
+/** 关末 BOSS 定义：复用本关怪物池的既有怪型放大成 BOSS（无专属美术，金圈+体型标识） */
+export interface StageBossDef {
+    /** 基础怪型 id（必须在该关怪物池内） */
+    base: string;
+    name: string;
+}
+
+/** 每关压轴 BOSS（顺序=关卡 id-1；无尽模式按里程碑轮换） */
+export const STAGE_BOSSES: StageBossDef[] = [
+    { base: 'stoneape', name: '巨岩魔猿' },
+    { base: 'eagle', name: '风暴鹰王' },
+    { base: 'boar', name: '獠牙猪皇' },
+    { base: 'bear', name: '铁壁熊王' },
+    { base: 'bear', name: '尸潮熊皇' },
+];
+
+/** 取某关的 BOSS 出场信息：数值取本关怪物池同型怪的 hp，乘关卡倍率与难度倍率（血量再由 Enemy.init ×BOSS_HP_SCALE） */
+export function bossSpawnInfo(stageId: number, diff: StageDifficulty = 0): { info: MonsterInfo; name: string } | null {
+    const idx = Math.min(Math.max(1, stageId), STAGES.length) - 1;
+    const stage = STAGES[idx];
+    const def = STAGE_BOSSES[idx];
+    const base = stage.monsters.find(m => m.id === def.base);
+    if (!base) {
+        return null;
+    }
+    const info: MonsterInfo = {
+        ...base,
+        tier: 2,
+        hp: Math.round(base.hp * stage.hpMul * stageDiffDef(diff).hpMul),
+    };
+    return { info, name: def.name };
+}
+
 /** 通关的关卡序号=解锁进度（存档字段 stageCleared：已通关的最大关卡 id，0=未通关任何关） */
 export const FINAL_STAGE_ID = STAGES.length;

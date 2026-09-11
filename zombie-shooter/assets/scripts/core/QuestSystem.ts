@@ -24,7 +24,7 @@ import { miscDef } from './HeroSystem';
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
     | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns' | 'expeditionRuns'
-    | 'reforges' | 'tunes';
+    | 'reforges' | 'tunes' | 'bosses';
 
 export interface QuestDef {
     id: string;
@@ -93,6 +93,9 @@ export const QUEST_DEFS: QuestDef[] = [
     // ---- 载具改装 ----
     { id: 'a_tune1', kind: 'achv', name: '初次改装', goal: 'tunes', target: 1, reward: { diamond: 20 }, ic: '🔧' },
     { id: 'a_tune20', kind: 'achv', name: '改装行家', goal: 'tunes', target: 20, reward: { diamond: 80 }, ic: '🛠️' },
+    // ---- BOSS 战 ----
+    { id: 'a_boss1', kind: 'achv', name: 'BOSS 猎人', goal: 'bosses', target: 1, reward: { diamond: 30 }, ic: '👑' },
+    { id: 'a_boss10', kind: 'achv', name: '屠戮者', goal: 'bosses', target: 10, reward: { diamond: 100 }, ic: '🏆' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -176,6 +179,8 @@ interface QuestSave {
     reforges: number;
     /** 载具改装次数（VehicleTuningSystem.upgrade 成功 +1） */
     tunes: number;
+    /** BOSS 击破数（BattleManager._onBossKilled +1） */
+    bosses: number;
 }
 
 export class QuestSystem {
@@ -191,7 +196,7 @@ export class QuestSystem {
 
     private _data: QuestSave = {
         dailyDate: '', dailyProgress: {}, dailyClaimed: [], activityClaimed: [], achvClaimed: [],
-        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0, reforges: 0, tunes: 0,
+        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0, reforges: 0, tunes: 0, bosses: 0,
     };
 
     private constructor() {
@@ -231,6 +236,7 @@ export class QuestSystem {
             case 'expeditionRuns': return Math.min(def.target, ExpeditionSystem.instance.totalRuns);
             case 'reforges': return Math.min(def.target, this._data.reforges);
             case 'tunes': return Math.min(def.target, this._data.tunes);
+            case 'bosses': return Math.min(def.target, this._data.bosses);
         }
     }
 
@@ -418,6 +424,12 @@ export class QuestSystem {
         this._save();
     }
 
+    /** 击破一个 BOSS（BattleManager._onBossKilled 后调用） */
+    trackBoss(): void {
+        this._data.bosses++;
+        this._save();
+    }
+
     // ================= 内部 =================
 
     /** 跨自然日重置每日进度与领奖记录 */
@@ -495,6 +507,7 @@ export class QuestSystem {
                         skills: Math.max(0, Math.floor(d.skills ?? 0)),
                         reforges: Math.max(0, Math.floor(d.reforges ?? 0)),
                         tunes: Math.max(0, Math.floor(d.tunes ?? 0)),
+                        bosses: Math.max(0, Math.floor(d.bosses ?? 0)),
                     };
                 }
             }

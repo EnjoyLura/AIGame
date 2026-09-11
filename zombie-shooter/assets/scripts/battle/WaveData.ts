@@ -17,8 +17,10 @@ export interface MonsterInfo {
     radius: number;
     /** 突破防线时对载具造成的伤害 */
     touchDamage: number;
-    /** 0=普通怪 1=精英怪（数值与体型放大，配色变精英红） */
-    tier: 0 | 1;
+    /** 0=普通怪 1=精英怪（数值与体型放大，配色变精英红） 2=BOSS（关末/无尽里程碑压轴，血条走 DomHud） */
+    tier: 0 | 1 | 2;
+    /** 精英词缀（掷中精英时由 BattleManager 附带；BOSS 不带词缀，缺省无） */
+    affix?: import('./MonsterAffix').MonsterAffixId;
     /** 一次刷出几只（狗群），缺省 1 */
     packSize?: number;
     /** charger：距车尾上沿多近开始蓄力（px） */

@@ -1,9 +1,10 @@
-import { _decorator, Color, Component, Graphics, Node, Sprite, SpriteFrame, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, Sprite, SpriteFrame, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, Palette } from '../config/GameConfig';
 import { createUINode } from '../core/createUINode';
 import { AssetLib } from '../core/AssetLib';
 import { MonsterBehavior, MonsterInfo } from './WaveData';
+import { MonsterAffixId, monsterAffix } from './MonsterAffix';
 import { BattleManager } from './BattleManager';
 
 /** 已有美术立绘的怪型（key 相对 textures/；缺图的回退 Graphics 占位） */
@@ -67,6 +68,24 @@ export class Enemy extends Component {
     get monsterId(): string { return this._mid; }
     /** 本只怪是否精英（init 时快照；图鉴精英计数用） */
     isElite = false;
+    /** 层级快照：0 普通 / 1 精英 / 2 BOSS */
+    private _tier: 0 | 1 | 2 = 0;
+    /** 精英词缀（掷精英时由 BattleManager 附带；BOSS 恒无） */
+    private _affix: MonsterAffixId | null = null;
+    /** init 时的波次配置快照（分裂词缀生成小怪用） */
+    private _info: MonsterInfo | null = null;
+    /** 治疗词缀计时 / 狂暴与 BOSS 狂暴的一次性触发标记 */
+    private _healTimer = 0;
+    private _frenzied = false;
+    private _enraged = false;
+    /** 头顶徽标（精英=词缀 emoji，BOSS=👑），Graphics 圈与 Label 分节点防渲染冲突 */
+    private _badgeNode: Node | null = null;
+    /** BOSS 专用：图鉴与结算按普通击杀链走，身份只影响血条与奖励 */
+    get isBoss(): boolean { return this._tier === 2; }
+    /** 精英词缀 id（无词缀为 null；BattleManager 分裂/结算读取） */
+    get affixId(): MonsterAffixId | null { return this._affix; }
+    /** init 配置快照（分裂小怪以本怪基础配置缩比生成） */
+    get spawnInfo(): MonsterInfo | null { return this._info; }
     private _dying = false;
     private _animState: 'walk' | 'attack' | 'die' = 'walk';
     private _animFrames: SpriteFrame[] | null = null;
@@ -96,11 +115,21 @@ export class Enemy extends Component {
     /** 从池中取出后调用：按波次配置与成长系数初始化 */
     init(info: MonsterInfo, hpScale: number): void {
         this.spawnId = Enemy._nextSpawnId++;
-        this.maxHp = Math.round(info.hp * hpScale * BattleConfig.MONSTER_HP_SCALE);
+        this.maxHp = Math.round(info.hp * hpScale * BattleConfig.MONSTER_HP_SCALE
+            * (info.tier === 2 ? BattleConfig.BOSS_HP_SCALE : 1));
         this.hp = this.maxHp;
-        this.speed = info.speed * BattleConfig.MONSTER_SPEED_SCALE * (info.tier === 1 ? 1.15 : 1);
-        this.radius = info.radius * (info.tier === 1 ? 1.35 : 1);
-        this.touchDamage = info.touchDamage * (info.tier === 1 ? 2 : 1);
+        const boss = info.tier === 2;
+        this._tier = info.tier;
+        this._info = { ...info };
+        this._affix = info.affix ?? null;
+        this._frenzied = false;
+        this._enraged = false;
+        this._healTimer = BattleConfig.AFFIX_HEAL_INTERVAL * (0.5 + Math.random() * 0.5);
+        this.speed = info.speed * BattleConfig.MONSTER_SPEED_SCALE
+            * (info.tier === 1 ? 1.15 : boss ? BattleConfig.BOSS_SPEED : 1)
+            * (this._affix === 'swift' ? BattleConfig.AFFIX_SWIFT_SPEED : 1);
+        this.radius = info.radius * (info.tier === 1 ? 1.35 : boss ? BattleConfig.BOSS_RADIUS : 1);
+        this.touchDamage = info.touchDamage * (info.tier === 1 ? 2 : boss ? BattleConfig.BOSS_TOUCH : 1);
         this._behavior = info.behavior;
         this._chargeState = 'advance';
         this._windupLeft = 0;
@@ -145,6 +174,7 @@ export class Enemy extends Component {
         this._bodyNode.angle = 0;
         this._bodyNode.setScale(1, 1, 1);
         this._ensureShadow(info);
+        this._ensureBadge(info);
         this._draw(info);
     }
 
@@ -239,6 +269,7 @@ export class Enemy extends Component {
                 this._descend(dt);
                 break;
         }
+        this._updateAffix(dt, bm);
         this._updateReticle(dt);
         this._updateWalkAnim(dt);
     }
@@ -248,7 +279,8 @@ export class Enemy extends Component {
         if (this.hp <= 0) {
             return false;
         }
-        this.hp -= dmg;
+        // 坚甲词缀：受伤减免 30%（最低保留 1 点防免疫）
+        this.hp -= this._affix === 'armor' ? Math.max(1, Math.round(dmg * BattleConfig.AFFIX_ARMOR_CUT)) : dmg;
         // 受击反馈：红闪（立绘 tint）+ 轻微放大回弹
         const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
         if (sp) {
@@ -270,6 +302,48 @@ export class Enemy extends Component {
     }
 
     // ================= 行为逻辑 =================
+
+    /** 词缀/BOSS 周期行为：治疗光环、狂暴词缀与 BOSS 半血狂暴（均一次性触发提速） */
+    private _updateAffix(dt: number, bm: BattleManager): void {
+        // 治疗：周期性为半径内受伤同伴回血（不含自己，回血量按治疗者最大生命）
+        if (this._affix === 'heal') {
+            this._healTimer -= dt;
+            if (this._healTimer <= 0) {
+                this._healTimer = BattleConfig.AFFIX_HEAL_INTERVAL;
+                bm.healNearby(this, BattleConfig.AFFIX_HEAL_RANGE,
+                    Math.max(2, Math.round(this.maxHp * BattleConfig.AFFIX_HEAL_RATIO)));
+            }
+        }
+        const enrageNow = this.hp > 0 && this.hp < this.maxHp * BattleConfig.BOSS_ENRAGE_AT;
+        if (this._affix === 'frenzy' && !this._frenzied && enrageNow) {
+            this._frenzied = true;
+            this.speed *= BattleConfig.BOSS_ENRAGE_SPEED;
+            this._markRing(new Color(255, 82, 82, 255));
+        }
+        // BOSS 半血狂暴：移速突增，脚下金圈转红（血条压力骤增的翻盘提示）
+        if (this._tier === 2 && !this._enraged && enrageNow) {
+            this._enraged = true;
+            this.speed *= BattleConfig.BOSS_ENRAGE_SPEED;
+            this._markRing(new Color(255, 82, 82, 255));
+        }
+    }
+
+    /** 回复生命（治疗词缀光环为同伴回复）：满血/阵亡跳过，绿闪反馈；返回是否实际回复 */
+    heal(amount: number): boolean {
+        if (amount <= 0 || this.hp <= 0 || this.hp >= this.maxHp) {
+            return false;
+        }
+        this.hp = Math.min(this.maxHp, this.hp + amount);
+        const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
+        if (sp) {
+            sp.color = new Color(120, 255, 140, 255);
+            tween(sp)
+                .delay(0.12)
+                .call(() => { if (sp.isValid) { sp.color = new Color(255, 255, 255, 255); } })
+                .start();
+        }
+        return true;
+    }
 
     /** 垂直下压：保持出生横坐标直落车尾（车尾横贯全宽，直行必达） */
     private _descend(dt: number): void {
@@ -322,7 +396,7 @@ export class Enemy extends Component {
             return;
         }
         const r = this.radius;
-        const elite = info.tier === 1;
+        const elite = info.tier >= 1;
         const main = elite ? Palette.elite : this._bodyColor(info.behavior);
         g.fillColor = main;
         g.strokeColor = main;
@@ -400,13 +474,78 @@ export class Enemy extends Component {
         // 立绘高 2.6r 居中挂载，脚在图像底部（约 -1.1r）：影子画在脚下而不是身体中心
         g.ellipse(0, -this.radius * 1.02, this.radius * 0.95, this.radius * 0.32);
         g.fill();
-        // 精英怪：立绘保留原色，用脚下精英红圈标识
-        if (info.tier === 1) {
+        // BOSS：脚下金色王圈；精英怪：立绘保留原色，用脚下精英红圈标识
+        if (info.tier === 2) {
+            g.strokeColor = new Color(255, 193, 7, 255);
+            g.lineWidth = 8;
+            g.circle(0, -this.radius * 1.02, this.radius * 1.02);
+            g.stroke();
+        } else if (info.tier === 1) {
             g.strokeColor = Palette.elite;
             g.lineWidth = 5;
             g.circle(0, -this.radius * 1.02, this.radius * 1.05);
             g.stroke();
         }
+    }
+
+    /** 狂暴提示：脚下圈重画为红色（影子保留，一次性触发时调用） */
+    private _markRing(color: Color): void {
+        if (!this._shadowNode) {
+            return;
+        }
+        const g = this._shadowNode.getComponent(Graphics);
+        if (!g) {
+            return;
+        }
+        g.clear();
+        g.fillColor = new Color(0, 0, 0, 70);
+        g.ellipse(0, -this.radius * 1.02, this.radius * 0.95, this.radius * 0.32);
+        g.fill();
+        g.strokeColor = color;
+        g.lineWidth = 6;
+        g.circle(0, -this.radius * 1.02, this.radius * 1.05);
+        g.stroke();
+    }
+
+    /** 头顶徽标：精英=词缀 emoji+词缀色圈，BOSS=👑（金圈）；普通怪隐藏。Graphics 与 Label 分节点防渲染冲突 */
+    private _ensureBadge(info: MonsterInfo): void {
+        const affix = info.affix ? monsterAffix(info.affix) : null;
+        const boss = info.tier === 2;
+        if (!affix && !boss) {
+            if (this._badgeNode) {
+                this._badgeNode.active = false;
+            }
+            return;
+        }
+        if (!this._badgeNode) {
+            this._badgeNode = createUINode('Badge');
+            this.node.addChild(this._badgeNode);
+            const ring = createUINode('BadgeRing');
+            this._badgeNode.addChild(ring);
+            ring.addComponent(Graphics);
+            const txt = createUINode('BadgeIc');
+            this._badgeNode.addChild(txt);
+            const label = txt.addComponent(Label);
+            label.isBold = true;
+        }
+        this._badgeNode.active = true;
+        // 立绘高 2.6r（头顶约 1.3r），徽标悬在头顶上方
+        this._badgeNode.setPosition(0, this.radius * 1.3 + 22);
+        const ring = this._badgeNode.children[0];
+        const g = ring.getComponent(Graphics)!;
+        g.clear();
+        const r = 17;
+        g.fillColor = new Color(255, 255, 255, 235);
+        g.circle(0, 0, r);
+        g.fill();
+        g.strokeColor = boss ? new Color(255, 193, 7, 255) : affix!.color;
+        g.lineWidth = 4;
+        g.circle(0, 0, r);
+        g.stroke();
+        const label = this._badgeNode.children[1].getComponent(Label)!;
+        label.string = boss ? '👑' : affix!.ic;
+        label.fontSize = 22;
+        label.lineHeight = 24;
     }
 
     /** 行走动效（克制版）：上下颠簸 + 极轻微摆动 + 阴影起落联动；

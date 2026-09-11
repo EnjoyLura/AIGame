@@ -57,6 +57,30 @@ export const BattleConfig = {
     ENDLESS_MILESTONE_WAVES: 5,
     /** 波次总量/同屏上限 ×3；生成密度渐进至 ×3，并受最短间隔保护 */
     WAVE_SCALE: 3,
+    /** ===== BOSS 战 ===== */
+    /** BOSS 生命倍率（相对本关末波同型怪；init 时与 MONSTER_HP_SCALE/hpScale 连乘） */
+    BOSS_HP_SCALE: 22,
+    /** BOSS 体型放大（半径）、移速放慢、啃咬伤害倍率 */
+    BOSS_RADIUS: 1.9,
+    BOSS_SPEED: 0.82,
+    BOSS_TOUCH: 6,
+    /** BOSS 半血狂暴：血量比低于该值触发一次，移速 ×BOSS_ENRAGE_SPEED */
+    BOSS_ENRAGE_AT: 0.5,
+    BOSS_ENRAGE_SPEED: 1.5,
+    /** 无尽模式每 N 波插入一个 BOSS 波 */
+    BOSS_EVERY_ENDLESS: 10,
+    /** ===== 精英词缀 ===== */
+    /** 迅捷：移速倍率；坚甲：受伤倍率（减伤 30%） */
+    AFFIX_SWIFT_SPEED: 1.35,
+    AFFIX_ARMOR_CUT: 0.7,
+    /** 治疗：每 AFFIX_HEAL_INTERVAL 秒为半径内同伴回复自身最大生命 ×AFFIX_HEAL_RATIO */
+    AFFIX_HEAL_INTERVAL: 3,
+    AFFIX_HEAL_RANGE: 240,
+    AFFIX_HEAL_RATIO: 0.04,
+    /** 分裂：死亡分出小怪的属性倍率（血/半径）与速度倍率 */
+    AFFIX_SPLIT_HP: 0.35,
+    AFFIX_SPLIT_RADIUS: 0.6,
+    AFFIX_SPLIT_SPEED: 1.1,
 } as const;
 
 /** 占位美术色板：全部替换为正式资源后可整体删除 */
@@ -86,6 +110,12 @@ export enum GameEvent {
     WAVE_START = 'wave-start',
     /** 无尽模式里程碑：参数 (波数, 奖励金币) */
     ENDLESS_MILESTONE = 'endless-milestone',
+    /** BOSS 波开始：参数 (BOSS 名) */
+    WAVE_BOSS = 'wave-boss',
+    /** BOSS 血量变化：参数 (当前血, 最大血) */
+    BOSS_HP = 'boss-hp',
+    /** BOSS 被击破：参数 (奖励金币) */
+    BOSS_DEAD = 'boss-dead',
     VEHICLE_HP_CHANGED = 'vehicle-hp-changed',
     XP_CHANGED = 'xp-changed',
     ENEMY_DEAD = 'enemy-dead',
