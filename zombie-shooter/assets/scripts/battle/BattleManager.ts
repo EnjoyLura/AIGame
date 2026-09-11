@@ -24,6 +24,7 @@ import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
 import { stageWaves, stageInfo, FINAL_STAGE_ID, StageDifficulty, stageDiffDef, StageDiffDef } from './StageData';
 import { trialWaves, TrialSystem, trialFloorReward, rollTrialDrops } from '../core/TrialSystem';
 import { talentAtkMul, talentVehHpMul, talentGoldMul, talentCritChance, talentCritMulti, talentBiteReduce, talentVehRegen } from '../core/TalentSystem';
+import { tuneAtkMul, tuneVehHpMul, tuneRamReflect, tuneVehRegen as tuneToolboxRegen } from '../core/VehicleTuningSystem';
 import { GameFlow } from '../core/GameFlow';
 import { HeroSystem, LootDrop, rollStageClearDrops, grantLootDrops } from '../core/HeroSystem';
 import { HitParticle } from './HitParticle';
@@ -351,11 +352,11 @@ export class BattleManager extends Component {
         this._trialFloor = endless || this._dungeon ? 0 : Math.max(0, Math.floor(trialFloor));
         this._difficulty = endless ? 0 : (Math.min(2, Math.max(0, Math.floor(diff))) as StageDifficulty);
         for (const h of this._heroes) {
-            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 天赋 × 英雄乘区（武器×装备×宝石×星级）
-            h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * talentAtkMul() * hs.atkMulOf(h.def.id));
+            // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 天赋 × 改装弹药架 × 英雄乘区（武器×装备×宝石×星级）
+            h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * talentAtkMul() * tuneAtkMul() * hs.atkMulOf(h.def.id));
         }
-        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊 × 天赋装甲线
-        this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul() * talentVehHpMul());
+        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊 × 天赋装甲线 × 改装装甲板
+        this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul() * talentVehHpMul() * tuneVehHpMul());
         this._vehRegenPool = 0;
         this._startWave(1);
         return true;
@@ -691,16 +692,26 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.ENDLESS_MILESTONE, this._waveNumber, amount);
     }
 
-    /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验）；天赋「减震结构/方舟壁垒」可削减该伤害 */
+    /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验）；天赋削减该伤害，改装「撞角」反伤啃咬者 */
     onEnemyReachVehicle(enemy: Enemy): void {
         SoundFx.play('vehicleHit');
         const dmg = Math.max(1, Math.round(enemy.touchDamage * (1 - talentBiteReduce())));
         this._vehicle.takeDamage(dmg);
-        const idx = this._enemies.indexOf(enemy);
-        if (idx >= 0) {
-            this._enemies.splice(idx, 1);
+        // 撞角反伤：此时啃咬者仍在 _enemies 里，走 applyDamage 才有完整死亡链（击杀数/图鉴/经验晶体）；
+        // 反伤击杀时 killEnemy 已 splice+回池，下方按 hp 跳过，防止双重回池。无来源英雄（不充大招）
+        if (!this._gameOver) {
+            const thorn = tuneRamReflect();
+            if (thorn > 0) {
+                this.applyDamage(this._handleOf(enemy), thorn, false, undefined);
+            }
         }
-        this._enemyPool.put(enemy.node);
+        if (enemy.hp > 0) {
+            const idx = this._enemies.indexOf(enemy);
+            if (idx >= 0) {
+                this._enemies.splice(idx, 1);
+            }
+            this._enemyPool.put(enemy.node);
+        }
     }
 
     /** 击杀结算：掉落经验晶体（激光等直伤武器也会调用）；sourceId=击杀来源英雄（大招充能归属） */
@@ -1861,9 +1872,9 @@ export class BattleManager extends Component {
         this._bgScroll.setPosition(0, y);
     }
 
-    /** 天赋「自修复层」：按最大耐久的比例持续回血（未点该天赋时 regen 为 0，函数直接返回） */
+    /** 载具持续回血：天赋「自修复层」+ 改装「工具箱」同池累加（两者皆为 0 时直接返回） */
     private _tickVehicleRegen(dt: number): void {
-        const regen = talentVehRegen();
+        const regen = talentVehRegen() + tuneToolboxRegen();
         if (regen <= 0 || !this._vehicle || this._vehicle.hp <= 0) {
             return;
         }

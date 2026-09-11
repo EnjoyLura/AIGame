@@ -62,6 +62,11 @@ export class ShopData {
             grantMisc: [{ id: 'mat_alloy', n: 5 }], dailyLimit: 3,
         },
         {
+            id: 'mat_bp3', name: '图纸礼包', desc: '🔧 改装图纸 ×3（载具改装）',
+            price: { res: 'diamond', amount: 30 }, grant: { res: 'gold', amount: 0 },
+            grantMisc: [{ id: 'mat_blueprint', n: 3 }], dailyLimit: 1,
+        },
+        {
             id: 'mat_core1', name: '英雄核心', desc: '⚙️ 英雄核心 ×1（技能升级）',
             price: { res: 'diamond', amount: 25 }, grant: { res: 'gold', amount: 0 },
             grantMisc: [{ id: 'mat_core', n: 1 }], dailyLimit: 2,

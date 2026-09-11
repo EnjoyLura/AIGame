@@ -23,6 +23,7 @@ import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branc
 import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
 import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
+import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -4087,6 +4088,62 @@ export class HomeUi extends Component {
         });
     }
 
+    /** 载具改装弹窗：四槽独立升级（装甲板/撞角/工具箱/弹药架），等级上限=载具工坊建筑等级 */
+    private _openTuningModal(): void {
+        const vt = VehicleTuningSystem.instance;
+        this._openModal('🔧 载具改装', (box) => {
+            box.classList.add('tuneBox');
+            const render = () => {
+                // 就地重绘：只换内容区（.tuneList），不重建弹窗（编队弹窗同款模式）
+                box.querySelector('.tuneList')?.remove();
+                const list = document.createElement('div');
+                list.className = 'tuneList';
+                const sub = document.createElement('p');
+                sub.className = 'mSub';
+                sub.innerHTML = `改装上限 = 载具工坊等级（当前 <b class="goldT">LV.${vt.capOf()}</b>）· 🔧 改装图纸余量 <b class="goldT">${vt.blueprintCount}</b>`;
+                list.appendChild(sub);
+                for (const def of TUNE_SLOTS) {
+                    const lv = vt.level(def.id);
+                    const maxed = lv >= TUNE_MAX_LEVEL;
+                    const gate = vt.canUpgrade(def.id);
+                    const row = document.createElement('div');
+                    row.className = 'mRow';
+                    const cost = vt.nextCosts(def.id);
+                    row.innerHTML =
+                        `<span>${def.ic} ${def.name} <b class="goldT">LV.${lv}</b>${maxed ? '（满级）' : ''} · ${lv > 0 ? def.desc(lv) : '尚未改装'}</span>` +
+                        (maxed ? '' : `<span class="matNeed">升 LV.${lv + 1}：${def.desc(lv + 1).split('（')[0]} · 🔧 ×${cost.blueprint}（余 ${vt.blueprintCount}）· 🪙 ${cost.gold.toLocaleString()}</span>`);
+                    const btn = document.createElement('button');
+                    btn.className = 'btn gold sm';
+                    if (maxed) {
+                        btn.textContent = '已满级';
+                        btn.disabled = true;
+                    } else if (!gate.ok) {
+                        btn.textContent = '改 装';
+                        btn.disabled = true;
+                        btn.title = gate.reason;
+                    } else {
+                        btn.textContent = '改 装';
+                        btn.onclick = () => {
+                            if (vt.upgrade(def.id)) {
+                                SoundFx.play('buy');
+                                this._toast(`${def.name} 升至 LV.${lv + 1}`);
+                                render();
+                                this._refreshBase();
+                                this._refreshTop();
+                            } else {
+                                this._toast('材料不足');
+                            }
+                        };
+                    }
+                    row.appendChild(btn);
+                    list.appendChild(row);
+                }
+                box.appendChild(list);
+            };
+            render();
+        });
+    }
+
     private _openSquadModal(): void {
         this._openModal('👥 护送编队', (box) => {
             const gm = GameManager.instance;
@@ -4702,6 +4759,19 @@ export class HomeUi extends Component {
             }
             btn.style.opacity = btn.disabled ? '0.5' : '1';
             card.appendChild(btn);
+            // 载具工坊独有：改装入口（与升级按钮并存，改装上限随工坊等级走）
+            if (b.id === 'workshop' && unlocked) {
+                const tuneBtn = document.createElement('button');
+                tuneBtn.className = 'btn blue sm';
+                tuneBtn.style.width = '100%';
+                tuneBtn.textContent = '🔧 改装';
+                tuneBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._openTuningModal();
+                };
+                card.appendChild(tuneBtn);
+            }
             grid.appendChild(card);
         }
         // 局外强化卡（真数据 META_UPGRADES：火力/装甲/赏金/演练）
@@ -6082,6 +6152,9 @@ export class HomeUi extends Component {
   top: calc(-3px * var(--pw,2.5)); right: calc(-3px * var(--pw,2.5)); background: #e04848; box-shadow: 0 0 5px rgba(224,72,72,.8); }
 #homeUi .questBox .mbox { background: #edf4f8; }
 #homeUi .questBox .mHead h3 { color: #88551f; }
+/* --- 载具改装（青瓷浅色变体，照 questBox 模式） --- */
+#homeUi .mbox.tuneBox { background: #eef4f0; }
+#homeUi .mbox.tuneBox .mHead h3 { color: #5e6d2f; }
 #homeUi .qSecHead { gap: calc(7px * var(--pw,2.5)); margin: calc(10px * var(--pw,2.5)) 0 calc(6px * var(--pw,2.5)); }
 #homeUi .qSecHead b { font-size: calc(15px * var(--pw,2.5)); color: #88551f; }
 #homeUi .qSecHead span { font-size: calc(11px * var(--pw,2.5)); color: #7e97a8; }

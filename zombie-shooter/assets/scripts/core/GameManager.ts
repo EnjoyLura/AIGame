@@ -574,7 +574,7 @@ export const BUILDINGS: BuildingDef[] = [
     {
         id: 'workshop', ic: '🚛', name: '载具工坊', maxLevel: 10, baseCost: 450, costMul: 1.45, unlockHq: 0,
         desc: l => `载具耐久 +${l * 8}%`,
-        intro: '加固护送车队的老爷车。载具是关卡里的最后防线，耐久越高能承受的怪物撕咬越多，无尽模式后期的必备投资。',
+        intro: '加固护送车队的老爷车：耐久越高能承受的怪物撕咬越多。工坊等级同时是载具改装的等级上限，点「🔧 改装」用改装图纸强化装甲板/撞角/工具箱/弹药架。',
     },
     {
         id: 'depot', ic: '📦', name: '补给仓库', maxLevel: 10, baseCost: 400, costMul: 1.4, unlockHq: 0,

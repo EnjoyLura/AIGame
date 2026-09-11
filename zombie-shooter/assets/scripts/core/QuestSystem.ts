@@ -24,7 +24,7 @@ import { miscDef } from './HeroSystem';
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
     | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns' | 'expeditionRuns'
-    | 'reforges';
+    | 'reforges' | 'tunes';
 
 export interface QuestDef {
     id: string;
@@ -90,6 +90,9 @@ export const QUEST_DEFS: QuestDef[] = [
     // ---- 装备重铸 ----
     { id: 'a_reforge1', kind: 'achv', name: '初试重铸', goal: 'reforges', target: 1, reward: { diamond: 20 }, ic: '✦' },
     { id: 'a_reforge20', kind: 'achv', name: '词缀重塑师', goal: 'reforges', target: 20, reward: { diamond: 80 }, ic: '💫' },
+    // ---- 载具改装 ----
+    { id: 'a_tune1', kind: 'achv', name: '初次改装', goal: 'tunes', target: 1, reward: { diamond: 20 }, ic: '🔧' },
+    { id: 'a_tune20', kind: 'achv', name: '改装行家', goal: 'tunes', target: 20, reward: { diamond: 80 }, ic: '🛠️' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -171,6 +174,8 @@ interface QuestSave {
     skills: number;
     /** 词缀重铸次数（reforgeAffixes 成功 +1） */
     reforges: number;
+    /** 载具改装次数（VehicleTuningSystem.upgrade 成功 +1） */
+    tunes: number;
 }
 
 export class QuestSystem {
@@ -186,7 +191,7 @@ export class QuestSystem {
 
     private _data: QuestSave = {
         dailyDate: '', dailyProgress: {}, dailyClaimed: [], activityClaimed: [], achvClaimed: [],
-        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0, reforges: 0,
+        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0, reforges: 0, tunes: 0,
     };
 
     private constructor() {
@@ -225,6 +230,7 @@ export class QuestSystem {
             case 'dungeonRuns': return Math.min(def.target, DungeonSystem.instance.totalRuns);
             case 'expeditionRuns': return Math.min(def.target, ExpeditionSystem.instance.totalRuns);
             case 'reforges': return Math.min(def.target, this._data.reforges);
+            case 'tunes': return Math.min(def.target, this._data.tunes);
         }
     }
 
@@ -406,6 +412,12 @@ export class QuestSystem {
         this._save();
     }
 
+    /** 载具改装一次（VehicleTuningSystem.upgrade 成功后调用） */
+    trackTune(): void {
+        this._data.tunes++;
+        this._save();
+    }
+
     // ================= 内部 =================
 
     /** 跨自然日重置每日进度与领奖记录 */
@@ -482,6 +494,7 @@ export class QuestSystem {
                         salvages: Math.max(0, Math.floor(d.salvages ?? 0)),
                         skills: Math.max(0, Math.floor(d.skills ?? 0)),
                         reforges: Math.max(0, Math.floor(d.reforges ?? 0)),
+                        tunes: Math.max(0, Math.floor(d.tunes ?? 0)),
                     };
                 }
             }
