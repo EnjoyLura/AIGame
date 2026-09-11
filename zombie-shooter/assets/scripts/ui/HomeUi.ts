@@ -1323,7 +1323,7 @@ export class HomeUi extends Component {
             const head = document.createElement('div');
             head.className = 'rcHead';
             head.innerHTML = `<div class="rcHeadTop"><b>已招募 <i>${rs.totalRecruits}</i> 次</b>`
-                + `<span>距保底还差 ${rs.pityLeft} 抽</span></div>`;
+                + `<span>💎 ${diam.toLocaleString()} · 距保底还差 ${rs.pityLeft} 抽</span></div>`;
             const barWrap = document.createElement('div');
             barWrap.className = 'rcBar';
             const barIn = document.createElement('i');
@@ -1384,10 +1384,15 @@ export class HomeUi extends Component {
                 const b = document.createElement('button');
                 b.className = 'btn big rcBtn' + (count === 10 ? ' gold' : '');
                 b.textContent = `${label}（💎 ${cost.toLocaleString()}）`;
-                b.disabled = diam < cost;
                 b.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.unlock();
+                    // 钻石不足：按钮不再置灰，改为点击时明确提示还差多少
+                    if (gm.res.get('diamond') < cost) {
+                        SoundFx.play('ui');
+                        this._toast(`钻石不足：还差 💎${(cost - gm.res.get('diamond')).toLocaleString()}`);
+                        return;
+                    }
                     const got = rs.recruit(count);
                     if (!got) {
                         SoundFx.play('ui');
@@ -1509,10 +1514,15 @@ export class HomeUi extends Component {
                 ? `再 来 一 次（💎 ${RECRUIT_PRICE_10.toLocaleString()}）`
                 : `再 来 一 次（💎 ${RECRUIT_PRICE_1.toLocaleString()}）`;
             const cost = results.length > 1 ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;
-            again.disabled = GameManager.instance.res.get('diamond') < cost;
             again.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.unlock();
+                const diamNow = GameManager.instance.res.get('diamond');
+                if (diamNow < cost) {
+                    SoundFx.play('ui');
+                    this._toast(`钻石不足：还差 💎${(cost - diamNow).toLocaleString()}`);
+                    return;
+                }
                 const got = RecruitSystem.instance.recruit(results.length > 1 ? 10 : 1);
                 if (!got) {
                     SoundFx.play('ui');
