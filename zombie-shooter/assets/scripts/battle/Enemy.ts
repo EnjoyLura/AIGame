@@ -63,6 +63,10 @@ export class Enemy extends Component {
     private _artNode: Node | null = null;
     /** 三态动作状态机：walk 循环 / attack 单次回 walk / die 单次播完回调回池 */
     private _mid = '';
+    /** 图鉴打点用：本只怪的怪型 id（init 时快照） */
+    get monsterId(): string { return this._mid; }
+    /** 本只怪是否精英（init 时快照；图鉴精英计数用） */
+    isElite = false;
     private _dying = false;
     private _animState: 'walk' | 'attack' | 'die' = 'walk';
     private _animFrames: SpriteFrame[] | null = null;
@@ -107,6 +111,7 @@ export class Enemy extends Component {
         this.node.setScale(1, 1, 1);
         // 动作状态机复位
         this._mid = info.id;
+        this.isElite = info.tier === 1;
         this._dying = false;
         this._animState = 'walk';
         this._animFrames = AssetLib.monsterFrames(info.id, 'walk');

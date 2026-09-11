@@ -11,6 +11,7 @@ import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem';
+import { BestiarySystem, BESTIARY_DEFS, BestiaryDef } from '../core/BestiarySystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
@@ -965,6 +966,121 @@ export class HomeUi extends Component {
         if (el) {
             el.classList.toggle('on', SigninSystem.instance.canClaimToday());
         }
+    }
+
+    /** 怪物图鉴弹窗：完成度头部 + 五怪网格（未解锁剪影）+ 点卡片进详情浮窗 */
+    private _openBestiaryModal(): void {
+        const bs = BestiarySystem.instance;
+        this._openModal('📖 怪物图鉴', (box) => {
+            box.classList.add('besBox');
+            const { done, total } = bs.completion();
+            const head = document.createElement('div');
+            head.className = 'siHead';
+            head.innerHTML = `<b>已收录 <i>${done}</i> / ${total} 种</b><span>击杀对应怪物自动解锁</span>`;
+            box.appendChild(head);
+            const grid = document.createElement('div');
+            grid.className = 'besGrid';
+            for (const def of BESTIARY_DEFS) {
+                const unlocked = bs.unlocked(def.id);
+                const kills = bs.kills(def.id);
+                const cell = document.createElement('div');
+                cell.className = 'besCell panel' + (unlocked ? '' : ' lock');
+                const pic = document.createElement('div');
+                pic.className = 'besPic';
+                this._tex(def.art, u => {
+                    pic.style.backgroundImage = u;
+                    pic.style.backgroundSize = 'contain';
+                    pic.style.backgroundRepeat = 'no-repeat';
+                    pic.style.backgroundPosition = 'center bottom';
+                });
+                const nm = document.createElement('div');
+                nm.className = 'besNm';
+                nm.textContent = unlocked ? def.name : '？？？';
+                const sub = document.createElement('div');
+                sub.className = 'besSub';
+                sub.textContent = unlocked ? `击杀 ×${kills}` : '尚未遭遇';
+                cell.appendChild(pic);
+                cell.appendChild(nm);
+                cell.appendChild(sub);
+                cell.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._openBestiaryDetail(def);
+                };
+                grid.appendChild(cell);
+            }
+            box.appendChild(grid);
+            // 精英怪累计 + 提示
+            const elite = document.createElement('div');
+            elite.className = 'besElite';
+            elite.innerHTML = `<span>🩸 精英怪累计击杀：<b>${bs.eliteKills}</b></span><span>精英怪体型更大、数值更强（红色描边）</span>`;
+            box.appendChild(elite);
+            const note = document.createElement('p');
+            note.className = 'giftNote';
+            note.textContent = '出战迎战每一种怪物，击杀后自动收录进图鉴';
+            box.appendChild(note);
+        });
+    }
+
+    /** 图鉴详情浮窗：立绘 + 威胁星级 + 习性/数值 + 遭遇记录（未解锁灰态剪影） */
+    private _openBestiaryDetail(def: BestiaryDef): void {
+        const bs = BestiarySystem.instance;
+        this._openModal('📖 图鉴详情', (box) => {
+            box.classList.add('besBox');
+            const unlocked = bs.unlocked(def.id);
+            const wrap = document.createElement('div');
+            wrap.className = 'besDetail panel' + (unlocked ? '' : ' lock');
+            const pic = document.createElement('div');
+            pic.className = 'besDetailPic';
+            if (unlocked) {
+                this._tex(def.art, u => {
+                    pic.style.backgroundImage = u;
+                    pic.style.backgroundSize = 'contain';
+                    pic.style.backgroundRepeat = 'no-repeat';
+                    pic.style.backgroundPosition = 'center bottom';
+                });
+            }
+            const info = document.createElement('div');
+            info.className = 'besDetailInfo';
+            const nm = document.createElement('div');
+            nm.className = 'besDetailName';
+            nm.innerHTML = `<b>${unlocked ? def.name : '？？？'}</b><span class="besStars">${unlocked ? '★'.repeat(def.threat) + '☆'.repeat(5 - def.threat) : '☆☆☆☆☆'}</span>`;
+            const beh = document.createElement('div');
+            beh.className = 'besBeh';
+            beh.textContent = unlocked ? def.behavior : '？？？ · ？？？';
+            const desc = document.createElement('div');
+            desc.className = 'besDesc';
+            desc.textContent = unlocked ? def.desc : '尚未遭遇该怪物。出击迎战，击杀后自动收录。';
+            const stats = document.createElement('div');
+            stats.className = 'besStats';
+            if (unlocked) {
+                stats.innerHTML =
+                    `<div class="besStatRow"><span>基准生命</span><b>${def.stats.hp.toLocaleString()}</b></div>` +
+                    `<div class="besStatRow"><span>移动速度</span><b>${def.stats.speed}</b></div>` +
+                    `<div class="besStatRow"><span>啃咬伤害</span><b>${def.stats.touchDamage}</b></div>` +
+                    `<div class="besStatRow"><span>首次出没</span><b>${def.debut}</b></div>` +
+                    `<div class="besStatRow"><span>累计击杀</span><b>×${bs.kills(def.id)}</b></div>`;
+            } else {
+                stats.innerHTML = '<div class="besStatRow"><span>数据未收录</span><b>—</b></div>';
+            }
+            info.appendChild(nm);
+            info.appendChild(beh);
+            info.appendChild(desc);
+            info.appendChild(stats);
+            wrap.appendChild(pic);
+            wrap.appendChild(info);
+            box.appendChild(wrap);
+            const ok = document.createElement('button');
+            ok.className = 'btn gold big biOk';
+            ok.textContent = '返 回 图 鉴';
+            ok.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                document.querySelector('#homeUi .protoMask')?.remove();
+                this._openBestiaryModal();
+            };
+            box.appendChild(ok);
+        });
     }
 
     /** 七日签到弹窗：日历格子（已领/今日可领高亮/未到档位）+ 今日奖励详情 + 领取 */
@@ -2949,7 +3065,8 @@ export class HomeUi extends Component {
             `<div class="prosBar"><i></i></div></div>` +
             `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
             `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>` +
-            `<button class="btn gold sm lbEntry">🏆 排行</button>`;
+            `<button class="btn gold sm lbEntry">🏆 排行</button>` +
+            `<button class="btn gold sm besEntry">📖 图鉴</button>`;
         const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
         questBtn.onclick = (e) => {
             e.stopPropagation();
@@ -2971,6 +3088,12 @@ export class HomeUi extends Component {
             e.stopPropagation();
             SoundFx.play('ui');
             this._openLeaderboardModal();
+        };
+        const besBtn = banner.querySelector('.besEntry') as HTMLButtonElement;
+        besBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openBestiaryModal();
         };
         page.appendChild(banner);
         this._baseBannerEls = {
@@ -3403,6 +3526,34 @@ export class HomeUi extends Component {
 #homeUi .siInfo b { font-size: calc(24px * var(--hs,1)); }
 #homeUi .siInfo span { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
 #homeUi .siFoot .btn { min-width: calc(180px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); }
+
+/* ===== 怪物图鉴（基地页入口 + 弹窗） ===== */
+#homeUi .besEntry { position: relative; margin-left: 0; flex: none; }
+#homeUi .besGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(14px * var(--hs,1)); }
+#homeUi .besCell { padding: calc(16px * var(--hs,1)) calc(10px * var(--hs,1)); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: calc(8px * var(--hs,1)); cursor: pointer; }
+#homeUi .besCell.lock { opacity: .55; filter: grayscale(.8); }
+#homeUi .besPic { width: calc(110px * var(--hs,1)); height: calc(110px * var(--hs,1)); }
+#homeUi .besCell.lock .besPic { filter: brightness(0) opacity(.75); }
+#homeUi .besNm { font-size: calc(22px * var(--hs,1)); font-weight: 700; }
+#homeUi .besSub { font-size: calc(18px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .besElite { display: flex; flex-direction: column; gap: calc(6px * var(--hs,1)); margin-top: calc(16px * var(--hs,1));
+  font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .besElite b { color: #f0b13e; }
+#homeUi .besDetail { display: flex; gap: calc(18px * var(--hs,1)); padding: calc(18px * var(--hs,1)); }
+#homeUi .besDetail.lock { opacity: .75; }
+#homeUi .besDetailPic { flex: none; width: calc(180px * var(--hs,1)); height: calc(220px * var(--hs,1)); }
+#homeUi .besDetail.lock .besDetailPic { background: radial-gradient(circle at 50% 60%, #2a4470, #101c34); border-radius: calc(16px * var(--hs,1)); border: 1px solid #3a567f; }
+#homeUi .besDetailInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); text-align: left; }
+#homeUi .besDetailName { display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .besDetailName b { font-size: calc(30px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .besStars { font-size: calc(22px * var(--hs,1)); color: #f0b13e; }
+#homeUi .besBeh { font-size: calc(22px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
+#homeUi .besDesc { font-size: calc(19px * var(--hs,1)); color: #8ba3c7; line-height: 1.7; }
+#homeUi .besStats { margin-top: calc(6px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(6px * var(--hs,1)); }
+#homeUi .besStatRow { display: flex; justify-content: space-between; font-size: calc(20px * var(--hs,1)); }
+#homeUi .besStatRow span { color: #8ba3c7; }
+#homeUi .besStatRow b { color: #ffe9a8; }
 
 /* ===== 排行榜（基地页入口 + 弹窗） ===== */
 #homeUi .lbEntry { margin-left: 0; }
@@ -4233,6 +4384,30 @@ export class HomeUi extends Component {
 
 /* --- 每日签到（青瓷浅色变体） --- */
 #homeUi .signinEntry { border-radius: calc(7px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); padding: 0 calc(10px * var(--pw,2.5)); }
+#homeUi .besEntry { border-radius: calc(7px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); padding: 0 calc(10px * var(--pw,2.5)); }
+#homeUi .besGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .besCell { padding: calc(8px * var(--pw,2.5)) calc(4px * var(--pw,2.5)); text-align: center; display: flex; flex-direction: column; align-items: center; gap: calc(3px * var(--pw,2.5)); cursor: pointer; }
+#homeUi .besCell.lock { opacity: .55; filter: grayscale(.8); }
+#homeUi .besPic { width: calc(56px * var(--pw,2.5)); height: calc(56px * var(--pw,2.5)); }
+#homeUi .besCell.lock .besPic { filter: brightness(0) opacity(.75); }
+#homeUi .besNm { font-size: calc(12px * var(--pw,2.5)); font-weight: 700; color: #46647a; }
+#homeUi .besSub { font-size: calc(11px * var(--pw,2.5)); color: #945d24; }
+#homeUi .besElite { display: flex; flex-direction: column; gap: calc(3px * var(--pw,2.5)); margin-top: calc(10px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); color: #527085; }
+#homeUi .besElite b { color: #e9a04f; }
+#homeUi .besDetail { display: flex; gap: calc(10px * var(--pw,2.5)); padding: calc(10px * var(--pw,2.5)); }
+#homeUi .besDetail.lock { opacity: .7; }
+#homeUi .besDetailPic { flex: none; width: calc(90px * var(--pw,2.5)); height: calc(110px * var(--pw,2.5)); }
+#homeUi .besDetail.lock .besDetailPic { background: radial-gradient(circle at 50% 60%, #d7e2e8, #b3c4ce); border-radius: calc(8px * var(--pw,2.5)); }
+#homeUi .besDetailInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(4px * var(--pw,2.5)); text-align: left; }
+#homeUi .besDetailName { display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .besDetailName b { font-size: calc(15px * var(--pw,2.5)); color: #945d24; }
+#homeUi .besStars { font-size: calc(12px * var(--pw,2.5)); color: #e9a04f; }
+#homeUi .besBeh { font-size: calc(12px * var(--pw,2.5)); color: #527085; font-weight: 700; }
+#homeUi .besDesc { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; line-height: 1.6; }
+#homeUi .besStats { margin-top: calc(4px * var(--pw,2.5)); display: flex; flex-direction: column; gap: calc(2px * var(--pw,2.5)); }
+#homeUi .besStatRow { display: flex; justify-content: space-between; font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .besStatRow span { color: #8fa9ba; }
+#homeUi .besStatRow b { color: #945d24; }
 #homeUi .signinEntry .questRed { top: calc(-4px * var(--pw,2.5)); right: calc(-4px * var(--pw,2.5)); width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); }
 #homeUi .siHead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: calc(10px * var(--pw,2.5)); }
 #homeUi .siHead b { font-size: calc(15px * var(--pw,2.5)); color: #527085; }

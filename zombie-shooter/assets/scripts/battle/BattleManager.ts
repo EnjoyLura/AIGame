@@ -6,6 +6,7 @@ import { NodePool } from '../core/NodePool';
 import { createUINode } from '../core/createUINode';
 import { AssetLib } from '../core/AssetLib';
 import { GameManager } from '../core/GameManager';
+import { BestiarySystem } from '../core/BestiarySystem';
 import { Hero, HeroUpgradeId } from './Hero';
 import { Bullet, ProjectileSpec } from './Bullet';
 import { Enemy } from './Enemy';
@@ -659,6 +660,7 @@ export class BattleManager extends Component {
         SoundFx.play(big ? 'bigkill' : 'kill');
         GameManager.instance.kills++;
         GameManager.instance.totalKills++;
+        BestiarySystem.instance.trackKill(enemy.monsterId, enemy.isElite);
         eventCenter.emit(GameEvent.ENEMY_DEAD, GameManager.instance.kills);
         if (sourceId) {
             const killer = this._heroes.find(h => h.def.id === sourceId);
