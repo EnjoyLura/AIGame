@@ -1,6 +1,7 @@
 import { GameManager } from './GameManager';
 import { QuestSystem } from './QuestSystem';
 import { RecruitSystem, STAR_ATK_STEP, STAR_RATE_STEP } from './RecruitSystem';
+import { affixSum, rollAffixes, sanitizeAffixes, AffixKey } from './EquipmentAffix';
 import { ABILITY_MAX_LEVEL } from '../battle/HeroDef';
 // HERO_LEVEL_MAX/EQUIP_UPGRADE_MAX 为未解锁基地时的基础上限；实际运行时上限由基地建筑等级动态决定
 
@@ -79,6 +80,8 @@ export interface EquipState {
     lv: number;
     /** 已镶宝石（杂物 id 列表，按孔位顺序；空/缺省 = 无宝石） */
     gems?: string[];
+    /** 词缀 id 列表（0~3 条；空/缺省 = 无词缀。数值由 EquipmentAffix.affixSum 现算） */
+    affixes?: string[];
 }
 
 // ---- 主武器强化 ----
@@ -174,6 +177,8 @@ export interface BagItem {
     tier: EquipTier;
     /** 强化等级（购买时 1） */
     lv: number;
+    /** 词缀 id 列表（掉落/合成时随机生成，0~3 条；缺省 = 无词缀，老存档兼容） */
+    affixes?: string[];
 }
 
 /** 由装备定义 id 解析背包件（购买入库用） */
@@ -316,7 +321,8 @@ function combineBagItems(slot: EquipSlot, tier: EquipTier): BagItem | null {
         gm.bag.splice(i, 1);
     }
     const nextTier = (tier + 1) as EquipTier;
-    const newItem: BagItem = { slot, tier: nextTier, lv: maxLv };
+    // 合成是"升级换代"而非继承：新件词缀按新品质重新随机（底材词缀不带上来）
+    const newItem: BagItem = { slot, tier: nextTier, lv: maxLv, affixes: rollAffixes(nextTier) };
     gm.bag.push(newItem);
     return newItem;
 }
@@ -427,7 +433,9 @@ export function grantLootDrops(drops: LootDrop[]): number {
     for (const drop of drops) {
         if (drop.kind === 'equip' && drop.slot) {
             const lv = 1 + Math.floor(Math.random() * 3);
-            gm.bag.push({ slot: drop.slot, tier: (Math.min(6, Math.max(1, drop.tier)) as EquipTier), lv });
+            const tier = (Math.min(6, Math.max(1, drop.tier)) as EquipTier);
+            // 掉落瞬间定格词缀：同品质两件可以完全不同，这是"刷好装备"的动力来源
+            gm.bag.push({ slot: drop.slot, tier, lv, affixes: rollAffixes(tier) });
             n++;
         } else if ((drop.kind === 'core' || drop.kind === 'misc') && drop.id && miscDef(drop.id)) {
             gm.misc[drop.id] = (gm.misc[drop.id] ?? 0) + 1;
@@ -717,15 +725,22 @@ export class HeroSystem {
         }
         const slots = this._gm.equips[heroId];
         const cur = slots[item.slot];
-        // 旧件回背包（保留强化等级）；新件上身
+        // 旧件回背包（保留强化等级与词缀）；新件上身
         if (cur) {
             const curDef = this.equipDef(cur.id);
             if (curDef) {
-                this._gm.bag.push({ slot: curDef.slot, tier: curDef.tier, lv: cur.lv });
+                this._gm.bag.push({ slot: curDef.slot, tier: curDef.tier, lv: cur.lv, affixes: cur.affixes });
+            } else if (cur.id.startsWith('bag:')) {
+                const [, s, t] = cur.id.split(':');
+                const tier = Number(t);
+                if (EQUIP_SLOTS.indexOf(s as EquipSlot) >= 0 && isEquipTier(tier)) {
+                    this._gm.bag.push({ slot: s as EquipSlot, tier, lv: cur.lv, affixes: cur.affixes });
+                }
             }
         }
         // 新件以 BagItem 身份上身：equips 结构兼容（id 存 bag: 前缀虚拟 id，真实属性按 slot+tier 查）
-        slots[item.slot] = { id: `bag:${item.slot}:${item.tier}`, lv: item.lv };
+        // 词缀必须一并带上：bag: 合成 id 不区分同槽同品质的两件，词缀只能挂在 state 上（不能查 id）
+        slots[item.slot] = { id: `bag:${item.slot}:${item.tier}`, lv: item.lv, affixes: item.affixes };
         this._gm.bag.splice(bagIndex, 1);
         this._gm.save();
         return true;
@@ -740,13 +755,13 @@ export class HeroSystem {
         const def = this.equipDef(cur.id);
         if (def) {
             // 旧定义件（id 非 bag: 前缀）
-            this._gm.bag.push({ slot: def.slot, tier: def.tier, lv: cur.lv });
+            this._gm.bag.push({ slot: def.slot, tier: def.tier, lv: cur.lv, affixes: cur.affixes });
         } else if (cur.id.startsWith('bag:')) {
             const [, s, t] = cur.id.split(':');
             const tier = Number(t);
             const slotOk = EQUIP_SLOTS.indexOf(s as EquipSlot) >= 0;
             if (slotOk && isEquipTier(tier)) {
-                this._gm.bag.push({ slot: s as EquipSlot, tier, lv: cur.lv });
+                this._gm.bag.push({ slot: s as EquipSlot, tier, lv: cur.lv, affixes: cur.affixes });
             }
         }
         delete this._gm.equips[heroId][slot];
@@ -774,9 +789,30 @@ export class HeroSystem {
         return true;
     }
 
-    /** 单件装备的属性值（含强化等级；返回百分比小数）——UI 展示用 */
+    /** 单件装备的属性值（含强化等级与词缀；返回百分比小数）——UI 展示用 */
     equipSlotValue(state: EquipState, key: 'atkPct' | 'ratePct' | 'rangePct'): number {
-        return this._equipValue(state, key) + this._gemValue(state, key);
+        return this._equipValue(state, key) + this._gemValue(state, key) + this._affixValue(state, key);
+    }
+
+    /** 单件装备词缀对某属性的加成合计（critPct 也可查） */
+    private _affixValue(state: EquipState, key: AffixKey): number {
+        const tier = this._stateTier(state);
+        return affixSum(state.affixes, tier)[key];
+    }
+
+    /** 由 EquipState 反解品质（定义件查表；bag: 前缀件取 id 里的品质；兜底 1） */
+    private _stateTier(state: EquipState): EquipTier {
+        const def = this.equipDef(state.id);
+        if (def) {
+            return def.tier;
+        }
+        if (state.id.startsWith('bag:')) {
+            const t = Number(state.id.split(':')[2]);
+            if (isEquipTier(t)) {
+                return t;
+            }
+        }
+        return 1;
     }
 
     /** 单件装备上宝石对某属性的加成合计（critPct 也可查） */
@@ -916,10 +952,10 @@ export class HeroSystem {
             if (!state) {
                 continue;
             }
-            atk += this._equipValue(state, 'atkPct') + this._gemValue(state, 'atkPct');
-            rate += this._equipValue(state, 'ratePct') + this._gemValue(state, 'ratePct');
-            range += this._equipValue(state, 'rangePct') + this._gemValue(state, 'rangePct');
-            crit += this._gemValue(state, 'critPct');
+            atk += this._equipValue(state, 'atkPct') + this._gemValue(state, 'atkPct') + this._affixValue(state, 'atkPct');
+            rate += this._equipValue(state, 'ratePct') + this._gemValue(state, 'ratePct') + this._affixValue(state, 'ratePct');
+            range += this._equipValue(state, 'rangePct') + this._gemValue(state, 'rangePct') + this._affixValue(state, 'rangePct');
+            crit += this._gemValue(state, 'critPct') + this._affixValue(state, 'critPct');
         }
         const core = this.weaponCore(heroId);
         if (core) {

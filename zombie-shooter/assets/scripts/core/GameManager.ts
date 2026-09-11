@@ -4,6 +4,7 @@ import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS, ABILITY_MAX_LEVEL } from '../battle/HeroDef';
 import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS, MISC_ITEM_DEFS, MISC_STARTER, isEquipTier, miscDef, EquipState } from './HeroSystem';
 import { talentXpMul } from './TalentSystem';
+import { sanitizeAffixes } from './EquipmentAffix';
 
 /**
  * 全局数据单例：一局战斗的运行时数据 + 账号持久化数据。
@@ -431,7 +432,9 @@ export class GameManager {
                                     gems = valid as string[];
                                 }
                             }
-                            this.equips[d.id][slot] = { id: st.id, lv: Math.max(1, Math.floor(st.lv)), gems };
+                            // 词缀：只接受合法 id、去重、钳到上限，坏档丢弃整组
+                            const affixes = sanitizeAffixes(st.affixes);
+                            this.equips[d.id][slot] = { id: st.id, lv: Math.max(1, Math.floor(st.lv)), gems, affixes };
                         }
                     }
                 }
@@ -462,7 +465,10 @@ export class GameManager {
                         && typeof b.slot === 'string' && b.slot in EQUIP_SLOT_NAMES
                         && typeof b.tier === 'number' && isEquipTier(b.tier)
                         && typeof b.lv === 'number' && b.lv >= 1;
-                }).map((b: BagItem) => ({ slot: b.slot, tier: b.tier, lv: Math.max(1, Math.floor(b.lv)) }));
+                }).map((b: BagItem) => ({
+                    slot: b.slot, tier: b.tier, lv: Math.max(1, Math.floor(b.lv)),
+                    affixes: sanitizeAffixes(b.affixes),
+                }));
             }
             // 杂物库存（id 校验在 MISC_ITEM_DEFS 内，数量钳 >=0）
             if (data.misc && typeof data.misc === 'object') {

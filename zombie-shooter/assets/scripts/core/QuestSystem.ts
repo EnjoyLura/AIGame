@@ -5,6 +5,7 @@ import { eventCenter } from './EventCenter';
 import { TrialSystem } from './TrialSystem';
 import { RecruitSystem } from './RecruitSystem';
 import { TalentSystem } from './TalentSystem';
+import { AFFIX_MAX } from './EquipmentAffix';
 
 /**
  * 任务与成就系统（基地页入口）：
@@ -18,7 +19,7 @@ import { TalentSystem } from './TalentSystem';
 /** 任务/成就目标类型（与计数钩子一一对应） */
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
-    | 'recruits' | 'heroStars' | 'talentPoints';
+    | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3';
 
 export interface QuestDef {
     id: string;
@@ -70,6 +71,7 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_talent5', kind: 'achv', name: '初窥门径', goal: 'talentPoints', target: 5, reward: { diamond: 30 }, ic: '🌟' },
     { id: 'a_talent12', kind: 'achv', name: '天赋异禀', goal: 'talentPoints', target: 12, reward: { diamond: 80 }, ic: '🌠' },
     { id: 'a_talent22', kind: 'achv', name: '流派大成', goal: 'talentPoints', target: 22, reward: { diamond: 150 }, ic: '🏅' },
+    { id: 'a_affix3', kind: 'achv', name: '词缀猎人', goal: 'affix3', target: 1, reward: { diamond: 60 }, ic: '✦' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -145,7 +147,27 @@ export class QuestSystem {
             case 'heroStars': return Math.min(def.target, RecruitSystem.instance.starSum);
             // 天赋用"已投入点数"而非派生总点数：洗点会让进度回落，符合"真的练过这棵树"的语义
             case 'talentPoints': return Math.min(def.target, TalentSystem.instance.spent);
+            case 'affix3': return Math.min(def.target, this._affix3Count(gm));
         }
+    }
+
+    /** 满词缀装备件数（背包 + 已穿，词缀数达到上限 3 件数；用于「词缀猎人」成就） */
+    private _affix3Count(gm: GameManager): number {
+        let n = 0;
+        for (const it of gm.bag) {
+            if ((it.affixes?.length ?? 0) >= AFFIX_MAX) {
+                n++;
+            }
+        }
+        for (const hid in gm.equips) {
+            const slots = gm.equips[hid];
+            for (const s in slots) {
+                if ((slots[s]?.affixes?.length ?? 0) >= AFFIX_MAX) {
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     /** 建筑等级总和（基地建设者成就进度） */

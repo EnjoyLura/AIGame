@@ -20,6 +20,7 @@ import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDe
 import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MILESTONE_EVERY } from '../core/TrialSystem';
 import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRICE_10, RECRUIT_PITY, RecruitResult } from '../core/RecruitSystem';
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
+import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -2454,11 +2455,12 @@ export class HomeUi extends Component {
             for (const it of items) {
                 const cell = document.createElement('div');
                 cell.className = `bcell r${tierRank(it.tier)}`;
-                cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>+${it.lv}</em>`;
+                cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>+${it.lv}</em>`
+                    + (this._affixBadge(it.affixes) ? `<span class="bcellAffix">${this._affixBadge(it.affixes)}</span>` : '');
                 cell.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.play('ui');
-                    this._openBagItemTip(def.id, { slot: it.slot, tier: it.tier, lv: it.lv });
+                    this._openBagItemTip(def.id, { slot: it.slot, tier: it.tier, lv: it.lv, affixes: it.affixes });
                 };
                 grid.appendChild(cell);
             }
@@ -2613,6 +2615,35 @@ export class HomeUi extends Component {
         });
     }
 
+    /** 背包格词缀角标文案（✦ 数量；无词缀返回空串） */
+    private _affixBadge(affixes: string[] | undefined): string {
+        if (!affixes || affixes.length === 0) {
+            return '';
+        }
+        return affixes.length > 1 ? `✦${affixes.length}` : '✦';
+    }
+
+    /** 词缀区块（详情弹窗/穿戴面板共用）；无词缀返回 null 不占位 */
+    private _affixBlock(affixes: string[] | undefined, tier: EquipTier): HTMLDivElement | null {
+        if (!affixes || affixes.length === 0) {
+            return null;
+        }
+        const wrap = document.createElement('div');
+        wrap.className = 'affixBox';
+        const head = document.createElement('div');
+        head.className = 'affixHead';
+        head.textContent = `✦ 词缀（${affixes.length}）`;
+        wrap.appendChild(head);
+        for (const id of affixes) {
+            const row = document.createElement('div');
+            row.className = 'affixRow';
+            row.innerHTML = `<span class="affixName" style="color:${affixColor(id)}">${affixName(id)}</span>`
+                + `<span class="affixVal">${affixValueText(id, tier)}</span>`;
+            wrap.appendChild(row);
+        }
+        return wrap;
+    }
+
     /** 内嵌物品栏物品详情弹窗：装备可穿戴（走穿戴面板），道具可用则显示使用按钮 */
     private _openBagItemTip(heroId: string, src: BagItem | MiscItemDef): void {
         const hs = HeroSystem.instance;
@@ -2634,6 +2665,11 @@ export class HomeUi extends Component {
                 }
                 info.innerHTML = `<b style="color:${EQUIP_TIER_COLORS[it.tier - 1]}">${EQUIP_TIER_NAMES[it.tier - 1]}${EQUIP_SLOT_NAMES[it.slot]}</b>` +
                     ` · 强化 +${it.lv}<br>${parts.join(' ') || '无属性'}`;
+                box.appendChild(info);
+                const affixBox = this._affixBlock(it.affixes, it.tier);
+                if (affixBox) {
+                    box.appendChild(affixBox);
+                }
             } else {
                 const md = src as MiscItemDef;
                 const n = hs.miscCount(md.id);
@@ -2936,6 +2972,11 @@ export class HomeUi extends Component {
                 row.appendChild(info);
                 row.appendChild(wrap);
                 list.appendChild(row);
+                // 已穿件的词缀明细（数值已计入上面的「含词缀」总属性）
+                const curAffix = this._affixBlock(cur.affixes, tier);
+                if (curAffix) {
+                    list.appendChild(curAffix);
+                }
 
                 // ---- 宝石孔区：已镶宝石可拆卸，空孔选择库存宝石镶嵌 ----
                 const holes = hs.gemSlotCount(heroId, slot);
@@ -2994,7 +3035,8 @@ export class HomeUi extends Component {
                     }
                 }
                 info.innerHTML =
-                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[item.tier - 1]}">${bagItemName(item)}</div>` +
+                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[item.tier - 1]}">${bagItemName(item)}`
+                    + `${this._affixBadge(item.affixes) ? ` <span class="affixMark">${this._affixBadge(item.affixes)}</span>` : ''}</div>` +
                     `<div class="equipStat">${parts.join(' ') || '无属性'}</div>`;
                 const btn = document.createElement('button');
                 btn.className = 'btn gold sm';
@@ -3009,6 +3051,10 @@ export class HomeUi extends Component {
                 row.appendChild(info);
                 row.appendChild(btn);
                 list.appendChild(row);
+                const bagAffix = this._affixBlock(item.affixes, item.tier);
+                if (bagAffix) {
+                    list.appendChild(bagAffix);
+                }
             }
             const closeBar = document.createElement('button');
             closeBar.className = 'btn dark big';
@@ -4901,6 +4947,19 @@ export class HomeUi extends Component {
 #homeUi .matNeed { color: #ffd9b0; font-size: calc(19px * var(--hs,1)); }
 #homeUi .mRow .matNeed { display: block; margin-top: calc(4px * var(--hs,1)); }
 
+/* ===== 装备词缀 ===== */
+#homeUi .bcellAffix { position: absolute; left: calc(6px * var(--hs,1)); top: calc(4px * var(--hs,1));
+  font-size: calc(18px * var(--hs,1)); color: #ffd76a; text-shadow: 0 0 calc(8px * var(--hs,1)) rgba(255,215,106,.9); }
+#homeUi .affixMark { color: #ffd76a; font-size: calc(22px * var(--hs,1)); }
+#homeUi .affixBox { margin: calc(-8px * var(--hs,1)) 0 calc(16px * var(--hs,1)) 0; padding: calc(12px * var(--hs,1)) calc(18px * var(--hs,1));
+  border-radius: calc(14px * var(--hs,1)); background: #0a1526; border: 1px dashed #3d5a85;
+  display: flex; flex-direction: column; gap: calc(6px * var(--hs,1)); }
+#homeUi .affixHead { font-size: calc(19px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .affixRow { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10px * var(--hs,1));
+  font-size: calc(21px * var(--hs,1)); }
+#homeUi .affixName { font-weight: 700; }
+#homeUi .affixVal { color: #dce8f7; }
+
 /* ===== 底部导航 ===== */
 #homeUi .tabbar { flex: none; height: calc(150px * var(--hs,1)); display: flex; align-items: center; justify-content: space-around; position: relative; z-index: 20;
   background: linear-gradient(180deg, #182947, #0b1426); border-top: 1px solid #33507a; }
@@ -5597,6 +5656,19 @@ export class HomeUi extends Component {
 #homeUi .siInfo b { font-size: calc(14px * var(--pw,2.5)); color: #46647a; }
 #homeUi .siInfo span { font-size: calc(13px * var(--pw,2.5)); color: #945d24; font-weight: 700; }
 #homeUi .siFoot .btn { min-width: calc(110px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(14px * var(--pw,2.5)); }
+
+/* --- 装备词缀（青瓷浅色变体） --- */
+#homeUi .bcellAffix { position: absolute; left: calc(3px * var(--pw,2.5)); top: calc(2px * var(--pw,2.5));
+  font-size: calc(9px * var(--pw,2.5)); color: #c98a1e; text-shadow: none; }
+#homeUi .affixMark { color: #c98a1e; font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .affixBox { margin: calc(-4px * var(--pw,2.5)) 0 calc(8px * var(--pw,2.5)) 0; padding: calc(6px * var(--pw,2.5)) calc(9px * var(--pw,2.5));
+  border-radius: calc(7px * var(--pw,2.5)); background: #f4f9fb; border: 1px dashed #b8cbd7;
+  display: flex; flex-direction: column; gap: calc(3px * var(--pw,2.5)); }
+#homeUi .affixHead { font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .affixRow { display: flex; align-items: baseline; justify-content: space-between; gap: calc(5px * var(--pw,2.5));
+  font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .affixName { font-weight: 700; }
+#homeUi .affixVal { color: #46647a; }
 `;
         document.head.appendChild(style);
     }
