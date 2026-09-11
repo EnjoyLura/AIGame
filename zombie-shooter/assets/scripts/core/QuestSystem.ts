@@ -13,7 +13,8 @@ import { eventCenter } from './EventCenter';
  */
 
 /** 任务/成就目标类型（与计数钩子一一对应） */
-export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage';
+export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
+    | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings';
 
 export interface QuestDef {
     id: string;
@@ -21,7 +22,7 @@ export interface QuestDef {
     name: string;
     /** 目标类型 */
     goal: QuestGoal;
-    /** 目标数值（goal=stage 时为"通关到第 N 关"） */
+    /** 目标数值（goal=stage 时为"通关到第 N 关"；goal=endlessWave 时为"无尽到达第 N 波"） */
     target: number;
     /** 奖励：钻石/金币 */
     reward: { diamond?: number; gold?: number };
@@ -44,6 +45,17 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_hero2', kind: 'achv', name: '招兵买马', goal: 'heroes', target: 2, reward: { diamond: 25 }, ic: '🎖️' },
     { id: 'a_hero4', kind: 'achv', name: '满编战队', goal: 'heroes', target: 4, reward: { diamond: 60 }, ic: '👑' },
     { id: 'a_ad10', kind: 'achv', name: '广告赞助商', goal: 'ads', target: 10, reward: { diamond: 30 }, ic: '📺' },
+    // ---- 系统联动成就（扩展包：宝石/合成/分解/无尽/技能/建筑） ----
+    { id: 'a_gem3', kind: 'achv', name: '初试锋芒·镶嵌', goal: 'gems', target: 3, reward: { diamond: 20 }, ic: '💎' },
+    { id: 'a_gem15', kind: 'achv', name: '宝石大师', goal: 'gems', target: 15, reward: { diamond: 70 }, ic: '💠' },
+    { id: 'a_combine5', kind: 'achv', name: '合成学徒', goal: 'combines', target: 5, reward: { diamond: 25 }, ic: '🔮' },
+    { id: 'a_combine20', kind: 'achv', name: '合成宗师', goal: 'combines', target: 20, reward: { diamond: 80 }, ic: '⚗️' },
+    { id: 'a_salvage10', kind: 'achv', name: '回收利用', goal: 'salvages', target: 10, reward: { diamond: 20 }, ic: '♻️' },
+    { id: 'a_salvage50', kind: 'achv', name: '废土拾荒者', goal: 'salvages', target: 50, reward: { diamond: 50 }, ic: '🧹' },
+    { id: 'a_wave15', kind: 'achv', name: '无尽行者', goal: 'endlessWave', target: 15, reward: { diamond: 60 }, ic: '♾️' },
+    { id: 'a_wave30', kind: 'achv', name: '波次支配者', goal: 'endlessWave', target: 30, reward: { diamond: 120 }, ic: '🌊' },
+    { id: 'a_skill6', kind: 'achv', name: '特训教官', goal: 'skills', target: 6, reward: { diamond: 30 }, ic: '🎯' },
+    { id: 'a_building15', kind: 'achv', name: '基地建设者', goal: 'buildings', target: 15, reward: { diamond: 35 }, ic: '🏗️' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -64,6 +76,11 @@ interface QuestSave {
     clears: number;
     goldEarned: number;
     ads: number;
+    /** 扩展计数器：宝石镶嵌/合成/分解/技能升级（动作成功 +1） */
+    gems: number;
+    combines: number;
+    salvages: number;
+    skills: number;
 }
 
 export class QuestSystem {
@@ -79,7 +96,7 @@ export class QuestSystem {
 
     private _data: QuestSave = {
         dailyDate: '', dailyProgress: {}, dailyClaimed: [], achvClaimed: [],
-        clears: 0, goldEarned: 0, ads: 0,
+        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0,
     };
 
     private constructor() {
@@ -103,7 +120,22 @@ export class QuestSystem {
             case 'clears': return Math.min(def.target, this._data.clears);
             case 'goldEarned': return Math.min(def.target, this._data.goldEarned);
             case 'ads': return Math.min(def.target, this._data.ads);
+            case 'gems': return Math.min(def.target, this._data.gems);
+            case 'combines': return Math.min(def.target, this._data.combines);
+            case 'salvages': return Math.min(def.target, this._data.salvages);
+            case 'skills': return Math.min(def.target, this._data.skills);
+            case 'buildings': return Math.min(def.target, this._buildingSum(gm));
+            case 'endlessWave': return Math.min(def.target, gm.bestWave);
         }
+    }
+
+    /** 建筑等级总和（基地建设者成就进度） */
+    private _buildingSum(gm: GameManager): number {
+        let sum = 0;
+        for (const id in gm.buildingLevels) {
+            sum += gm.buildingLevels[id] ?? 0;
+        }
+        return sum;
     }
 
     isComplete(def: QuestDef): boolean {
@@ -153,6 +185,32 @@ export class QuestSystem {
     /** 每日任务文案（跨天刷新红点用） */
     get dailyDate(): string {
         return this._data.dailyDate;
+    }
+
+    // ================= 动作打点（扩展成就进度，动作成功后调用） =================
+
+    /** 镶嵌一颗宝石 */
+    trackGem(): void {
+        this._data.gems++;
+        this._save();
+    }
+
+    /** 合成一件装备 */
+    trackCombine(): void {
+        this._data.combines++;
+        this._save();
+    }
+
+    /** 分解一件装备 */
+    trackSalvage(): void {
+        this._data.salvages++;
+        this._save();
+    }
+
+    /** 升一级技能 */
+    trackSkill(): void {
+        this._data.skills++;
+        this._save();
     }
 
     // ================= 内部 =================
@@ -221,6 +279,10 @@ export class QuestSystem {
                         clears: Math.max(0, Math.floor(d.clears ?? 0)),
                         goldEarned: Math.max(0, Math.floor(d.goldEarned ?? 0)),
                         ads: Math.max(0, Math.floor(d.ads ?? 0)),
+                        gems: Math.max(0, Math.floor(d.gems ?? 0)),
+                        combines: Math.max(0, Math.floor(d.combines ?? 0)),
+                        salvages: Math.max(0, Math.floor(d.salvages ?? 0)),
+                        skills: Math.max(0, Math.floor(d.skills ?? 0)),
                     };
                 }
             }

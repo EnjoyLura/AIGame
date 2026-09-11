@@ -1,4 +1,5 @@
 import { GameManager } from './GameManager';
+import { QuestSystem } from './QuestSystem';
 import { ABILITY_MAX_LEVEL } from '../battle/HeroDef';
 // HERO_LEVEL_MAX/EQUIP_UPGRADE_MAX 为未解锁基地时的基础上限；实际运行时上限由基地建筑等级动态决定
 
@@ -621,6 +622,7 @@ export class HeroSystem {
         this._gm.misc['mat_core'] = this.miscCount('mat_core') - coreNeed;
         this._gm.skillLevels[this._abilityKey(heroId, slot)] = this.abilityLevel(heroId, slot) + 1;
         this._gm.save();
+        QuestSystem.instance.trackSkill();
         return true;
     }
 
@@ -810,6 +812,7 @@ export class HeroSystem {
         gm.misc[miscId] = this.miscCount(miscId) - 1;
         gems.push(miscId);
         gm.save();
+        QuestSystem.instance.trackGem();
         return true;
     }
 
@@ -852,6 +855,7 @@ export class HeroSystem {
             return null;
         }
         gm.save();
+        QuestSystem.instance.trackCombine();
         return item;
     }
 
@@ -860,6 +864,7 @@ export class HeroSystem {
         const out = salvageBagItem(index);
         if (out) {
             this._gm.save();
+            QuestSystem.instance.trackSalvage();
         }
         return out;
     }
