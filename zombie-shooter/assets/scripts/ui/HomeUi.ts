@@ -8,7 +8,7 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem } from '../core/ShopData';
 import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
-import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
+import { QUEST_DEFS, QuestSystem, QuestDef, ACTIVITY_CHESTS, ACTIVITY_MAX, rewardText } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem';
 import { BestiarySystem, BESTIARY_DEFS, BestiaryDef } from '../core/BestiarySystem';
@@ -2010,7 +2010,7 @@ export class HomeUi extends Component {
         });
     }
 
-    /** 任务中心弹窗：每日任务（自然日重置）+ 成就（累计里程碑），进度条 + 领奖 */
+    /** 任务中心弹窗：活跃度宝箱 + 每日任务（自然日重置）+ 成就（累计里程碑），进度条 + 领奖 */
     private _openQuestModal(): void {
         const qs = QuestSystem.instance;
         this._openModal('📋 任务 · 成就', (box) => {
@@ -2049,16 +2049,11 @@ export class HomeUi extends Component {
                 row.appendChild(mid);
                 const right = document.createElement('div');
                 right.className = 'qRight';
-                const reward: string[] = [];
-                if (def.reward.diamond) {
-                    reward.push(`💎${def.reward.diamond}`);
-                }
-                if (def.reward.gold) {
-                    reward.push(`🪙${def.reward.gold}`);
-                }
                 const rw = document.createElement('span');
                 rw.className = 'qReward';
-                rw.textContent = reward.join(' ');
+                // 每日任务额外标出活跃度：让玩家看清"领了这单能推进宝箱"
+                const act = qs.activityOf(def);
+                rw.textContent = rewardText(def.reward) + (act > 0 ? ` · 活跃+${act}` : '');
                 right.appendChild(rw);
                 const btn = document.createElement('button');
                 btn.className = `btn sm ${done && !claimed ? 'gold' : 'dark'}`;
@@ -2083,6 +2078,62 @@ export class HomeUi extends Component {
                 row.appendChild(right);
                 box.appendChild(row);
             };
+
+            // ---- 活跃度宝箱（置顶：这是任务体系的目标总览，也让"领任务"有明确指向） ----
+            const act = qs.activity;
+            const actBox = document.createElement('div');
+            actBox.className = 'actBox panel';
+            const actHead = document.createElement('div');
+            actHead.className = 'actHead';
+            actHead.innerHTML = `<b>🔥 活跃度</b><span>${act} / ${ACTIVITY_MAX}</span>`;
+            actBox.appendChild(actHead);
+            const actBar = document.createElement('div');
+            actBar.className = 'qBar actBar';
+            const actFill = document.createElement('i');
+            actFill.style.width = `${Math.min(100, Math.round(act / ACTIVITY_MAX * 100))}%`;
+            actBar.appendChild(actFill);
+            actBox.appendChild(actBar);
+            const chests = document.createElement('div');
+            chests.className = 'actChests';
+            for (const c of ACTIVITY_CHESTS) {
+                const claimed = qs.isChestClaimed(c);
+                const can = qs.canClaimChest(c);
+                const cell = document.createElement('div');
+                cell.className = 'actChest' + (claimed ? ' done' : can ? ' ready' : '');
+                const need = Math.max(0, c.need - act);
+                cell.innerHTML =
+                    `<div class="acIc">${c.ic}</div>` +
+                    `<div class="acName">${c.name}</div>` +
+                    `<div class="acReward">${rewardText(c.reward)}</div>` +
+                    `<div class="acNeed">${claimed ? '已领取' : can ? `可开启 · ${c.need}` : `还差 ${need}`}</div>`;
+                const btn = document.createElement('button');
+                btn.className = `btn sm ${can ? 'gold' : 'dark'}`;
+                btn.textContent = claimed ? '已领取' : can ? '开 启' : `${c.need} 活跃`;
+                btn.disabled = !can;
+                if (can) {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.unlock();
+                        if (qs.claimChest(c)) {
+                            SoundFx.play('coin');
+                            this._toast(`${c.name} 开启：${rewardText(c.reward)}`);
+                            this._refreshTop();
+                            document.querySelector('#homeUi .protoMask')?.remove();
+                            this._refreshQuestRed(this._questRedEl);
+                            this._openQuestModal();
+                        }
+                    };
+                }
+                cell.appendChild(btn);
+                chests.appendChild(cell);
+            }
+            actBox.appendChild(chests);
+            const actHint = document.createElement('div');
+            actHint.className = 'actHint';
+            actHint.textContent = '领取每日任务奖励可获得活跃度 · 每日 0 点与任务一同重置';
+            actBox.appendChild(actHint);
+            box.appendChild(actBox);
+
             mkSection('📅 每日任务', '每日 0 点重置');
             for (const def of QUEST_DEFS.filter(q => q.kind === 'daily')) {
                 mkRow(def);
@@ -4533,6 +4584,29 @@ export class HomeUi extends Component {
 #homeUi .qReward { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
 #homeUi .qRight .btn { min-width: calc(140px * var(--hs,1)); height: calc(48px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
 
+/* ===== 活跃度宝箱（任务弹窗顶部总览） ===== */
+#homeUi .actBox { padding: calc(16px * var(--hs,1)); margin-bottom: calc(6px * var(--hs,1)); }
+#homeUi .actHead { display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .actHead b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .actHead span { font-size: calc(22px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
+#homeUi .actBar { margin: calc(10px * var(--hs,1)) 0 calc(14px * var(--hs,1)); }
+#homeUi .actBar i { background: linear-gradient(90deg, #f0b13e, #ffe9a8); }
+#homeUi .actChests { display: flex; gap: calc(12px * var(--hs,1)); }
+#homeUi .actChest { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--hs,1));
+  padding: calc(12px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
+  background: radial-gradient(circle at 50% 0%, #222f4d, #101c34); border: 1px solid #33507a; }
+#homeUi .actChest.ready { border-color: #f0b13e; box-shadow: 0 0 14px rgba(240,177,62,.4); }
+#homeUi .actChest.done { opacity: .5; filter: grayscale(.6); }
+#homeUi .acIc { font-size: calc(46px * var(--hs,1)); line-height: 1.1; }
+#homeUi .actChest.done .acIc { filter: grayscale(1); }
+#homeUi .actChest.ready .acIc { animation: huiChest .9s ease-in-out infinite; }
+#homeUi .acName { font-size: calc(22px * var(--hs,1)); font-weight: 700; color: #e8f1ff; }
+#homeUi .acReward { font-size: calc(17px * var(--hs,1)); color: #7ee0ff; text-align: center; line-height: 1.4; }
+#homeUi .acNeed { font-size: calc(17px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .actChest.ready .acNeed { color: #f0b13e; font-weight: 700; }
+#homeUi .actChest .btn { width: 100%; margin-top: calc(6px * var(--hs,1)); height: calc(44px * var(--hs,1)); font-size: calc(19px * var(--hs,1)); }
+#homeUi .actHint { margin-top: calc(12px * var(--hs,1)); font-size: calc(17px * var(--hs,1)); color: #6a83a8; text-align: center; }
+
 /* ===== 每日签到（基地页入口 + 弹窗） ===== */
 #homeUi .signinEntry { position: relative; margin-left: 0; flex: none; }
 #homeUi .signinEntry .questRed { display: none; position: absolute; top: calc(-6px * var(--hs,1)); right: calc(-6px * var(--hs,1));
@@ -5203,6 +5277,8 @@ export class HomeUi extends Component {
 
 /* 天赋可加点节点的脉冲：需在青瓷层基础规则之后声明，否则被上面的 animation:none 覆盖（同 trialCell.now 的处理） */
 #homeUi .talentNode.can { animation: huiChest .9s ease-in-out infinite; }
+/* 活跃度宝箱可开时的脉冲：同上，显式声明以免日后被 animation:none 白名单波及 */
+#homeUi .actChest.ready .acIc { animation: huiChest .9s ease-in-out infinite; }
 
 /* --- 布局骨架 --- */
 #homeUi .topbar { display: grid; grid-template-columns: calc(44px * var(--pw,2.5)) 1fr; gap: calc(8px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
@@ -5544,6 +5620,23 @@ export class HomeUi extends Component {
 #homeUi .qRight { gap: calc(4px * var(--pw,2.5)); }
 #homeUi .qReward { font-size: calc(12px * var(--pw,2.5)); color: #1e6e9e; }
 #homeUi .qRight .btn { min-width: calc(76px * var(--pw,2.5)); height: calc(30px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); }
+#homeUi .actBox { background: #e7eff5; border: 1px solid #bdced8; border-radius: calc(8px * var(--pw,2.5));
+  padding: calc(8px * var(--pw,2.5)); margin-bottom: calc(4px * var(--pw,2.5)); }
+#homeUi .actHead b { font-size: calc(15px * var(--pw,2.5)); color: #88551f; }
+#homeUi .actHead span { font-size: calc(13px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .actBar { margin: calc(6px * var(--pw,2.5)) 0 calc(8px * var(--pw,2.5)); }
+#homeUi .actBar i { background: linear-gradient(90deg, #f0b13e, #e8892e); }
+#homeUi .actChests { gap: calc(7px * var(--pw,2.5)); }
+#homeUi .actChest { border-radius: calc(8px * var(--pw,2.5)); padding: calc(7px * var(--pw,2.5)) calc(5px * var(--pw,2.5));
+  gap: calc(2px * var(--pw,2.5)); background: #dce8ef; border: 1px solid #b3c8d6; }
+#homeUi .actChest.ready { border-color: #cc8d45; box-shadow: 0 0 6px rgba(233,160,79,.4); }
+#homeUi .acIc { font-size: calc(26px * var(--pw,2.5)); }
+#homeUi .acName { font-size: calc(12px * var(--pw,2.5)); color: #31536a; }
+#homeUi .acReward { font-size: calc(10px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .acNeed { font-size: calc(10px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .actChest.ready .acNeed { color: #945d24; }
+#homeUi .actChest .btn { height: calc(26px * var(--pw,2.5)); font-size: calc(11px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); margin-top: calc(3px * var(--pw,2.5)); }
+#homeUi .actHint { margin-top: calc(6px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: #7e97a8; }
 
 /* --- 排行榜（青瓷浅色变体） --- */
 #homeUi .lbEntry { border-radius: calc(7px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); padding: 0 calc(10px * var(--pw,2.5)); }

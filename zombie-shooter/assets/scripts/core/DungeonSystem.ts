@@ -2,6 +2,7 @@ import { sys } from 'cc';
 import { MonsterInfo, WaveInfo, mob } from '../battle/WaveData';
 import { GameManager } from './GameManager';
 import { miscDef } from './HeroSystem';
+import { QuestSystem } from './QuestSystem';
 
 /**
  * 资源副本系统（基地横幅入口）：
@@ -360,6 +361,8 @@ export class DungeonSystem {
         this._data.counts[id] = (this._data.counts[id] ?? 0) + 1;
         this._data.total++;
         this._save();
+        // 每日任务「每日委托」按当日进本次数计数（refund 不回退任务进度：已打过的副本不算没打）
+        QuestSystem.instance.trackDungeon();
         return true;
     }
 
