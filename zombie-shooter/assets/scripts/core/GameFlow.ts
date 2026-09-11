@@ -1,4 +1,4 @@
-import { GameEvent } from '../config/GameConfig';
+import { GameEvent, BattleConfig } from '../config/GameConfig';
 import { eventCenter } from './EventCenter';
 import { GameManager } from './GameManager';
 import { BattleManager } from '../battle/BattleManager';
@@ -78,6 +78,8 @@ export class GameFlow {
         const floor = endless ? 0 : Math.floor(trialFloor);
         // 副本已扣的次数/体力，beginRun 失败时需要回滚
         let spentDungeon = false;
+        // 普通关卡扣的体力，beginRun 失败时同样回滚
+        let spentRun = false;
         if (floor < 0) {
             // 资源副本：校验档位解锁与剩余次数，再扣体力 + 次数
             const dg = dungeonFromCode(floor);
@@ -114,6 +116,11 @@ export class GameFlow {
             if (!endless && !gm.isDiffUnlocked(gm.currentStage, diff)) {
                 return false;
             }
+            // 守卫全过才真实扣体力（此前只查不扣，体力经济只对副本生效）
+            if (!gm.spendRunStamina()) {
+                return false;
+            }
+            spentRun = true;
         }
         // 先清场重开（_restart 会把实体/统计/运行时数据归零），再开波；
         // 顺序保证扣体力失败时不会留下半初始化的战斗现场
@@ -126,6 +133,10 @@ export class GameFlow {
                 if (dg) {
                     DungeonSystem.instance.refund(dg.id);
                 }
+            }
+            if (spentRun) {
+                // 普通关卡同理：开战失败退回体力
+                gm.res.add('stamina', BattleConfig.RUN_STAMINA_COST);
             }
             return false;
         }

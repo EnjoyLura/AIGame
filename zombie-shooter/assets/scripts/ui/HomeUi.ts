@@ -6,7 +6,7 @@ import { GameManager, META_UPGRADES, BUILDINGS } from '../core/GameManager';
 import { AssetLib } from '../core/AssetLib';
 import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
-import { ShopData, ShopItem } from '../core/ShopData';
+import { ShopData, ShopItem, ShopQuota } from '../core/ShopData';
 import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef, ACTIVITY_CHESTS, ACTIVITY_MAX, rewardText } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
@@ -239,7 +239,11 @@ export class HomeUi extends Component {
         // 普通出战/无尽共用：难度取当前关卡页选择（无尽恒普通）
         if (!GameFlow.instance.startRun(endless, endless ? 0 : this._stageDiffSel)) {
             this._refreshAll();
-            if (endless) {
+            const gm = GameManager.instance;
+            if (!gm.canStartRun()) {
+                // 体力不足是最常见失败：明确告知需求（与副本入口同款文案模板）
+                this._toast(`体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`);
+            } else if (endless) {
                 this._toast('无尽模式需通关全部关卡后解锁');
             }
             return;
@@ -767,7 +771,23 @@ export class HomeUi extends Component {
                 });
             }
         } else {
-            // 材料页签 = 商城道具（ShopData）+ 体力广告卡
+            // 材料页签 = 材料货柜（每日限量）+ 商城道具（ShopData）+ 体力广告卡
+            const MAT_IC: Record<string, string> = { mat_stone: '🧱', mat_alloy: '🔩', mat_core: '⚙️', gem_fire: '🔴', gem_wind: '🟢', gem_ice: '🔵', gem_thunder: '🟡' };
+            for (const item of ShopData.MATERIALS) {
+                const left = ShopQuota.remaining(item);
+                const soldOut = left <= 0;
+                mkGood({
+                    ic: item.grantMisc ? (item.pickRandom ? '💠' : (MAT_IC[item.grantMisc[0].id] ?? '📦')) : '📦',
+                    name: item.name, tag: item.desc,
+                    price: `${item.price.res === 'gold' ? '🪙' : '💎'} ${item.price.amount.toLocaleString()}`,
+                    r: 3,
+                    disabled: soldOut || !gm.res.canSpend(item.price.res, item.price.amount),
+                    onTap: () => {
+                        this._buyMaterialItem(item);
+                        this._refreshMall();
+                    },
+                });
+            }
             for (const item of ShopData.ITEMS) {
                 const RES_NAME = { gold: '🪙', diamond: '💎', stamina: '🍖' } as const;
                 mkGood({
@@ -831,6 +851,30 @@ export class HomeUi extends Component {
         gm.save();
         SoundFx.play('buy');
         this._toast(`购买成功：${item.name}`);
+    }
+
+    /** 材料货柜购买：扣费 → 随机/全量发材料 → 计当日次数 */
+    private _buyMaterialItem(item: ShopItem): void {
+        const gm = GameManager.instance;
+        if (!item.grantMisc || !gm.res.spend(item.price.res, item.price.amount)) {
+            SoundFx.play('ui');
+            return;
+        }
+        const drops = item.pickRandom
+            ? [item.grantMisc[Math.floor(Math.random() * item.grantMisc.length)]]
+            : item.grantMisc;
+        for (const m of drops) {
+            gm.misc[m.id] = (gm.misc[m.id] ?? 0) + m.n;
+        }
+        ShopQuota.consume(item);
+        gm.save();
+        SoundFx.play('buy');
+        const names: string[] = [];
+        for (const d of drops) {
+            const md = miscDef(d.id);
+            names.push(`${md ? md.ic : '📦'}${md ? md.name : d.id}×${d.n}`);
+        }
+        this._toast(`购买成功：${names.join(' ')}`);
     }
 
     // ================= 礼包系统 =================
@@ -3460,6 +3504,28 @@ export class HomeUi extends Component {
                     btn.textContent = '已满级';
                     btn.disabled = true;
                 }
+                // 词缀重铸：重新随机词缀（满条保底），只动词缀不动强化/宝石
+                const rfBtn = document.createElement('button');
+                rfBtn.className = 'btn blue sm';
+                const rfAlloy = hs.reforgeAlloyCost(cur);
+                const rfGem = hs.reforgeGemCost(cur);
+                const rfAlloyLeft = hs.miscCount('mat_alloy');
+                info.innerHTML +=
+                    `<div class="equipStat matNeed">重铸需 🔩 ${rfAlloy}（余 ${rfAlloyLeft}）· 💎 ${rfGem}</div>`;
+                rfBtn.textContent = '✦ 重铸';
+                rfBtn.disabled = rfAlloyLeft < rfAlloy || gm.res.get('diamond') < rfGem;
+                rfBtn.title = '重新随机词缀（保底满条）；强化等级与宝石不变';
+                rfBtn.onclick = () => {
+                    if (hs.reforgeAffixes(heroId, slot)) {
+                        SoundFx.play('buy');
+                        this._toast('词缀已重铸');
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._refreshHeroes();
+                        this._openEquipSlotPanel(heroId, slot);
+                    } else {
+                        this._toast('材料不足：重铸需精炼合金与钻石');
+                    }
+                };
                 const offBtn = document.createElement('button');
                 offBtn.className = 'btn dark sm';
                 offBtn.textContent = '卸 下';
@@ -3473,7 +3539,9 @@ export class HomeUi extends Component {
                 const wrap = document.createElement('div');
                 wrap.style.display = 'flex';
                 wrap.style.gap = 'calc(8px * var(--hs,1))';
+                wrap.style.flexWrap = 'wrap';
                 wrap.appendChild(btn);
+                wrap.appendChild(rfBtn);
                 wrap.appendChild(offBtn);
                 row.appendChild(info);
                 row.appendChild(wrap);

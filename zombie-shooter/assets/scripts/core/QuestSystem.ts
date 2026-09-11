@@ -23,7 +23,8 @@ import { miscDef } from './HeroSystem';
 /** 任务/成就目标类型（与计数钩子一一对应） */
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
-    | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns' | 'expeditionRuns';
+    | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns' | 'expeditionRuns'
+    | 'reforges';
 
 export interface QuestDef {
     id: string;
@@ -86,6 +87,9 @@ export const QUEST_DEFS: QuestDef[] = [
     // ---- 远征派遣 ----
     { id: 'a_exp5', kind: 'achv', name: '初次远征', goal: 'expeditionRuns', target: 5, reward: { diamond: 30 }, ic: '🚀' },
     { id: 'a_exp30', kind: 'achv', name: '远征队长', goal: 'expeditionRuns', target: 30, reward: { diamond: 100 }, ic: '🧭' },
+    // ---- 装备重铸 ----
+    { id: 'a_reforge1', kind: 'achv', name: '初试重铸', goal: 'reforges', target: 1, reward: { diamond: 20 }, ic: '✦' },
+    { id: 'a_reforge20', kind: 'achv', name: '词缀重塑师', goal: 'reforges', target: 20, reward: { diamond: 80 }, ic: '💫' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -165,6 +169,8 @@ interface QuestSave {
     combines: number;
     salvages: number;
     skills: number;
+    /** 词缀重铸次数（reforgeAffixes 成功 +1） */
+    reforges: number;
 }
 
 export class QuestSystem {
@@ -180,7 +186,7 @@ export class QuestSystem {
 
     private _data: QuestSave = {
         dailyDate: '', dailyProgress: {}, dailyClaimed: [], activityClaimed: [], achvClaimed: [],
-        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0,
+        clears: 0, goldEarned: 0, ads: 0, gems: 0, combines: 0, salvages: 0, skills: 0, reforges: 0,
     };
 
     private constructor() {
@@ -218,6 +224,7 @@ export class QuestSystem {
             case 'affix3': return Math.min(def.target, this._affix3Count(gm));
             case 'dungeonRuns': return Math.min(def.target, DungeonSystem.instance.totalRuns);
             case 'expeditionRuns': return Math.min(def.target, ExpeditionSystem.instance.totalRuns);
+            case 'reforges': return Math.min(def.target, this._data.reforges);
         }
     }
 
@@ -393,6 +400,12 @@ export class QuestSystem {
         this._save();
     }
 
+    /** 词缀重铸一次（reforgeAffixes 成功后调用） */
+    trackReforge(): void {
+        this._data.reforges++;
+        this._save();
+    }
+
     // ================= 内部 =================
 
     /** 跨自然日重置每日进度与领奖记录 */
@@ -468,6 +481,7 @@ export class QuestSystem {
                         combines: Math.max(0, Math.floor(d.combines ?? 0)),
                         salvages: Math.max(0, Math.floor(d.salvages ?? 0)),
                         skills: Math.max(0, Math.floor(d.skills ?? 0)),
+                        reforges: Math.max(0, Math.floor(d.reforges ?? 0)),
                     };
                 }
             }

@@ -103,15 +103,16 @@ export function affixCount(tier: EquipTier): number {
  * 掉落/合成时随机生成词缀 id 列表。
  * 同一件装备不重复词缀；低品质件有概率少给一条（保留"这件词缀不满"的遗憾感），
  * tier 6 恒定满条且数值取满档（见 affixValue 的 tier 参数）。
+ * fullLuck=true（装备重铸用）跳过缩水分支：重铸是花钱洗的，必须给满条。
  */
-export function rollAffixes(tier: EquipTier): string[] {
+export function rollAffixes(tier: EquipTier, fullLuck = false): string[] {
     const want = affixCount(tier);
     if (want <= 0) {
         return [];
     }
-    // 低档件有 25% 概率少给一条（tier 5/6 不缩水，保证高档件手感）
+    // 低档件有 25% 概率少给一条（tier 5/6 不缩水，保证高档件手感）；fullLuck 时不缩水
     let n = want;
-    if (tier <= 4 && Math.random() < 0.25) {
+    if (!fullLuck && tier <= 4 && Math.random() < 0.25) {
         n = Math.max(1, want - 1);
     }
     const pool: string[] = [];

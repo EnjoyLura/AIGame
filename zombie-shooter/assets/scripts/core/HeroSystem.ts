@@ -794,6 +794,43 @@ export class HeroSystem {
         return this._equipValue(state, key) + this._gemValue(state, key) + this._affixValue(state, key);
     }
 
+    /** 词缀重铸材料需求：精炼合金（与强化同源阶梯，品质越高越贵） */
+    reforgeAlloyCost(state: EquipState): number {
+        return this.equipUpgradeAlloy(state) + (this._stateTier(state) - 1) * 2;
+    }
+
+    /** 词缀重铸钻石需求：品质 ×5（拦无限白嫖的软门槛） */
+    reforgeGemCost(state: EquipState): number {
+        return this._stateTier(state) * 5;
+    }
+
+    /**
+     * 重铸某槽当前装备的词缀：条数按品质保底满条（fullLuck），数值重新掷点。
+     * 只动词缀——强化等级与宝石不变。合金/钻石任一不足返回 false（先查后扣，无回滚负担）。
+     */
+    reforgeAffixes(heroId: string, slot: EquipSlot): boolean {
+        const state = this.equipped(heroId, slot);
+        if (!state || !this._gm.isHeroOwned(heroId)) {
+            return false;
+        }
+        const alloy = this.reforgeAlloyCost(state);
+        const gem = this.reforgeGemCost(state);
+        if (this.miscCount('mat_alloy') < alloy) {
+            return false;
+        }
+        if (!this._gm.res.spend('diamond', gem)) {
+            return false;
+        }
+        this._gm.misc['mat_alloy'] = this.miscCount('mat_alloy') - alloy;
+        if (this._gm.misc['mat_alloy'] <= 0) {
+            delete this._gm.misc['mat_alloy'];
+        }
+        state.affixes = rollAffixes(this._stateTier(state), true);
+        this._gm.save();
+        QuestSystem.instance.trackReforge();
+        return true;
+    }
+
     /** 单件装备词缀对某属性的加成合计（critPct 也可查） */
     private _affixValue(state: EquipState, key: AffixKey): number {
         const tier = this._stateTier(state);
