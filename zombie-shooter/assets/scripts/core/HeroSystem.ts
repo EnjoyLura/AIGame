@@ -383,9 +383,9 @@ function randomBagDrop(): BagItem | null {
  * 1. 核心材料「英雄核心」6%；2. 稀有杂物（雷光石/改装图纸）5%；3. 装备 13%（品质阶梯内随机）。
  * 命中多档时全部发放（掉落物之间独立掷点）。
  */
-export function rollStageClearDrops(stageId: number): LootDrop[] {
+export function rollStageClearDrops(stageId: number, diffMul = 1): LootDrop[] {
     const drops: LootDrop[] = [];
-    const luck = lootLuck(stageId);
+    const luck = lootLuck(stageId) * diffMul;
     // ① 武器核心材料（珍贵）
     if (Math.random() < LOOT_RATES.core * luck) {
         const d = miscDef('mat_core');
@@ -446,9 +446,9 @@ export function lootLuck(stageId: number): number {
     return 1 + Math.min(0.3, (Math.max(1, stageId) - 1) * 0.03);
 }
 
-/** 掉落概率文案（战斗页预览用）：各档位显示概率百分数 */
-export function lootRateText(stageId: number): { core: string; rare: string; equip: string } {
-    const k = lootLuck(stageId);
+/** 掉落概率文案（战斗页预览用）：各档位显示概率百分数；diffMul=难度奖励倍率 */
+export function lootRateText(stageId: number, diffMul = 1): { core: string; rare: string; equip: string } {
+    const k = lootLuck(stageId) * diffMul;
     const pct = (v: number) => `${Math.round(v * k * 100)}%`;
     return { core: pct(LOOT_RATES.core), rare: pct(LOOT_RATES.rare), equip: pct(LOOT_RATES.equip) };
 }

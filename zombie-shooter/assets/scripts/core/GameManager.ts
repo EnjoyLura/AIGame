@@ -77,6 +77,31 @@ export class GameManager {
         }
     }
 
+    // ---- 关卡难度（精英/噩梦）：每关记录已通关的最高难度（缺省 -1=普通都没通） ----
+
+    /** 每关已通关最高难度（stageId → 0/1/2；-1 表示未通关该关） */
+    stageDiffCleared: Record<string, number> = {};
+
+    /** 本关某难度是否已通关 */
+    isStageDiffCleared(stageId: number, diff: number): boolean {
+        return (this.stageDiffCleared[String(stageId)] ?? -1) >= diff;
+    }
+
+    /** 某难度是否可挑战：难度 0 恒可（关卡解锁即可）；更高难度需先通本关低一档 */
+    isDiffUnlocked(stageId: number, diff: number): boolean {
+        return diff <= 0 || this.isStageDiffCleared(stageId, diff - 1);
+    }
+
+    /** 通关登记（难度版）：推进解锁进度 + 记录本关最高难度 */
+    markStageClearedDiff(stageId: number, diff: number): void {
+        this.markStageCleared(stageId);
+        const key = String(stageId);
+        if ((this.stageDiffCleared[key] ?? -1) < diff) {
+            this.stageDiffCleared[key] = diff;
+            this.save();
+        }
+    }
+
     /** 编队上限（与战斗 DEPLOY_HERO_COUNT 对齐） */
     static readonly LINEUP_MAX = 4;
     /** 是否已上阵 */
@@ -315,6 +340,7 @@ export class GameManager {
             gold: this.gold,
             upgrades: this._upgrades,
             buildingLevels: this.buildingLevels,
+            stageDiffCleared: this.stageDiffCleared,
             res: this.res.serialize(),
         };
         sys.localStorage.setItem(GameManager.SAVE_KEY, JSON.stringify(data));
@@ -333,6 +359,16 @@ export class GameManager {
             this.totalKills = data.totalKills ?? 0;
             this.stageCleared = data.stageCleared ?? 0;
             this.currentStage = data.currentStage ?? 1;
+            // 每关最高通关难度（旧档无字段视为全部未通）
+            if (data.stageDiffCleared && typeof data.stageDiffCleared === 'object') {
+                this.stageDiffCleared = {};
+                for (const key of Object.keys(data.stageDiffCleared)) {
+                    const v = Math.floor(data.stageDiffCleared[key]);
+                    if (v >= 0 && v <= 2) {
+                        this.stageDiffCleared[key] = v;
+                    }
+                }
+            }
             // 已拥有英雄：无字段（旧档）或空/全非法一律回退仅步枪手，其余英雄商城金币解锁
             if (Array.isArray(data.ownedHeroes)) {
                 const validOwned = data.ownedHeroes.filter((id: unknown) => typeof id === 'string' && HERO_DEFS.some(d => d.id === id));

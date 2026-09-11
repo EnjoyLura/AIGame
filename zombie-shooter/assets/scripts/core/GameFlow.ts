@@ -60,8 +60,8 @@ export class GameFlow {
         eventCenter.emit(GameEvent.FLOW_CHANGED, from, s);
     }
 
-    /** home → battle：出战。守卫失败返回 false（UI 据此回滚显示） */
-    startRun(endless = false): boolean {
+    /** home → battle：出战。守卫失败返回 false（UI 据此回滚显示）；diff=关卡难度（0 普通/1 精英/2 噩梦） */
+    startRun(endless = false, diff = 0): boolean {
         if (this._state !== 'home') {
             console.warn(`[GameFlow] endRun 非法转移：当前 ${this._state}`.replace('endRun', 'startRun'));
             return false;
@@ -74,10 +74,14 @@ export class GameFlow {
         if (endless && gm.stageCleared < FINAL_STAGE_ID) {
             return false;
         }
+        // 高难度门槛：精英需通关本关普通，噩梦需通关本关精英
+        if (!endless && !gm.isDiffUnlocked(gm.currentStage, diff)) {
+            return false;
+        }
         // 先清场重开（_restart 会把实体/统计/运行时数据归零），再扣体力开波；
         // 顺序保证扣体力失败时不会留下半初始化的战斗现场
         eventCenter.emit(GameEvent.GAME_RESTART);
-        if (!BattleManager.instance?.beginRun(endless)) {
+        if (!BattleManager.instance?.beginRun(endless, diff)) {
             return false;
         }
         this._setState('battle');

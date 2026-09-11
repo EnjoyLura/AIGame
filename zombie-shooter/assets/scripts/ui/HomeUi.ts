@@ -16,7 +16,7 @@ import { MailSystem } from '../core/MailSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
-import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves } from '../battle/StageData';
+import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDef, StageDifficulty } from '../battle/StageData';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -208,12 +208,13 @@ export class HomeUi extends Component {
         this._applyPendingTex();
     }
 
-    private _startBattle(endless = false): void {
+    private _startBattle(endless = false, _diff?: StageDifficulty): void {
         if (!this._root) {
             return;
         }
-        // 守卫（体力/解锁）与开波统一走流程状态机；失败回滚显示防止黑屏
-        if (!GameFlow.instance.startRun(endless)) {
+        // 守卫（体力/解锁/难度门槛）与开波统一走流程状态机；失败回滚显示防止黑屏。
+        // 普通出战/无尽共用：难度取当前关卡页选择（无尽恒普通）
+        if (!GameFlow.instance.startRun(endless, endless ? 0 : this._stageDiffSel)) {
             this._refreshAll();
             if (endless) {
                 this._toast('无尽模式需通关全部关卡后解锁');
@@ -2467,6 +2468,12 @@ export class HomeUi extends Component {
         this._siPowEl = info.querySelector('.siPow');
         this._siStEl = info.querySelector('.siSt');
 
+        // 难度选择器：普通/精英/噩梦三档（高难度需依次通关解锁）
+        const diffRow = document.createElement('div');
+        diffRow.className = 'diffRow';
+        page.appendChild(diffRow);
+        this._diffRowEl = diffRow;
+
         // 通关结算奖励预览：金币区间 + 装备/核心/稀有杂物掉落率（真数据公式）
         const lootPrev = document.createElement('div');
         lootPrev.className = 'lootPrev panel';
@@ -2527,6 +2534,10 @@ export class HomeUi extends Component {
     }
 
     private _squadBtn: HTMLButtonElement | null = null;
+    /** 关卡难度选择（0 普通/1 精英/2 噩梦；跨关卡切换时重置为可解锁的最高档） */
+    private _stageDiffSel: StageDifficulty = 0;
+    /** 难度选择器容器（_refreshStagePage 重建三档按钮） */
+    private _diffRowEl: HTMLDivElement | null = null;
     /** 战斗页掉落预览容器（_refreshStagePage 填充金币区间与掉率） */
     private _lootPrevEl: HTMLDivElement | null = null;
 
@@ -2600,18 +2611,58 @@ export class HomeUi extends Component {
 
         // 关卡信息
         const clearedAll = stageId <= gm.stageCleared;
+        // 难度选择：切关卡时重置为本关已解锁的最高档
+        let maxDiff: StageDifficulty = 0;
+        for (const d of STAGE_DIFFS) {
+            if (gm.isDiffUnlocked(stageId, d.id)) {
+                maxDiff = d.id;
+            }
+        }
+        if (this._stageDiffSel > maxDiff) {
+            this._stageDiffSel = maxDiff;
+        }
+        if (!gm.isDiffUnlocked(stageId, this._stageDiffSel)) {
+            this._stageDiffSel = 0;
+        }
+        const diffDef = stageDiffDef(this._stageDiffSel);
+        if (this._diffRowEl) {
+            this._diffRowEl.innerHTML = '';
+            const head = document.createElement('div');
+            head.className = 'diffHead';
+            head.textContent = '⚔️ 难度';
+            this._diffRowEl.appendChild(head);
+            for (const d of STAGE_DIFFS) {
+                const unlocked = gm.isDiffUnlocked(stageId, d.id);
+                const cleared = gm.isStageDiffCleared(stageId, d.id);
+                const b = document.createElement('button');
+                b.className = 'btn sm diffBtn' + (d.id === this._stageDiffSel ? ' gold on' : unlocked ? ' blue' : ' dark lock');
+                b.innerHTML = `<b>${d.ic} ${d.name}</b>` +
+                    `<span>${unlocked ? (cleared ? '✅ 已通关' : `怪强 ×${d.hpMul} · 奖励 ×${d.rewardMul}`) : '🔒 ' + d.unlockNote}</span>`;
+                if (!unlocked) {
+                    b.disabled = true;
+                } else {
+                    b.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.play('ui');
+                        this._stageDiffSel = d.id;
+                        this._refreshStagePage();
+                    };
+                }
+                this._diffRowEl.appendChild(b);
+            }
+        }
         if (this._siLvlEl) {
-            this._siLvlEl.textContent = `${stageId}-${1}`;
+            this._siLvlEl.textContent = `${stageId}-${this._stageDiffSel + 1}`;
         }
         if (this._siPowEl) {
-            this._siPowEl.textContent = (7600 + stageId * 1400).toLocaleString();
+            this._siPowEl.textContent = Math.round((7600 + stageId * 1400) * (0.7 + diffDef.hpMul * 0.3)).toLocaleString();
         }
         if (this._siStEl) {
             if (clearedAll) {
-                this._siStEl.textContent = '✅ 已通关';
+                this._siStEl.textContent = `✅ 已通关·${diffDef.name}`;
                 this._siStEl.className = 'ok';
             } else if (stageId === gm.stageCleared + 1) {
-                this._siStEl.textContent = '▶ 待挑战';
+                this._siStEl.textContent = `▶ ${diffDef.name}·待挑战`;
                 this._siStEl.className = 'go';
             } else {
                 this._siStEl.textContent = '🔒 未解锁';
@@ -2690,11 +2741,11 @@ export class HomeUi extends Component {
             for (const w of waves) {
                 kills += Math.round(w.count * (1 + w.eliteChance));
             }
-            const goldMul = gm.metaGoldMul() * gm.depotGoldMul();
+            const goldMul = gm.metaGoldMul() * gm.depotGoldMul() * diffDef.rewardMul;
             const mid = (kills * 2 + WAVES_PER_STAGE * 15) * goldMul;
             const lo = Math.round(mid * 0.85);
             const hi = Math.round(mid * 1.15);
-            const rates = lootRateText(stageId);
+            const rates = lootRateText(stageId, diffDef.rewardMul);
             const q = (c: string) => this._lootPrevEl?.querySelector('.' + c);
             const gold = q('lpGold');
             if (gold) {
@@ -3942,6 +3993,16 @@ export class HomeUi extends Component {
 #homeUi .siBox b { display: block; font-size: calc(26px * var(--hs,1)); color: #dce8f7; margin-top: calc(6px * var(--hs,1)); }
 #homeUi .siBox b.ok { color: #7fe08a; }
 #homeUi .siBox b.go { color: #ffe9a8; }
+
+/* ===== 关卡难度选择器（普通/精英/噩梦） ===== */
+#homeUi .diffRow { display: flex; align-items: stretch; gap: calc(12px * var(--hs,1)); margin: 0 0 calc(20px * var(--hs,1)); }
+#homeUi .diffHead { flex: none; display: flex; align-items: center; font-size: calc(22px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .diffBtn { flex: 1; height: auto; padding: calc(10px * var(--hs,1)) calc(8px * var(--hs,1));
+  display: flex; flex-direction: column; align-items: center; gap: calc(5px * var(--hs,1)); }
+#homeUi .diffBtn b { font-size: calc(23px * var(--hs,1)); }
+#homeUi .diffBtn span { font-size: calc(16px * var(--hs,1)); font-weight: 500; opacity: .85; }
+#homeUi .diffBtn.lock { opacity: .55; }
+#homeUi .diffBtn.on { box-shadow: 0 0 12px rgba(240,177,62,.45); }
 #homeUi .chests { display: flex; gap: calc(16px * var(--hs,1)); }
 #homeUi .chest { flex: 1; text-align: center; padding: calc(20px * var(--hs,1)) calc(8px * var(--hs,1)) calc(16px * var(--hs,1)); }
 #homeUi .chest .cic { font-size: calc(64px * var(--hs,1)); display: block; width: calc(72px * var(--hs,1)); height: calc(72px * var(--hs,1));
@@ -4296,6 +4357,15 @@ export class HomeUi extends Component {
 #homeUi .sceneTitle h1 { font-size: calc(26px * var(--pw,2.5)); margin-top: calc(4px * var(--pw,2.5)); font-weight: 900; letter-spacing: 0; }
 #homeUi .sceneTitle p { font-size: calc(11px * var(--pw,2.5)); margin-top: calc(5px * var(--pw,2.5)); color: #e0eef1; }
 #homeUi .stageInfo { margin: 0; padding: calc(12px * var(--pw,2.5)); background: #f8fafb; border-bottom: 1px solid #bfced8; gap: 0; }
+#homeUi .siBox b.go { color: #9a6a20; }
+
+/* --- 关卡难度选择器（青瓷浅色变体） --- */
+#homeUi .diffRow { padding: calc(8px * var(--pw,2.5)) calc(12px * var(--pw,2.5)); background: #f8fafb; border-bottom: 1px solid #bfced8; gap: calc(6px * var(--pw,2.5)); margin: 0; }
+#homeUi .diffHead { font-size: calc(11px * var(--pw,2.5)); color: #536f7f; }
+#homeUi .diffBtn { border-radius: calc(7px * var(--pw,2.5)); padding: calc(6px * var(--pw,2.5)) calc(4px * var(--pw,2.5)); gap: calc(3px * var(--pw,2.5)); }
+#homeUi .diffBtn b { font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .diffBtn span { font-size: calc(10px * var(--pw,2.5)); }
+#homeUi .diffBtn.dark { background: #e7eff5; border-color: #bdced8; color: #536f7f; }
 #homeUi .siBox { background: none; border: none; border-radius: 0; box-shadow: none; padding: 0 calc(5px * var(--pw,2.5));
   font-size: calc(10px * var(--pw,2.5)); color: #536f7f; }
 #homeUi .siBox + .siBox { border-left: 1px solid #c9d6df; }

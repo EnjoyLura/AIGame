@@ -21,7 +21,7 @@ import { LevelUpPanel } from '../ui/LevelUpPanel';
 import { GmPanel } from '../ui/GmPanel';
 import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
-import { stageWaves, stageInfo, FINAL_STAGE_ID } from './StageData';
+import { stageWaves, stageInfo, FINAL_STAGE_ID, StageDifficulty, stageDiffDef, StageDiffDef } from './StageData';
 import { GameFlow } from '../core/GameFlow';
 import { HeroSystem, LootDrop, rollStageClearDrops, grantLootDrops } from '../core/HeroSystem';
 import { HitParticle } from './HitParticle';
@@ -128,6 +128,11 @@ export class BattleManager extends Component {
     private _endless = false;
     /** 无尽模式已领取的里程碑数（发奖幂等用） */
     private _endlessMilestones = 0;
+    /** 本局关卡难度（0 普通/1 精英/2 噩梦；无尽恒 0） */
+    private _difficulty: StageDifficulty = 0;
+    /** 结算口径：本局难度（结算面板/HUD 展示） */
+    get difficulty(): StageDifficulty { return this._difficulty; }
+    get difficultyDef(): StageDiffDef { return stageDiffDef(this._difficulty); }
 
     /** 结算口径：无尽模式失败时用 GAME_OVER 面板展示无尽波数 */
     get isEndless(): boolean { return this._endless; }
@@ -306,12 +311,13 @@ export class BattleManager extends Component {
     }
 
     /** 开波纯战斗部分（体力扣减与清场已由 GameFlow.startRun 完成）：应用局外强化并开启第一波 */
-    beginRun(endless = false): boolean {
+    beginRun(endless = false, diff = 0): boolean {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
         this._stageId = gm.currentStage;
         this._endless = endless;
         this._endlessMilestones = 0;
+        this._difficulty = endless ? 0 : (Math.min(2, Math.max(0, Math.floor(diff))) as StageDifficulty);
         for (const h of this._heroes) {
             // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 英雄乘区（武器×装备×宝石）
             h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * hs.atkMulOf(h.def.id));
@@ -364,7 +370,7 @@ export class BattleManager extends Component {
                         this._endlessReward();
                     }
                     this._startWave(this._waveNumber + 1);
-                } else if (this._waveNumber >= stageWaves(this._stageId).length) {
+                } else if (this._waveNumber >= stageWaves(this._stageId, this._difficulty).length) {
                     // 末波清完 → 通关结算（解锁下一关+回主城）
                     this._clearStage();
                 } else {
@@ -1106,17 +1112,22 @@ export class BattleManager extends Component {
         const gm = GameManager.instance;
         GameManager.instance.wave = this._waveNumber;
         GameManager.instance.bestWave = Math.max(GameManager.instance.bestWave, this._waveNumber);
-        // 首次通关才推进解锁进度（重复刷已通关卡不回退进度）
+        // 难度口径：精英/噩梦通关按各自最高难度登记（驱动下一档难度解锁）
+        const diffDef = stageDiffDef(this._difficulty);
+        // 首次通关才推进解锁进度（重复刷已通关卡不回退进度）；高难度首通按难度倍化首通金币
         const firstClear = this._stageId > gm.stageCleared;
-        gm.markStageCleared(this._stageId);
+        const firstDiffClear = !gm.isStageDiffCleared(this._stageId, this._difficulty);
+        gm.markStageClearedDiff(this._stageId, this._difficulty);
         this._awardRunGold();
-        // 首通奖励：一次性金币（后续重复通关只拿常规结算），暂存供 GameFlow 广播带出
-        this._clearBonus = firstClear ? this._stageId * 200 : 0;
+        // 首通奖励：一次性金币（后续重复通关只拿常规结算），高难度按 rewardMul 倍化，暂存供 GameFlow 广播带出
+        const baseBonus = firstClear ? this._stageId * 200 : 0;
+        const diffBonus = !firstClear && firstDiffClear ? this._stageId * 100 : 0;
+        this._clearBonus = Math.round((baseBonus + diffBonus) * diffDef.rewardMul);
         if (this._clearBonus > 0) {
             gm.addGold(this._clearBonus);
         }
-        // 通关掉落掷点：小概率掉装备/核心/稀有杂物，入包后暂存供结算面板展示
-        this._clearDrops = rollStageClearDrops(this._stageId);
+        // 通关掉落掷点：小概率掉装备/核心/稀有杂物，入包后暂存供结算面板展示；高难度掉率倍增
+        this._clearDrops = rollStageClearDrops(this._stageId, diffDef.rewardMul);
         grantLootDrops(this._clearDrops);
         GameFlow.instance.endRun('clear');
     }
@@ -1371,8 +1382,8 @@ export class BattleManager extends Component {
 
     private _startWave(waveNumber: number): void {
         this._waveNumber = waveNumber;
-        // 本关波次表（StageData 按关卡 id 生成）；越界=通关后无尽滚波
-        const table = stageWaves(this._stageId);
+        // 本关波次表（StageData 按关卡 id 与难度生成）；越界=通关后无尽滚波
+        const table = stageWaves(this._stageId, this._difficulty);
         const idx = Math.min(waveNumber - 1, table.length - 1);
         // 总量/上限保留 ×3；前三波生成密度由 ×2 平滑过渡至 ×3。
         const base = table[idx];

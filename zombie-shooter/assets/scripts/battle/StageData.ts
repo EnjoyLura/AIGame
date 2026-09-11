@@ -94,10 +94,51 @@ export const STAGES: StageInfo[] = [
 /** 关卡波次表缓存（makeWaves 纯函数，启动后不变） */
 const WAVE_CACHE: WaveInfo[][] = STAGES.map(makeWaves);
 
-/** 取关卡波次表（id 越界时钳到最后一关） */
-export function stageWaves(stageId: number): WaveInfo[] {
+// ================= 难度系统 =================
+
+/** 关卡难度：普通（默认）/ 精英（通关本关普通解锁）/ 噩梦（通关本关精英解锁） */
+export type StageDifficulty = 0 | 1 | 2;
+
+export interface StageDiffDef {
+    id: StageDifficulty;
+    name: string;
+    ic: string;
+    /** 怪物强度倍率（hp ×N、啃咬伤害 ×√N），乘在关卡 hpMul 之上 */
+    hpMul: number;
+    /** 通关奖励倍率（首通金币/结算掉落 luck） */
+    rewardMul: number;
+    /** 未解锁提示 */
+    unlockNote: string;
+}
+
+/** 三档难度定义（精英≈1.5×、噩梦≈2.4× 普通怪强度，奖励同步倍化） */
+export const STAGE_DIFFS: StageDiffDef[] = [
+    { id: 0, name: '普通', ic: '▶', hpMul: 1, rewardMul: 1, unlockNote: '' },
+    { id: 1, name: '精英', ic: '⭐', hpMul: 1.5, rewardMul: 1.6, unlockNote: '通关本关【普通】解锁' },
+    { id: 2, name: '噩梦', ic: '💀', hpMul: 2.4, rewardMul: 2.4, unlockNote: '通关本关【精英】解锁' },
+];
+
+export function stageDiffDef(id: StageDifficulty): StageDiffDef {
+    return STAGE_DIFFS[Math.min(2, Math.max(0, id))];
+}
+
+/** 取关卡波次表（id 越界时钳到最后一关；难度 >0 时怪物 hp/伤害/精英率现场放大） */
+export function stageWaves(stageId: number, diff: StageDifficulty = 0): WaveInfo[] {
     const idx = Math.min(Math.max(1, stageId), STAGES.length) - 1;
-    return WAVE_CACHE[idx];
+    const base = WAVE_CACHE[idx];
+    const d = stageDiffDef(diff);
+    if (d.hpMul === 1) {
+        return base;
+    }
+    return base.map(w => ({
+        ...w,
+        eliteChance: Math.min(1, w.eliteChance * (1 + (d.hpMul - 1) * 0.6)),
+        monsters: w.monsters.map(m => ({
+            ...m,
+            hp: Math.round(m.hp * d.hpMul),
+            touchDamage: Math.round(m.touchDamage * Math.sqrt(d.hpMul)),
+        })),
+    }));
 }
 
 export function stageInfo(stageId: number): StageInfo {
