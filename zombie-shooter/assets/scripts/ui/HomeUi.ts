@@ -12,6 +12,7 @@ import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem';
 import { BestiarySystem, BESTIARY_DEFS, BestiaryDef } from '../core/BestiarySystem';
+import { MailSystem } from '../core/MailSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
@@ -293,6 +294,12 @@ export class HomeUi extends Component {
         bar.className = 'topbar';
         const avatar = document.createElement('div');
         avatar.className = 'pAvatar';
+        avatar.title = '查看个人主页';
+        avatar.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openProfileModal();
+        };
         const face = document.createElement('div');
         face.textContent = '🎖️';
         // 原型 interface.css：头像底图 = commander.png（照片），无 emoji
@@ -966,6 +973,123 @@ export class HomeUi extends Component {
         if (el) {
             el.classList.toggle('on', SigninSystem.instance.canClaimToday());
         }
+    }
+
+    /** 个人主页浮窗（点头像弹出）：名片 + 战绩 + 养成 + 系统进度 + 账号信息 */
+    private _openProfileModal(): void {
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        const qs = QuestSystem.instance;
+        const bs = BestiarySystem.instance;
+        const ss = SigninSystem.instance;
+        this._openModal('🎖️ 个人主页', (box) => {
+            box.classList.add('pfBox');
+
+            // ---- 名片：大头像 + 称号 + 队伍战力 ----
+            const card = document.createElement('div');
+            card.className = 'pfCard panel frame';
+            const pic = document.createElement('div');
+            pic.className = 'pfPic';
+            this._tex('characters/commander', u => {
+                pic.style.backgroundImage = u;
+                pic.style.backgroundSize = '180% auto';
+                pic.style.backgroundPosition = 'center 12%';
+                pic.style.backgroundRepeat = 'no-repeat';
+            });
+            card.appendChild(pic);
+            const cardInfo = document.createElement('div');
+            cardInfo.className = 'pfCardInfo';
+            const nm = document.createElement('div');
+            nm.className = 'pfName';
+            nm.innerHTML = `<b>末日指挥官</b><span class="lvtag">LV.${gm.hqLevel()}</span>`;
+            const title = document.createElement('div');
+            title.className = 'pfTitle';
+            // 称号按通关进度晋升
+            const stage = gm.stageCleared;
+            title.textContent = stage >= FINAL_STAGE_ID ? '☠️ 尸潮终结者' : stage >= 8 ? '🛡️ 王牌护卫'
+                : stage >= 4 ? '🎯 资深猎手' : stage >= 1 ? '🎖️ 幸存者' : '🌱 拾荒新人';
+            cardInfo.appendChild(nm);
+            cardInfo.appendChild(title);
+            // 队伍战力：全队攻击乘区总和（英雄等级玩法下线，口径 = 武器×装备×局外强化）
+            let power = 0;
+            for (const id of gm.ownedHeroes) {
+                power += Math.round(hs.atkMulOf(id) * gm.metaAtkMul() * 100);
+            }
+            const powerRow = document.createElement('div');
+            powerRow.className = 'pfPower';
+            powerRow.innerHTML = `<span>⚔️ 队伍战力</span><b>${power.toLocaleString()}</b>`;
+            cardInfo.appendChild(powerRow);
+            card.appendChild(cardInfo);
+            box.appendChild(card);
+
+            // ---- 战绩统计 ----
+            const secStats = document.createElement('div');
+            secStats.className = 'pfSec';
+            secStats.innerHTML = '<div class="pfSecHead"><b>📊 战绩统计</b></div>';
+            const grid1 = document.createElement('div');
+            grid1.className = 'pfGrid';
+            const stat = (ic: string, label: string, val: string) => {
+                const c = document.createElement('div');
+                c.className = 'pfStat panel';
+                c.innerHTML = `<em>${ic}</em><b>${val}</b><span>${label}</span>`;
+                grid1.appendChild(c);
+            };
+            stat('🚚', '通关关卡', `${gm.stageCleared}/${FINAL_STAGE_ID}`);
+            stat('🌊', '最远波次', `第 ${gm.bestWave} 波`);
+            stat('💀', '累计击杀', gm.totalKills.toLocaleString());
+            stat('♾️', '无尽里程碑', `${Math.floor(gm.bestWave / 5)} 次`);
+            secStats.appendChild(grid1);
+            box.appendChild(secStats);
+
+            // ---- 养成收集 ----
+            const { done: besDone, total: besTotal } = bs.completion();
+            const skillTotal = Object.keys(gm.skillLevels).length;
+            const gemCount = hs.miscCount('gem_fire') + hs.miscCount('gem_wind') + hs.miscCount('gem_ice') + hs.miscCount('gem_thunder');
+            const secGrow = document.createElement('div');
+            secGrow.className = 'pfSec';
+            secGrow.innerHTML = '<div class="pfSecHead"><b>🎖️ 养成收集</b></div>';
+            const grid2 = document.createElement('div');
+            grid2.className = 'pfGrid';
+            const grow = (ic: string, label: string, val: string) => {
+                const c = document.createElement('div');
+                c.className = 'pfStat panel';
+                c.innerHTML = `<em>${ic}</em><b>${val}</b><span>${label}</span>`;
+                grid2.appendChild(c);
+            };
+            grow('🎖️', '已拥有英雄', `${gm.ownedHeroes.length}/${HERO_DEFS.length}`);
+            grow('📚', '已学技能', `${skillTotal} 门`);
+            grow('💎', '持有宝石', `${gemCount} 颗`);
+            grow('📖', '图鉴收录', `${besDone}/${besTotal}`);
+            secGrow.appendChild(grid2);
+            box.appendChild(secGrow);
+
+            // ---- 系统进度 ----
+            const pro = gm.prosperity();
+            const secSys = document.createElement('div');
+            secSys.className = 'pfSec';
+            secSys.innerHTML = '<div class="pfSecHead"><b>🏗️ 系统进度</b></div>';
+            const grid3 = document.createElement('div');
+            grid3.className = 'pfGrid';
+            grow('🏰', '基地繁荣度', `${pro.cur}/${pro.max}`);
+            grow('📅', '累计签到', `${ss.totalDays} 天`);
+            grow('✅', '成就达成', `${QUEST_DEFS.filter(q => qs.isClaimed(q)).length}/${QUEST_DEFS.length}`);
+            grow('📬', '邮箱附件', `${MailSystem.instance.hasClaimable() ? '有可领取' : '已清空'}`);
+            secSys.appendChild(grid3);
+            box.appendChild(secSys);
+
+            // ---- 账号信息 ----
+            const secAcc = document.createElement('div');
+            secAcc.className = 'pfSec';
+            secAcc.innerHTML = '<div class="pfSecHead"><b>ℹ️ 账号信息</b></div>';
+            const acc = document.createElement('div');
+            acc.className = 'pfAcc panel';
+            acc.innerHTML =
+                `<div class="pfAccRow"><span>游戏版本</span><b>${BUILD_STAMP}</b></div>` +
+                `<div class="pfAccRow"><span>平台</span><b>Web Mobile</b></div>` +
+                `<div class="pfAccRow"><span>称号晋升</span><b>${stage >= FINAL_STAGE_ID ? '已满称号' : `通关第 ${gm.stageCleared + 1} 关晋升`}</b></div>`;
+            secAcc.appendChild(acc);
+            box.appendChild(secAcc);
+        });
     }
 
     /** 怪物图鉴弹窗：完成度头部 + 五怪网格（未解锁剪影）+ 点卡片进详情浮窗 */
@@ -3555,6 +3679,31 @@ export class HomeUi extends Component {
 #homeUi .besStatRow span { color: #8ba3c7; }
 #homeUi .besStatRow b { color: #ffe9a8; }
 
+/* ===== 个人主页（点头像弹出） ===== */
+#homeUi .pAvatar { cursor: pointer; }
+#homeUi .pfCard { display: flex; align-items: center; gap: calc(20px * var(--hs,1)); padding: calc(20px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); }
+#homeUi .pfPic { flex: none; width: calc(128px * var(--hs,1)); height: calc(128px * var(--hs,1)); border-radius: calc(20px * var(--hs,1));
+  background-color: #2a4470; border: 2px solid #3a567f; }
+#homeUi .pfCardInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .pfName { display: flex; align-items: baseline; gap: calc(12px * var(--hs,1)); }
+#homeUi .pfName b { font-size: calc(32px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .pfName .lvtag { font-size: calc(20px * var(--hs,1)); }
+#homeUi .pfTitle { font-size: calc(24px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
+#homeUi .pfPower { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(22px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .pfPower b { font-size: calc(30px * var(--hs,1)); color: #f0b13e; font-variant-numeric: tabular-nums; }
+#homeUi .pfSec { margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .pfSecHead { margin-bottom: calc(10px * var(--hs,1)); }
+#homeUi .pfSecHead b { font-size: calc(24px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .pfGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(10px * var(--hs,1)); }
+#homeUi .pfStat { display: flex; flex-direction: column; align-items: center; gap: calc(5px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(6px * var(--hs,1)); }
+#homeUi .pfStat em { font-style: normal; font-size: calc(32px * var(--hs,1)); line-height: 1.1; }
+#homeUi .pfStat b { font-size: calc(24px * var(--hs,1)); color: #ffe9a8; font-variant-numeric: tabular-nums; }
+#homeUi .pfStat span { font-size: calc(17px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .pfAcc { padding: calc(14px * var(--hs,1)) calc(20px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .pfAccRow { display: flex; justify-content: space-between; font-size: calc(21px * var(--hs,1)); }
+#homeUi .pfAccRow span { color: #8ba3c7; }
+#homeUi .pfAccRow b { color: #ffe9a8; }
+
 /* ===== 排行榜（基地页入口 + 弹窗） ===== */
 #homeUi .lbEntry { margin-left: 0; }
 #homeUi .lbBox .mHead h3 { color: #ffe9a8; }
@@ -4408,6 +4557,29 @@ export class HomeUi extends Component {
 #homeUi .besStatRow { display: flex; justify-content: space-between; font-size: calc(12px * var(--pw,2.5)); }
 #homeUi .besStatRow span { color: #8fa9ba; }
 #homeUi .besStatRow b { color: #945d24; }
+
+/* --- 个人主页（青瓷浅色变体） --- */
+#homeUi .pAvatar { cursor: pointer; }
+#homeUi .pfCard { display: flex; align-items: center; gap: calc(10px * var(--pw,2.5)); padding: calc(10px * var(--pw,2.5)); margin-bottom: calc(10px * var(--pw,2.5)); }
+#homeUi .pfPic { flex: none; width: calc(64px * var(--pw,2.5)); height: calc(64px * var(--pw,2.5)); border-radius: calc(12px * var(--pw,2.5)); background-color: #d4e4eb; }
+#homeUi .pfCardInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(4px * var(--pw,2.5)); }
+#homeUi .pfName { display: flex; align-items: baseline; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .pfName b { font-size: calc(15px * var(--pw,2.5)); color: #46647a; }
+#homeUi .pfTitle { font-size: calc(12px * var(--pw,2.5)); color: #945d24; font-weight: 700; }
+#homeUi .pfPower { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(12px * var(--pw,2.5)); color: #527085; }
+#homeUi .pfPower b { font-size: calc(16px * var(--pw,2.5)); color: #e9a04f; }
+#homeUi .pfSec { margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .pfSecHead { margin-bottom: calc(5px * var(--pw,2.5)); }
+#homeUi .pfSecHead b { font-size: calc(13px * var(--pw,2.5)); color: #527085; }
+#homeUi .pfGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .pfStat { display: flex; flex-direction: column; align-items: center; gap: calc(2px * var(--pw,2.5)); padding: calc(7px * var(--pw,2.5)) calc(3px * var(--pw,2.5)); }
+#homeUi .pfStat em { font-style: normal; font-size: calc(16px * var(--pw,2.5)); line-height: 1; }
+#homeUi .pfStat b { font-size: calc(13px * var(--pw,2.5)); color: #945d24; }
+#homeUi .pfStat span { font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .pfAcc { padding: calc(8px * var(--pw,2.5)) calc(10px * var(--pw,2.5)); display: flex; flex-direction: column; gap: calc(4px * var(--pw,2.5)); }
+#homeUi .pfAccRow { display: flex; justify-content: space-between; font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .pfAccRow span { color: #8fa9ba; }
+#homeUi .pfAccRow b { color: #46647a; }
 #homeUi .signinEntry .questRed { top: calc(-4px * var(--pw,2.5)); right: calc(-4px * var(--pw,2.5)); width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); }
 #homeUi .siHead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: calc(10px * var(--pw,2.5)); }
 #homeUi .siHead b { font-size: calc(15px * var(--pw,2.5)); color: #527085; }
