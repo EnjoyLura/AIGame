@@ -22,6 +22,7 @@ import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRI
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
 import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
+import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -107,6 +108,16 @@ export class HomeUi extends Component {
     private _talentRedEl: HTMLElement | null = null;
     /** 基地页副本入口红点（有剩余次数且体力足够时点亮） */
     private _dungeonRedEl: HTMLElement | null = null;
+    /** 基地页远征入口红点（有已完成待领的派遣时点亮） */
+    private _expeditionRedEl: HTMLElement | null = null;
+    /** 远征弹窗的秒级倒计时刷新定时器（弹窗关闭即清，防泄漏） */
+    private _expTimer = 0;
+    /** 基地区红点兜底轮询：倒计时归零没有事件驱动，靠低频轮询补亮 */
+    private _expIdleTimer = 0;
+    /** 远征当前选中的任务 */
+    private _expSel: ExpeditionId = 'scout';
+    /** 远征当前选中的英雄（按任务切换时清空） */
+    private _expPicked: string[] = [];
     private _mallAdLab: HTMLDivElement | null = null;
     /** 模拟广告层 */
     private _adOverlay: HTMLDivElement | null = null;
@@ -188,10 +199,17 @@ export class HomeUi extends Component {
             }
         }, this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
+        // 远征倒计时归零没有事件源（时间自己走），靠这个低频轮询兜底补亮红点：
+        // 玩家切后台回来、或停留在基地页等任务到点时，入口红点不能一直不亮。
+        this._expIdleTimer = setInterval(() => {
+            this._refreshExpeditionRed();
+        }, 30000) as unknown as number;
         this.show();
     }
 
     onDestroy(): void {
+        clearInterval(this._expTimer);
+        clearInterval(this._expIdleTimer);
         this._root?.remove();
         this._root = null;
     }
@@ -417,6 +435,7 @@ export class HomeUi extends Component {
         // 天赋点随经验/通关变化，顺带刷新入口红点（_refreshTop 是所有进度变动后的统一出口）
         this._refreshTalentRed();
         this._refreshDungeonRed();
+        this._refreshExpeditionRed();
     }
 
     // ================= 底部导航 =================
@@ -1010,6 +1029,14 @@ export class HomeUi extends Component {
             }
         }
         this._dungeonRedEl.classList.toggle('on', anyLeft && staminaOk);
+    }
+
+    /** 远征入口红点：有已完成待领的派遣时点亮（倒计时归零靠兜底轮询补亮） */
+    private _refreshExpeditionRed(): void {
+        if (!this._expeditionRedEl) {
+            return;
+        }
+        this._expeditionRedEl.classList.toggle('on', ExpeditionSystem.instance.hasClaimable());
     }
 
     /** 个人主页浮窗（点头像弹出）：名片 + 战绩 + 养成 + 系统进度 + 账号信息 */
@@ -1770,6 +1797,270 @@ export class HomeUi extends Component {
             };
             detail.appendChild(go);
             box.appendChild(detail);
+        });
+    }
+
+    // ================= 远征派遣 =================
+
+    /**
+     * 远征弹窗：三个任务位（列表）→ 选中详情（奖励预览 + 英雄选择）→ 派遣/领取/加速。
+     * 倒计时每秒重绘一次，但剩余时间一律由 endTs 现算，定时器只负责画，不负责计时。
+     */
+    private _openExpeditionModal(): void {
+        const es = ExpeditionSystem.instance;
+        const gm = GameManager.instance;
+        const selId = this._expSel;
+        this._openModal('🚀 远征派遣', (box) => {
+            box.classList.add('expBox');
+            const head = document.createElement('div');
+            head.className = 'expHead';
+            head.innerHTML = `<div class="expHeadTop"><b>今日次数</b>`
+                + `<span>剩余 ${es.remainingToday()}/${EXPEDITION_RUNS_PER_DAY}</span></div>`
+                + `<div class="expSrc">派英雄执行限时任务，真实时间到点回来领奖；三个任务可同时派遣</div>`;
+            box.appendChild(head);
+
+            const list = document.createElement('div');
+            list.className = 'expList';
+            for (const def of EXPEDITION_DEFS) {
+                const st = es.stateOf(def.id);
+                const row = document.createElement('div');
+                row.className = 'expRow' + (def.id === selId ? ' on' : '') + (st === 'ready' ? ' ready' : '');
+                const info = document.createElement('div');
+                info.className = 'expInfo';
+                const stateText = st === 'ready'
+                    ? '✨ 可领取'
+                    : st === 'running'
+                        ? `⏳ ${es.remainText(def.id)}`
+                        : `${def.minutes} 分钟`;
+                info.innerHTML = `<span class="expIc">${def.ic}</span>`
+                    + `<span class="expMeta"><b>${def.name}</b>`
+                    + `<i>${HERO_ATTR_IC[def.attr]}${HERO_ATTR_NAMES[def.attr]} · ${def.slots} 人 · ${stateText}</i></span>`;
+                row.appendChild(info);
+                row.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._expSel = def.id;
+                    this._expPicked = [];
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._openExpeditionModal();
+                };
+                list.appendChild(row);
+            }
+            box.appendChild(list);
+
+            const def = expeditionDef(selId);
+            if (!def) {
+                return;
+            }
+            const st = es.stateOf(def.id);
+            const run = es.runOf(def.id);
+            const detail = document.createElement('div');
+            detail.className = 'expDetail panel';
+
+            // ---- 奖励预览：已派遣的用定格倍率，未派遣的用当前选择的匹配度 ----
+            const picked = st === 'idle' ? this._expPicked : [];
+            const previewMult = run ? run.mult : matchMultiplier(def.attr, picked);
+            const range = expeditionYieldRange(def.id, previewMult);
+            const rewardParts: string[] = [`🪙 ${range.lo}~${range.hi} 金币`];
+            if (def.diamond > 0) {
+                rewardParts.push(`💎 ${Math.max(1, Math.round(def.diamond * previewMult))}`);
+            }
+            for (const item of def.misc) {
+                const md = miscDef(item.id);
+                rewardParts.push(`${md ? md.ic : '📦'} ${md ? md.name : item.id}×${Math.max(1, Math.round(item.n * previewMult))}`);
+            }
+            const multPct = Math.round(previewMult * 100);
+            detail.innerHTML = `<div class="expName"><b>${def.ic} ${def.name}</b>`
+                + `<i>${def.minutes} 分钟 · 需 ${def.slots} 人</i></div>`
+                + `<div class="expDesc">${def.desc}</div>`
+                + `<div class="expYield">预计产出：${rewardParts.join(' · ')}</div>`
+                + `<div class="expMult">队伍匹配 ${HERO_ATTR_IC[def.attr]}${HERO_ATTR_NAMES[def.attr]} · 奖励 ×${(multPct / 100).toFixed(2)}</div>`;
+
+            // ---- 英雄选择（仅空闲任务显示；已派遣的显示队伍名单） ----
+            if (st === 'idle') {
+                const grid = document.createElement('div');
+                grid.className = 'expHeroes';
+                const locked = gm.stageCleared < def.unlockStage;
+                for (const hid of gm.ownedHeroes) {
+                    const hdef = HERO_DEFS.find(d => d.id === hid);
+                    const inLineup = gm.isInLineup(hid);
+                    const busy = es.isHeroBusy(hid);
+                    const null_ = !hdef;
+                    if (null_) {
+                        continue;
+                    }
+                    const isPicked = picked.indexOf(hid) >= 0;
+                    const cell = document.createElement('button');
+                    cell.className = 'expHero' + (isPicked ? ' sel' : '') + (inLineup || busy ? ' busy' : '');
+                    const blockReason = inLineup ? '上阵中' : busy ? '远征中' : '';
+                    cell.innerHTML = `<span class="ehIc">${hdef?.name.slice(0, 1) ?? '?'}</span>`
+                        + `<span class="ehName">${hdef.name}</span>`
+                        + `<span class="ehAttr">${HERO_ATTR_IC[def.attr]}${Math.round(heroAttrValue(hid, def.attr))}</span>`
+                        + (blockReason ? `<span class="ehBusy">${blockReason}</span>` : '');
+                    cell.disabled = locked || inLineup || busy;
+                    cell.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.play('ui');
+                        const idx = this._expPicked.indexOf(hid);
+                        if (idx >= 0) {
+                            this._expPicked.splice(idx, 1);
+                        } else if (this._expPicked.length >= def.slots) {
+                            // 已满员：挤掉最早选的，保证「点谁选谁」的手感
+                            this._expPicked.shift();
+                            this._expPicked.push(hid);
+                        } else {
+                            this._expPicked.push(hid);
+                        }
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openExpeditionModal();
+                    };
+                    grid.appendChild(cell);
+                }
+                detail.appendChild(grid);
+                const pickHint = document.createElement('div');
+                pickHint.className = 'expPick';
+                pickHint.textContent = locked
+                    ? `🔒 需通关第 ${def.unlockStage} 关`
+                    : `已选 ${picked.length}/${def.slots} 人`;
+                detail.appendChild(pickHint);
+            } else if (run) {
+                const names: string[] = [];
+                for (const hid of run.heroes) {
+                    const hdef = HERO_DEFS.find(d => d.id === hid);
+                    names.push(hdef ? hdef.name : hid);
+                }
+                const team = document.createElement('div');
+                team.className = 'expTeam';
+                team.textContent = `出征队伍：${names.join('、')}`;
+                detail.appendChild(team);
+                if (st === 'running') {
+                    const timer = document.createElement('div');
+                    timer.className = 'expTimer';
+                    timer.textContent = `⏳ 剩余 ${es.remainText(def.id)}`;
+                    detail.appendChild(timer);
+                }
+            }
+
+            // ---- 操作区 ----
+            const actions = document.createElement('div');
+            actions.className = 'expActions';
+            if (st === 'idle') {
+                const gate = es.canStart(def.id, picked);
+                const go = document.createElement('button');
+                go.className = 'btn big gold expGo';
+                go.textContent = picked.length < def.slots
+                    ? `请选择 ${def.slots - picked.length} 名英雄`
+                    : (gate.ok ? '派 遣' : gate.reason ?? '不可派遣');
+                go.disabled = !gate.ok;
+                go.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (es.start(def.id, picked)) {
+                        SoundFx.play('buy');
+                        this._toast(`${def.name} 已出发`);
+                        this._expPicked = [];
+                        this._refreshTop();
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openExpeditionModal();
+                    } else {
+                        this._toast(es.canStart(def.id, picked).reason ?? '派遣失败');
+                    }
+                };
+                actions.appendChild(go);
+            } else if (st === 'ready') {
+                const take = document.createElement('button');
+                take.className = 'btn big gold expGo';
+                take.textContent = '领 取 奖 励';
+                take.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    const reward = es.finish(def.id);
+                    if (reward) {
+                        SoundFx.play('coin');
+                        this._toast(`${def.name} 完成：${rewardText({ gold: reward.gold, diamond: reward.diamond, misc: reward.misc })}`);
+                        this._refreshTop();
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openExpeditionModal();
+                    }
+                };
+                actions.appendChild(take);
+            } else {
+                const cost = es.speedUpCost(def.id);
+                const canPay = gm.res.get('diamond') >= cost;
+                const fast = document.createElement('button');
+                fast.className = 'btn gold expGo';
+                fast.textContent = cost > 0 ? `💎${cost} 立即完成` : '立即完成';
+                fast.disabled = !canPay;
+                fast.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (es.speedUpCost(def.id) <= 0) {
+                        return;
+                    }
+                    if (!gm.res.spend('diamond', es.speedUpCost(def.id))) {
+                        this._toast('钻石不足');
+                        return;
+                    }
+                    gm.save();
+                    es.speedUp(def.id);
+                    SoundFx.play('buy');
+                    this._toast('已立即完成，快去领取');
+                    this._refreshTop();
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._openExpeditionModal();
+                };
+                actions.appendChild(fast);
+                const adLeft = AdService.instance.remaining('expedition');
+                const free = document.createElement('button');
+                free.className = 'btn dark expGo';
+                free.textContent = adLeft > 0 ? `📺 免费完成 (${adLeft})` : '📺 今日已用完';
+                free.disabled = adLeft <= 0;
+                free.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    AdService.instance.claimReward('expedition', () => {
+                        es.speedUp(def.id);
+                        gm.save();
+                        this._toast('广告加速完成');
+                        this._refreshTop();
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openExpeditionModal();
+                    });
+                };
+                actions.appendChild(free);
+            }
+            detail.appendChild(actions);
+            box.appendChild(detail);
+
+            // ---- 倒计时驱动：每秒重绘；归零时广播一次 EXPEDITION_READY 并就地刷新 ----
+            clearInterval(this._expTimer);
+            const readyFired: string[] = [];
+            this._expTimer = setInterval(() => {
+                const mask = document.querySelector('#homeUi .protoMask');
+                if (!mask) {
+                    clearInterval(this._expTimer);
+                    return;
+                }
+                let anyReady = false;
+                for (const d of EXPEDITION_DEFS) {
+                    if (es.stateOf(d.id) === 'ready') {
+                        anyReady = true;
+                        if (readyFired.indexOf(d.id) < 0) {
+                            readyFired.push(d.id);
+                            eventCenter.emit(GameEvent.EXPEDITION_READY, d.id);
+                        }
+                    }
+                }
+                const t = box.querySelector('.expTimer');
+                if (t) {
+                    t.textContent = `⏳ 剩余 ${es.remainText(def.id)}`;
+                }
+                if (anyReady) {
+                    clearInterval(this._expTimer);
+                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._openExpeditionModal();
+                }
+            }, 1000) as unknown as number;
         });
     }
 
@@ -4111,7 +4402,8 @@ export class HomeUi extends Component {
             `<button class="btn gold sm lbEntry">🏆 排行</button>` +
             `<button class="btn gold sm besEntry">📖 图鉴</button>` +
             `<button class="btn gold sm talentEntry">🌟 天赋<span class="questRed"></span></button>` +
-            `<button class="btn gold sm dungeonEntry">🏰 副本<span class="questRed"></span></button>`;
+            `<button class="btn gold sm dungeonEntry">🏰 副本<span class="questRed"></span></button>` +
+            `<button class="btn gold sm expeditionEntry">🚀 远征<span class="questRed"></span></button>`;
         const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
         questBtn.onclick = (e) => {
             e.stopPropagation();
@@ -4156,6 +4448,14 @@ export class HomeUi extends Component {
         };
         this._dungeonRedEl = dungeonBtn.querySelector('.questRed') as HTMLElement;
         this._refreshDungeonRed();
+        const expBtn = banner.querySelector('.expeditionEntry') as HTMLButtonElement;
+        expBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openExpeditionModal();
+        };
+        this._expeditionRedEl = expBtn.querySelector('.questRed') as HTMLElement;
+        this._refreshExpeditionRed();
         page.appendChild(banner);
         this._baseBannerEls = {
             lv: banner.querySelector('.lvtag'),
@@ -4829,6 +5129,51 @@ export class HomeUi extends Component {
 #homeUi .dgYield { font-size: calc(22px * var(--hs,1)); color: #dce8f7; }
 #homeUi .dgHint { font-size: calc(19px * var(--hs,1)); color: #7ee0ff; }
 #homeUi .dgGo { width: 100%; margin-top: calc(6px * var(--hs,1)); }
+
+/* ===== 远征派遣 ===== */
+#homeUi .expHead { margin-bottom: calc(12px * var(--hs,1)); }
+#homeUi .expHeadTop { display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .expHeadTop b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .expHeadTop span { font-size: calc(22px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
+#homeUi .expSrc { font-size: calc(18px * var(--hs,1)); color: #6a83a8; margin-top: calc(6px * var(--hs,1)); }
+#homeUi .expList { display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .expRow { padding: calc(14px * var(--hs,1)) calc(18px * var(--hs,1)); cursor: pointer;
+  border: 1px solid #33507a; border-radius: calc(14px * var(--hs,1)); background: linear-gradient(#1b2b4a, #0f1b30); }
+#homeUi .expRow.on { border-color: #4aa8d8; box-shadow: 0 0 calc(12px * var(--hs,1)) rgba(74,168,216,.4); }
+#homeUi .expRow.ready { border-color: #f0b13e; box-shadow: 0 0 calc(12px * var(--hs,1)) rgba(240,177,62,.45); }
+#homeUi .expInfo { display: flex; align-items: center; gap: calc(14px * var(--hs,1)); }
+#homeUi .expIc { flex: none; width: calc(64px * var(--hs,1)); height: calc(64px * var(--hs,1)); border-radius: calc(14px * var(--hs,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(34px * var(--hs,1));
+  background: radial-gradient(circle at 50% 30%, #2a4470, #101c34); border: 1px solid #3a567f; }
+#homeUi .expMeta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(4px * var(--hs,1)); }
+#homeUi .expMeta b { font-size: calc(24px * var(--hs,1)); color: #e8f1ff; }
+#homeUi .expMeta i { font-style: normal; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .expRow.ready .expMeta i { color: #f0b13e; font-weight: 700; }
+#homeUi .expDetail { padding: calc(16px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .expName { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10px * var(--hs,1)); }
+#homeUi .expName b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .expName i { font-style: normal; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .expDesc { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; line-height: 1.5; }
+#homeUi .expYield { font-size: calc(21px * var(--hs,1)); color: #dce8f7; line-height: 1.5; }
+#homeUi .expMult { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .expHeroes { display: flex; flex-wrap: wrap; gap: calc(10px * var(--hs,1)); margin-top: calc(4px * var(--hs,1)); }
+#homeUi .expHero { flex: 1 1 calc(30% - calc(10px * var(--hs,1))); min-width: calc(160px * var(--hs,1));
+  display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--hs,1));
+  padding: calc(12px * var(--hs,1)) calc(8px * var(--hs,1)); border-radius: calc(12px * var(--hs,1));
+  background: radial-gradient(circle at 50% 0%, #222f4d, #101c34); border: 1px solid #33507a; color: #cfe2f7; }
+#homeUi .expHero.sel { border-color: #f0b13e; box-shadow: 0 0 calc(12px * var(--hs,1)) rgba(240,177,62,.45); }
+#homeUi .expHero.busy, #homeUi .expHero:disabled { opacity: .45; filter: grayscale(.6); }
+#homeUi .ehIc { width: calc(52px * var(--hs,1)); height: calc(52px * var(--hs,1)); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: calc(26px * var(--hs,1)); font-weight: 700;
+  background: #2a4470; border: 1px solid #4a6a97; color: #ffe9a8; }
+#homeUi .ehName { font-size: calc(19px * var(--hs,1)); }
+#homeUi .ehAttr { font-size: calc(17px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .ehBusy { font-size: calc(16px * var(--hs,1)); color: #ff8a8a; }
+#homeUi .expPick { font-size: calc(19px * var(--hs,1)); color: #7ee0ff; text-align: center; }
+#homeUi .expTeam { font-size: calc(20px * var(--hs,1)); color: #dce8f7; }
+#homeUi .expTimer { font-size: calc(24px * var(--hs,1)); color: #f0b13e; font-weight: 700; text-align: center; }
+#homeUi .expActions { display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); margin-top: calc(4px * var(--hs,1)); }
+#homeUi .expGo { width: 100%; }
 
 /* ===== 个人主页（点头像弹出） ===== */
 #homeUi .pAvatar { cursor: pointer; }
@@ -5921,6 +6266,47 @@ export class HomeUi extends Component {
 #homeUi .dgYield { font-size: calc(12px * var(--pw,2.5)); color: #46647a; }
 #homeUi .dgHint { font-size: calc(11px * var(--pw,2.5)); color: #2f7fa8; }
 #homeUi .dgGo { width: 100%; margin-top: calc(3px * var(--pw,2.5)); height: calc(34px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
+
+/* --- 远征派遣（青瓷浅色变体） --- */
+#homeUi .expeditionEntry .questRed { top: calc(-4px * var(--pw,2.5)); right: calc(-4px * var(--pw,2.5)); width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); }
+#homeUi .expHead { margin-bottom: calc(7px * var(--pw,2.5)); }
+#homeUi .expHeadTop b { font-size: calc(15px * var(--pw,2.5)); color: #88551f; }
+#homeUi .expHeadTop span { font-size: calc(13px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .expSrc { font-size: calc(10px * var(--pw,2.5)); color: #7e97a8; margin-top: calc(3px * var(--pw,2.5)); }
+#homeUi .expList { gap: calc(5px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .expRow { padding: calc(7px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); border-radius: calc(8px * var(--pw,2.5));
+  border-color: #bdced8; background: #e7eff5; }
+#homeUi .expRow.on { border-color: #4a9fd6; box-shadow: 0 0 6px #4a9fd655; }
+#homeUi .expRow.ready { border-color: #cc8d45; box-shadow: 0 0 6px rgba(233,160,79,.4); }
+#homeUi .expInfo { gap: calc(7px * var(--pw,2.5)); }
+#homeUi .expIc { width: calc(36px * var(--pw,2.5)); height: calc(36px * var(--pw,2.5)); border-radius: calc(8px * var(--pw,2.5));
+  font-size: calc(20px * var(--pw,2.5)); background: #dce8ef; border-color: #b3c8d6; }
+#homeUi .expMeta { gap: calc(2px * var(--pw,2.5)); }
+#homeUi .expMeta b { font-size: calc(14px * var(--pw,2.5)); color: #31536a; }
+#homeUi .expMeta i { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .expRow.ready .expMeta i { color: #945d24; }
+#homeUi .expDetail { padding: calc(8px * var(--pw,2.5)); gap: calc(5px * var(--pw,2.5));
+  background: #e7eff5; border: 1px solid #bdced8; border-radius: calc(8px * var(--pw,2.5)); }
+#homeUi .expName b { font-size: calc(15px * var(--pw,2.5)); color: #88551f; }
+#homeUi .expName i { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .expDesc { font-size: calc(12px * var(--pw,2.5)); color: #527085; }
+#homeUi .expYield { font-size: calc(12px * var(--pw,2.5)); color: #31536a; }
+#homeUi .expMult { font-size: calc(11px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .expHeroes { gap: calc(5px * var(--pw,2.5)); }
+#homeUi .expHero { flex: 1 1 calc(30% - calc(5px * var(--pw,2.5))); min-width: calc(80px * var(--pw,2.5));
+  padding: calc(6px * var(--pw,2.5)) calc(4px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5));
+  gap: calc(2px * var(--pw,2.5)); background: #dce8ef; border-color: #b3c8d6; color: #31536a; }
+#homeUi .expHero.sel { border-color: #cc8d45; box-shadow: 0 0 6px rgba(233,160,79,.4); }
+#homeUi .ehIc { width: calc(28px * var(--pw,2.5)); height: calc(28px * var(--pw,2.5)); font-size: calc(14px * var(--pw,2.5));
+  background: #c3d6e2; border-color: #a8bfcd; color: #88551f; }
+#homeUi .ehName { font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .ehAttr { font-size: calc(10px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .ehBusy { font-size: calc(9px * var(--pw,2.5)); color: #c05252; }
+#homeUi .expPick { font-size: calc(11px * var(--pw,2.5)); color: #1e6e9e; }
+#homeUi .expTeam { font-size: calc(12px * var(--pw,2.5)); color: #31536a; }
+#homeUi .expTimer { font-size: calc(14px * var(--pw,2.5)); color: #945d24; }
+#homeUi .expActions { gap: calc(5px * var(--pw,2.5)); }
+#homeUi .expGo { height: calc(34px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); border-radius: calc(6px * var(--pw,2.5)); }
 
 /* --- 个人主页（青瓷浅色变体） --- */
 #homeUi .pAvatar { cursor: pointer; }

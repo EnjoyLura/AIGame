@@ -5,6 +5,7 @@ import { TrialSystem } from './TrialSystem';
 import { RecruitSystem } from './RecruitSystem';
 import { TalentSystem } from './TalentSystem';
 import { DungeonSystem } from './DungeonSystem';
+import { ExpeditionSystem } from './ExpeditionSystem';
 
 /**
  * 排行榜系统（基地页入口，本地模拟版）：
@@ -41,7 +42,9 @@ export function myScore(): number {
         + RecruitSystem.instance.starSum * 120
         + TalentSystem.instance.spent * 400
         // 副本是日日可刷的进度，权重刻意压低，不与通关/塔抢主权重
-        + DungeonSystem.instance.totalRuns * 30;
+        + DungeonSystem.instance.totalRuns * 30
+        // 远征同为日常循环，权重与副本同档
+        + ExpeditionSystem.instance.totalRuns * 40;
 }
 
 /** 本地机器人名池（末日风格） */

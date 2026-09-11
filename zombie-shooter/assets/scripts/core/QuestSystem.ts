@@ -7,6 +7,7 @@ import { RecruitSystem } from './RecruitSystem';
 import { TalentSystem } from './TalentSystem';
 import { AFFIX_MAX } from './EquipmentAffix';
 import { DungeonSystem } from './DungeonSystem';
+import { ExpeditionSystem } from './ExpeditionSystem';
 import { miscDef } from './HeroSystem';
 
 /**
@@ -22,7 +23,7 @@ import { miscDef } from './HeroSystem';
 /** 任务/成就目标类型（与计数钩子一一对应） */
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
-    | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns';
+    | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns' | 'expeditionRuns';
 
 export interface QuestDef {
     id: string;
@@ -82,6 +83,9 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_affix3', kind: 'achv', name: '词缀猎人', goal: 'affix3', target: 1, reward: { diamond: 60 }, ic: '✦' },
     { id: 'a_dungeon10', kind: 'achv', name: '资源采集者', goal: 'dungeonRuns', target: 10, reward: { diamond: 30 }, ic: '🏰' },
     { id: 'a_dungeon50', kind: 'achv', name: '副本老兵', goal: 'dungeonRuns', target: 50, reward: { diamond: 100 }, ic: '⚔️' },
+    // ---- 远征派遣 ----
+    { id: 'a_exp5', kind: 'achv', name: '初次远征', goal: 'expeditionRuns', target: 5, reward: { diamond: 30 }, ic: '🚀' },
+    { id: 'a_exp30', kind: 'achv', name: '远征队长', goal: 'expeditionRuns', target: 30, reward: { diamond: 100 }, ic: '🧭' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -213,6 +217,7 @@ export class QuestSystem {
             case 'talentPoints': return Math.min(def.target, TalentSystem.instance.spent);
             case 'affix3': return Math.min(def.target, this._affix3Count(gm));
             case 'dungeonRuns': return Math.min(def.target, DungeonSystem.instance.totalRuns);
+            case 'expeditionRuns': return Math.min(def.target, ExpeditionSystem.instance.totalRuns);
         }
     }
 

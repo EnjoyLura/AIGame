@@ -100,6 +100,12 @@ export enum GameEvent {
     HOME_SHOW = 'home-show',
     GOLD_EARNED = 'gold-earned',
     RES_CHANGED = 'res-changed',
+    /** 远征：派出队伍，参数 (任务 id ExpeditionId, 英雄 id 数组) */
+    EXPEDITION_START = 'expedition-start',
+    /** 远征：领取奖励，参数 (任务 id, ExpeditionReward) */
+    EXPEDITION_DONE = 'expedition-done',
+    /** 远征：倒计时归零已可领取，参数 (任务 id)；驱动入口红点与弹窗刷新 */
+    EXPEDITION_READY = 'expedition-ready',
     AD_START = 'ad-start',
     AD_END = 'ad-end',
 }
