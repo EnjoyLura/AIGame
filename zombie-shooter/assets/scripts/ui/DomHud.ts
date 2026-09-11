@@ -1,4 +1,4 @@
-import { _decorator, Component, SpriteFrame, Texture2D } from 'cc';
+import { _decorator, Component, SpriteFrame, Texture2D, sys } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, BUILD_STAMP, Design, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
@@ -9,8 +9,9 @@ import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { SoundFx } from '../core/SoundFx';
 import { FINAL_STAGE_ID } from '../battle/StageData';
-import { LootDrop, lootDropColor, tierRank } from '../core/HeroSystem';
+import { LootDrop, lootDropColor, tierRank, miscDef } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
+import { MailSystem, MailState } from '../core/MailSystem';
 
 /** 伤害统计面板每英雄一行的可更新元素 */
 interface StatRow {
@@ -49,6 +50,14 @@ export class DomHud extends Component {
     private _vignette: HTMLDivElement | null = null;
     private _popupEl: HTMLDivElement | null = null;
     private _pauseMenu: HTMLDivElement | null = null;
+    /** 战斗页菜单浮窗（设置/邮件入口） */
+    private _battleMenu: HTMLDivElement | null = null;
+    /** 战斗页邮件浮窗 */
+    private _mailOverlay: HTMLDivElement | null = null;
+    /** 战斗页设置浮窗 */
+    private _settingsOverlay: HTMLDivElement | null = null;
+    /** 菜单按钮上的邮件红点 */
+    private _menuMailRed: HTMLElement | null = null;
     private _statsOverlay: HTMLDivElement | null = null;
     private _statsTotalEl: HTMLDivElement | null = null;
     private _statsDpsEl: HTMLDivElement | null = null;
@@ -357,6 +366,318 @@ export class DomHud extends Component {
         }
     }
 
+    // ================= 战斗页菜单 / 邮件 / 设置 =================
+
+    /** 菜单浮窗开关（打开时暂停战斗，关闭恢复原暂停态） */
+    private _toggleBattleMenu(): void {
+        if (!this._battleMenu) {
+            return;
+        }
+        const open = this._battleMenu.style.display !== 'flex';
+        this._battleMenu.style.display = open ? 'flex' : 'none';
+        const bmgr = BattleManager.instance;
+        if (open && bmgr && !bmgr.isPaused) {
+            bmgr.togglePause();
+            this._menuAutoPaused = true;
+        } else if (!open && this._menuAutoPaused) {
+            this._menuAutoPaused = false;
+            if (bmgr && bmgr.isPaused) {
+                bmgr.togglePause();
+            }
+        }
+    }
+    /** 菜单打开前战斗是否被本菜单自动暂停（关闭时恢复用） */
+    private _menuAutoPaused = false;
+
+    private _syncMenuRed(el?: HTMLElement | null): void {
+        const target = el ?? this._menuMailRed;
+        if (target) {
+            target.classList.toggle('on', MailSystem.instance.hasUnread());
+        }
+    }
+
+    private _closeMail(): void {
+        if (this._mailOverlay) {
+            this._mailOverlay.style.display = 'none';
+        }
+        this._syncMenuRed();
+    }
+
+    /** 打开邮件浮窗（每次重建列表，反映最新已读/领取状态） */
+    private _openMail(): void {
+        if (!this._mailOverlay) {
+            return;
+        }
+        const list = this._mailOverlay.querySelector('.mailList') as HTMLDivElement | null;
+        if (list) {
+            this._fillMailList(list);
+        }
+        this._mailOverlay.style.display = 'flex';
+    }
+
+    private _fillMailList(list: HTMLDivElement): void {
+        const ms = MailSystem.instance;
+        list.innerHTML = '';
+        const mails = ms.mails();
+        if (mails.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'mailEmpty';
+            empty.textContent = '📭 暂无邮件';
+            list.appendChild(empty);
+            return;
+        }
+        for (const m of mails) {
+            const row = document.createElement('div');
+            row.className = 'mailRow panel' + (m.read ? '' : ' unread') + (m.kind === 'reward' && !m.claimed ? ' claimable' : '');
+            const ic = document.createElement('div');
+            ic.className = 'mailIc';
+            ic.textContent = m.kind === 'reward' ? '🎁' : '📢';
+            row.appendChild(ic);
+            const mid = document.createElement('div');
+            mid.className = 'mailMid';
+            const title = document.createElement('div');
+            title.className = 'mailTitle';
+            title.textContent = (m.read ? '' : '● ') + m.title;
+            const from = document.createElement('div');
+            from.className = 'mailFrom';
+            from.textContent = `来自：${m.from} · ${m.kind === 'reward' ? (m.claimed ? '附件已领取' : '含附件奖励') : '系统通知'}`;
+            mid.appendChild(title);
+            mid.appendChild(from);
+            row.appendChild(mid);
+            const tag = document.createElement('div');
+            tag.className = 'mailTag';
+            tag.textContent = m.read ? '已读' : '未读';
+            row.appendChild(tag);
+            row.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._openMailDetail(m.id);
+            };
+            list.appendChild(row);
+        }
+    }
+
+    /** 邮件详情：正文 + 附件领取（奖励邮件），领取后刷新列表 */
+    private _openMailDetail(id: string): void {
+        const ms = MailSystem.instance;
+        const m = ms.mail(id);
+        if (!m) {
+            return;
+        }
+        ms.markRead(id);
+        const overlay = this._mailOverlay;
+        if (!overlay) {
+            return;
+        }
+        const panel = overlay.querySelector('.mailPanel') as HTMLDivElement;
+        panel.innerHTML = '';
+        const head = document.createElement('div');
+        head.className = 'statsHead';
+        head.appendChild(this._panelTitleEl(m.kind === 'reward' ? '🎁 奖励邮件' : '📢 系统邮件'));
+        const back = document.createElement('button');
+        back.className = 'statsClose';
+        back.textContent = '↩';
+        back.onclick = (e) => {
+            e.stopPropagation();
+            this._openMail();
+        };
+        head.appendChild(back);
+        panel.appendChild(head);
+        const body = document.createElement('div');
+        body.className = 'mailBody';
+        const title = document.createElement('div');
+        title.className = 'mailBodyTitle';
+        title.textContent = m.title;
+        const from = document.createElement('div');
+        from.className = 'mailFrom';
+        from.textContent = `来自：${m.from}`;
+        const text = document.createElement('div');
+        text.className = 'mailText';
+        for (const line of m.body.split('\n')) {
+            const p = document.createElement('p');
+            p.textContent = line || ' ';
+            text.appendChild(p);
+        }
+        body.appendChild(title);
+        body.appendChild(from);
+        body.appendChild(text);
+        panel.appendChild(body);
+        // 附件区
+        if (m.kind === 'reward') {
+            const attach = document.createElement('div');
+            attach.className = 'mailAttach';
+            const r = m.reward ?? {};
+            const parts: string[] = [];
+            if (r.gold) {
+                parts.push(`🪙 ${r.gold.toLocaleString()}`);
+            }
+            if (r.diamond) {
+                parts.push(`💎 ${r.diamond}`);
+            }
+            if (r.misc) {
+                parts.push(`${miscDef(r.misc.id)?.ic ?? '📦'} ${miscDef(r.misc.id)?.name ?? r.misc.id} ×${r.misc.n}`);
+            }
+            const label = document.createElement('div');
+            label.className = 'mailAttachHead';
+            label.textContent = '📦 附件奖励';
+            attach.appendChild(label);
+            const items = document.createElement('div');
+            items.className = 'mailAttachItems';
+            items.textContent = parts.join('　');
+            attach.appendChild(items);
+            const btn = document.createElement('button');
+            btn.className = 'menuBtn mailClaimBtn';
+            btn.style.background = 'linear-gradient(180deg, #c5e1a5 0%, #9ccc65 52%, #7cb342 100%)';
+            if (m.claimed) {
+                btn.textContent = '已领取';
+                btn.disabled = true;
+                btn.style.filter = 'grayscale(.6)';
+            } else {
+                btn.textContent = '领取附件';
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (ms.claim(id)) {
+                        SoundFx.play('coin');
+                        this._openMailDetail(id);
+                    }
+                };
+            }
+            attach.appendChild(btn);
+            panel.appendChild(attach);
+        }
+        const del = document.createElement('button');
+        del.className = 'menuBtn mailClaimBtn';
+        del.style.background = 'linear-gradient(180deg, #b0bec5 0%, #8a9aab 52%, #6d7d8c 100%)';
+        del.textContent = '🗑 删除邮件';
+        del.onclick = (e) => {
+            e.stopPropagation();
+            ms.remove(id);
+            this._openMail();
+        };
+        panel.appendChild(del);
+    }
+
+    private _closeSettings(): void {
+        if (this._settingsOverlay) {
+            this._settingsOverlay.style.display = 'none';
+        }
+    }
+
+    /** 战斗页设置浮窗：内容与主城设置一致（音效/音量/关于/重置存档） */
+    private _openSettings(): void {
+        if (!this._settingsOverlay) {
+            return;
+        }
+        const panel = this._settingsOverlay.querySelector('.settingsPanel') as HTMLDivElement;
+        panel.innerHTML = '';
+        const head = document.createElement('div');
+        head.className = 'statsHead';
+        head.appendChild(this._panelTitleEl('⚙️ 设 置'));
+        const sclose = document.createElement('button');
+        sclose.className = 'statsClose';
+        sclose.textContent = '✕';
+        sclose.onclick = (e) => {
+            e.stopPropagation();
+            this._closeSettings();
+        };
+        head.appendChild(sclose);
+        panel.appendChild(head);
+        this._fillSettings(panel);
+        this._settingsOverlay.style.display = 'flex';
+    }
+
+    private _fillSettings(panel: HTMLDivElement): void {
+        const mkHead = (icon: string, text: string): HTMLDivElement => {
+            const h = document.createElement('div');
+            h.className = 'bSetHead';
+            h.textContent = `${icon} ${text}`;
+            return h;
+        };
+        // 音效
+        panel.appendChild(mkHead('🔊', '音效'));
+        const soundRow = document.createElement('div');
+        soundRow.className = 'bSetRow';
+        soundRow.innerHTML = '<span>战斗与界面音效</span>';
+        const sndBtn = document.createElement('button');
+        sndBtn.className = 'bSetBtn';
+        const syncSnd = () => {
+            sndBtn.textContent = SoundFx.muted ? '🔇 已静音' : '🔊 开启';
+        };
+        syncSnd();
+        sndBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.setMuted(!SoundFx.muted);
+            syncSnd();
+            if (!SoundFx.muted) {
+                SoundFx.play('ui');
+            }
+        };
+        soundRow.appendChild(sndBtn);
+        panel.appendChild(soundRow);
+        // 音量
+        const volRow = document.createElement('div');
+        volRow.className = 'bSetRow';
+        volRow.innerHTML = '<span>音量</span>';
+        const volWrap = document.createElement('div');
+        volWrap.className = 'bSetVol';
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = '100';
+        slider.value = String(Math.round(SoundFx.volume * 100));
+        const volNum = document.createElement('b');
+        const syncVol = () => {
+            volNum.textContent = `${slider.value}%`;
+        };
+        syncVol();
+        slider.addEventListener('input', () => {
+            SoundFx.setVolume(Number(slider.value) / 100);
+            syncVol();
+        });
+        slider.addEventListener('change', () => SoundFx.play('coin'));
+        volWrap.appendChild(slider);
+        volWrap.appendChild(volNum);
+        volRow.appendChild(volWrap);
+        panel.appendChild(volRow);
+        // 关于
+        panel.appendChild(mkHead('ℹ️', '关于'));
+        const about = document.createElement('div');
+        about.className = 'bSetRow col';
+        about.innerHTML = `<div class="bSetLine"><span>版本</span><b>${BUILD_STAMP}</b></div>` +
+            `<div class="bSetLine"><span>游戏</span><b>末日航线 · 尸潮突围</b></div>`;
+        panel.appendChild(about);
+        // 危险区
+        panel.appendChild(mkHead('⚠️', '危险操作'));
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'bSetBtn reset';
+        resetBtn.textContent = '🗑️ 重置全部存档';
+        let confirmState = 0;
+        resetBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirmState === 0) {
+                confirmState = 1;
+                resetBtn.textContent = '再次点击确认重置（5 秒内）';
+                setTimeout(() => {
+                    confirmState = 0;
+                    resetBtn.textContent = '🗑️ 重置全部存档';
+                }, 5000);
+                return;
+            }
+            sys.localStorage.removeItem(GameManager.SAVE_KEY);
+            setTimeout(() => location.reload(), 300);
+        };
+        panel.appendChild(resetBtn);
+    }
+
+    /** 面板标题（金色渐变，与伤害统计同款）；_panelTitleEl 为独立节点版 */
+    private _panelTitleEl(text: string): HTMLDivElement {
+        const t = document.createElement('div');
+        t.className = 'statsTitle';
+        t.textContent = text;
+        return t;
+    }
+
     /** 伤害数字格式化：万位缩写（1.23万 / 12.3万），与同类手游一致 */
     private _fmtDmg(v: number): string {
         if (v >= 100000) {
@@ -598,6 +919,96 @@ export class DomHud extends Component {
         }));
         root.appendChild(pm);
         this._pauseMenu = pm;
+
+        // 战斗页菜单：菜单按钮（含邮件红点）+ 菜单浮窗（邮件/设置/关闭）
+        const menuBtn = this._button('菜单', () => this._toggleBattleMenu(), 'menuBtn');
+        const red = document.createElement('i');
+        red.className = 'mailRed';
+        menuBtn.appendChild(red);
+        this._syncMenuRed();
+        this._menuMailRed = red;
+        topLeft.appendChild(menuBtn);
+
+        const bm = document.createElement('div');
+        bm.className = 'statsOverlay';
+        bm.style.display = 'none';
+        bm.onclick = () => this._toggleBattleMenu();
+        const bmp = document.createElement('div');
+        bmp.className = 'statsPanel battleMenuPanel';
+        bmp.onclick = (e) => e.stopPropagation();
+        const bmpHead = document.createElement('div');
+        bmpHead.className = 'statsHead';
+        bmpHead.appendChild(this._panelTitleEl('菜 单'));
+        bmp.appendChild(bmpHead);
+        bmp.appendChild(this._menuButton('📬 邮 箱', '#4dd0e9', () => {
+            this._toggleBattleMenu();
+            this._openMail();
+        }));
+        const mbRed = document.createElement('i');
+        mbRed.className = 'mailRed menu';
+        this._syncMenuRed(mbRed);
+        (bmp.lastChild as HTMLButtonElement).appendChild(mbRed);
+        bmp.appendChild(this._menuButton('⚙️ 设 置', '#8a9aab', () => {
+            this._toggleBattleMenu();
+            this._openSettings();
+        }));
+        bmp.appendChild(this._menuButton('返 回 战 斗', '#ffa726', () => this._toggleBattleMenu()));
+        bm.appendChild(bmp);
+        root.appendChild(bm);
+        this._battleMenu = bm;
+
+        // 战斗页邮件浮窗（点遮罩或 ✕ 关闭）
+        const mo = document.createElement('div');
+        mo.className = 'statsOverlay';
+        mo.style.display = 'none';
+        mo.onclick = () => this._closeMail();
+        const mpanel = document.createElement('div');
+        mpanel.className = 'statsPanel mailPanel';
+        mpanel.onclick = (e) => e.stopPropagation();
+        const mhead = document.createElement('div');
+        mhead.className = 'statsHead';
+        mhead.appendChild(this._panelTitleEl('📬 邮 箱'));
+        const mclose = document.createElement('button');
+        mclose.className = 'statsClose';
+        mclose.textContent = '✕';
+        mclose.onclick = (e) => {
+            e.stopPropagation();
+            this._closeMail();
+        };
+        mhead.appendChild(mclose);
+        mpanel.appendChild(mhead);
+        const mlist = document.createElement('div');
+        mlist.className = 'mailList';
+        this._fillMailList(mlist);
+        mpanel.appendChild(mlist);
+        mo.appendChild(mpanel);
+        root.appendChild(mo);
+        this._mailOverlay = mo;
+
+        // 战斗页设置浮窗（音效/音量/关于/重置，与主城设置同内容）
+        const so = document.createElement('div');
+        so.className = 'statsOverlay';
+        so.style.display = 'none';
+        so.onclick = () => this._closeSettings();
+        const spanel = document.createElement('div');
+        spanel.className = 'statsPanel settingsPanel';
+        spanel.onclick = (e) => e.stopPropagation();
+        const shead = document.createElement('div');
+        shead.className = 'statsHead';
+        shead.appendChild(this._panelTitleEl('⚙️ 设 置'));
+        const sclose = document.createElement('button');
+        sclose.className = 'statsClose';
+        sclose.textContent = '✕';
+        sclose.onclick = (e) => {
+            e.stopPropagation();
+            this._closeSettings();
+        };
+        shead.appendChild(sclose);
+        spanel.appendChild(shead);
+        this._fillSettings(spanel);
+        so.appendChild(spanel);
+        root.appendChild(so);
+        this._settingsOverlay = so;
 
         // 伤害统计浮窗：半透明遮罩 + 商业级战绩面板（点遮罩或 ✕ 关闭）
         const ov = document.createElement('div');
@@ -954,6 +1365,68 @@ export class DomHud extends Component {
   border: calc(3px * var(--s,1)) solid #62808f; color: #cfe2ea; font-size: calc(30px * var(--s,1)); line-height: 1;
   background: linear-gradient(180deg, #3a4e5c 0%, #26343f 100%);
   box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.2); }
+
+/* ===== 战斗页菜单 / 邮箱 / 设置浮窗 ===== */
+#domHud .hudBtn.menuBtn { position: relative; }
+#domHud .mailRed { display: none; position: absolute; top: calc(-4px * var(--s,1)); right: calc(-4px * var(--s,1));
+  width: calc(20px * var(--s,1)); height: calc(20px * var(--s,1)); border-radius: 50%; background: #ff5252;
+  border: calc(2px * var(--s,1)) solid #ffd5d5; box-shadow: 0 0 calc(8px * var(--s,1)) rgba(255,82,82,.8); }
+#domHud .mailRed.on { display: block; }
+#domHud .battleMenuPanel { gap: calc(24px * var(--s,1)); width: calc(640px * var(--s,1)); }
+#domHud .battleMenuPanel .menuBtn { position: relative; min-width: calc(420px * var(--s,1)); font-size: calc(36px * var(--s,1));
+  padding: calc(20px * var(--s,1)) calc(40px * var(--s,1)); }
+#domHud .battleMenuPanel .mailRed.menu { width: calc(16px * var(--s,1)); height: calc(16px * var(--s,1));
+  top: calc(6px * var(--s,1)); right: calc(10px * var(--s,1)); border-width: calc(2px * var(--s,1)); }
+#domHud .mailPanel, #domHud .settingsPanel { width: calc(980px * var(--s,1)); max-height: 78vh; overflow-y: auto; }
+#domHud .mailList { width: 100%; display: flex; flex-direction: column; gap: calc(14px * var(--s,1)); margin-top: calc(20px * var(--s,1)); }
+#domHud .mailRow { display: flex; align-items: center; gap: calc(18px * var(--s,1)); text-align: left;
+  padding: calc(16px * var(--s,1)) calc(20px * var(--s,1)); border-radius: calc(16px * var(--s,1));
+  background: rgba(255,255,255,.035); border: calc(2px * var(--s,1)) solid rgba(255,255,255,.08);
+  cursor: pointer; }
+#domHud .mailRow.unread { border-color: rgba(255,204,85,.45); background: rgba(255,204,85,.06); }
+#domHud .mailRow.claimable { border-color: rgba(156,204,101,.5); }
+#domHud .mailIc { flex: none; width: calc(72px * var(--s,1)); height: calc(72px * var(--s,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(38px * var(--s,1));
+  border-radius: calc(14px * var(--s,1)); background: rgba(10,18,26,.6);
+  border: calc(2px * var(--s,1)) solid rgba(255,255,255,.12); }
+#domHud .mailMid { flex: 1; min-width: 0; }
+#domHud .mailTitle { font-size: calc(30px * var(--s,1)); color: #ffe9a8; }
+#domHud .mailRow.unread .mailTitle { color: #ffd76a; }
+#domHud .mailFrom { font-size: calc(22px * var(--s,1)); color: #8fa0ab; margin-top: calc(6px * var(--s,1)); }
+#domHud .mailTag { flex: none; font-size: calc(22px * var(--s,1)); color: #8fa0ab; }
+#domHud .mailRow.unread .mailTag { color: #ffd76a; }
+#domHud .mailEmpty { padding: calc(60px * var(--s,1)) 0; text-align: center; font-size: calc(30px * var(--s,1)); color: #8fa0ab; }
+#domHud .mailBody { width: 100%; margin-top: calc(20px * var(--s,1)); text-align: left; }
+#domHud .mailBodyTitle { font-size: calc(38px * var(--s,1)); color: #ffe9a8; font-weight: 800; }
+#domHud .mailText { margin-top: calc(18px * var(--s,1)); padding: calc(20px * var(--s,1));
+  border-radius: calc(14px * var(--s,1)); background: rgba(0,0,0,.25); }
+#domHud .mailText p { margin: 0 0 calc(10px * var(--s,1)); font-size: calc(26px * var(--s,1)); line-height: 1.7;
+  color: #cfe2ea; font-weight: 500; }
+#domHud .mailAttach { width: 100%; margin-top: calc(24px * var(--s,1)); padding: calc(18px * var(--s,1)) calc(20px * var(--s,1));
+  border-radius: calc(14px * var(--s,1)); background: rgba(156,204,101,.08);
+  border: calc(2px * var(--s,1)) dashed rgba(156,204,101,.45); display: flex; flex-direction: column;
+  align-items: center; gap: calc(14px * var(--s,1)); }
+#domHud .mailAttachHead { align-self: flex-start; font-size: calc(26px * var(--s,1)); color: #c5e1a5; }
+#domHud .mailAttachItems { font-size: calc(28px * var(--s,1)); color: #ffffff; font-weight: 700; }
+#domHud .mailClaimBtn { min-width: calc(320px * var(--s,1)); margin-top: calc(20px * var(--s,1));
+  font-size: calc(30px * var(--s,1)); padding: calc(16px * var(--s,1)) calc(30px * var(--s,1)); }
+#domHud .mailClaimBtn:disabled { filter: grayscale(.6); }
+#domHud .bSetHead { width: 100%; text-align: left; font-size: calc(30px * var(--s,1)); color: #ffe9a8;
+  margin: calc(20px * var(--s,1)) 0 calc(10px * var(--s,1)); }
+#domHud .bSetRow { display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: calc(14px * var(--s,1)) calc(4px * var(--s,1)); font-size: calc(26px * var(--s,1)); color: #cfe2ea; }
+#domHud .bSetRow.col { flex-direction: column; align-items: stretch; gap: calc(10px * var(--s,1)); }
+#domHud .bSetLine { display: flex; justify-content: space-between; }
+#domHud .bSetLine b { color: #ffe9a8; }
+#domHud .bSetBtn { min-width: calc(220px * var(--s,1)); height: calc(64px * var(--s,1)); border-radius: calc(32px * var(--s,1));
+  border: calc(2px * var(--s,1)) solid #80dee4; color: #ecf1f1; font-size: calc(26px * var(--s,1));
+  background: linear-gradient(180deg, #344652 0%, #26343f 100%);
+  box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
+#domHud .bSetBtn.reset { border-color: #ff8f9a; color: #ffb3bb; }
+#domHud .bSetVol { display: flex; align-items: center; gap: calc(14px * var(--s,1)); flex: 1; margin-left: calc(20px * var(--s,1)); }
+#domHud .bSetVol input[type="range"] { flex: 1; }
+#domHud .bSetVol b { min-width: calc(80px * var(--s,1)); text-align: right; color: #9be7ff; }
+
 #domHud .statsDivider { width: calc(560px * var(--s,1)); height: calc(4px * var(--s,1));
   margin: calc(18px * var(--s,1)) 0 calc(26px * var(--s,1)); border-radius: calc(2px * var(--s,1));
   background: linear-gradient(90deg, transparent, rgba(128,222,228,.75), transparent); }
