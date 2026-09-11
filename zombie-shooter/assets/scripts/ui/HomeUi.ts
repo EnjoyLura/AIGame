@@ -76,7 +76,6 @@ export class HomeUi extends Component {
     private _siLvlEl: HTMLElement | null = null;
     private _siPowEl: HTMLElement | null = null;
     private _siStEl: HTMLElement | null = null;
-    private _chestsEl: HTMLDivElement | null = null;
     private _arrowL: HTMLDivElement | null = null;
     private _arrowR: HTMLDivElement | null = null;
     /** 英雄页 */
@@ -85,10 +84,8 @@ export class HomeUi extends Component {
     private _heroSelIdx = 0;
     /** 英雄页内嵌物品栏当前页签（equip/gem/mat/item） */
     private _heroBagTab: 'equip' | 'gem' | 'mat' | 'item' = 'equip';
-    /** 技能页 */
-    private _skillPickEl: HTMLDivElement | null = null;
-    private _skillListEl: HTMLDivElement | null = null;
-    private _skillSelIdx = 0;
+    /** 玩法页（试炼/副本/远征/图鉴/排行 + 日常任务/签到） */
+    private _playGridEl: HTMLDivElement | null = null;
     /** 基地页强化行（迁移自战斗页的 META_UPGRADES） */
     private _baseRows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLElement; eff: HTMLDivElement; btn: HTMLButtonElement; cost: HTMLElement }> = [];
     /** 商城页 */
@@ -228,7 +225,7 @@ export class HomeUi extends Component {
         this._refreshStagePage();
         this._refreshMall();
         this._refreshHeroes();
-        this._refreshSkillPage();
+        this._refreshPlayPage();
         this._refreshBase();
         this._applyPendingTex();
     }
@@ -448,7 +445,7 @@ export class HomeUi extends Component {
             { key: 'mall', icon: '🛒', name: '商店' },
             { key: 'heroes', icon: '🎖️', name: '英雄' },
             { key: 'battle', icon: '🚚', name: '关卡', main: true },
-            { key: 'core', icon: '⚡', name: '技能' },
+            { key: 'core', icon: '🎮', name: '玩法' },
             { key: 'base', icon: '🏰', name: '基地' },
         ];
         for (const item of NAV) {
@@ -502,7 +499,7 @@ export class HomeUi extends Component {
             this._refreshHeroes();
         }
         if (page === 'core') {
-            this._refreshSkillPage();
+            this._refreshPlayPage();
         }
         if (page === 'base') {
             this._refreshBase();
@@ -527,7 +524,7 @@ export class HomeUi extends Component {
         this._buildMallPage(viewport);
         this._buildHeroesPage(viewport);
         this._buildStagePage(viewport);
-        this._buildSkillPage(viewport);
+        this._buildPlayPage(viewport);
         this._buildBasePage(viewport);
 
         this._buildNav(root);
@@ -1056,27 +1053,19 @@ export class HomeUi extends Component {
     }
 
     /**
-     * 刷新基地页纯入口建筑卡的红点（副本/远征/试炼）。
-     * _refreshBase 重建卡片时会刷一遍；进度变动后由 _refreshTop 走这里增量补刷。
+     * 刷新玩法页入口卡的红点（副本/远征/试炼）。
+     * _refreshPlayPage 重建卡片时会刷一遍；进度变动后由 _refreshTop 走这里增量补刷。
      */
     private _refreshEntryReds(): void {
-        const grid = this._baseGridEl;
+        const grid = this._playGridEl;
         if (!grid) {
             return;
         }
-        const map: Record<string, string> = { trial: 'trial', dungeon: 'dungeon', expedition: 'expedition' };
-        const cards = grid.querySelectorAll('.bcard');
-        const ids = BUILDINGS.filter(b => b.pureEntry).map(b => b.id);
-        let i = 0;
+        const cards = grid.querySelectorAll<HTMLElement>('.bcard[data-entry]');
         for (const card of cards) {
-            const id = ids[i];
-            i++;
-            if (!id) {
-                break;
-            }
             const red = card.querySelector('.bcardRed');
             if (red) {
-                this._refreshPureEntryRed(map[id] ?? id, red as HTMLElement);
+                this._refreshPureEntryRed(card.dataset.entry ?? '', red as HTMLElement);
             }
         }
     }
@@ -2958,6 +2947,15 @@ export class HomeUi extends Component {
 
         // 大按钮（上阵/下阵）已按需求移除：编队切换统一走关卡页护送编队弹窗
 
+        // 技能养成区块（原独立技能页并入英雄详情：选人即看技能，省一次切页）
+        if (owned) {
+            const skillHead = document.createElement('div');
+            skillHead.className = 'secTitle';
+            skillHead.textContent = '⚡ 技能养成 · 点击卡片查看升级详情';
+            body.appendChild(skillHead);
+            body.appendChild(this._renderSkillCards(def));
+        }
+
         // 底部内嵌物品栏：四页签（装备/宝石/材料/道具），点击物品弹详情
         const bar = document.createElement('div');
         bar.className = 'bagBar';
@@ -3721,27 +3719,16 @@ export class HomeUi extends Component {
         page.appendChild(diffRow);
         this._diffRowEl = diffRow;
 
-        // 通关结算奖励预览：金币区间 + 装备/核心/稀有杂物掉落率（真数据公式）
-        const lootPrev = document.createElement('div');
-        lootPrev.className = 'lootPrev panel';
-        lootPrev.innerHTML = `<div class="lpHead">⚔️ 通关结算奖励预览</div>` +
-            `<div class="lpRow"><span class="lpIc">🪙</span><span class="lpLab">金币收益区间</span><b class="lpVal lpGold"></b></div>` +
-            `<div class="lpRow"><span class="lpIc">🎁</span><span class="lpLab">装备掉落率</span><b class="lpVal lpEquip"></b></div>` +
-            `<div class="lpRow"><span class="lpIc">⚙️</span><span class="lpLab">英雄核心掉落率</span><b class="lpVal lpCore"></b></div>` +
-            `<div class="lpRow"><span class="lpIc">💎</span><span class="lpLab">稀有杂物掉落率</span><b class="lpVal lpRare"></b></div>` +
-            `<p class="lpNote">※ 掉率随关卡难度提升 · 装备强化等级 +1~+3 随机</p>`;
-        page.appendChild(lootPrev);
-        this._lootPrevEl = lootPrev;
-
-        // 耐久结算宝箱三档
-        const chestTitle = document.createElement('div');
-        chestTitle.className = 'secTitle';
-        chestTitle.textContent = '🎁 护送奖励 · 越少受伤，奖励越丰厚';
-        page.appendChild(chestTitle);
-        const chests = document.createElement('div');
-        chests.className = 'chests';
-        page.appendChild(chests);
-        this._chestsEl = chests;
+        // 奖励详情入口：金币区间/掉落率/耐久宝箱三档收进弹窗，主界面只留出战决策
+        const rewardBtn = document.createElement('button');
+        rewardBtn.className = 'btn dark sm rewardEntry';
+        rewardBtn.textContent = '🎁 奖励详情 · 金币 / 掉落 / 宝箱';
+        rewardBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openStageRewardModal();
+        };
+        page.appendChild(rewardBtn);
 
         // 底部按钮：编队 + 出战
         const btns = document.createElement('div');
@@ -3785,16 +3772,13 @@ export class HomeUi extends Component {
     private _stageDiffSel: StageDifficulty = 0;
     /** 难度选择器容器（_refreshStagePage 重建三档按钮） */
     private _diffRowEl: HTMLDivElement | null = null;
-    /** 战斗页掉落预览容器（_refreshStagePage 填充金币区间与掉率） */
-    private _lootPrevEl: HTMLDivElement | null = null;
 
-    /** 关卡页刷新：章节页签/场景内容/信息/宝箱（真数据 STAGES + stageCleared） */
+    /** 关卡页刷新：章节页签/场景内容/信息（真数据 STAGES + stageCleared）；奖励详情收进弹窗 */
     private _refreshStagePage(): void {
         const gm = GameManager.instance;
         const tabs = this._stageTabsEl;
         const scene = this._sceneEl;
-        const chests = this._chestsEl;
-        if (!tabs || !scene || !chests) {
+        if (!tabs || !scene) {
             return;
         }
         const stageId = Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID);
@@ -3917,58 +3901,6 @@ export class HomeUi extends Component {
             }
         }
 
-        // 通关宝箱三档（对齐原型：耐久档位；当前关 ready 可领取，领取后置 got；宝箱用真贴图）
-        chests.innerHTML = '';
-        const claimKey = `${stageId}`;
-        const claimed = this._claimedChests.has(claimKey);
-        const boxes: Array<[string, string, string]> = clearedAll
-            ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'got', '已领取'], ['满耐久通关', 'got', '已领取']]
-            : stageId === gm.stageCleared + 1
-                ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'ready', ''], ['满耐久通关', 'lock', '需完美护送']]
-                : [['耐久≥50%', 'lock', '通关后结算'], ['耐久≥75%', 'lock', '通关后结算'], ['满耐久通关', 'lock', '通关后结算']];
-        if (claimed && boxes[1][1] === 'ready') {
-            boxes[1][1] = 'got';
-            boxes[1][2] = '已领取';
-        }
-        for (const [label, st, tip] of boxes) {
-            const c = document.createElement('div');
-            c.className = `chest panel ${st}`;
-            const cic = document.createElement('span');
-            cic.className = 'cic';
-            this._tex('ui/chest', u => {
-                cic.style.backgroundImage = u;
-                cic.style.backgroundSize = 'contain';
-                cic.style.backgroundRepeat = 'no-repeat';
-                cic.style.backgroundPosition = 'center';
-            });
-            c.appendChild(cic);
-            const p = document.createElement('p');
-            p.textContent = label;
-            c.appendChild(p);
-            if (st === 'ready') {
-                const b = document.createElement('button');
-                b.className = 'btn gold sm cbtn';
-                b.textContent = '领 取';
-                b.onclick = (e) => {
-                    e.stopPropagation();
-                    this._claimedChests.add(claimKey);
-                    SoundFx.play('coin');
-                    this._toast('领取成功：金币 ×3,000 + 精炼合金 ×10');
-                    this._refreshStagePage();
-                    this._refreshTop();
-                };
-                c.appendChild(b);
-            } else {
-                const tag = document.createElement('span');
-                tag.className = 'tag';
-                tag.style.marginTop = 'calc(6px * var(--hs,1))';
-                tag.style.display = 'inline-block';
-                tag.textContent = tip;
-                c.appendChild(tag);
-            }
-            chests.appendChild(c);
-        }
-
         // 编队按钮文案
         if (this._squadBtn) {
             this._squadBtn.textContent = `👥 护送编队 ${gm.lineup.length}/${GameManager.LINEUP_MAX}`;
@@ -3980,9 +3912,30 @@ export class HomeUi extends Component {
             go.style.opacity = gm.canStartRun() ? '1' : '0.45';
             go.title = gm.canStartRun() ? '' : `体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`;
         }
+        this._applyPendingTex();
+    }
 
-        // 掉落预览数值：金币区间（结算公式折算 ±15% 浮动）+ 各档掉率（含关卡加成）
-        if (this._lootPrevEl) {
+    /** 关卡奖励详情弹窗：通关奖励预览（金币区间/掉落率）+ 耐久结算宝箱三档（主界面瘦身收进这里） */
+    private _openStageRewardModal(): void {
+        const gm = GameManager.instance;
+        const stageId = Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID);
+        const info = stageInfo(stageId);
+        const diffDef = stageDiffDef(this._stageDiffSel);
+        this._openModal(`🎁 ${info.name} · 通关奖励`, (box) => {
+            box.classList.add('rewardBox');
+
+            // 通关结算奖励预览：金币区间 + 装备/核心/稀有杂物掉落率（真数据公式）
+            const lootPrev = document.createElement('div');
+            lootPrev.className = 'lootPrev panel';
+            lootPrev.innerHTML = `<div class="lpHead">⚔️ 通关结算奖励预览 · ${diffDef.name}难度</div>` +
+                `<div class="lpRow"><span class="lpIc">🪙</span><span class="lpLab">金币收益区间</span><b class="lpVal lpGold"></b></div>` +
+                `<div class="lpRow"><span class="lpIc">🎁</span><span class="lpLab">装备掉落率</span><b class="lpVal lpEquip"></b></div>` +
+                `<div class="lpRow"><span class="lpIc">⚙️</span><span class="lpLab">英雄核心掉落率</span><b class="lpVal lpCore"></b></div>` +
+                `<div class="lpRow"><span class="lpIc">💎</span><span class="lpLab">稀有杂物掉落率</span><b class="lpVal lpRare"></b></div>` +
+                `<p class="lpNote">※ 掉率随关卡难度提升 · 装备强化等级 +1~+3 随机</p>`;
+            box.appendChild(lootPrev);
+
+            // 金币区间（结算公式折算 ±15% 浮动）+ 各档掉率（含关卡加成）
             const waves = stageWaves(stageId);
             let kills = 0;
             for (const w of waves) {
@@ -3990,28 +3943,85 @@ export class HomeUi extends Component {
             }
             const goldMul = gm.metaGoldMul() * gm.depotGoldMul() * diffDef.rewardMul;
             const mid = (kills * 2 + WAVES_PER_STAGE * 15) * goldMul;
-            const lo = Math.round(mid * 0.85);
-            const hi = Math.round(mid * 1.15);
-            const rates = lootRateText(stageId, diffDef.rewardMul);
-            const q = (c: string) => this._lootPrevEl?.querySelector('.' + c);
-            const gold = q('lpGold');
+            const gold = lootPrev.querySelector('.lpGold');
             if (gold) {
-                gold.textContent = `${lo.toLocaleString()} ~ ${hi.toLocaleString()}`;
+                gold.textContent = `${Math.round(mid * 0.85).toLocaleString()} ~ ${Math.round(mid * 1.15).toLocaleString()}`;
             }
-            const eq = q('lpEquip');
+            const rates = lootRateText(stageId, diffDef.rewardMul);
+            const eq = lootPrev.querySelector('.lpEquip');
             if (eq) {
                 eq.textContent = rates.equip;
             }
-            const co = q('lpCore');
+            const co = lootPrev.querySelector('.lpCore');
             if (co) {
                 co.textContent = rates.core;
             }
-            const ra = q('lpRare');
+            const ra = lootPrev.querySelector('.lpRare');
             if (ra) {
                 ra.textContent = rates.rare;
             }
-        }
-        this._applyPendingTex();
+
+            // 耐久结算宝箱三档
+            const chestTitle = document.createElement('div');
+            chestTitle.className = 'secTitle';
+            chestTitle.textContent = '🎁 护送奖励 · 越少受伤，奖励越丰厚';
+            box.appendChild(chestTitle);
+            const chests = document.createElement('div');
+            chests.className = 'chests';
+            box.appendChild(chests);
+            const clearedAll = stageId <= gm.stageCleared;
+            const claimKey = `${stageId}`;
+            const claimed = this._claimedChests.has(claimKey);
+            const boxes: Array<[string, string, string]> = clearedAll
+                ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'got', '已领取'], ['满耐久通关', 'got', '已领取']]
+                : stageId === gm.stageCleared + 1
+                    ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'ready', ''], ['满耐久通关', 'lock', '需完美护送']]
+                    : [['耐久≥50%', 'lock', '通关后结算'], ['耐久≥75%', 'lock', '通关后结算'], ['满耐久通关', 'lock', '通关后结算']];
+            if (claimed && boxes[1][1] === 'ready') {
+                boxes[1][1] = 'got';
+                boxes[1][2] = '已领取';
+            }
+            for (const [label, st, tip] of boxes) {
+                const c = document.createElement('div');
+                c.className = `chest panel ${st}`;
+                const cic = document.createElement('span');
+                cic.className = 'cic';
+                this._tex('ui/chest', u => {
+                    cic.style.backgroundImage = u;
+                    cic.style.backgroundSize = 'contain';
+                    cic.style.backgroundRepeat = 'no-repeat';
+                    cic.style.backgroundPosition = 'center';
+                });
+                c.appendChild(cic);
+                const p = document.createElement('p');
+                p.textContent = label;
+                c.appendChild(p);
+                if (st === 'ready') {
+                    const b = document.createElement('button');
+                    b.className = 'btn gold sm cbtn';
+                    b.textContent = '领 取';
+                    b.onclick = (e) => {
+                        e.stopPropagation();
+                        this._claimedChests.add(claimKey);
+                        SoundFx.play('coin');
+                        this._toast('领取成功：金币 ×3,000 + 精炼合金 ×10');
+                        this._refreshTop();
+                        // 就地重开弹窗，宝箱态刷新为已领取
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openStageRewardModal();
+                    };
+                    c.appendChild(b);
+                } else {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag';
+                    tag.style.marginTop = 'calc(6px * var(--hs,1))';
+                    tag.style.display = 'inline-block';
+                    tag.textContent = tip;
+                    c.appendChild(tag);
+                }
+                chests.appendChild(c);
+            }
+        });
     }
 
     /** 弹窗：护送编队（对齐原型 sq-slot + cand 网格，真数据 lineup） */
@@ -4291,84 +4301,108 @@ export class HomeUi extends Component {
         });
     }
 
-    // ================= 技能页（核心页） =================
+    // ================= 玩法页（日常运营 + 玩法入口） =================
 
-    /** 技能页：英雄横滑选择条 + 普攻/技能/大招三横卡（原型 s-skill 风格） */
-    private _buildSkillPage(root: HTMLDivElement): void {
+    /** 玩法页：每日任务/签到横幅（自基地横幅迁入）+ 试炼/副本/远征/图鉴/排行五大玩法入口卡 */
+    private _buildPlayPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.core = page;
-        page.appendChild(this._mkHeading('战术研究', '技能成长'));
-        const pick = document.createElement('div');
-        pick.className = 'heroPick';
-        page.appendChild(pick);
-        this._skillPickEl = pick;
-        const list = document.createElement('div');
-        list.style.marginTop = 'calc(16px * var(--hs,1))';
-        page.appendChild(list);
-        this._skillListEl = list;
-        const hint = document.createElement('div');
-        hint.className = 'skillHint';
-        hint.textContent = '—— 普攻 / 技能 / 大招 三线独立成长 · 技能等级受研究所等级上限约束 ——';
-        page.appendChild(hint);
+        page.appendChild(this._mkHeading('玩法大厅', '日常运营 · 挑战 · 图鉴'));
+
+        // 日常横幅：任务 + 签到（运营功能与基地建筑养成解耦，集中放在玩法页顶部）
+        const duty = document.createElement('div');
+        duty.className = 'dutyBanner panel frame';
+        duty.innerHTML = `<div class="dutyInfo"><h3>📣 每日运营</h3>` +
+            `<p>完成任务领活跃宝箱 · 连续签到拿稀有奖励</p></div>` +
+            `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
+            `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>`;
+        const questBtn = duty.querySelector('.questEntry') as HTMLButtonElement;
+        questBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openQuestModal();
+        };
+        this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
+        this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
+        const signinBtn = duty.querySelector('.signinEntry') as HTMLButtonElement;
+        signinBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openSigninModal();
+        };
+        this._refreshSigninRed(signinBtn.querySelector('.questRed') as HTMLElement);
+        this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
+        page.appendChild(duty);
+
+        // 五大玩法入口（BUILDINGS pureEntry：试炼/副本/远征/图鉴/排行）
+        const grid = document.createElement('div');
+        grid.className = 'baseGrid';
+        page.appendChild(grid);
+        this._playGridEl = grid;
         root.appendChild(page);
     }
 
-    private _pickSkillHero(i: number): void {
-        const gm = GameManager.instance;
-        const def = HERO_DEFS[i % HERO_DEFS.length];
-        if (!gm.isHeroOwned(def.id)) {
-            this._toast(`「${def.name}」尚未获得 · 无法升级技能`);
+    /** 玩法页刷新：重建玩法入口卡（动态进度描述 + 红点 + 进入按钮） */
+    private _refreshPlayPage(): void {
+        const grid = this._playGridEl;
+        if (!grid) {
             return;
         }
-        this._skillSelIdx = i;
-        this._refreshSkillPage();
-    }
-
-    private _refreshSkillPage(): void {
+        grid.innerHTML = '';
         const gm = GameManager.instance;
-        const hs = HeroSystem.instance;
-        const pick = this._skillPickEl;
-        const list = this._skillListEl;
-        if (!pick || !list) {
-            return;
-        }
-        pick.innerHTML = '';
-        HERO_DEFS.forEach((d, i) => {
-            const owned = gm.isHeroOwned(d.id);
-            const b = document.createElement('button');
-            b.className = 'hpick' + (i === this._skillSelIdx ? ' on' : '') + (owned ? '' : ' lock');
-            const pic = document.createElement('span');
-            pic.className = 'pic';
-            this._tex(`characters/hero_${d.id}`, u => {
-                pic.style.backgroundImage = u;
-                pic.style.backgroundSize = 'contain';
-                pic.style.backgroundRepeat = 'no-repeat';
-                pic.style.backgroundPosition = 'center';
-            });
-            const nm = document.createElement('i');
-            nm.textContent = d.name;
-            b.appendChild(pic);
-            b.appendChild(nm);
-            b.onclick = (e) => {
+        // 玩法定位短语（卡片副标题）
+        const sub: Record<string, string> = {
+            trial: '爬塔挑战', dungeon: '材料产线', expedition: '离线派遣',
+            bestiary: '图鉴收集', leaderboard: '积分竞技',
+        };
+        for (const b of BUILDINGS) {
+            if (!b.pureEntry) {
+                continue;
+            }
+            const unlocked = gm.isBuildingUnlocked(b.id);
+            const card = document.createElement('div');
+            card.className = 'bcard panel' + (unlocked ? '' : ' locked');
+            card.dataset.entry = b.id;
+            card.title = b.intro ?? '';
+            const ic = document.createElement('div');
+            ic.className = 'bIc';
+            ic.textContent = b.ic;
+            card.appendChild(ic);
+            const nm = document.createElement('div');
+            nm.className = 'bName';
+            nm.innerHTML = `${b.name}<span>${sub[b.id] ?? ''}</span>`;
+            card.appendChild(nm);
+            const ds = document.createElement('div');
+            ds.className = 'bDesc';
+            ds.textContent = unlocked ? this._pureEntryDesc(b.id) : `🔒 指挥中心 LV.${b.unlockHq} 解锁`;
+            card.appendChild(ds);
+            const btn = document.createElement('button');
+            btn.className = 'btn blue sm';
+            btn.style.width = '100%';
+            btn.textContent = this._pureEntryBtnText(b.id);
+            btn.disabled = !unlocked;
+            btn.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
-                this._pickSkillHero(i);
+                this._enterPureEntry(b.id);
             };
-            pick.appendChild(b);
-        });
-
-        list.innerHTML = '';
-        const def = HERO_DEFS[this._skillSelIdx % HERO_DEFS.length];
-        const owned = gm.isHeroOwned(def.id);
-        if (!owned) {
-            const tip = document.createElement('p');
-            tip.className = 'mSub';
-            tip.style.textAlign = 'center';
-            tip.textContent = `「${def.name}」尚未获得 · 解锁后开放技能升级`;
-            list.appendChild(tip);
-            return;
+            btn.style.opacity = btn.disabled ? '0.5' : '1';
+            card.appendChild(btn);
+            const red = document.createElement('span');
+            red.className = 'bcardRed';
+            card.appendChild(red);
+            this._refreshPureEntryRed(b.id, red);
+            grid.appendChild(card);
         }
+    }
+
+    /** 技能养成三线卡（普攻/技能/大招）——原技能页主体并入英雄详情页，选人即看技能 */
+    private _renderSkillCards(def: HeroDef): HTMLDivElement {
+        const gm = GameManager.instance;
+        const hs = HeroSystem.instance;
+        const list = document.createElement('div');
+        list.style.marginTop = 'calc(16px * var(--hs,1))';
         const basicDesc = def.weapon === 'rifle' ? '自动锁定最近目标，稳定单发射击，可触发暴击。'
             : def.weapon === 'sniper' ? '超远射程锁定高威胁目标，高伤慢速单体狙击。'
                 : def.weapon === 'laser' ? '持续锁定跟踪光束，附加灼烧持续伤害。'
@@ -4434,7 +4468,8 @@ export class HomeUi extends Component {
                     if (hs.upgradeAbility(def.id, c.slot)) {
                         SoundFx.play('buy');
                         this._toast(`${c.n} 升至 Lv.${lv + 1}`);
-                        this._refreshSkillPage();
+                        // 技能卡内嵌英雄详情页，升级后整页重建同步等级与金币态
+                        this._refreshHeroes();
                         this._refreshTop();
                     }
                 };
@@ -4447,7 +4482,7 @@ export class HomeUi extends Component {
             card.appendChild(act);
             list.appendChild(card);
         }
-        this._applyPendingTex();
+        return list;
     }
 
     /** 技能升级效果文案：当前等级伤害倍率描述 */
@@ -4550,7 +4585,8 @@ export class HomeUi extends Component {
                         this._toast(`${an} 升至 Lv.${lv + 1}`);
                         this._refreshTop();
                         document.querySelector('#homeUi .protoMask')?.remove();
-                        this._refreshSkillPage();
+                        // 技能卡已并入英雄详情页，升级后同步英雄页内嵌技能卡再重开弹窗
+                        this._refreshHeroes();
                         this._openAbilityModal(heroId, slot);
                     }
                 };
@@ -4567,29 +4603,12 @@ export class HomeUi extends Component {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.base = page;
+        // 基地页只承载建筑养成：任务/签到迁玩法页、五大玩法入口迁玩法页，横幅只留等级与繁荣度
         const banner = document.createElement('div');
         banner.className = 'baseBanner panel frame';
         banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag"></span></h3>` +
             `<div class="pros"></div>` +
-            `<div class="prosBar"><i></i></div></div>` +
-            `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
-            `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>`;
-        const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
-        questBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openQuestModal();
-        };
-        this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
-        this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
-        const signinBtn = banner.querySelector('.signinEntry') as HTMLButtonElement;
-        signinBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openSigninModal();
-        };
-        this._refreshSigninRed(signinBtn.querySelector('.questRed') as HTMLElement);
-        this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
+            `<div class="prosBar"><i></i></div></div>`;
         page.appendChild(banner);
         this._baseBannerEls = {
             lv: banner.querySelector('.lvtag'),
@@ -4706,8 +4725,11 @@ export class HomeUi extends Component {
             }
         }
         grid.innerHTML = '';
-        // 建筑卡（真数据 BUILDINGS：等级持久化，升级提升全局成长上限）
+        // 建筑卡（真数据 BUILDINGS：等级持久化，升级提升全局成长上限）；玩法入口卡已迁玩法页，这里只渲染养成建筑
         for (const b of BUILDINGS) {
+            if (b.pureEntry) {
+                continue;
+            }
             const lv = gm.buildingLevel(b.id);
             const maxed = lv >= b.maxLevel;
             const unlocked = gm.isBuildingUnlocked(b.id);
@@ -5704,6 +5726,7 @@ export class HomeUi extends Component {
 #homeUi .lootPrev .lpVal.lpGold { color: #ffd76a; }
 #homeUi .lootPrev .lpNote { font-size: calc(17px * var(--hs,1)); color: #6b83a5; margin-top: calc(8px * var(--hs,1)); }
 #homeUi .stageBtns { display: flex; gap: calc(20px * var(--hs,1)); margin-top: calc(28px * var(--hs,1)); }
+#homeUi .rewardEntry { width: 100%; margin-top: calc(20px * var(--hs,1)); height: calc(64px * var(--hs,1)); font-size: calc(23px * var(--hs,1)); letter-spacing: calc(1px * var(--hs,1)); }
 #homeUi .stageBtns .btn.squad { flex: 1; height: calc(88px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); }
 #homeUi .stageBtns .btn.go { flex: 1.7; height: calc(88px * var(--hs,1)); font-size: calc(34px * var(--hs,1)); letter-spacing: calc(6px * var(--hs,1)); }
 
@@ -5720,6 +5743,14 @@ export class HomeUi extends Component {
 #homeUi .sAct { text-align: center; flex: none; width: calc(164px * var(--hs,1)); }
 #homeUi .sLv { font-size: calc(24px * var(--hs,1)); font-weight: 900; color: #5cc8ff; margin-bottom: calc(10px * var(--hs,1)); }
 #homeUi .skillHint { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; text-align: center; margin-top: calc(8px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
+
+/* ===== 玩法页 ===== */
+#homeUi .dutyBanner { padding: calc(20px * var(--hs,1)) calc(24px * var(--hs,1)); display: flex; align-items: center;
+  gap: calc(16px * var(--hs,1)); margin-bottom: calc(24px * var(--hs,1)); }
+#homeUi .dutyBanner .dutyInfo { flex: 1; min-width: 0; }
+#homeUi .dutyBanner h3 { font-size: calc(28px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
+#homeUi .dutyBanner p { font-size: calc(19px * var(--hs,1)); color: #8ba3c7; margin-top: calc(6px * var(--hs,1)); }
+#homeUi .dutyBanner .questEntry, #homeUi .dutyBanner .signinEntry { flex: none; }
 
 /* ===== 基地页 ===== */
 #homeUi .baseBanner { padding: calc(24px * var(--hs,1)) calc(28px * var(--hs,1)); display: flex; align-items: center; gap: calc(24px * var(--hs,1)); margin-bottom: calc(24px * var(--hs,1)); }
@@ -6141,6 +6172,15 @@ export class HomeUi extends Component {
 #homeUi .bName { font-size: calc(15px * var(--pw,2.5)); }
 #homeUi .bDesc { font-size: calc(12px * var(--pw,2.5)); min-height: calc(36px * var(--pw,2.5)); line-height: 1.6; }
 #homeUi .bcard.locked { opacity: .7; }
+
+/* --- 玩法页（青瓷浅色变体） --- */
+#homeUi .dutyBanner { background: #365f70; border: none; border-radius: 0; color: #fff;
+  padding: calc(10px * var(--pw,2.5)) calc(12px * var(--pw,2.5)); gap: calc(8px * var(--pw,2.5));
+  margin-bottom: calc(12px * var(--pw,2.5)); }
+#homeUi .dutyBanner h3 { font-size: calc(15px * var(--pw,2.5)); }
+#homeUi .dutyBanner p { font-size: calc(10px * var(--pw,2.5)); color: #d5e5e9; margin-top: calc(3px * var(--pw,2.5)); }
+#homeUi .dutyBanner .questEntry, #homeUi .dutyBanner .signinEntry { margin-left: 0; }
+#homeUi .rewardEntry { margin-top: calc(10px * var(--pw,2.5)); height: calc(34px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
 
 /* --- 底部导航 --- */
 #homeUi .tabbar { height: calc(78px * var(--pw,2.5)); padding: calc(3px * var(--pw,2.5)) calc(6px * var(--pw,2.5));
