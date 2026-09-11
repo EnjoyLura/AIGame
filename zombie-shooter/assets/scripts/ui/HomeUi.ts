@@ -10,6 +10,7 @@ import { ShopData, ShopItem } from '../core/ShopData';
 import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
+import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
@@ -93,6 +94,8 @@ export class HomeUi extends Component {
     private _giftBannerEl: HTMLDivElement | null = null;
     /** 基地页任务入口红点 */
     private _questRedEl: HTMLElement | null = null;
+    /** 基地页签到入口红点 */
+    private _signinRedEl: HTMLElement | null = null;
     private _mallAdLab: HTMLDivElement | null = null;
     /** 模拟广告层 */
     private _adOverlay: HTMLDivElement | null = null;
@@ -955,6 +958,108 @@ export class HomeUi extends Component {
         if (el) {
             el.classList.toggle('on', QuestSystem.instance.hasClaimable());
         }
+    }
+
+    /** 签到入口红点：今天未签到时点亮 */
+    private _refreshSigninRed(el: HTMLElement | null): void {
+        if (el) {
+            el.classList.toggle('on', SigninSystem.instance.canClaimToday());
+        }
+    }
+
+    /** 七日签到弹窗：日历格子（已领/今日可领高亮/未到档位）+ 今日奖励详情 + 领取 */
+    private _openSigninModal(): void {
+        const ss = SigninSystem.instance;
+        this._openModal('📅 每日签到 · 七日目标', (box) => {
+            box.classList.add('signinBox');
+            const rewardText = (r: SigninReward): string => {
+                const parts: string[] = [];
+                if (r.reward.gold) {
+                    parts.push(`🪙${r.reward.gold.toLocaleString()}`);
+                }
+                if (r.reward.diamond) {
+                    parts.push(`💎${r.reward.diamond}`);
+                }
+                if (r.reward.misc) {
+                    parts.push(`${miscDef(r.reward.misc.id)?.ic ?? '📦'}×${r.reward.misc.n}`);
+                }
+                return parts.join(' ');
+            };
+            // 历史累计 + 当前循环进度
+            const head = document.createElement('div');
+            head.className = 'siHead';
+            head.innerHTML = `<b>累计签到 <i>${ss.totalDays}</i> 天</b><span>当前第 ${ss.day} / 7 天 · 断签不惩罚</span>`;
+            box.appendChild(head);
+            // 七日日历格子
+            const grid = document.createElement('div');
+            grid.className = 'siGrid';
+            const claimedToday = ss.isTodayClaimed();
+            const curDay = ss.day;
+            // 今日刚领的档位（已领时 day 指针已前移，回退一格）
+            const justClaimedDay = claimedToday ? (curDay === 1 ? 7 : curDay - 1) : 0;
+            // 今日可领的档位
+            const claimableDay = claimedToday ? 0 : curDay;
+            for (const r of SIGNIN_REWARDS) {
+                // 本轮已领：day 指针之前的档位
+                const done = r.day < curDay;
+                const isToday = r.day === claimableDay || r.day === justClaimedDay;
+                const cell = document.createElement('div');
+                cell.className = 'siCell panel' + (isToday ? ' today' : '') + (done ? ' done' : '');
+                const ic = document.createElement('div');
+                ic.className = 'siIc';
+                ic.textContent = done ? '✅' : r.ic;
+                const nm = document.createElement('div');
+                nm.className = 'siNm';
+                nm.textContent = r.label;
+                const dy = document.createElement('div');
+                dy.className = 'siDy';
+                dy.textContent = r.day === 7 ? '第7天·大奖' : `第${r.day}天`;
+                const rw = document.createElement('div');
+                rw.className = 'siRw';
+                rw.textContent = rewardText(r);
+                cell.appendChild(ic);
+                cell.appendChild(nm);
+                cell.appendChild(dy);
+                cell.appendChild(rw);
+                grid.appendChild(cell);
+            }
+            box.appendChild(grid);
+            // 今日奖励详情 + 领取按钮
+            const claimed = ss.isTodayClaimed();
+            const today = ss.todayReward();
+            const foot = document.createElement('div');
+            foot.className = 'siFoot panel' + (claimed ? ' done' : ' ready');
+            const info = document.createElement('div');
+            info.className = 'siInfo';
+            info.innerHTML = `<b>今日档位：${today.ic} ${today.label}</b><span>${rewardText(today)}</span>`;
+            foot.appendChild(info);
+            const btn = document.createElement('button');
+            btn.className = `btn ${claimed ? 'dark' : 'gold'} sm`;
+            btn.textContent = claimed ? '今日已签到' : '签 到';
+            btn.disabled = claimed;
+            if (!claimed) {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    const got = ss.claim();
+                    if (got) {
+                        SoundFx.play('coin');
+                        this._toast(`签到成功：${got.label}`);
+                        this._refreshTop();
+                        this._refreshSigninRed(this._signinRedEl);
+                        // 整弹重开刷新日历状态
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openSigninModal();
+                    }
+                };
+            }
+            foot.appendChild(btn);
+            box.appendChild(foot);
+            const note = document.createElement('p');
+            note.className = 'giftNote';
+            note.textContent = '每天登录领一档 · 领满 7 天开新一轮 · 错过不补领';
+            box.appendChild(note);
+        });
     }
 
     /** 任务中心弹窗：每日任务（自然日重置）+ 成就（累计里程碑），进度条 + 领奖 */
@@ -2834,6 +2939,7 @@ export class HomeUi extends Component {
             `<div class="pros"></div>` +
             `<div class="prosBar"><i></i></div></div>` +
             `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
+            `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>` +
             `<button class="btn gold sm lbEntry">🏆 排行</button>`;
         const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
         questBtn.onclick = (e) => {
@@ -2843,6 +2949,14 @@ export class HomeUi extends Component {
         };
         this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
         this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
+        const signinBtn = banner.querySelector('.signinEntry') as HTMLButtonElement;
+        signinBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openSigninModal();
+        };
+        this._refreshSigninRed(signinBtn.querySelector('.questRed') as HTMLElement);
+        this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
         const lbBtn = banner.querySelector('.lbEntry') as HTMLButtonElement;
         lbBtn.onclick = (e) => {
             e.stopPropagation();
@@ -3252,6 +3366,34 @@ export class HomeUi extends Component {
 #homeUi .qRight { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8px * var(--hs,1)); }
 #homeUi .qReward { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
 #homeUi .qRight .btn { min-width: calc(140px * var(--hs,1)); height: calc(48px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); }
+
+/* ===== 每日签到（基地页入口 + 弹窗） ===== */
+#homeUi .signinEntry { position: relative; margin-left: 0; flex: none; }
+#homeUi .signinEntry .questRed { display: none; position: absolute; top: calc(-6px * var(--hs,1)); right: calc(-6px * var(--hs,1));
+  width: calc(16px * var(--hs,1)); height: calc(16px * var(--hs,1)); border-radius: 50%; background: #ff5252;
+  box-shadow: 0 0 8px rgba(255,82,82,.8); }
+#homeUi .signinEntry .questRed.on { display: block; }
+#homeUi .siHead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .siHead b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .siHead b i { color: #f0b13e; font-style: normal; }
+#homeUi .siHead span { font-size: calc(18px * var(--hs,1)); color: #6a83a8; }
+#homeUi .siGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(10px * var(--hs,1)); }
+#homeUi .siCell { padding: calc(14px * var(--hs,1)) calc(8px * var(--hs,1)); text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--hs,1)); }
+#homeUi .siCell.today { border-color: #f0b13e; box-shadow: 0 0 12px rgba(240,177,62,.35); background: linear-gradient(180deg, rgba(240,177,62,.14), transparent); }
+#homeUi .siCell.done { opacity: .5; filter: grayscale(.5); }
+#homeUi .siIc { font-size: calc(40px * var(--hs,1)); line-height: 1.1; }
+#homeUi .siNm { font-size: calc(20px * var(--hs,1)); font-weight: 700; }
+#homeUi .siDy { font-size: calc(16px * var(--hs,1)); color: #f0b13e; }
+#homeUi .siRw { font-size: calc(16px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .siFoot { display: flex; align-items: center; justify-content: space-between; gap: calc(14px * var(--hs,1));
+  margin-top: calc(16px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(18px * var(--hs,1)); }
+#homeUi .siFoot.ready { border-color: #8a6a20; box-shadow: 0 0 10px rgba(240,177,62,.25); }
+#homeUi .siFoot.done { opacity: .6; }
+#homeUi .siInfo { display: flex; flex-direction: column; gap: calc(6px * var(--hs,1)); }
+#homeUi .siInfo b { font-size: calc(24px * var(--hs,1)); }
+#homeUi .siInfo span { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; font-weight: 700; }
+#homeUi .siFoot .btn { min-width: calc(180px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); }
 
 /* ===== 排行榜（基地页入口 + 弹窗） ===== */
 #homeUi .lbEntry { margin-left: 0; }
@@ -4079,6 +4221,30 @@ export class HomeUi extends Component {
 #homeUi .abCost { background: #e7eff5; border-color: #bdced8; border-radius: calc(7px * var(--pw,2.5)); padding: calc(6px * var(--pw,2.5)) calc(9px * var(--pw,2.5)); gap: calc(7px * var(--pw,2.5)); }
 #homeUi .abCost > span { font-size: calc(12px * var(--pw,2.5)); color: #945d24; }
 #homeUi .abCost .btn { min-width: calc(92px * var(--pw,2.5)); height: calc(36px * var(--pw,2.5)); font-size: calc(14px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
+
+/* --- 每日签到（青瓷浅色变体） --- */
+#homeUi .signinEntry { border-radius: calc(7px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(13px * var(--pw,2.5)); padding: 0 calc(10px * var(--pw,2.5)); }
+#homeUi .signinEntry .questRed { top: calc(-4px * var(--pw,2.5)); right: calc(-4px * var(--pw,2.5)); width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); }
+#homeUi .siHead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: calc(10px * var(--pw,2.5)); }
+#homeUi .siHead b { font-size: calc(15px * var(--pw,2.5)); color: #527085; }
+#homeUi .siHead b i { color: #e9a04f; font-style: normal; }
+#homeUi .siHead span { font-size: calc(12px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .siGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .siCell { padding: calc(8px * var(--pw,2.5)) calc(4px * var(--pw,2.5)); text-align: center; display: flex; flex-direction: column; align-items: center; gap: calc(3px * var(--pw,2.5)); }
+#homeUi .siCell.today { border-color: #e9a04f; background: #fff8e5; box-shadow: 0 0 8px #e9a04f66; }
+#homeUi .siCell.done { opacity: .55; filter: grayscale(.4); }
+#homeUi .siIc { font-size: calc(22px * var(--pw,2.5)); line-height: 1; }
+#homeUi .siNm { font-size: calc(12px * var(--pw,2.5)); font-weight: 700; color: #46647a; }
+#homeUi .siDy { font-size: calc(11px * var(--pw,2.5)); color: #e9a04f; }
+#homeUi .siRw { font-size: calc(11px * var(--pw,2.5)); color: #945d24; }
+#homeUi .siFoot { display: flex; align-items: center; justify-content: space-between; gap: calc(8px * var(--pw,2.5));
+  margin-top: calc(10px * var(--pw,2.5)); padding: calc(8px * var(--pw,2.5)) calc(10px * var(--pw,2.5)); }
+#homeUi .siFoot.ready { border-color: #e9a04f; box-shadow: 0 0 8px #e9a04f55; }
+#homeUi .siFoot.done { opacity: .65; }
+#homeUi .siInfo { display: flex; flex-direction: column; gap: calc(3px * var(--pw,2.5)); }
+#homeUi .siInfo b { font-size: calc(14px * var(--pw,2.5)); color: #46647a; }
+#homeUi .siInfo span { font-size: calc(13px * var(--pw,2.5)); color: #945d24; font-weight: 700; }
+#homeUi .siFoot .btn { min-width: calc(110px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); font-size: calc(14px * var(--pw,2.5)); }
 `;
         document.head.appendChild(style);
     }
