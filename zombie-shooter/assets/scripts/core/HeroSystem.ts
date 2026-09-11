@@ -605,9 +605,13 @@ export class HeroSystem {
         return lv;
     }
 
-    /** 金币+英雄核心升级技能；成功返回 true（未拥有英雄/已满级拒绝；0 级购买视为解锁） */
+    /** 金币+英雄核心升级技能；成功返回 true（未拥有英雄/已满级/未解锁拒绝） */
     upgradeAbility(heroId: string, slot: AbilitySlot): boolean {
+        // 技能/大招只能通过局内升级三选一的解锁卡解锁（0 级不可在主城购买）
         if (!this._gm.isHeroOwned(heroId) || this.isAbilityMaxLevel(heroId, slot)) {
+            return false;
+        }
+        if (slot !== 'basic' && this.abilityLevel(heroId, slot) <= 0) {
             return false;
         }
         if (!this._gm.res.spend('gold', this.abilityUpgradeCost(heroId, slot))) {

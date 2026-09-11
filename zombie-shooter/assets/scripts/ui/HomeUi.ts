@@ -2792,19 +2792,23 @@ export class HomeUi extends Component {
             lvEl.textContent = maxed ? 'MAX' : locked ? '未解锁' : `Lv.${lv}`;
             const btn = document.createElement('button');
             btn.className = `btn ${c.ult ? 'gold' : 'blue'} sm`;
-            if (maxed) {
+            if (locked) {
+                // 技能/大招不卖解锁：只能局内升级三选一随机刷出解锁卡
+                btn.textContent = '局内解锁';
+                btn.disabled = true;
+            } else if (maxed) {
                 btn.textContent = '已满级';
                 btn.disabled = true;
             } else {
                 const cost = hs.abilityUpgradeCost(def.id, c.slot);
-                btn.textContent = locked ? `🔓 解锁 🪙 ${cost.toLocaleString()}` : `🪙 ${cost.toLocaleString()}`;
+                btn.textContent = `🪙 ${cost.toLocaleString()}`;
                 btn.disabled = gm.gold < cost;
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.unlock();
                     if (hs.upgradeAbility(def.id, c.slot)) {
                         SoundFx.play('buy');
-                        this._toast(locked ? `${c.n} 已解锁` : `${c.n} 升至 Lv.${lv + 1}`);
+                        this._toast(`${c.n} 升至 Lv.${lv + 1}`);
                         this._refreshSkillPage();
                         this._refreshTop();
                     }
@@ -2897,7 +2901,12 @@ export class HomeUi extends Component {
             costRow.className = 'abCost';
             const btn = document.createElement('button');
             btn.className = 'btn gold';
-            if (maxed) {
+            if (locked) {
+                // 技能/大招不卖解锁：只能局内升级三选一随机刷出解锁卡
+                costRow.innerHTML = '<span>未解锁 · 出战时升级三选一随机刷出「解锁卡」后获得</span>';
+                btn.textContent = '局内解锁';
+                btn.disabled = true;
+            } else if (maxed) {
                 costRow.innerHTML = '<span>技能已达当前上限（研究所可提升上限）</span>';
                 btn.textContent = '已满级';
                 btn.disabled = true;
@@ -2906,14 +2915,14 @@ export class HomeUi extends Component {
                 const core = hs.abilityUpgradeCore(heroId, slot);
                 const coreLeft = hs.miscCount('mat_core');
                 costRow.innerHTML = `<span>消耗：🪙 ${cost.toLocaleString()} · ⚙️ 英雄核心 ×${core}（余 ${coreLeft}）</span>`;
-                btn.textContent = locked ? '🔓 解 锁' : '升 级';
+                btn.textContent = '升 级';
                 btn.disabled = gm.gold < cost || coreLeft < core;
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.unlock();
                     if (hs.upgradeAbility(heroId, slot)) {
                         SoundFx.play('buy');
-                        this._toast(locked ? `${an} 已解锁` : `${an} 升至 Lv.${lv + 1}`);
+                        this._toast(`${an} 升至 Lv.${lv + 1}`);
                         this._refreshTop();
                         document.querySelector('#homeUi .protoMask')?.remove();
                         this._refreshSkillPage();
