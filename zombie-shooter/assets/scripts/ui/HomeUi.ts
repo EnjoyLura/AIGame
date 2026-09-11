@@ -17,6 +17,7 @@ import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDef, StageDifficulty } from '../battle/StageData';
+import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MILESTONE_EVERY } from '../core/TrialSystem';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -1091,6 +1092,169 @@ export class HomeUi extends Component {
             secAcc.appendChild(acc);
             box.appendChild(secAcc);
         });
+    }
+
+    /**
+     * 试炼之塔弹窗：层段网格（每 5 层一组）+ 选中层详情 + 挑战入口。
+     * 格子状态：✅ 已通 / ▶ 可挑战（高亮）/ 🔒 未解锁；里程碑层（每 5 层）带 👑。
+     */
+    private _openTrialModal(): void {
+        const ts = TrialSystem.instance;
+        // 选中层：默认停在「当前可挑战层」；越界钳到合法范围
+        let sel = Math.min(TRIAL_MAX_FLOOR, Math.max(1, this._trialSelFloor || ts.nextFloor));
+        if (sel > ts.nextFloor) {
+            sel = ts.nextFloor;
+        }
+        this._trialSelFloor = sel;
+        this._openModal('🗼 试炼之塔', (box) => {
+            box.classList.add('trialBox');
+            const head = document.createElement('div');
+            head.className = 'siHead';
+            head.innerHTML = ts.maxFloor > 0
+                ? `<b>已通关 <i>${ts.clearedCount}</i> 层 · 最高第 ${ts.maxFloor} 层</b><span>每层 3 波 · 每 5 层大奖</span>`
+                : '<b>尚未登塔</b><span>从第 1 层开始挑战</span>';
+            box.appendChild(head);
+
+            // 层段网格：每 5 层一组（含里程碑层），纵向滚动
+            const list = document.createElement('div');
+            list.className = 'trialList';
+            const sects = Math.ceil(sel / TRIAL_MILESTONE_EVERY);
+            const totalSects = Math.ceil(TRIAL_MAX_FLOOR / TRIAL_MILESTONE_EVERY);
+            for (let s = 0; s < totalSects; s++) {
+                const from = s * TRIAL_MILESTONE_EVERY + 1;
+                const to = Math.min(TRIAL_MAX_FLOOR, from + TRIAL_MILESTONE_EVERY - 1);
+                // 未推进到的层段折叠成一行（避免 60 层摊开太长），只露出解锁进度附近
+                const lockedSect = from > ts.nextFloor;
+                const sect = document.createElement('div');
+                sect.className = 'trialSect' + (lockedSect ? ' lock' : '');
+                const st = document.createElement('div');
+                st.className = 'trialSectName';
+                st.textContent = lockedSect
+                    ? `第 ${from}~${to} 层 🔒`
+                    : (s === sects - 1 ? `第 ${from}~${to} 层 · 当前层段` : `第 ${from}~${to} 层段`);
+                sect.appendChild(st);
+                if (!lockedSect) {
+                    const grid = document.createElement('div');
+                    grid.className = 'trialGrid';
+                    for (let f = from; f <= to; f++) {
+                        const cleared = ts.isFloorCleared(f);
+                        const unlocked = ts.isFloorUnlocked(f);
+                        const isNow = f === ts.nextFloor && !cleared;
+                        const mile = f % TRIAL_MILESTONE_EVERY === 0;
+                        const cell = document.createElement('div');
+                        cell.className = 'trialCell panel'
+                            + (cleared ? ' done' : isNow ? ' now' : unlocked ? '' : ' lock')
+                            + (mile ? ' mile' : '')
+                            + (f === sel ? ' sel' : '');
+                        cell.innerHTML = `<b>${f}</b><span>${cleared ? '✅' : isNow ? '▶' : unlocked ? '◻' : '🔒'}</span>`
+                            + (mile ? '<i>👑</i>' : '');
+                        if (unlocked) {
+                            cell.onclick = (e) => {
+                                e.stopPropagation();
+                                SoundFx.play('ui');
+                                this._trialSelFloor = f;
+                                document.querySelector('#homeUi .protoMask')?.remove();
+                                this._openTrialModal();
+                            };
+                        }
+                        grid.appendChild(cell);
+                    }
+                    sect.appendChild(grid);
+                }
+                list.appendChild(sect);
+            }
+            box.appendChild(list);
+
+            // 选中层详情：怪强倍率 / 怪物池 / 首通奖励预览 / 挑战按钮
+            const def = trialFloorDef(sel);
+            const reward = trialFloorReward(sel);
+            const cleared = ts.isFloorCleared(sel);
+            const unlocked = ts.isFloorUnlocked(sel);
+            const det = document.createElement('div');
+            det.className = 'trialDetail panel';
+            det.innerHTML = `<div class="trialName">第 ${sel} 层${def.milestone ? ' 👑 层段大奖' : ''}`
+                + `<span>${def.sectName}</span></div>`;
+            det.innerHTML += `<div class="trialStat">`
+                + `<span>怪物强度 <b>×${def.hpMul.toFixed(1)}</b></span>`
+                + `<span>精英率 <b>${Math.round(def.eliteChance * 100)}%</b></span>`
+                + `<span>波次 <b>3 波</b></span></div>`;
+            // 怪物池（图鉴美术 + 名称）
+            const mobs = document.createElement('div');
+            mobs.className = 'trialMobs';
+            for (const m of def.monsters) {
+                const bd = BESTIARY_DEFS.filter(d => d.id === m.id)[0];
+                const cell = document.createElement('div');
+                cell.className = 'trialMob';
+                const pic = document.createElement('div');
+                pic.className = 'trialMobPic';
+                if (bd) {
+                    this._tex(bd.art, u => {
+                        pic.style.backgroundImage = u;
+                        pic.style.backgroundSize = 'contain';
+                        pic.style.backgroundRepeat = 'no-repeat';
+                        pic.style.backgroundPosition = 'center bottom';
+                    });
+                }
+                const nm = document.createElement('span');
+                nm.textContent = bd ? bd.name : m.id;
+                cell.appendChild(pic);
+                cell.appendChild(nm);
+                mobs.appendChild(cell);
+            }
+            if (def.monsters.length === 0) {
+                mobs.innerHTML = '<span class="trialMobNm">—</span>';
+            }
+            det.appendChild(mobs);
+            // 首通奖励预览
+            const line = (ic: string, txt: string) => `<div class="trialRewardRow"><span>${ic}</span><b>${txt}</b></div>`;
+            let rw = '';
+            if (cleared) {
+                rw = '<div class="trialRewardNote">✅ 已通关 · 可重复挑战（只得基础金币与少量掉落）</div>';
+            } else if (unlocked) {
+                rw = line('🪙', `${reward.gold.toLocaleString()} 金币`)
+                    + (reward.diamond > 0 ? line('💎', `${reward.diamond} 钻石`) : '')
+                    + (reward.drops.length > 0 ? line('🎁', `额外掉落 ×${reward.drops.length}`) : '');
+                rw = `<div class="trialRewardHead">首通奖励</div>${rw}`;
+            } else {
+                rw = `<div class="trialRewardNote">🔒 需先通关第 ${sel - 1} 层</div>`;
+            }
+            const rwEl = document.createElement('div');
+            rwEl.className = 'trialReward';
+            rwEl.innerHTML = rw;
+            det.appendChild(rwEl);
+            box.appendChild(det);
+
+            const go = document.createElement('button');
+            go.className = 'btn gold big trialGo';
+            go.textContent = !unlocked ? `🔒 第 ${sel} 层未解锁`
+                : cleared ? `⚔️ 重挑 第 ${sel} 层` : `⚔️ 挑战 第 ${sel} 层`;
+            go.disabled = !unlocked;
+            go.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._startTrial(sel);
+            };
+            box.appendChild(go);
+            const note = document.createElement('p');
+            note.className = 'giftNote';
+            note.textContent = '试炼不消耗体力、不限次数；层内失败不影响已通关进度';
+            box.appendChild(note);
+        });
+    }
+
+    /** 选中层记忆（弹窗重开时保持焦点） */
+    private _trialSelFloor = 0;
+
+    /** 进入试炼之塔某层：走流程状态机（免体力/免关卡门槛，只校验层数解锁链） */
+    private _startTrial(floor: number): void {
+        if (!this._root) {
+            return;
+        }
+        if (!GameFlow.instance.startRun(false, 0, floor)) {
+            this._toast(`第 ${floor} 层尚未解锁`);
+            return;
+        }
+        this.hide();
     }
 
     /** 怪物图鉴弹窗：完成度头部 + 五怪网格（未解锁剪影）+ 点卡片进详情浮窗 */
@@ -3336,11 +3500,35 @@ export class HomeUi extends Component {
             card.appendChild(infoBtn);
             const ds = document.createElement('div');
             ds.className = 'bDesc';
-            ds.textContent = maxed ? `${b.desc(lv)}（已满级）` : b.desc(lv + 1);
+            if (b.id === 'trial') {
+                // 试炼之塔：建筑描述改为塔进度（不走等级文案）
+                const ts = TrialSystem.instance;
+                ds.textContent = ts.maxFloor > 0
+                    ? `已通关 ${ts.clearedCount} 层 · 可挑战第 ${ts.nextFloor} 层`
+                    : '尚未登塔 · 从第 1 层开始';
+            } else {
+                ds.textContent = maxed ? `${b.desc(lv)}（已满级）` : b.desc(lv + 1);
+            }
             card.appendChild(ds);
             const btn = document.createElement('button');
             btn.className = 'btn gold sm';
             btn.style.width = '100%';
+            if (b.id === 'trial') {
+                // 试炼之塔：纯入口建筑不参与升级，按钮即入口（显示下一可挑战层）
+                const ts = TrialSystem.instance;
+                btn.className = 'btn blue sm';
+                btn.textContent = ts.maxFloor > 0 ? `⚔️ 进入试炼 · 第 ${ts.nextFloor} 层` : '⚔️ 进入试炼';
+                btn.disabled = !unlocked;
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._openTrialModal();
+                };
+                btn.style.opacity = btn.disabled ? '0.5' : '1';
+                card.appendChild(btn);
+                grid.appendChild(card);
+                continue;
+            }
             if (!unlocked) {
                 btn.textContent = `🔒 指挥中心 LV.${b.unlockHq} 解锁`;
                 btn.disabled = true;
@@ -3729,6 +3917,40 @@ export class HomeUi extends Component {
 #homeUi .besStatRow { display: flex; justify-content: space-between; font-size: calc(20px * var(--hs,1)); }
 #homeUi .besStatRow span { color: #8ba3c7; }
 #homeUi .besStatRow b { color: #ffe9a8; }
+
+/* ===== 试炼之塔（基地建筑入口 + 弹窗） ===== */
+#homeUi .trialList { max-height: calc(760px * var(--hs,1)); overflow-y: auto; display: flex; flex-direction: column; gap: calc(12px * var(--hs,1)); }
+#homeUi .trialSect { display: flex; flex-direction: column; gap: calc(8px * var(--hs,1)); }
+#homeUi .trialSect.lock { opacity: .5; }
+#homeUi .trialSectName { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .trialSect.lock .trialSectName { color: #587099; }
+#homeUi .trialGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(10px * var(--hs,1)); }
+#homeUi .trialCell { position: relative; padding: calc(12px * var(--hs,1)) 0; text-align: center; cursor: default;
+  display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--hs,1)); }
+#homeUi .trialCell b { font-size: calc(26px * var(--hs,1)); color: #dce8f7; }
+#homeUi .trialCell span { font-size: calc(18px * var(--hs,1)); }
+#homeUi .trialCell i { position: absolute; top: calc(2px * var(--hs,1)); right: calc(4px * var(--hs,1)); font-style: normal; font-size: calc(16px * var(--hs,1)); }
+#homeUi .trialCell.done { border-color: #3f7a4a; }
+#homeUi .trialCell.done b { color: #7fe08a; }
+#homeUi .trialCell.now { border-color: #8a6a20; cursor: pointer; animation: huiChest 1.8s ease-in-out infinite; }
+#homeUi .trialCell.now b { color: #ffe9a8; }
+#homeUi .trialCell.sel { border-color: #f0b13e; box-shadow: 0 0 14px rgba(240,177,62,.6); }
+#homeUi .trialCell.lock { opacity: .45; }
+#homeUi .trialCell.mile { border-top: calc(3px * var(--hs,1)) solid #c9a227; }
+#homeUi .trialDetail { margin-top: calc(16px * var(--hs,1)); padding: calc(18px * var(--hs,1)); display: flex; flex-direction: column; gap: calc(12px * var(--hs,1)); text-align: left; }
+#homeUi .trialName { font-size: calc(28px * var(--hs,1)); font-weight: 700; color: #ffe9a8; display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .trialName span { font-size: calc(18px * var(--hs,1)); color: #7ee0ff; font-weight: 400; }
+#homeUi .trialStat { display: flex; gap: calc(24px * var(--hs,1)); font-size: calc(20px * var(--hs,1)); color: #8ba3c7; flex-wrap: wrap; }
+#homeUi .trialStat b { color: #dce8f7; }
+#homeUi .trialMobs { display: flex; gap: calc(16px * var(--hs,1)); flex-wrap: wrap; align-items: flex-end; }
+#homeUi .trialMob { display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--hs,1)); font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .trialMobPic { width: calc(72px * var(--hs,1)); height: calc(72px * var(--hs,1)); }
+#homeUi .trialReward { display: flex; flex-direction: column; gap: calc(6px * var(--hs,1)); }
+#homeUi .trialRewardHead { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .trialRewardRow { display: flex; gap: calc(10px * var(--hs,1)); align-items: center; font-size: calc(22px * var(--hs,1)); }
+#homeUi .trialRewardRow b { color: #ffe9a8; }
+#homeUi .trialRewardNote { font-size: calc(20px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .trialGo { width: 100%; margin-top: calc(16px * var(--hs,1)); }
 
 /* ===== 个人主页（点头像弹出） ===== */
 #homeUi .pAvatar { cursor: pointer; }
@@ -4627,6 +4849,39 @@ export class HomeUi extends Component {
 #homeUi .besStatRow { display: flex; justify-content: space-between; font-size: calc(12px * var(--pw,2.5)); }
 #homeUi .besStatRow span { color: #8fa9ba; }
 #homeUi .besStatRow b { color: #945d24; }
+
+/* --- 试炼之塔（青瓷浅色变体） --- */
+#homeUi .trialList { max-height: calc(300px * var(--pw,2.5)); overflow-y: auto; display: flex; flex-direction: column; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .trialSect { display: flex; flex-direction: column; gap: calc(4px * var(--pw,2.5)); }
+#homeUi .trialSect.lock { opacity: .55; }
+#homeUi .trialSectName { font-size: calc(11px * var(--pw,2.5)); color: #527085; }
+#homeUi .trialSect.lock .trialSectName { color: #8fa9ba; }
+#homeUi .trialGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(5px * var(--pw,2.5)); }
+#homeUi .trialCell { position: relative; padding: calc(6px * var(--pw,2.5)) 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: calc(1px * var(--pw,2.5)); }
+#homeUi .trialCell b { font-size: calc(13px * var(--pw,2.5)); color: #46647a; }
+#homeUi .trialCell span { font-size: calc(9px * var(--pw,2.5)); }
+#homeUi .trialCell i { position: absolute; top: calc(1px * var(--pw,2.5)); right: calc(2px * var(--pw,2.5)); font-style: normal; font-size: calc(8px * var(--pw,2.5)); }
+#homeUi .trialCell.done { border-color: #7fae86; }
+#homeUi .trialCell.done b { color: #3f7a4a; }
+#homeUi .trialCell.now { border-color: #e9a04f; cursor: pointer; }
+#homeUi .trialCell.now b { color: #945d24; }
+#homeUi .trialCell.sel { border-color: #e9a04f; box-shadow: 0 0 8px rgba(233,160,79,.55); }
+#homeUi .trialCell.lock { opacity: .5; }
+#homeUi .trialCell.mile { border-top: calc(2px * var(--pw,2.5)) solid #e9a04f; }
+#homeUi .trialDetail { margin-top: calc(8px * var(--pw,2.5)); padding: calc(9px * var(--pw,2.5)); display: flex; flex-direction: column; gap: calc(6px * var(--pw,2.5)); text-align: left; }
+#homeUi .trialName { font-size: calc(14px * var(--pw,2.5)); font-weight: 700; color: #945d24; display: flex; align-items: baseline; justify-content: space-between; }
+#homeUi .trialName span { font-size: calc(10px * var(--pw,2.5)); color: #527085; font-weight: 400; }
+#homeUi .trialStat { display: flex; gap: calc(12px * var(--pw,2.5)); font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; flex-wrap: wrap; }
+#homeUi .trialStat b { color: #46647a; }
+#homeUi .trialMobs { display: flex; gap: calc(8px * var(--pw,2.5)); flex-wrap: wrap; align-items: flex-end; }
+#homeUi .trialMob { display: flex; flex-direction: column; align-items: center; gap: calc(2px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .trialMobPic { width: calc(36px * var(--pw,2.5)); height: calc(36px * var(--pw,2.5)); }
+#homeUi .trialReward { display: flex; flex-direction: column; gap: calc(2px * var(--pw,2.5)); }
+#homeUi .trialRewardHead { font-size: calc(11px * var(--pw,2.5)); color: #6b8ba1; }
+#homeUi .trialRewardRow { display: flex; gap: calc(5px * var(--pw,2.5)); align-items: center; font-size: calc(12px * var(--pw,2.5)); }
+#homeUi .trialRewardRow b { color: #945d24; }
+#homeUi .trialRewardNote { font-size: calc(11px * var(--pw,2.5)); color: #527085; }
+#homeUi .trialGo { width: 100%; margin-top: calc(8px * var(--pw,2.5)); }
 
 /* --- 个人主页（青瓷浅色变体） --- */
 #homeUi .pAvatar { cursor: pointer; }

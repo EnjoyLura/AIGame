@@ -3,6 +3,7 @@ import { eventCenter } from './EventCenter';
 import { GameManager } from './GameManager';
 import { BattleManager } from '../battle/BattleManager';
 import { FINAL_STAGE_ID } from '../battle/StageData';
+import { TrialSystem } from './TrialSystem';
 
 /**
  * 游戏流程状态机：主城/战斗/结算三大状态收口，转移的唯一发起者。
@@ -33,6 +34,8 @@ export class GameFlow {
     private _state: FlowState = 'home';
     /** 结算子态：state==='settle' 时决定弹失败还是通关面板 */
     private _lastResult: RunResult | null = null;
+    /** 本局出参（retry 原样重放：无尽/难度/试炼层） */
+    private _lastRun = { endless: false, diff: 0, trialFloor: 0 };
 
     get state(): FlowState { return this._state; }
     get lastResult(): RunResult | null { return this._lastResult; }
@@ -60,30 +63,42 @@ export class GameFlow {
         eventCenter.emit(GameEvent.FLOW_CHANGED, from, s);
     }
 
-    /** home → battle：出战。守卫失败返回 false（UI 据此回滚显示）；diff=关卡难度（0 普通/1 精英/2 噩梦） */
-    startRun(endless = false, diff = 0): boolean {
+    /**
+     * home → battle：出战。守卫失败返回 false（UI 据此回滚显示）。
+     * diff=关卡难度（0 普通/1 精英/2 噩梦）；trialFloor>0 时进入试炼之塔该层（免体力/免关卡门槛）。
+     */
+    startRun(endless = false, diff = 0, trialFloor = 0): boolean {
         if (this._state !== 'home') {
             console.warn(`[GameFlow] endRun 非法转移：当前 ${this._state}`.replace('endRun', 'startRun'));
             return false;
         }
         const gm = GameManager.instance;
-        if (!gm.canStartRun() || !gm.stageUnlocked(gm.currentStage)) {
-            return false;
-        }
-        // 无尽模式解锁门槛：通关最后一关（防止跳过全部关卡内容）
-        if (endless && gm.stageCleared < FINAL_STAGE_ID) {
-            return false;
-        }
-        // 高难度门槛：精英需通关本关普通，噩梦需通关本关精英
-        if (!endless && !gm.isDiffUnlocked(gm.currentStage, diff)) {
-            return false;
+        const floor = endless ? 0 : Math.max(0, Math.floor(trialFloor));
+        if (floor > 0) {
+            // 试炼之塔：不消耗体力、不看关卡门槛，只校验层数是否已达解锁链
+            if (!TrialSystem.instance.isFloorUnlocked(floor)) {
+                return false;
+            }
+        } else {
+            if (!gm.canStartRun() || !gm.stageUnlocked(gm.currentStage)) {
+                return false;
+            }
+            // 无尽模式解锁门槛：通关最后一关（防止跳过全部关卡内容）
+            if (endless && gm.stageCleared < FINAL_STAGE_ID) {
+                return false;
+            }
+            // 高难度门槛：精英需通关本关普通，噩梦需通关本关精英
+            if (!endless && !gm.isDiffUnlocked(gm.currentStage, diff)) {
+                return false;
+            }
         }
         // 先清场重开（_restart 会把实体/统计/运行时数据归零），再扣体力开波；
         // 顺序保证扣体力失败时不会留下半初始化的战斗现场
         eventCenter.emit(GameEvent.GAME_RESTART);
-        if (!BattleManager.instance?.beginRun(endless, diff)) {
+        if (!BattleManager.instance?.beginRun(endless, diff, floor)) {
             return false;
         }
+        this._lastRun = { endless, diff, trialFloor: floor };
         this._setState('battle');
         return true;
     }
@@ -97,8 +112,15 @@ export class GameFlow {
         this._lastResult = result;
         this._setState('settle');
         if (result === 'clear') {
-            eventCenter.emit(GameEvent.STAGE_CLEAR, BattleManager.instance?.stageId ?? 1,
-                BattleManager.instance?.takeClearBonus() ?? 0, BattleManager.instance?.takeClearDrops() ?? []);
+            // 试炼之塔走独立事件：不污染关卡通关（QuestSystem 监听 STAGE_CLEAR 记通关数/成就）
+            if (BattleManager.instance?.isTrial) {
+                eventCenter.emit(GameEvent.TRIAL_CLEAR, BattleManager.instance.trialFloor,
+                    BattleManager.instance.takeTrialBonus(), BattleManager.instance.takeTrialDrops(),
+                    BattleManager.instance.takeTrialDiamond() > 0);
+            } else {
+                eventCenter.emit(GameEvent.STAGE_CLEAR, BattleManager.instance?.stageId ?? 1,
+                    BattleManager.instance?.takeClearBonus() ?? 0, BattleManager.instance?.takeClearDrops() ?? []);
+            }
         } else {
             eventCenter.emit(GameEvent.GAME_OVER);
         }
@@ -114,14 +136,15 @@ export class GameFlow {
         eventCenter.emit(GameEvent.HOME_SHOW);
     }
 
-    /** settle → battle：失败/通关结算里直接重开一局（再扣体力） */
+    /** settle → battle：失败/通关结算里直接重开一局（原样重放本局模式：无尽/难度/试炼层） */
     retry(): boolean {
         if (this._state !== 'settle') {
             console.warn(`[GameFlow] retry 非法转移：当前 ${this._state}`);
             return false;
         }
         eventCenter.emit(GameEvent.GAME_RESTART);
-        if (!BattleManager.instance?.beginRun()) {
+        const r = this._lastRun;
+        if (!BattleManager.instance?.beginRun(r.endless, r.diff, r.trialFloor)) {
             // 体力不足等失败：退回主城而不是停在黑屏
             this._setState('home');
             eventCenter.emit(GameEvent.HOME_SHOW);

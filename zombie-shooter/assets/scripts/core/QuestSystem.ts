@@ -2,6 +2,7 @@ import { sys } from 'cc';
 import { GameManager } from './GameManager';
 import { GameEvent } from '../config/GameConfig';
 import { eventCenter } from './EventCenter';
+import { TrialSystem } from './TrialSystem';
 
 /**
  * 任务与成就系统（基地页入口）：
@@ -14,7 +15,7 @@ import { eventCenter } from './EventCenter';
 
 /** 任务/成就目标类型（与计数钩子一一对应） */
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
-    | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings';
+    | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor';
 
 export interface QuestDef {
     id: string;
@@ -56,6 +57,9 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_wave30', kind: 'achv', name: '波次支配者', goal: 'endlessWave', target: 30, reward: { diamond: 120 }, ic: '🌊' },
     { id: 'a_skill6', kind: 'achv', name: '特训教官', goal: 'skills', target: 6, reward: { diamond: 30 }, ic: '🎯' },
     { id: 'a_building15', kind: 'achv', name: '基地建设者', goal: 'buildings', target: 15, reward: { diamond: 35 }, ic: '🏗️' },
+    { id: 'a_trial5', kind: 'achv', name: '登塔者', goal: 'trialFloor', target: 5, reward: { diamond: 40 }, ic: '🗼' },
+    { id: 'a_trial15', kind: 'achv', name: '高塔征服者', goal: 'trialFloor', target: 15, reward: { diamond: 90 }, ic: '🧗' },
+    { id: 'a_trial30', kind: 'achv', name: '塔顶挑战者', goal: 'trialFloor', target: 30, reward: { diamond: 200 }, ic: '👑' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -126,6 +130,7 @@ export class QuestSystem {
             case 'skills': return Math.min(def.target, this._data.skills);
             case 'buildings': return Math.min(def.target, this._buildingSum(gm));
             case 'endlessWave': return Math.min(def.target, gm.bestWave);
+            case 'trialFloor': return Math.min(def.target, TrialSystem.instance.maxFloor);
         }
     }
 

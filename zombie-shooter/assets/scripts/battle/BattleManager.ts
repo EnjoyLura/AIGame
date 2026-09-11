@@ -22,6 +22,7 @@ import { GmPanel } from '../ui/GmPanel';
 import { AbilityBar } from '../ui/AbilityBar';
 import { MonsterInfo, WaveInfo, MONSTERS } from './WaveData';
 import { stageWaves, stageInfo, FINAL_STAGE_ID, StageDifficulty, stageDiffDef, StageDiffDef } from './StageData';
+import { trialWaves, TrialSystem, trialFloorReward, rollTrialDrops } from '../core/TrialSystem';
 import { GameFlow } from '../core/GameFlow';
 import { HeroSystem, LootDrop, rollStageClearDrops, grantLootDrops } from '../core/HeroSystem';
 import { HitParticle } from './HitParticle';
@@ -130,12 +131,23 @@ export class BattleManager extends Component {
     private _endlessMilestones = 0;
     /** 本局关卡难度（0 普通/1 精英/2 噩梦；无尽恒 0） */
     private _difficulty: StageDifficulty = 0;
+    /** 试炼之塔层数（0 = 非试炼局；>0 时波次表改查 TrialSystem，不推进关卡进度） */
+    private _trialFloor = 0;
     /** 结算口径：本局难度（结算面板/HUD 展示） */
     get difficulty(): StageDifficulty { return this._difficulty; }
     get difficultyDef(): StageDiffDef { return stageDiffDef(this._difficulty); }
 
     /** 结算口径：无尽模式失败时用 GAME_OVER 面板展示无尽波数 */
     get isEndless(): boolean { return this._endless; }
+
+    /** 结算口径：试炼之塔局（失败/通关面板改走试炼文案） */
+    get isTrial(): boolean { return this._trialFloor > 0; }
+    get trialFloor(): number { return this._trialFloor; }
+
+    /** 本局波次表：试炼查塔层，常规查关卡（难度/层数强度已烘焙进表） */
+    private _waveTable(): WaveInfo[] {
+        return this._trialFloor > 0 ? trialWaves(this._trialFloor) : stageWaves(this._stageId, this._difficulty);
+    }
 
     /** 只错开新施法；等待期间不耗充能、不锁定目标，普攻照常。 */
     tryBeginAutoCast(): boolean {
@@ -311,12 +323,13 @@ export class BattleManager extends Component {
     }
 
     /** 开波纯战斗部分（体力扣减与清场已由 GameFlow.startRun 完成）：应用局外强化并开启第一波 */
-    beginRun(endless = false, diff = 0): boolean {
+    beginRun(endless = false, diff = 0, trialFloor = 0): boolean {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
         this._stageId = gm.currentStage;
         this._endless = endless;
         this._endlessMilestones = 0;
+        this._trialFloor = endless ? 0 : Math.max(0, Math.floor(trialFloor));
         this._difficulty = endless ? 0 : (Math.min(2, Math.max(0, Math.floor(diff))) as StageDifficulty);
         for (const h of this._heroes) {
             // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 英雄乘区（武器×装备×宝石）
@@ -362,15 +375,22 @@ export class BattleManager extends Component {
         if (this._waveCleared) {
             this._restTimer -= dt;
             if (this._restTimer <= 0) {
-                // 无尽模式：永不通关，持续滚波（hp 逐波上浮）；每 5 波发一次里程碑奖励
-                if (this._endless) {
+                // 试炼之塔：3 波打完即通关本层（不推进关卡进度，可无限重挑）
+                if (this._trialFloor > 0) {
+                    if (this._waveNumber >= this._waveTable().length) {
+                        this._clearTrialFloor();
+                    } else {
+                        this._startWave(this._waveNumber + 1);
+                    }
+                } else if (this._endless) {
+                    // 无尽模式：永不通关，持续滚波（hp 逐波上浮）；每 5 波发一次里程碑奖励
                     if (this._waveNumber - this._endlessMilestones * BattleConfig.ENDLESS_MILESTONE_WAVES
                         >= BattleConfig.ENDLESS_MILESTONE_WAVES) {
                         this._endlessMilestones++;
                         this._endlessReward();
                     }
                     this._startWave(this._waveNumber + 1);
-                } else if (this._waveNumber >= stageWaves(this._stageId, this._difficulty).length) {
+                } else if (this._waveNumber >= this._waveTable().length) {
                     // 末波清完 → 通关结算（解锁下一关+回主城）
                     this._clearStage();
                 } else {
@@ -1140,6 +1160,64 @@ export class BattleManager extends Component {
         return v;
     }
 
+    /**
+     * 试炼之塔通关本层：登记塔进度 + 发放首通奖励，走 TRIAL_CLEAR 事件（不污染关卡通关成就）。
+     * 首通奖励一次性；重复刷已通层只拿常规结算金币 + 30% 小材料掉落。
+     */
+    private _clearTrialFloor(): void {
+        if (this._gameOver) {
+            return;
+        }
+        const gm = GameManager.instance;
+        const floor = this._trialFloor;
+        gm.wave = this._waveNumber;
+        gm.bestWave = Math.max(gm.bestWave, this._waveNumber);
+        const firstClear = TrialSystem.instance.markFloorCleared(floor);
+        this._awardRunGold();
+        if (firstClear) {
+            const reward = trialFloorReward(floor);
+            this._trialBonus = reward.gold;
+            this._trialDiamond = reward.diamond;
+            if (reward.gold > 0) {
+                gm.addGold(reward.gold);
+            }
+            if (reward.diamond > 0) {
+                gm.res.add('diamond', reward.diamond);
+            }
+            this._trialDrops = reward.drops;
+            // 掉落按件入包（装备进装备背包、材料进杂物库存），数量各 1
+            grantLootDrops(reward.drops);
+            gm.save();
+        } else {
+            this._trialBonus = 0;
+            this._trialDiamond = 0;
+            this._trialDrops = rollTrialDrops(floor);
+            grantLootDrops(this._trialDrops);
+        }
+        eventCenter.emit(GameEvent.TRIAL_CLEAR, floor, this._trialBonus, this._trialDrops, firstClear);
+        GameFlow.instance.endRun('clear');
+    }
+
+    /** 试炼首通奖励暂存（TRIAL_CLEAR 广播后清空） */
+    private _trialBonus = 0;
+    private _trialDiamond = 0;
+    private _trialDrops: LootDrop[] = [];
+    takeTrialBonus(): number {
+        const v = this._trialBonus;
+        this._trialBonus = 0;
+        return v;
+    }
+    takeTrialDiamond(): number {
+        const v = this._trialDiamond;
+        this._trialDiamond = 0;
+        return v;
+    }
+    takeTrialDrops(): LootDrop[] {
+        const v = this._trialDrops;
+        this._trialDrops = [];
+        return v;
+    }
+
     /** 首通奖励暂存（GameFlow.endRun 广播 STAGE_CLEAR 时读取带走） */
     private _clearBonus = 0;
     takeClearBonus(): number {
@@ -1382,8 +1460,8 @@ export class BattleManager extends Component {
 
     private _startWave(waveNumber: number): void {
         this._waveNumber = waveNumber;
-        // 本关波次表（StageData 按关卡 id 与难度生成）；越界=通关后无尽滚波
-        const table = stageWaves(this._stageId, this._difficulty);
+        // 本关波次表（StageData 按关卡 id 与难度生成 / 试炼按塔层生成）；越界=通关后无尽滚波
+        const table = this._waveTable();
         const idx = Math.min(waveNumber - 1, table.length - 1);
         // 总量/上限保留 ×3；前三波生成密度由 ×2 平滑过渡至 ×3。
         const base = table[idx];

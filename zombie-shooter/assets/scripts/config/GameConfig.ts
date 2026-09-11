@@ -91,6 +91,8 @@ export enum GameEvent {
     ENEMY_DEAD = 'enemy-dead',
     GAME_OVER = 'game-over',
     STAGE_CLEAR = 'stage-clear',
+    /** 试炼之塔通关本层：参数 (层数, 首通金币, 掉落数组, 是否首通) */
+    TRIAL_CLEAR = 'trial-clear',
     FLOW_CHANGED = 'flow-changed',
     GAME_RESTART = 'game-restart',
     HOME_SHOW = 'home-show',

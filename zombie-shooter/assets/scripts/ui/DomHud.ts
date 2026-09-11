@@ -65,11 +65,12 @@ export class DomHud extends Component {
     private _statsRows: StatRow[] = [];
     private _statsRefresh = 0;
     private _failPanel: HTMLDivElement | null = null;
+    private _failTitle: HTMLDivElement | null = null;
     private _failGold: HTMLDivElement | null = null;
     private _failWave: HTMLDivElement | null = null;
     private _failKill: HTMLDivElement | null = null;
     private _failLevel: HTMLDivElement | null = null;
-    /** 通关结算面板（STAGE_CLEAR 时弹出，与失败结算互斥） */
+    /** 通关结算面板（STAGE_CLEAR / TRIAL_CLEAR 时弹出，与失败结算互斥） */
     private _clearPanel: HTMLDivElement | null = null;
     private _clearTitle: HTMLDivElement | null = null;
     /** 结算动态区：每次通关重建（统计芯片 + 掉落展示） */
@@ -95,6 +96,7 @@ export class DomHud extends Component {
         eventCenter.on(GameEvent.GAME_OVER, this._onGameOver, this);
         eventCenter.on(GameEvent.ENDLESS_MILESTONE, this._onEndlessMilestone, this);
         eventCenter.on(GameEvent.STAGE_CLEAR, this._onStageClear, this);
+        eventCenter.on(GameEvent.TRIAL_CLEAR, this._onTrialClear, this);
         eventCenter.on(GameEvent.GOLD_EARNED, this._onGoldEarned, this);
         window.addEventListener('resize', () => this._layout());
         console.log('[末日航线] build', BUILD_STAMP, (window as any).__BUILD_TIME ?? '');
@@ -108,6 +110,7 @@ export class DomHud extends Component {
         eventCenter.off(GameEvent.GAME_OVER, this._onGameOver, this);
         eventCenter.off(GameEvent.ENDLESS_MILESTONE, this._onEndlessMilestone, this);
         eventCenter.off(GameEvent.STAGE_CLEAR, this._onStageClear, this);
+        eventCenter.off(GameEvent.TRIAL_CLEAR, this._onTrialClear, this);
         this._root?.remove();
         this._root = null;
     }
@@ -248,13 +251,29 @@ export class DomHud extends Component {
     }
 
     private _onStageClear(stageId: number, bonus: number, drops: LootDrop[]): void {
-        const gm = GameManager.instance;
         if (this._clearTitle) {
             const hasNext = stageId < FINAL_STAGE_ID;
             this._clearTitle.textContent = hasNext ? `第 ${stageId} 关 通 关` : '全 部 通 关';
             this._clearTitle.style.color = hasNext ? '#7bdc7b' : '#ffd76a';
         }
-        // 动态区重建：统计芯片 + 金币 + 掉落展示（每次通关重新触发入场动画）
+        this._fillClearBody(bonus, drops);
+    }
+
+    /** 试炼之塔通关本层（TRIAL_CLEAR）：与关卡通关共用结算卡片，标题/文案改走塔口径 */
+    private _onTrialClear(floor: number, bonus: number, drops: LootDrop[], firstClear: boolean): void {
+        if (this._clearTitle) {
+            this._clearTitle.textContent = `第 ${floor} 层 通 关`;
+            this._clearTitle.style.color = firstClear ? '#ffd76a' : '#7bdc7b';
+        }
+        this._fillClearBody(bonus, drops, firstClear);
+    }
+
+    /**
+     * 通关结算动态区：统计芯片 + 金币 + 掉落展示（每次通关重建以重放入场动画）。
+     * bonus = 首通奖励金币（0 表示重复通关）；trial 为真时金币标签改口径。
+     */
+    private _fillClearBody(bonus: number, drops: LootDrop[], trial = false): void {
+        const gm = GameManager.instance;
         if (this._clearBody) {
             const body = this._clearBody;
             body.innerHTML = '';
@@ -276,7 +295,7 @@ export class DomHud extends Component {
             const earned = Number(this._lastGoldEarned) || 0;
             mkChip(String(gm.kills), '击杀怪物', '');
             mkChip(`Lv.${gm.level}`, '团队等级', '');
-            mkChip(`+${earned}`, '金币收益' + (bonus > 0 ? '（含首通）' : ''), 'gold');
+            mkChip(`+${earned}`, '金币收益' + (bonus > 0 ? (trial ? '（含首通奖）' : '（含首通）') : ''), 'gold');
             body.appendChild(chips);
 
             // 掉落区：有掉落才显示，逐项翻转弹出；无掉落给固定提示位
@@ -284,7 +303,8 @@ export class DomHud extends Component {
             loot.className = 'clLoot';
             const head = document.createElement('div');
             head.className = 'clLootHead';
-            head.textContent = drops.length > 0 ? '✨ 掉 落 获 得 ✨' : '本次通关没有掉落 · 再接再厉';
+            head.textContent = drops.length > 0 ? '✨ 掉 落 获 得 ✨'
+                : (trial ? '本层没有掉落 · 再上一层试试' : '本次通关没有掉落 · 再接再厉');
             loot.appendChild(head);
             const grid = document.createElement('div');
             grid.className = 'clLootGrid';
@@ -329,9 +349,15 @@ export class DomHud extends Component {
     /** 结算数据：读全局 GameManager 单例 */
     private _fillGameOver(): void {
         const gm = GameManager.instance;
-        const endless = BattleManager.instance?.isEndless ?? false;
+        const bm = BattleManager.instance;
+        const endless = bm?.isEndless ?? false;
+        const trialFloor = bm?.isTrial ? bm.trialFloor : 0;
+        if (this._failTitle) {
+            this._failTitle.textContent = trialFloor > 0 ? '试 炼 失 败' : '护 送 失 败';
+        }
         if (this._failWave) {
-            this._failWave.textContent = endless ? `无尽波数：第 ${gm.wave} 波` : `抵达波次：第 ${gm.wave} 波`;
+            this._failWave.textContent = trialFloor > 0 ? `试炼层数：第 ${trialFloor} 层`
+                : endless ? `无尽波数：第 ${gm.wave} 波` : `抵达波次：第 ${gm.wave} 波`;
         }
         if (this._failKill) {
             this._failKill.textContent = `击杀怪物：${gm.kills}`;
@@ -1125,7 +1151,9 @@ export class DomHud extends Component {
         fp.style.display = 'none';
         const card = document.createElement('div');
         card.className = 'failCard';
-        card.appendChild(this._bigLabel('护 送 失 败', 72));
+        // 标题复用（试炼局显示「试炼失败」，普通局「护送失败」），_fillGameOver 按模式改文案
+        this._failTitle = this._bigLabel('护 送 失 败', 72);
+        card.appendChild(this._failTitle);
         this._failWave = this._label(card, 'failLine', '');
         this._failKill = this._label(card, 'failLine', '');
         this._failLevel = this._label(card, 'failLine', '');
