@@ -12,6 +12,7 @@ import { FINAL_STAGE_ID } from '../battle/StageData';
 import { LootDrop, lootDropColor, tierRank, miscDef } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 import { MailSystem, MailState } from '../core/MailSystem';
+import { DungeonReward, dungeonDef, DUNGEON_TIER_NAMES } from '../core/DungeonSystem';
 
 /** 伤害统计面板每英雄一行的可更新元素 */
 interface StatRow {
@@ -97,6 +98,7 @@ export class DomHud extends Component {
         eventCenter.on(GameEvent.ENDLESS_MILESTONE, this._onEndlessMilestone, this);
         eventCenter.on(GameEvent.STAGE_CLEAR, this._onStageClear, this);
         eventCenter.on(GameEvent.TRIAL_CLEAR, this._onTrialClear, this);
+        eventCenter.on(GameEvent.DUNGEON_CLEAR, this._onDungeonClear, this);
         eventCenter.on(GameEvent.GOLD_EARNED, this._onGoldEarned, this);
         window.addEventListener('resize', () => this._layout());
         console.log('[末日航线] build', BUILD_STAMP, (window as any).__BUILD_TIME ?? '');
@@ -111,6 +113,7 @@ export class DomHud extends Component {
         eventCenter.off(GameEvent.ENDLESS_MILESTONE, this._onEndlessMilestone, this);
         eventCenter.off(GameEvent.STAGE_CLEAR, this._onStageClear, this);
         eventCenter.off(GameEvent.TRIAL_CLEAR, this._onTrialClear, this);
+        eventCenter.off(GameEvent.DUNGEON_CLEAR, this._onDungeonClear, this);
         this._root?.remove();
         this._root = null;
     }
@@ -266,6 +269,27 @@ export class DomHud extends Component {
             this._clearTitle.style.color = firstClear ? '#ffd76a' : '#7bdc7b';
         }
         this._fillClearBody(bonus, drops, firstClear);
+    }
+
+    /**
+     * 资源副本通关（DUNGEON_CLEAR）：复用关卡通关卡片，标题改副本文案，
+     * 掉落区展示本次副本产出（金币/钻石/材料统一转成 LootDrop 形状以便复用渲染）。
+     */
+    private _onDungeonClear(id: string, tier: number, reward: DungeonReward | null): void {
+        const def = dungeonDef(id);
+        if (this._clearTitle) {
+            this._clearTitle.textContent = `${def ? def.name : '副本'} · ${DUNGEON_TIER_NAMES[tier] ?? ''} 通关`;
+            this._clearTitle.style.color = '#7bdc7b';
+        }
+        const drops: LootDrop[] = [];
+        if (reward) {
+            for (const line of reward.lines) {
+                drops.push({
+                    kind: 'misc', tier: 4, name: `${line.name} ×${line.n}`, ic: line.ic,
+                });
+            }
+        }
+        this._fillClearBody(0, drops, true);
     }
 
     /**

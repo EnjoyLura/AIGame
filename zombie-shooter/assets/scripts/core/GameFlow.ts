@@ -4,6 +4,7 @@ import { GameManager } from './GameManager';
 import { BattleManager } from '../battle/BattleManager';
 import { FINAL_STAGE_ID } from '../battle/StageData';
 import { TrialSystem } from './TrialSystem';
+import { DungeonSystem, dungeonFromCode, DUNGEON_STAMINA_COST } from './DungeonSystem';
 
 /**
  * 游戏流程状态机：主城/战斗/结算三大状态收口，转移的唯一发起者。
@@ -65,7 +66,8 @@ export class GameFlow {
 
     /**
      * home → battle：出战。守卫失败返回 false（UI 据此回滚显示）。
-     * diff=关卡难度（0 普通/1 精英/2 噩梦）；trialFloor>0 时进入试炼之塔该层（免体力/免关卡门槛）。
+     * diff=关卡难度（0 普通/1 精英/2 噩梦）；trialFloor>0 进入试炼之塔该层（免体力）。
+     * trialFloor<0 进入资源副本（编码见 DungeonSystem.encodeDungeon），消耗体力 + 每日次数。
      */
     startRun(endless = false, diff = 0, trialFloor = 0): boolean {
         if (this._state !== 'home') {
@@ -73,8 +75,29 @@ export class GameFlow {
             return false;
         }
         const gm = GameManager.instance;
-        const floor = endless ? 0 : Math.max(0, Math.floor(trialFloor));
-        if (floor > 0) {
+        const floor = endless ? 0 : Math.floor(trialFloor);
+        // 副本已扣的次数/体力，beginRun 失败时需要回滚
+        let spentDungeon = false;
+        if (floor < 0) {
+            // 资源副本：校验档位解锁与剩余次数，再扣体力 + 次数
+            const dg = dungeonFromCode(floor);
+            if (!dg) {
+                return false;
+            }
+            const gate = DungeonSystem.instance.canEnter(dg.id, dg.tier);
+            if (!gate.ok) {
+                return false;
+            }
+            // 原子性：先扣体力，体力不足则次数不动；扣完次数后若开战失败再全部退回
+            if (!gm.res.spend('stamina', DUNGEON_STAMINA_COST)) {
+                return false;
+            }
+            if (!DungeonSystem.instance.consume(dg.id)) {
+                gm.res.add('stamina', DUNGEON_STAMINA_COST);
+                return false;
+            }
+            spentDungeon = true;
+        } else if (floor > 0) {
             // 试炼之塔：不消耗体力、不看关卡门槛，只校验层数是否已达解锁链
             if (!TrialSystem.instance.isFloorUnlocked(floor)) {
                 return false;
@@ -92,10 +115,18 @@ export class GameFlow {
                 return false;
             }
         }
-        // 先清场重开（_restart 会把实体/统计/运行时数据归零），再扣体力开波；
+        // 先清场重开（_restart 会把实体/统计/运行时数据归零），再开波；
         // 顺序保证扣体力失败时不会留下半初始化的战斗现场
         eventCenter.emit(GameEvent.GAME_RESTART);
         if (!BattleManager.instance?.beginRun(endless, diff, floor)) {
+            if (spentDungeon) {
+                // 开战失败：把刚扣的体力与次数退回去，避免白扣
+                gm.res.add('stamina', DUNGEON_STAMINA_COST);
+                const dg = dungeonFromCode(floor);
+                if (dg) {
+                    DungeonSystem.instance.refund(dg.id);
+                }
+            }
             return false;
         }
         this._lastRun = { endless, diff, trialFloor: floor };
@@ -112,8 +143,11 @@ export class GameFlow {
         this._lastResult = result;
         this._setState('settle');
         if (result === 'clear') {
-            // 试炼之塔走独立事件：不污染关卡通关（QuestSystem 监听 STAGE_CLEAR 记通关数/成就）
-            if (BattleManager.instance?.isTrial) {
+            // 副本/试炼各走独立事件：不污染关卡通关（QuestSystem 监听 STAGE_CLEAR 记通关数/成就）
+            if (BattleManager.instance?.isDungeon) {
+                eventCenter.emit(GameEvent.DUNGEON_CLEAR, BattleManager.instance.dungeonId,
+                    BattleManager.instance.dungeonTier, BattleManager.instance.takeDungeonReward());
+            } else if (BattleManager.instance?.isTrial) {
                 eventCenter.emit(GameEvent.TRIAL_CLEAR, BattleManager.instance.trialFloor,
                     BattleManager.instance.takeTrialBonus(), BattleManager.instance.takeTrialDrops(),
                     BattleManager.instance.takeTrialDiamond() > 0);

@@ -93,6 +93,8 @@ export enum GameEvent {
     STAGE_CLEAR = 'stage-clear',
     /** 试炼之塔通关本层：参数 (层数, 首通金币, 掉落数组, 是否首通) */
     TRIAL_CLEAR = 'trial-clear',
+    /** 资源副本通关：参数 (副本 id, 档位 0~2, 产出对象 DungeonReward) */
+    DUNGEON_CLEAR = 'dungeon-clear',
     FLOW_CHANGED = 'flow-changed',
     GAME_RESTART = 'game-restart',
     HOME_SHOW = 'home-show',

@@ -6,6 +6,7 @@ import { TrialSystem } from './TrialSystem';
 import { RecruitSystem } from './RecruitSystem';
 import { TalentSystem } from './TalentSystem';
 import { AFFIX_MAX } from './EquipmentAffix';
+import { DungeonSystem } from './DungeonSystem';
 
 /**
  * 任务与成就系统（基地页入口）：
@@ -19,7 +20,7 @@ import { AFFIX_MAX } from './EquipmentAffix';
 /** 任务/成就目标类型（与计数钩子一一对应） */
 export type QuestGoal = 'kills' | 'clears' | 'goldEarned' | 'heroes' | 'ads' | 'stage'
     | 'gems' | 'combines' | 'salvages' | 'endlessWave' | 'skills' | 'buildings' | 'trialFloor'
-    | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3';
+    | 'recruits' | 'heroStars' | 'talentPoints' | 'affix3' | 'dungeonRuns';
 
 export interface QuestDef {
     id: string;
@@ -72,6 +73,8 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_talent12', kind: 'achv', name: '天赋异禀', goal: 'talentPoints', target: 12, reward: { diamond: 80 }, ic: '🌠' },
     { id: 'a_talent22', kind: 'achv', name: '流派大成', goal: 'talentPoints', target: 22, reward: { diamond: 150 }, ic: '🏅' },
     { id: 'a_affix3', kind: 'achv', name: '词缀猎人', goal: 'affix3', target: 1, reward: { diamond: 60 }, ic: '✦' },
+    { id: 'a_dungeon10', kind: 'achv', name: '资源采集者', goal: 'dungeonRuns', target: 10, reward: { diamond: 30 }, ic: '🏰' },
+    { id: 'a_dungeon50', kind: 'achv', name: '副本老兵', goal: 'dungeonRuns', target: 50, reward: { diamond: 100 }, ic: '⚔️' },
 ];
 
 export function questDef(id: string): QuestDef | undefined {
@@ -148,6 +151,7 @@ export class QuestSystem {
             // 天赋用"已投入点数"而非派生总点数：洗点会让进度回落，符合"真的练过这棵树"的语义
             case 'talentPoints': return Math.min(def.target, TalentSystem.instance.spent);
             case 'affix3': return Math.min(def.target, this._affix3Count(gm));
+            case 'dungeonRuns': return Math.min(def.target, DungeonSystem.instance.totalRuns);
         }
     }
 

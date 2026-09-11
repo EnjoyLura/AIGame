@@ -4,11 +4,12 @@ import { FINAL_STAGE_ID } from '../battle/StageData';
 import { TrialSystem } from './TrialSystem';
 import { RecruitSystem } from './RecruitSystem';
 import { TalentSystem } from './TalentSystem';
+import { DungeonSystem } from './DungeonSystem';
 
 /**
  * 排行榜系统（基地页入口，本地模拟版）：
  * - 积分实时从存档计算：最高通关 ×1000 + 累计击杀 ×2 + 建筑等级总和 ×50 + 拥有英雄战力
- *   + 塔层 ×300 + 累计招募 ×5 + 英雄星级总和 ×120 + 已投天赋点 ×400。
+ *   + 塔层 ×300 + 累计招募 ×5 + 英雄星级总和 ×120 + 已投天赋点 ×400 + 副本挑战 ×30。
  * - 对手为本地生成的水涨船高型机器人（围绕玩家积分分布），本地模拟；
  *   接微信小游戏时只需把 loadBoard 的数据源换成开放数据域 getFriendCloudStorage。
  */
@@ -38,7 +39,9 @@ export function myScore(): number {
         + TrialSystem.instance.maxFloor * 300
         + RecruitSystem.instance.totalRecruits * 5
         + RecruitSystem.instance.starSum * 120
-        + TalentSystem.instance.spent * 400;
+        + TalentSystem.instance.spent * 400
+        // 副本是日日可刷的进度，权重刻意压低，不与通关/塔抢主权重
+        + DungeonSystem.instance.totalRuns * 30;
 }
 
 /** 本地机器人名池（末日风格） */

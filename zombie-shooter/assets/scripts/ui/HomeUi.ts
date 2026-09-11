@@ -21,6 +21,7 @@ import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MI
 import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRICE_10, RECRUIT_PITY, RecruitResult } from '../core/RecruitSystem';
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
 import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
+import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -104,6 +105,8 @@ export class HomeUi extends Component {
     private _signinRedEl: HTMLElement | null = null;
     /** 基地页天赋入口红点（有未分配点数时点亮） */
     private _talentRedEl: HTMLElement | null = null;
+    /** 基地页副本入口红点（有剩余次数且体力足够时点亮） */
+    private _dungeonRedEl: HTMLElement | null = null;
     private _mallAdLab: HTMLDivElement | null = null;
     /** 模拟广告层 */
     private _adOverlay: HTMLDivElement | null = null;
@@ -413,6 +416,7 @@ export class HomeUi extends Component {
         }
         // 天赋点随经验/通关变化，顺带刷新入口红点（_refreshTop 是所有进度变动后的统一出口）
         this._refreshTalentRed();
+        this._refreshDungeonRed();
     }
 
     // ================= 底部导航 =================
@@ -989,6 +993,23 @@ export class HomeUi extends Component {
         if (this._talentRedEl) {
             this._talentRedEl.classList.toggle('on', TalentSystem.instance.available > 0);
         }
+    }
+
+    /** 副本入口红点：任一副本还有剩余次数、且体力足够打一次时点亮 */
+    private _refreshDungeonRed(): void {
+        if (!this._dungeonRedEl) {
+            return;
+        }
+        const ds = DungeonSystem.instance;
+        const staminaOk = GameManager.instance.stamina() >= DUNGEON_STAMINA_COST;
+        let anyLeft = false;
+        for (const def of DUNGEON_DEFS) {
+            if (ds.remaining(def.id) > 0) {
+                anyLeft = true;
+                break;
+            }
+        }
+        this._dungeonRedEl.classList.toggle('on', anyLeft && staminaOk);
     }
 
     /** 个人主页浮窗（点头像弹出）：名片 + 战绩 + 养成 + 系统进度 + 账号信息 */
@@ -1651,6 +1672,131 @@ export class HomeUi extends Component {
             this._toast(`第 ${floor} 层尚未解锁`);
             return;
         }
+        this.hide();
+    }
+
+    // ================= 资源副本 =================
+
+    /** 选中副本记忆（弹窗重开时保持焦点） */
+    private _dungeonSel: DungeonId = 'gold';
+
+    /**
+     * 资源副本弹窗：四个副本卡片（图标/名称/今日剩余次数/三档按钮）+ 选中档位的产出预览。
+     * 点档位就地刷新选中态与详情区，不重开弹窗（避免闪烁）。
+     */
+    private _openDungeonModal(tier = 0): void {
+        const ds = DungeonSystem.instance;
+        const gm = GameManager.instance;
+        const selId = this._dungeonSel;
+        const selTier = Math.min(2, Math.max(0, Math.floor(tier)));
+        this._openModal('🏰 资源副本', (box) => {
+            box.classList.add('dungeonBox');
+            const head = document.createElement('div');
+            head.className = 'dgHead';
+            head.innerHTML = `<div class="dgHeadTop"><b>今日次数</b>`
+                + `<span>体力 ${gm.stamina()}/${gm.staminaMax()} · 每次消耗 ${DUNGEON_STAMINA_COST}</span></div>`
+                + `<div class="dgSrc">每副本每日 ${DUNGEON_RUNS_PER_DAY} 次，隔日重置；通关打满 ${DUNGEON_WAVES} 波即结算</div>`;
+            box.appendChild(head);
+
+            const list = document.createElement('div');
+            list.className = 'dgList';
+            for (const def of DUNGEON_DEFS) {
+                const left = ds.remaining(def.id);
+                const row = document.createElement('div');
+                row.className = 'dgRow' + (def.id === selId ? ' on' : '');
+                const info = document.createElement('div');
+                info.className = 'dgInfo';
+                info.innerHTML = `<span class="dgIc">${def.ic}</span>`
+                    + `<span class="dgMeta"><b>${def.name}</b><i>今日剩余 ${left}/${DUNGEON_RUNS_PER_DAY}</i></span>`;
+                row.appendChild(info);
+                const tiers = document.createElement('div');
+                tiers.className = 'dgTiers';
+                for (let t = 0; t < 3; t++) {
+                    const tb = document.createElement('button');
+                    const unlocked = ds.isTierUnlocked(def.id, t);
+                    tb.className = 'btn sm dgTier' + (def.id === selId && t === selTier ? ' gold' : ' dark');
+                    tb.textContent = DUNGEON_TIER_NAMES[t];
+                    tb.disabled = !unlocked;
+                    tb.title = unlocked ? '' : `需通关第 ${ds.unlockStageOf(def.id, t)} 关`;
+                    tb.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.play('ui');
+                        this._dungeonSel = def.id;
+                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._openDungeonModal(t);
+                    };
+                    tiers.appendChild(tb);
+                }
+                row.appendChild(tiers);
+                row.onclick = () => {
+                    SoundFx.play('ui');
+                    this._dungeonSel = def.id;
+                };
+                list.appendChild(row);
+            }
+            box.appendChild(list);
+
+            // ---- 选中详情 + 产出预览 + 挑战入口 ----
+            const def = dungeonDef(selId);
+            if (!def) {
+                return;
+            }
+            const detail = document.createElement('div');
+            detail.className = 'dgDetail panel';
+            const range = dungeonYieldRange(def.id, selTier);
+            const left = ds.remaining(def.id);
+            const gate = ds.canEnter(def.id, selTier);
+            const staminaOk = gm.stamina() >= DUNGEON_STAMINA_COST;
+            const yieldText = def.id === 'gold'
+                ? `🪙 ${range.lo}~${range.hi} 金币${selTier === 2 ? ' + 💎 钻石' : ''}`
+                : def.id === 'gem'
+                    ? `💠 随机宝石 ×${range.lo}~${range.hi}（档位越高品质越好）`
+                    : `${def.rewardIc[selTier]} ${def.id === 'stone' ? '强化石' : '精炼合金'} ×${range.lo}~${range.hi}`;
+            detail.innerHTML = `<div class="dgName"><b>${def.ic} ${def.name}</b>`
+                + `<i>${DUNGEON_TIER_NAMES[selTier]} · 今日剩余 ${left}/${DUNGEON_RUNS_PER_DAY}</i></div>`
+                + `<div class="dgDesc">${def.desc}</div>`
+                + `<div class="dgYield">预计产出：${yieldText}</div>`
+                + `<div class="dgHint">${gate.ok
+                    ? (staminaOk ? `消耗体力 ${DUNGEON_STAMINA_COST} 点` : `⚠️ 体力不足，需要 ${DUNGEON_STAMINA_COST} 点`)
+                    : `🔒 ${gate.reason}`}</div>`;
+            const go = document.createElement('button');
+            go.className = 'btn big gold dgGo';
+            go.textContent = gate.ok && staminaOk ? '挑 战' : (gate.ok ? '体力不足' : '未 解 锁');
+            go.disabled = !gate.ok || !staminaOk;
+            go.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                this._startDungeon(def.id, selTier);
+            };
+            detail.appendChild(go);
+            box.appendChild(detail);
+        });
+    }
+
+    /** 进入资源副本：走流程状态机（内部校验次数/体力/档位，失败给出具体原因） */
+    private _startDungeon(id: DungeonId, tier: number): void {
+        if (!this._root) {
+            return;
+        }
+        const def = dungeonDef(id);
+        // 进入前再校验一次（弹窗打开期间体力/次数可能已变），给出精确提示
+        const gate = DungeonSystem.instance.canEnter(id, tier);
+        if (!gate.ok) {
+            this._toast(gate.reason ?? '无法进入');
+            document.querySelector('#homeUi .protoMask')?.remove();
+            this._openDungeonModal(tier);
+            return;
+        }
+        if (GameManager.instance.stamina() < DUNGEON_STAMINA_COST) {
+            this._toast(`体力不足（需要 ${DUNGEON_STAMINA_COST} 点）`);
+            return;
+        }
+        if (!GameFlow.instance.startRun(false, 0, encodeDungeon(id, tier))) {
+            this._toast('进入副本失败');
+            return;
+        }
+        SoundFx.play('ui');
+        this._toast(`${def ? def.name : '副本'} · ${DUNGEON_TIER_NAMES[tier]} 开始`);
         this.hide();
     }
 
@@ -3913,7 +4059,8 @@ export class HomeUi extends Component {
             `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>` +
             `<button class="btn gold sm lbEntry">🏆 排行</button>` +
             `<button class="btn gold sm besEntry">📖 图鉴</button>` +
-            `<button class="btn gold sm talentEntry">🌟 天赋<span class="questRed"></span></button>`;
+            `<button class="btn gold sm talentEntry">🌟 天赋<span class="questRed"></span></button>` +
+            `<button class="btn gold sm dungeonEntry">🏰 副本<span class="questRed"></span></button>`;
         const questBtn = banner.querySelector('.questEntry') as HTMLButtonElement;
         questBtn.onclick = (e) => {
             e.stopPropagation();
@@ -3950,6 +4097,14 @@ export class HomeUi extends Component {
         };
         this._talentRedEl = talentBtn.querySelector('.questRed') as HTMLElement;
         this._refreshTalentRed();
+        const dungeonBtn = banner.querySelector('.dungeonEntry') as HTMLButtonElement;
+        dungeonBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openDungeonModal();
+        };
+        this._dungeonRedEl = dungeonBtn.querySelector('.questRed') as HTMLElement;
+        this._refreshDungeonRed();
         page.appendChild(banner);
         this._baseBannerEls = {
             lv: banner.querySelector('.lvtag'),
@@ -4570,6 +4725,36 @@ export class HomeUi extends Component {
 #homeUi .tdHint { font-size: calc(19px * var(--hs,1)); color: #7ee0ff; }
 #homeUi .tdBtns { display: flex; gap: calc(14px * var(--hs,1)); margin-top: calc(4px * var(--hs,1)); }
 #homeUi .tdBtns .btn { flex: 1; }
+
+/* ===== 资源副本（基地横幅入口） ===== */
+#homeUi .dgHead { display: flex; flex-direction: column; gap: calc(8px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); }
+#homeUi .dgHeadTop { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(22px * var(--hs,1)); }
+#homeUi .dgHeadTop b { color: #ffe9a8; }
+#homeUi .dgHeadTop span { font-size: calc(19px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .dgSrc { font-size: calc(17px * var(--hs,1)); color: #587099; line-height: 1.5; }
+
+#homeUi .dgList { display: flex; flex-direction: column; gap: calc(12px * var(--hs,1)); }
+#homeUi .dgRow { display: flex; align-items: center; gap: calc(14px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(18px * var(--hs,1));
+  border-radius: calc(18px * var(--hs,1)); background: #0d1930; border: 1px solid #33507a; cursor: pointer; }
+#homeUi .dgRow.on { border-color: #f0b13e; box-shadow: 0 0 calc(12px * var(--hs,1)) rgba(240,177,62,.35); }
+#homeUi .dgInfo { flex: 1; min-width: 0; display: flex; align-items: center; gap: calc(12px * var(--hs,1)); }
+#homeUi .dgIc { font-size: calc(44px * var(--hs,1)); line-height: 1; }
+#homeUi .dgMeta { display: flex; flex-direction: column; gap: calc(2px * var(--hs,1)); min-width: 0; }
+#homeUi .dgMeta b { font-size: calc(24px * var(--hs,1)); color: #dce8f7; }
+#homeUi .dgMeta i { font-style: normal; font-size: calc(18px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .dgTiers { display: flex; gap: calc(8px * var(--hs,1)); flex: none; }
+#homeUi .dgTier { min-width: calc(96px * var(--hs,1)); }
+#homeUi .dgTier:disabled { opacity: .5; }
+
+#homeUi .dgDetail { margin-top: calc(18px * var(--hs,1)); padding: calc(18px * var(--hs,1));
+  display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .dgName { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10px * var(--hs,1)); }
+#homeUi .dgName b { font-size: calc(26px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .dgName i { font-style: normal; font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
+#homeUi .dgDesc { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; line-height: 1.5; }
+#homeUi .dgYield { font-size: calc(22px * var(--hs,1)); color: #dce8f7; }
+#homeUi .dgHint { font-size: calc(19px * var(--hs,1)); color: #7ee0ff; }
+#homeUi .dgGo { width: 100%; margin-top: calc(6px * var(--hs,1)); }
 
 /* ===== 个人主页（点头像弹出） ===== */
 #homeUi .pAvatar { cursor: pointer; }
@@ -5612,6 +5797,37 @@ export class HomeUi extends Component {
 #homeUi .tdHint { font-size: calc(11px * var(--pw,2.5)); color: #2f7fa8; }
 #homeUi .tdBtns { display: flex; gap: calc(7px * var(--pw,2.5)); margin-top: calc(2px * var(--pw,2.5)); }
 #homeUi .tdBtns .btn { flex: 1; height: calc(34px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
+
+/* --- 资源副本（青瓷浅色变体） --- */
+#homeUi .dungeonEntry .questRed { top: calc(-4px * var(--pw,2.5)); right: calc(-4px * var(--pw,2.5)); width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); }
+#homeUi .dgHead { display: flex; flex-direction: column; gap: calc(4px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); }
+#homeUi .dgHeadTop { display: flex; align-items: baseline; justify-content: space-between; font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .dgHeadTop b { color: #945d24; }
+#homeUi .dgHeadTop span { font-size: calc(12px * var(--pw,2.5)); color: #2f7fa8; }
+#homeUi .dgSrc { font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; line-height: 1.5; }
+
+#homeUi .dgList { display: flex; flex-direction: column; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .dgRow { display: flex; align-items: center; gap: calc(7px * var(--pw,2.5)); padding: calc(7px * var(--pw,2.5)) calc(9px * var(--pw,2.5));
+  border-radius: calc(9px * var(--pw,2.5)); background: #f2f8fa; border: 1px solid #c3d6de; cursor: pointer; }
+#homeUi .dgRow.on { border-color: #e9a04f; box-shadow: 0 0 6px #e9a04f55; }
+#homeUi .dgInfo { flex: 1; min-width: 0; display: flex; align-items: center; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .dgIc { font-size: calc(22px * var(--pw,2.5)); line-height: 1; }
+#homeUi .dgMeta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+#homeUi .dgMeta b { font-size: calc(12px * var(--pw,2.5)); color: #46647a; }
+#homeUi .dgMeta i { font-style: normal; font-size: calc(10px * var(--pw,2.5)); color: #2f7fa8; }
+#homeUi .dgTiers { display: flex; gap: calc(4px * var(--pw,2.5)); flex: none; }
+#homeUi .dgTier { min-width: calc(44px * var(--pw,2.5)); height: calc(28px * var(--pw,2.5)); font-size: calc(11px * var(--pw,2.5)); }
+#homeUi .dgTier:disabled { opacity: .5; }
+
+#homeUi .dgDetail { margin-top: calc(9px * var(--pw,2.5)); padding: calc(9px * var(--pw,2.5));
+  display: flex; flex-direction: column; gap: calc(5px * var(--pw,2.5)); }
+#homeUi .dgName { display: flex; align-items: baseline; justify-content: space-between; gap: calc(6px * var(--pw,2.5)); }
+#homeUi .dgName b { font-size: calc(14px * var(--pw,2.5)); color: #945d24; }
+#homeUi .dgName i { font-style: normal; font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .dgDesc { font-size: calc(11px * var(--pw,2.5)); color: #8fa9ba; line-height: 1.5; }
+#homeUi .dgYield { font-size: calc(12px * var(--pw,2.5)); color: #46647a; }
+#homeUi .dgHint { font-size: calc(11px * var(--pw,2.5)); color: #2f7fa8; }
+#homeUi .dgGo { width: 100%; margin-top: calc(3px * var(--pw,2.5)); height: calc(34px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
 
 /* --- 个人主页（青瓷浅色变体） --- */
 #homeUi .pAvatar { cursor: pointer; }

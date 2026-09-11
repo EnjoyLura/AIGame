@@ -30,6 +30,7 @@ import { HitParticle } from './HitParticle';
 import { MortarFx, MORTAR_FX } from './MortarFx';
 import { HomeUi } from '../ui/HomeUi';
 import { SoundFx } from '../core/SoundFx';
+import { DungeonId, DungeonReward, dungeonFromCode, dungeonWaves, rollDungeonReward } from '../core/DungeonSystem';
 
 /**
  * 《末日航线》战斗总控：
@@ -136,6 +137,11 @@ export class BattleManager extends Component {
     private _difficulty: StageDifficulty = 0;
     /** 试炼之塔层数（0 = 非试炼局；>0 时波次表改查 TrialSystem，不推进关卡进度） */
     private _trialFloor = 0;
+    /**
+     * 资源副本（null = 非副本局）。由负数 trialFloor 解码而来（见 DungeonSystem.encodeDungeon），
+     * 复用试炼的通道避免给 GameFlow/_lastRun 增加参数。
+     */
+    private _dungeon: { id: DungeonId; tier: number } | null = null;
     /** 结算口径：本局难度（结算面板/HUD 展示） */
     get difficulty(): StageDifficulty { return this._difficulty; }
     get difficultyDef(): StageDiffDef { return stageDiffDef(this._difficulty); }
@@ -147,8 +153,16 @@ export class BattleManager extends Component {
     get isTrial(): boolean { return this._trialFloor > 0; }
     get trialFloor(): number { return this._trialFloor; }
 
-    /** 本局波次表：试炼查塔层，常规查关卡（难度/层数强度已烘焙进表） */
+    /** 结算口径：资源副本局（失败/通关面板改走副本文案） */
+    get isDungeon(): boolean { return this._dungeon !== null; }
+    get dungeonId(): DungeonId | null { return this._dungeon ? this._dungeon.id : null; }
+    get dungeonTier(): number { return this._dungeon ? this._dungeon.tier : 0; }
+
+    /** 本局波次表：试炼查塔层、副本查副本表，常规查关卡（强度已烘焙进表） */
     private _waveTable(): WaveInfo[] {
+        if (this._dungeon) {
+            return dungeonWaves(this._dungeon.id, this._dungeon.tier);
+        }
         return this._trialFloor > 0 ? trialWaves(this._trialFloor) : stageWaves(this._stageId, this._difficulty);
     }
 
@@ -332,7 +346,9 @@ export class BattleManager extends Component {
         this._stageId = gm.currentStage;
         this._endless = endless;
         this._endlessMilestones = 0;
-        this._trialFloor = endless ? 0 : Math.max(0, Math.floor(trialFloor));
+        // 负数 = 资源副本（解码成 id+tier），正数 = 试炼之塔，0 = 常规关卡
+        this._dungeon = endless ? null : dungeonFromCode(trialFloor);
+        this._trialFloor = endless || this._dungeon ? 0 : Math.max(0, Math.floor(trialFloor));
         this._difficulty = endless ? 0 : (Math.min(2, Math.max(0, Math.floor(diff))) as StageDifficulty);
         for (const h of this._heroes) {
             // 最终攻击 = 基础 × 局外火力 × 基地训练营 × 天赋 × 英雄乘区（武器×装备×宝石×星级）
@@ -380,8 +396,14 @@ export class BattleManager extends Component {
         if (this._waveCleared) {
             this._restTimer -= dt;
             if (this._restTimer <= 0) {
-                // 试炼之塔：3 波打完即通关本层（不推进关卡进度，可无限重挑）
-                if (this._trialFloor > 0) {
+                // 资源副本：3 波打完即结算（次数/体力已在开战前扣，不推进关卡进度）
+                if (this._dungeon) {
+                    if (this._waveNumber >= this._waveTable().length) {
+                        this._clearDungeon();
+                    } else {
+                        this._startWave(this._waveNumber + 1);
+                    }
+                } else if (this._trialFloor > 0) {
                     if (this._waveNumber >= this._waveTable().length) {
                         this._clearTrialFloor();
                     } else {
@@ -1203,6 +1225,43 @@ export class BattleManager extends Component {
         }
         eventCenter.emit(GameEvent.TRIAL_CLEAR, floor, this._trialBonus, this._trialDrops, firstClear);
         GameFlow.instance.endRun('clear');
+    }
+
+    /**
+     * 资源副本通关结算：按副本与档位掷产出并入账（金币/钻石走资源，材料进杂物库存），
+     * 然后广播 DUNGEON_CLEAR 交给 HUD 出结算面板。
+     * 次数与体力在 GameFlow.startRun 开战前已扣，这里不返还（失败也不返还，与副本设计一致）。
+     */
+    private _clearDungeon(): void {
+        if (this._gameOver || !this._dungeon) {
+            return;
+        }
+        const gm = GameManager.instance;
+        const { id, tier } = this._dungeon;
+        gm.wave = this._waveNumber;
+        gm.bestWave = Math.max(gm.bestWave, this._waveNumber);
+        const reward = rollDungeonReward(id, tier);
+        if (reward.gold > 0) {
+            gm.addGold(reward.gold);
+        }
+        if (reward.diamond > 0) {
+            gm.res.add('diamond', reward.diamond);
+        }
+        for (const m of reward.misc) {
+            gm.misc[m.id] = (gm.misc[m.id] ?? 0) + m.n;
+        }
+        this._dungeonReward = reward;
+        gm.save();
+        eventCenter.emit(GameEvent.DUNGEON_CLEAR, id, tier, reward);
+        GameFlow.instance.endRun('clear');
+    }
+
+    /** 副本产出暂存（DUNGEON_CLEAR 广播后由 HUD 取用） */
+    private _dungeonReward: DungeonReward | null = null;
+    takeDungeonReward(): DungeonReward | null {
+        const v = this._dungeonReward;
+        this._dungeonReward = null;
+        return v;
     }
 
     /** 试炼首通奖励暂存（TRIAL_CLEAR 广播后清空） */
