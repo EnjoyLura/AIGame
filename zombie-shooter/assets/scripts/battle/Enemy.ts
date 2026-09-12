@@ -7,6 +7,10 @@ import { MonsterBehavior, MonsterInfo } from './WaveData';
 import { MonsterAffixId, monsterAffix } from './MonsterAffix';
 import { BattleManager } from './BattleManager';
 
+/** 受击反馈常量（命中是高频路径，预建共享避免每次命中分配 Color） */
+const HIT_TINT = new Color(255, 70, 70, 255);
+const BASE_TINT = new Color(255, 255, 255, 255);
+
 /** 已有美术立绘的怪型（key 相对 textures/；缺图的回退 Graphics 占位） */
 const MONSTER_ART: Record<string, string> = {
     crawler: 'monsters/crawler',
@@ -138,6 +142,8 @@ export class Enemy extends Component {
         this._dashSpeed = info.dashSpeed ?? 645;
         // 蓄力中途被回收的怪会带缩放入池，重置防串状态
         this.node.setScale(1, 1, 1);
+        // 受击反馈计时清零（tint 由 _tryApplyArt 换装/死亡收尾归白，这里兜底防带红复用）
+        this._hitT = 0;
         // 动作状态机复位
         this._mid = info.id;
         this.isElite = info.tier === 1;
@@ -196,6 +202,7 @@ export class Enemy extends Component {
         this._reticleNode.angle = 0;
         this._reticleNode.setScale(marked ? 1 : 1.35, marked ? 1 : 1.35, 1);
         this._drawReticle(1);
+        this._reticleKDrawn = 1;
     }
 
     private _hideReticle(): void {
@@ -205,6 +212,9 @@ export class Enemy extends Component {
             this._reticleG?.clear();
         }
     }
+
+    /** 上次绘制读秒弧时的进度值（重绘步进门控） */
+    private _reticleKDrawn = -1;
 
     /** 准星计时：读秒全程从 1.6 倍收缩到 1 倍，自旋随读秒推进不断加速（锁定收紧的紧迫感） */
     private _updateReticle(dt: number): void {
@@ -219,7 +229,12 @@ export class Enemy extends Component {
         const k = Math.min(1, this._reticleLeft / this._reticleTotal);
         const scale = this._reticleMarked ? 1 : 1 + 0.35 * k;
         this._reticleNode.setScale(scale, scale, 1);
-        this._drawReticle(k);
+        // 重绘门槛：标记态图形固定零重绘；读秒弧按 2% 步进重绘（约 60 帧全程，肉眼光滑），
+        // 收缩/自旋观感由 setScale 承担，避免 8 目标锁定时每帧 8 次全量 Graphics 重绘
+        if (!this._reticleMarked && Math.abs(k - this._reticleKDrawn) > 0.02) {
+            this._reticleKDrawn = k;
+            this._drawReticle(k);
+        }
     }
 
     private _drawReticle(k: number): void {
@@ -252,6 +267,8 @@ export class Enemy extends Component {
         dt *= bm.timeScale;
         if (this._dying) {
             this._updateDeathAnim(dt);
+            // 死亡期间把受击反馈收尾（tint 归白），防止带红回池串到下一次复用
+            this._updateHitFx(dt);
             return;
         }
         const p = this.node.position;
@@ -272,7 +289,11 @@ export class Enemy extends Component {
         this._updateAffix(dt, bm);
         this._updateReticle(dt);
         this._updateWalkAnim(dt);
+        this._updateHitFx(dt);
     }
+
+    /** 受击反馈剩余时长（>0 期间红闪+放大回弹，update 中字段驱动，零 tween 零分配） */
+    private _hitT = 0;
 
     /** 受击；返回是否已死亡（死亡结算由 BattleManager 处理） */
     takeDamage(dmg: number): boolean {
@@ -281,24 +302,37 @@ export class Enemy extends Component {
         }
         // 坚甲词缀：受伤减免 30%（最低保留 1 点防免疫）
         this.hp -= this._affix === 'armor' ? Math.max(1, Math.round(dmg * BattleConfig.AFFIX_ARMOR_CUT)) : dmg;
-        // 受击反馈：红闪（立绘 tint）+ 轻微放大回弹
+        // 受击反馈：红闪（立绘 tint）+ 轻微放大回弹，节奏由 _updateHitFx 按 _hitT 推进
+        this._hitT = 0.14;
         const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
         if (sp) {
-            sp.color = new Color(255, 70, 70, 255);
-            tween(sp)
-                .delay(0.06)
-                .call(() => { if (sp.isValid) { sp.color = new Color(255, 255, 255, 255); } })
-                .start();
+            sp.color = HIT_TINT;
         } else {
-            // 占位图形：闪白红混合层
-            const g = this._graphics;
-            g.strokeColor = new Color(255, 90, 90, 255);
+            // 占位图形：闪红
+            this._graphics.strokeColor = HIT_TINT;
         }
-        tween(this.node)
-            .to(0.05, { scale: new Vec3(1.12, 1.12, 1) })
-            .to(0.09, { scale: new Vec3(1, 1, 1) })
-            .start();
         return this.hp <= 0;
+    }
+
+    /** 受击反馈推进：前 0.05s 放大到 1.12 倍，随后线性回弹；结束后恢复白底与 1 倍 */
+    private _updateHitFx(dt: number): void {
+        if (this._hitT <= 0) {
+            return;
+        }
+        this._hitT -= dt;
+        if (this._hitT > 0) {
+            const elapsed = 0.14 - this._hitT;
+            const k = elapsed <= 0.05 ? elapsed / 0.05 : Math.max(0, this._hitT / 0.09);
+            const s = 1 + 0.12 * k;
+            this.node.setScale(s, s, 1);
+            return;
+        }
+        this._hitT = 0;
+        this.node.setScale(1, 1, 1);
+        const sp = this._artNode ? this._artNode.getComponent(Sprite) : null;
+        if (sp) {
+            sp.color = BASE_TINT;
+        }
     }
 
     // ================= 行为逻辑 =================

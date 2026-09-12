@@ -265,8 +265,7 @@ export class BattleManager extends Component {
     get screenDiag(): number { return Math.sqrt(this._visW * this._visW + this._visH * this._visH); }
     /** 屏幕上边缘（世界 y） */
     get screenTop(): number { return this._visH / 2; }
-    /** 经验晶体的拾取点（车尾中央） */
-    get vehiclePos(): Vec3 { return new Vec3(0, this.vehicleTopY); }
+    // 经验晶体等吸附目标统一用 vehicleTopY 标量（车恒在 x=0），不再提供每次调用分配 Vec3 的 vehiclePos
     /** 单位层（无人机等战斗实体挂载点） */
     get unitLayer(): Node { return this._unitLayer; }
 
@@ -448,37 +447,78 @@ export class BattleManager extends Component {
             }
         }
 
-        // ---- 碰撞：子弹 × 怪物（量大后换空间网格） ----
+        // ---- 碰撞：子弹 × 怪物（均匀网格：每帧按屏上活怪重建桶，子弹查 3×3 邻域，替代 O(N×M) 暴力双循环） ----
+        this._rebuildHitGrid();
+        const cell = BattleManager.HIT_CELL;
         for (let i = this._bullets.length - 1; i >= 0; i--) {
             const bullet = this._bullets[i];
             const bp = bullet.node.position;
-            for (let j = this._enemies.length - 1; j >= 0; j--) {
-                const enemy = this._enemies[j];
-                // 尚未进入屏幕的怪物不可被索敌/击中
-                if (!this._enemyOnScreen(enemy)) {
-                    continue;
-                }
-                if (bullet.hasHit(this._handleOf(enemy))) {
-                    continue;
-                }
-                const ep = enemy.node.position;
-                const dx = bp.x - ep.x;
-                const dy = bp.y - ep.y;
-                const rr = bullet.radius + enemy.radius;
-                if (dx * dx + dy * dy <= rr * rr) {
-                    this._hitEnemy(bullet, enemy, bullet.sourceId);
-                    if (!bullet.canPierceMore()) {
-                        this.recycleBullet(bullet);
-                        break;
+            const cx = Math.floor(bp.x / cell);
+            const cy = Math.floor(bp.y / cell);
+            // 命中即回池时整发子弹终止（含穿透耗尽），跳出邻域遍历
+            let spent = false;
+            for (let gx = cx - 1; gx <= cx + 1 && !spent; gx++) {
+                for (let gy = cy - 1; gy <= cy + 1 && !spent; gy++) {
+                    const bucket = this._hitGrid.get(gx * BattleManager.GRID_KEY_MUL + gy);
+                    if (!bucket) {
+                        continue;
                     }
-                    bullet.consumePierce();
-                    bullet.markHit(this._handleOf(enemy));
+                    for (let j = bucket.length - 1; j >= 0; j--) {
+                        const enemy = bucket[j];
+                        // 网格是帧首快照：本帧内已被击杀/回池的怪直接跳过（hp 口径，池化复用防串代靠 spawnId）
+                        if (enemy.hp <= 0) {
+                            continue;
+                        }
+                        if (bullet.hasSpawnHit(enemy.spawnId)) {
+                            continue;
+                        }
+                        const ep = enemy.node.position;
+                        const dx = bp.x - ep.x;
+                        const dy = bp.y - ep.y;
+                        const rr = bullet.radius + enemy.radius;
+                        if (dx * dx + dy * dy <= rr * rr) {
+                            this._hitEnemy(bullet, enemy, bullet.sourceId);
+                            if (!bullet.canPierceMore()) {
+                                this.recycleBullet(bullet);
+                                spent = true;
+                                break;
+                            }
+                            bullet.consumePierce();
+                            bullet.markSpawnHit(enemy.spawnId);
+                        }
+                    }
                 }
             }
         }
     }
 
     // ================= 对外接口（供 Hero/Enemy/Bullet/XpGem 调用） =================
+
+    /** 碰撞网格边长（设计像素）：≥ 最大怪半径+弹半径，3×3 邻域即覆盖全部可能命中对 */
+    private static readonly HIT_CELL = 240;
+    /** 网格 key 的行偏移乘数（列坐标 |gy| 远小于该值，保证 key 唯一） */
+    private static readonly GRID_KEY_MUL = 4096;
+    /** 帧首碰撞网格（key → 桶内屏上活怪；每帧重建，桶数组随帧丢弃） */
+    private _hitGrid = new Map<number, Enemy[]>();
+
+    /** 重建碰撞网格：只收屏上活怪（_enemyOnScreen 每怪每帧一次，替代原弹×怪逐对判定） */
+    private _rebuildHitGrid(): void {
+        this._hitGrid.clear();
+        for (const enemy of this._enemies) {
+            if (!this._enemyOnScreen(enemy) || enemy.hp <= 0) {
+                continue;
+            }
+            const p = enemy.node.position;
+            const key = Math.floor(p.x / BattleManager.HIT_CELL) * BattleManager.GRID_KEY_MUL
+                + Math.floor(p.y / BattleManager.HIT_CELL);
+            const bucket = this._hitGrid.get(key);
+            if (bucket) {
+                bucket.push(enemy);
+            } else {
+                this._hitGrid.set(key, [enemy]);
+            }
+        }
+    }
 
     /** 激光索敌（照抄 code(3).html pickTarget）：射程内「推进最深/离车最近」的活怪优先——
      * 参考版取画布 y 最大（画布 y 向下），本作 y 轴向上，等价于世界 y 最小；
@@ -1839,7 +1879,7 @@ export class BattleManager extends Component {
                 : from.clone();
             const sec = this.spawnProjectile(spawn, dir, spec);
             // 母目标整体加入次级弹命中黑名单：只攻击其它目标
-            sec.markHit(this._handleOf(hitEnemy));
+            sec.markSpawnHit(hitEnemy.spawnId);
         }
     }
 

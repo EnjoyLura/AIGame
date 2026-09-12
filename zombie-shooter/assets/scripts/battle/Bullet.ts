@@ -2,7 +2,7 @@ import { _decorator, Color, Component, Graphics, Sprite, SpriteFrame, UITransfor
 const { ccclass } = _decorator;
 import { BattleConfig, Design } from '../config/GameConfig';
 import { AssetLib } from '../core/AssetLib';
-import { EnemyHandle, BattleManager, DamageSlotKey } from './BattleManager';
+import { BattleManager, DamageSlotKey } from './BattleManager';
 
 export interface ProjectileSpec {
     damage: number;
@@ -52,6 +52,8 @@ export class Bullet extends Component {
     private _visualScale = 1;
     private _visualStretch = 1;
     private _visualRotationOffset = 0;
+    /** 正式贴图是否已就绪并挂上（就绪后 update 不再每帧查 AssetLib） */
+    private _visualReady = false;
     private _sprite: Sprite | null = null;
     /** 已打过一次诊断日志的贴图键（避免刷屏） */
     private static _logged = new Set<string>();
@@ -94,13 +96,15 @@ export class Bullet extends Component {
         this._visualScale = spec.visualScale ?? 1;
         this._visualStretch = spec.visualStretch ?? 1;
         this._visualRotationOffset = spec.visualRotationOffset ?? 0;
+        // 无贴图键的弹体没有资产可等，直接视为就绪
+        this._visualReady = this._visualKey === '';
         this._draw(spec.radius, spec.color);
         this._applyVisualAsset();
         this.node.angle = Math.atan2(-this._dir.x, this._dir.y) * 180 / Math.PI + this._visualRotationOffset;
     }
 
-    markHit(handle: EnemyHandle): void { this._hitSet.add(handle.spawnId); }
-    hasHit(handle: EnemyHandle): boolean { return this._hitSet.has(handle.spawnId); }
+    markSpawnHit(spawnId: number): void { this._hitSet.add(spawnId); }
+    hasSpawnHit(spawnId: number): boolean { return this._hitSet.has(spawnId); }
     get pierce(): boolean { return this._pierce; }
     get canCrit(): boolean { return this._canCrit; }
     get speed(): number { return this._speed; }
@@ -127,7 +131,10 @@ export class Bullet extends Component {
         dt *= bm.timeScale;
         const p = this.node.position;
         this.node.setPosition(p.x + this._dir.x * this._speed * dt, p.y + this._dir.y * this._speed * dt);
-        this._applyVisualAsset();
+        if (!this._visualReady) {
+            // 资产异步加载完成前逐帧探测，挂上后停查
+            this._applyVisualAsset();
+        }
         this.node.angle = Math.atan2(-this._dir.x, this._dir.y) * 180 / Math.PI + this._visualRotationOffset;
         const next = this.node.position;
         const halfW = Design.WIDTH / 2 + 90;
@@ -139,6 +146,7 @@ export class Bullet extends Component {
 
     private _applyVisualAsset(): void {
         if (!this._visualKey) {
+            this._visualReady = true;
             if (this._sprite) this._sprite.enabled = false;
             return;
         }
@@ -147,6 +155,7 @@ export class Bullet extends Component {
             if (this._sprite) this._sprite.enabled = false;
             return;
         }
+        this._visualReady = true;
         if (!this._sprite) {
             this._sprite = this.node.getComponent(Sprite) ?? this.node.addComponent(Sprite);
             this._sprite.sizeMode = Sprite.SizeMode.CUSTOM;
