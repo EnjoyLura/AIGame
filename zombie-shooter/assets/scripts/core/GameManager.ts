@@ -170,6 +170,24 @@ export class GameManager {
         return this.stamina() >= BattleConfig.RUN_STAMINA_COST;
     }
 
+    /** 距下一次恢复 1 点体力的秒数（满体力返回 0；体力获取弹窗倒计时用） */
+    staminaNextIn(): number {
+        return this.res.staminaNextIn(Math.floor(Date.now() / 1000), this.staminaMax(),
+            BattleConfig.STAMINA_REGEN_MINUTES * 60);
+    }
+
+    /** 钻石直购体力（可超上限囤积；扣款失败返回 false，经济走 res 统一入口） */
+    buyStamina(n: number, diamondCost: number): boolean {
+        if (n <= 0 || diamondCost < 0) {
+            return false;
+        }
+        if (!this.res.spend('diamond', diamondCost)) {
+            return false;
+        }
+        this.res.add('stamina', n);
+        return true;
+    }
+
     /** 扣体力开一局；不足返回 false */
     spendRunStamina(): boolean {
         return this.res.spend('stamina', BattleConfig.RUN_STAMINA_COST);

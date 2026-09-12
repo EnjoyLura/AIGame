@@ -31,6 +31,16 @@ export class PlayerResources {
         return this._amounts.stamina;
     }
 
+    /** 距下一次恢复 1 点体力的秒数（满体力返回 0；先结算再读） */
+    staminaNextIn(now: number, max: number, regenSecs: number): number {
+        this._tickStamina(now, max, regenSecs);
+        if (this._amounts.stamina >= max) {
+            return 0;
+        }
+        // _staminaTs 是恢复起点：下一次 +1 发生在起点后一个恢复周期
+        return Math.max(0, this._staminaTs + regenSecs - now);
+    }
+
     add(id: ResourceId, n: number): void {
         const v = Math.max(0, Math.round(this._amounts[id] + n));
         if (v === this._amounts[id]) {

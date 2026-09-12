@@ -29,6 +29,9 @@ import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
+/** 体力获取弹窗：钻石直购档位（1💎=1体力，可超上限囤积） */
+const STAMINA_BUY_N = 20;
+const STAMINA_BUY_COST = 20;
 
 /** 六槽部位图标（原型图 emoji 风格） */
 const SLOT_EMOJI: Record<EquipSlot, string> = {
@@ -257,8 +260,9 @@ export class HomeUi extends Component {
             this._refreshAll();
             const gm = GameManager.instance;
             if (!gm.canStartRun()) {
-                // 体力不足是最常见失败：明确告知需求（与副本入口同款文案模板）
+                // 体力不足是最常见失败：说明需求并直接引导到体力获取面板（闭环，不让玩家干等）
                 this._toast(`体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`);
+                this._openStaminaModal();
             } else if (endless) {
                 this._toast('无尽模式需通关全部关卡后解锁');
             }
@@ -402,7 +406,12 @@ export class HomeUi extends Component {
             add.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
-                this._switchPage('mall');
+                if (id === 'stamina') {
+                    // 体力直达获取面板（广告/钻石/恢复倒计时）；金币钻石仍跳商城
+                    this._openStaminaModal();
+                } else {
+                    this._switchPage('mall');
+                }
             };
             chip.appendChild(add);
             reswrap.appendChild(chip);
@@ -621,6 +630,105 @@ export class HomeUi extends Component {
                 item.appendChild(body);
                 box.appendChild(item);
             }
+        });
+    }
+
+    /**
+     * 体力获取弹窗：恢复倒计时 + 看广告领体力 + 钻石直购。
+     * 顶栏体力「+」与出战体力不足守卫的统一去处（广告入口在商城页另有一份）。
+     */
+    private _openStaminaModal(): void {
+        const gm = GameManager.instance;
+        this._openModal('🍖 体力补给', (box) => {
+            box.classList.add('staminaBox');
+
+            // 状态区：当前/上限 + 恢复速率 + 下一几点倒计时（每秒刷新，弹窗关闭即停）
+            const state = document.createElement('div');
+            state.className = 'stState panel';
+            box.appendChild(state);
+            const renderState = () => {
+                const nextIn = gm.staminaNextIn();
+                const ss = nextIn % 60;
+                state.innerHTML = `<b>${gm.stamina()} / ${gm.staminaMax()}</b>` +
+                    `<span>每 ${BattleConfig.STAMINA_REGEN_MINUTES} 分钟恢复 1 点` +
+                    (nextIn > 0 ? ` · 下一几点 ${Math.floor(nextIn / 60)}:${ss < 10 ? '0' + ss : ss}` : ' · 体力已满') +
+                    `</span>`;
+            };
+            renderState();
+            const timer = setInterval(() => {
+                if (!box.isConnected) {
+                    clearInterval(timer);
+                    return;
+                }
+                renderState();
+            }, 1000) as unknown as number;
+
+            // 获取条目区：广告 + 钻石两条路，领取/购买后就地重绘
+            const wrap = document.createElement('div');
+            box.appendChild(wrap);
+            const render = () => {
+                wrap.innerHTML = '';
+                const left = AdService.instance.remaining('stamina');
+                const full = gm.stamina() >= gm.staminaMax();
+
+                const adRow = document.createElement('div');
+                adRow.className = 'stRow panel';
+                adRow.innerHTML = `<span class="stIc">📺</span>` +
+                    `<div class="stInfo"><b>看广告领体力</b>` +
+                    `<span>+${MALL_AD_STAMINA} 体力 · 今日剩余 ${left}/3 次${full ? ' · 体力已满无法领取' : ''}</span></div>`;
+                const adBtn = document.createElement('button');
+                adBtn.className = 'btn blue sm';
+                adBtn.textContent = '▶ 观 看';
+                adBtn.disabled = left <= 0 || full;
+                adBtn.style.opacity = adBtn.disabled ? '0.45' : '1';
+                adBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    AdService.instance.claimReward('stamina', () => {
+                        gm.res.add('stamina', MALL_AD_STAMINA);
+                        SoundFx.play('coin');
+                        this._toast(`体力 +${MALL_AD_STAMINA}`);
+                        this._refreshTop();
+                        render();
+                        renderState();
+                    });
+                };
+                adRow.appendChild(adBtn);
+                wrap.appendChild(adRow);
+
+                const buyRow = document.createElement('div');
+                buyRow.className = 'stRow panel';
+                buyRow.innerHTML = `<span class="stIc">💎</span>` +
+                    `<div class="stInfo"><b>钻石购买</b>` +
+                    `<span>+${STAMINA_BUY_N} 体力 · ${STAMINA_BUY_COST} 💎（可超出上限囤积）</span></div>`;
+                const buyBtn = document.createElement('button');
+                buyBtn.className = 'btn gold sm';
+                buyBtn.textContent = '购 买';
+                buyBtn.disabled = gm.res.get('diamond') < STAMINA_BUY_COST;
+                buyBtn.style.opacity = buyBtn.disabled ? '0.45' : '1';
+                buyBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    if (gm.buyStamina(STAMINA_BUY_N, STAMINA_BUY_COST)) {
+                        SoundFx.play('buy');
+                        this._toast(`体力 +${STAMINA_BUY_N}`);
+                        this._refreshTop();
+                        render();
+                        renderState();
+                    } else {
+                        this._toast('钻石不足');
+                    }
+                };
+                buyRow.appendChild(buyBtn);
+                wrap.appendChild(buyRow);
+
+                const tip = document.createElement('p');
+                tip.className = 'mSub';
+                tip.style.textAlign = 'center';
+                tip.textContent = '体力随时间自动恢复 · 加油站每级提高体力上限';
+                wrap.appendChild(tip);
+            };
+            render();
         });
     }
 
@@ -5847,6 +5955,16 @@ export class HomeUi extends Component {
 #homeUi .noticeBox .nDate { font-size: calc(19px * var(--hs,1)); color: #8ba3c7; flex: none; }
 #homeUi .noticeBox .nBody { margin-top: calc(10px * var(--hs,1)); font-size: calc(21px * var(--hs,1)); line-height: 1.6; color: #cfe0f5; white-space: pre-line; }
 
+/* ===== 体力获取弹窗 ===== */
+#homeUi .staminaBox .stState { padding: calc(14px * var(--hs,1)); text-align: center; margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .staminaBox .stState b { font-size: calc(36px * var(--hs,1)); display: block; letter-spacing: calc(2px * var(--hs,1)); }
+#homeUi .staminaBox .stState span { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; display: block; margin-top: calc(6px * var(--hs,1)); }
+#homeUi .stRow { display: flex; align-items: center; gap: calc(14px * var(--hs,1)); padding: calc(14px * var(--hs,1)); margin-bottom: calc(12px * var(--hs,1)); }
+#homeUi .stRow .stIc { font-size: calc(42px * var(--hs,1)); flex: none; }
+#homeUi .stRow .stInfo { flex: 1; min-width: 0; }
+#homeUi .stRow .stInfo b { font-size: calc(24px * var(--hs,1)); display: block; }
+#homeUi .stRow .stInfo span { font-size: calc(19px * var(--hs,1)); color: #8ba3c7; display: block; margin-top: calc(4px * var(--hs,1)); }
+
 /* ===== 玩法页 ===== */
 #homeUi .dutyBanner { padding: calc(20px * var(--hs,1)) calc(24px * var(--hs,1)); display: flex; align-items: center;
   gap: calc(16px * var(--hs,1)); margin-bottom: calc(24px * var(--hs,1)); }
@@ -6015,6 +6133,14 @@ export class HomeUi extends Component {
 #homeUi .noticeBox .nTitle { font-size: calc(14px * var(--pw,2.5)); }
 #homeUi .noticeBox .nDate { font-size: calc(10px * var(--pw,2.5)); color: #7a93a8; }
 #homeUi .noticeBox .nBody { margin-top: calc(6px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); color: #3d5a70; }
+
+/* --- 体力获取弹窗（青瓷浅色变体） --- */
+#homeUi .staminaBox .stState b { font-size: calc(19px * var(--pw,2.5)); }
+#homeUi .staminaBox .stState span { font-size: calc(11px * var(--pw,2.5)); margin-top: calc(3px * var(--pw,2.5)); }
+#homeUi .stRow { padding: calc(8px * var(--pw,2.5)); gap: calc(8px * var(--pw,2.5)); margin-bottom: calc(7px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
+#homeUi .stRow .stIc { font-size: calc(22px * var(--pw,2.5)); }
+#homeUi .stRow .stInfo b { font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .stRow .stInfo span { font-size: calc(10px * var(--pw,2.5)); margin-top: calc(2px * var(--pw,2.5)); }
 
 /* --- 布局骨架 --- */
 #homeUi .topbar { display: grid; grid-template-columns: calc(44px * var(--pw,2.5)) 1fr; gap: calc(8px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
