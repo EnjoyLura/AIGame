@@ -25,6 +25,7 @@ import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUN
 import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
+import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 
 /** 看广告单次发放体力 */
 const MALL_AD_STAMINA = 10;
@@ -86,6 +87,11 @@ export class HomeUi extends Component {
     private _heroBagTab: 'equip' | 'gem' | 'mat' | 'item' = 'equip';
     /** 玩法页（试炼/副本/远征/图鉴/排行 + 日常任务/签到） */
     private _playGridEl: HTMLDivElement | null = null;
+    /** 公告条跑马灯文字与未读红点 */
+    private _noticeTextEl: HTMLDivElement | null = null;
+    private _noticeRedEl: HTMLElement | null = null;
+    /** 本次会话是否已自动弹过公告（每次启动至多自动弹一次） */
+    private _autoNoticeShown = false;
     /** 基地页强化行（迁移自战斗页的 META_UPGRADES） */
     private _baseRows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLElement; eff: HTMLDivElement; btn: HTMLButtonElement; cost: HTMLElement }> = [];
     /** 商城页 */
@@ -213,6 +219,16 @@ export class HomeUi extends Component {
         if (this._root) {
             this._root.style.display = 'flex';
             this._refreshAll();
+            // 有未读公告时进主城自动弹出（每次启动至多一次；已有弹窗时本次让路）
+            if (NoticeSystem.instance.hasUnread() && !this._autoNoticeShown) {
+                this._autoNoticeShown = true;
+                setTimeout(() => {
+                    if (this._root && !document.querySelector('#homeUi .protoMask')) {
+                        SoundFx.play('ui');
+                        this._openNoticeModal();
+                    }
+                }, 800);
+            }
         }
     }
 
@@ -227,6 +243,7 @@ export class HomeUi extends Component {
         this._refreshHeroes();
         this._refreshPlayPage();
         this._refreshBase();
+        this._refreshNoticeBar();
         this._applyPendingTex();
     }
 
@@ -516,6 +533,7 @@ export class HomeUi extends Component {
         this._root = root;
 
         this._buildTopbar(root);
+        this._buildNoticeBar(root);
 
         const viewport = document.createElement('div');
         viewport.className = 'viewport';
@@ -537,6 +555,73 @@ export class HomeUi extends Component {
 
         document.body.appendChild(root);
         this._switchPage('battle');
+    }
+
+    // ================= 公告条与公告弹窗 =================
+
+    /** 主城顶部公告条（topbar 之下全局常驻）：跑马灯滚动最新公告，点击打开公告列表，未读亮红点 */
+    private _buildNoticeBar(root: HTMLDivElement): void {
+        const bar = document.createElement('div');
+        bar.className = 'noticeBar';
+        bar.title = '查看全部公告';
+        const ic = document.createElement('span');
+        ic.className = 'nIc';
+        ic.textContent = '📣';
+        const clip = document.createElement('div');
+        clip.className = 'nClip';
+        const text = document.createElement('div');
+        text.className = 'noticeText';
+        clip.appendChild(text);
+        const red = document.createElement('i');
+        red.className = 'nRed';
+        bar.appendChild(ic);
+        bar.appendChild(clip);
+        bar.appendChild(red);
+        bar.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openNoticeModal();
+        };
+        root.appendChild(bar);
+        this._noticeTextEl = text;
+        this._noticeRedEl = red;
+        this._refreshNoticeBar();
+    }
+
+    /** 公告条刷新：跑马灯文案 = 最新公告（类型｜标题，重复拼接便于循环）+ 未读红点 */
+    private _refreshNoticeBar(): void {
+        if (this._noticeTextEl) {
+            const n = NoticeSystem.instance.latest();
+            const seg = `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看全部公告`;
+            this._noticeTextEl.textContent = seg + '　　' + seg + '　　';
+        }
+        if (this._noticeRedEl) {
+            this._noticeRedEl.classList.toggle('on', NoticeSystem.instance.hasUnread());
+        }
+    }
+
+    /** 公告列表弹窗（新→旧全量展示）；打开即全部标记已读：红点熄灭、下次进主城不再自动弹 */
+    private _openNoticeModal(): void {
+        NoticeSystem.instance.markAllRead();
+        this._refreshNoticeBar();
+        this._openModal('📣 游戏公告', (box) => {
+            box.classList.add('noticeBox');
+            for (let i = NOTICE_DEFS.length - 1; i >= 0; i--) {
+                const n = NOTICE_DEFS[i];
+                const item = document.createElement('div');
+                item.className = 'nItem panel';
+                const head = document.createElement('div');
+                head.className = 'nHead';
+                head.innerHTML = `<span class="tag ${n.kind === 'update' ? 'g' : n.kind === 'activity' ? 'p' : 'b'}">${NOTICE_KIND_NAMES[n.kind]}</span>` +
+                    `<b class="nTitle">${n.title}</b><span class="nDate">${n.date}</span>`;
+                const body = document.createElement('p');
+                body.className = 'nBody';
+                body.textContent = n.body;
+                item.appendChild(head);
+                item.appendChild(body);
+                box.appendChild(item);
+            }
+        });
     }
 
     // ================= 商店页 =================
@@ -5744,6 +5829,24 @@ export class HomeUi extends Component {
 #homeUi .sLv { font-size: calc(24px * var(--hs,1)); font-weight: 900; color: #5cc8ff; margin-bottom: calc(10px * var(--hs,1)); }
 #homeUi .skillHint { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; text-align: center; margin-top: calc(8px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
 
+/* ===== 公告条（topbar 下全局常驻） ===== */
+#homeUi .noticeBar { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); margin: calc(12px * var(--hs,1)) calc(16px * var(--hs,1)) 0;
+  padding: calc(8px * var(--hs,1)) calc(18px * var(--hs,1)); background: linear-gradient(90deg, #1c2f55, #243a66);
+  border: 1px solid #3a5687; border-radius: calc(14px * var(--hs,1)); position: relative; overflow: hidden; }
+#homeUi .noticeBar .nIc { flex: none; font-size: calc(26px * var(--hs,1)); }
+#homeUi .noticeBar .nClip { flex: 1; min-width: 0; overflow: hidden; }
+#homeUi .noticeText { white-space: nowrap; display: inline-block; padding-left: 100%; font-size: calc(21px * var(--hs,1)); color: #cfe3ff;
+  animation: noticeScroll 16s linear infinite; }
+#homeUi .noticeBar .nRed { display: none; position: absolute; top: calc(4px * var(--hs,1)); right: calc(10px * var(--hs,1));
+  width: calc(14px * var(--hs,1)); height: calc(14px * var(--hs,1)); border-radius: 50%; background: #ff4d4f; border: 1px solid #fff; }
+#homeUi .noticeBar .nRed.on { display: block; }
+@keyframes noticeScroll { to { transform: translateX(-100%); } }
+#homeUi .noticeBox .nItem { padding: calc(16px * var(--hs,1)); margin-bottom: calc(14px * var(--hs,1)); }
+#homeUi .noticeBox .nHead { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); }
+#homeUi .noticeBox .nTitle { font-size: calc(26px * var(--hs,1)); flex: 1; min-width: 0; }
+#homeUi .noticeBox .nDate { font-size: calc(19px * var(--hs,1)); color: #8ba3c7; flex: none; }
+#homeUi .noticeBox .nBody { margin-top: calc(10px * var(--hs,1)); font-size: calc(21px * var(--hs,1)); line-height: 1.6; color: #cfe0f5; white-space: pre-line; }
+
 /* ===== 玩法页 ===== */
 #homeUi .dutyBanner { padding: calc(20px * var(--hs,1)) calc(24px * var(--hs,1)); display: flex; align-items: center;
   gap: calc(16px * var(--hs,1)); margin-bottom: calc(24px * var(--hs,1)); }
@@ -5899,6 +6002,19 @@ export class HomeUi extends Component {
 #homeUi .talentNode.can { animation: huiChest .9s ease-in-out infinite; }
 /* 活跃度宝箱可开时的脉冲：同上，显式声明以免日后被 animation:none 白名单波及 */
 #homeUi .actChest.ready .acIc { animation: huiChest .9s ease-in-out infinite; }
+/* 公告条跑马灯：同上——在 animation:none 白名单之后重声明，保证浅色主题下滚动不被清掉 */
+#homeUi .noticeText { animation: noticeScroll 16s linear infinite; }
+
+/* --- 公告条与公告弹窗（青瓷浅色变体） --- */
+#homeUi .noticeBar { margin: calc(5px * var(--pw,2.5)) calc(10px * var(--pw,2.5)) 0; padding: calc(4px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
+  background: #eef5f9; border: 1px solid #bdced8; border-radius: calc(6px * var(--pw,2.5)); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .noticeBar .nIc { font-size: calc(14px * var(--pw,2.5)); }
+#homeUi .noticeText { font-size: calc(12px * var(--pw,2.5)); color: #527085; }
+#homeUi .noticeBar .nRed { top: calc(2px * var(--pw,2.5)); right: calc(6px * var(--pw,2.5)); width: calc(8px * var(--pw,2.5)); height: calc(8px * var(--pw,2.5)); border: none; }
+#homeUi .noticeBox .nItem { padding: calc(9px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
+#homeUi .noticeBox .nTitle { font-size: calc(14px * var(--pw,2.5)); }
+#homeUi .noticeBox .nDate { font-size: calc(10px * var(--pw,2.5)); color: #7a93a8; }
+#homeUi .noticeBox .nBody { margin-top: calc(6px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); color: #3d5a70; }
 
 /* --- 布局骨架 --- */
 #homeUi .topbar { display: grid; grid-template-columns: calc(44px * var(--pw,2.5)) 1fr; gap: calc(8px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
