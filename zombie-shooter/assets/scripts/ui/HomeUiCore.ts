@@ -73,6 +73,12 @@ export abstract class HomeUiCore extends Component {
     /** 顶栏邮箱按钮（未读红点驱动） */
     protected _homeMailBtn: HTMLButtonElement | null = null;
 
+    /** 走马灯：当前消息的点击目标（公告/邮箱/远征/玩法页/出战） */
+    protected _tickerTap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' = 'notice';
+
+    /** 走马灯轮播游标（每次动画一轮推进一条，循环） */
+    protected _tickerIdx = 0;
+
     /** 本次会话是否已自动弹过公告（每次启动至多自动弹一次） */
     protected _autoNoticeShown = false;
 
@@ -169,11 +175,18 @@ export abstract class HomeUiCore extends Component {
             }
         }, this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
-        // 新邮件到达（投放器/运营接口触发）：toast 提醒 + 顶栏红点实时亮起
+        // 新邮件到达（投放器/运营接口触发）：toast 提醒 + 顶栏红点实时亮起 + 走马灯立即切到新邮件消息
         eventCenter.on(GameEvent.MAIL_NEW, (def: MailDef) => {
             if (this._root) {
                 this._toast(`📬 新邮件：${def.title}`);
                 this._refreshTop();
+                this._advanceTicker();
+            }
+        }, this);
+        // 远征倒计时归零：走马灯播报「队伍归来」，入口红点由既有轮询兜底
+        eventCenter.on(GameEvent.EXPEDITION_READY, () => {
+            if (this._root) {
+                this._advanceTicker();
             }
         }, this);
         // 远征倒计时归零没有事件源（时间自己走），靠这个低频轮询兜底补亮红点：
@@ -535,7 +548,11 @@ export abstract class HomeUiCore extends Component {
 
     // ================= 公告条与公告弹窗 =================
 
-    /** 主城顶部公告条（topbar 之下全局常驻）：跑马灯滚动最新公告，点击打开公告列表，未读亮红点 */
+    /**
+     * 主城顶部公告条（topbar 之下全局常驻）：走马灯轮播——公告全量条目（新→旧）
+     * 与动态消息（新邮件/远征归来/签到/任务/体力满）混合成队列，
+     * 每轮滚动动画结束切下一条；点击按当前消息类型分发到对应面板；未读公告亮红点。
+     */
     protected _buildNoticeBar(root: HTMLDivElement): void {
         const bar = document.createElement('div');
         bar.className = 'noticeBar';
@@ -556,21 +573,73 @@ export abstract class HomeUiCore extends Component {
         bar.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
-            this._openNoticeModal();
+            // 按当前滚到的消息分发：公告开列表，动态消息直达对应面板
+            if (this._tickerTap === 'mail') {
+                this._openMailModal();
+            } else if (this._tickerTap === 'expedition' || this._tickerTap === 'play') {
+                this._switchPage('play');
+            } else if (this._tickerTap === 'battle') {
+                this._switchPage('battle');
+            } else {
+                this._openNoticeModal();
+            }
         };
+        // 每轮滚动动画结束推进下一条（noticeScroll 16s/轮）；队列在推进时重建以吸收最新事件
+        text.addEventListener('animationiteration', () => {
+            this._advanceTicker();
+        });
         root.appendChild(bar);
         this._noticeTextEl = text;
         this._noticeRedEl = red;
         this._refreshNoticeBar();
     }
 
+    /**
+     * 走马灯消息队列：公告全量（新→旧）+ 动态事件消息（现查现拼，永远反映最新状态）。
+     * 队列至少含最新公告兜底，保证公告条永远有内容可滚。
+     */
+    protected _buildTickerQueue(): Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> {
+        const q: Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> = [];
+        const notices = [...NOTICE_DEFS].sort((a, b) => b.id - a.id);
+        for (const n of notices) {
+            q.push({ text: `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看`, tap: 'notice' });
+        }
+        const gm = GameManager.instance;
+        if (MailSystem.instance.hasUnread()) {
+            q.push({ text: '📬 邮箱有未读邮件，附件待领取　→ 点击查看邮箱', tap: 'mail' });
+        }
+        if (ExpeditionSystem.instance.hasClaimable()) {
+            q.push({ text: '🚚 远征队伍归来，奖励待领取　→ 前往玩法页', tap: 'expedition' });
+        }
+        if (SigninSystem.instance.canClaimToday()) {
+            q.push({ text: '📅 今日签到奖励待领取　→ 前往玩法页', tap: 'play' });
+        }
+        if (QuestSystem.instance.hasClaimable()) {
+            q.push({ text: '✅ 有任务/成就奖励可领取　→ 前往玩法页', tap: 'play' });
+        }
+        if (gm.stamina() >= gm.staminaMax()) {
+            q.push({ text: '⚡ 体力已满，立即出战！', tap: 'battle' });
+        }
+        if (q.length === 0) {
+            const n = notices[0];
+            q.push({ text: `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看`, tap: 'notice' });
+        }
+        return q;
+    }
 
-    /** 公告条刷新：跑马灯文案 = 最新公告（类型｜标题，重复拼接便于循环）+ 未读红点 */
+    /** 走马灯推进：游标 +1（循环），重建队列吸收最新事件，刷新滚动文案与点击目标 */
+    protected _advanceTicker(): void {
+        this._tickerIdx++;
+        this._refreshNoticeBar();
+    }
+
+    /** 公告条刷新：按轮播游标取当前消息（双拼便于无缝循环）+ 未读公告红点 */
     protected _refreshNoticeBar(): void {
+        const q = this._buildTickerQueue();
+        const cur = q[this._tickerIdx % q.length];
+        this._tickerTap = cur.tap;
         if (this._noticeTextEl) {
-            const n = NoticeSystem.instance.latest();
-            const seg = `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看全部公告`;
-            this._noticeTextEl.textContent = seg + '　　' + seg + '　　';
+            this._noticeTextEl.textContent = cur.text + '　　' + cur.text + '　　';
         }
         if (this._noticeRedEl) {
             this._noticeRedEl.classList.toggle('on', NoticeSystem.instance.hasUnread());
