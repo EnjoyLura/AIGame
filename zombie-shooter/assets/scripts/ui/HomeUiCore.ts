@@ -73,6 +73,9 @@ export abstract class HomeUiCore extends Component {
     /** 顶栏邮箱按钮（未读红点驱动） */
     protected _homeMailBtn: HTMLButtonElement | null = null;
 
+    /** 公告条本体（走马灯按需显示：无内容整条收起） */
+    protected _noticeBarEl: HTMLDivElement | null = null;
+
     /** 走马灯：当前消息的点击目标（公告/邮箱/远征/玩法页/出战） */
     protected _tickerTap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' = 'notice';
 
@@ -549,9 +552,10 @@ export abstract class HomeUiCore extends Component {
     // ================= 公告条与公告弹窗 =================
 
     /**
-     * 主城顶部公告条（topbar 之下全局常驻）：走马灯轮播——公告全量条目（新→旧）
+     * 主城顶部公告条（topbar 之下全局常驻位）：走马灯轮播——未读公告（新→旧）
      * 与动态消息（新邮件/远征归来/签到/任务/体力满）混合成队列，
-     * 每轮滚动动画结束切下一条；点击按当前消息类型分发到对应面板；未读公告亮红点。
+     * 每轮滚动动画结束切下一条；点击按当前消息类型分发到对应面板。
+     * 按需显示：已读公告不滚，队列空时整条收起，有新内容自动回归。
      */
     protected _buildNoticeBar(root: HTMLDivElement): void {
         const bar = document.createElement('div');
@@ -589,19 +593,19 @@ export abstract class HomeUiCore extends Component {
             this._advanceTicker();
         });
         root.appendChild(bar);
+        this._noticeBarEl = bar;
         this._noticeTextEl = text;
         this._noticeRedEl = red;
         this._refreshNoticeBar();
     }
 
     /**
-     * 走马灯消息队列：公告全量（新→旧）+ 动态事件消息（现查现拼，永远反映最新状态）。
-     * 队列至少含最新公告兜底，保证公告条永远有内容可滚。
+     * 走马灯消息队列：未读公告（新→旧，已读不再占屏）+ 动态事件消息（现查现拼，永远反映最新状态）。
+     * 队列为空 → 公告条整条收起（公告不用一直显示）；有内容才滚。
      */
     protected _buildTickerQueue(): Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> {
         const q: Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> = [];
-        const notices = [...NOTICE_DEFS].sort((a, b) => b.id - a.id);
-        for (const n of notices) {
+        for (const n of NoticeSystem.instance.unreadList()) {
             q.push({ text: `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看`, tap: 'notice' });
         }
         const gm = GameManager.instance;
@@ -620,10 +624,6 @@ export abstract class HomeUiCore extends Component {
         if (gm.stamina() >= gm.staminaMax()) {
             q.push({ text: '⚡ 体力已满，立即出战！', tap: 'battle' });
         }
-        if (q.length === 0) {
-            const n = notices[0];
-            q.push({ text: `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看`, tap: 'notice' });
-        }
         return q;
     }
 
@@ -633,9 +633,17 @@ export abstract class HomeUiCore extends Component {
         this._refreshNoticeBar();
     }
 
-    /** 公告条刷新：按轮播游标取当前消息（双拼便于无缝循环）+ 未读公告红点 */
+    /** 公告条刷新：按轮播游标取当前消息（双拼便于无缝循环）+ 未读公告红点；无内容时整条收起 */
     protected _refreshNoticeBar(): void {
         const q = this._buildTickerQueue();
+        if (this._noticeBarEl) {
+            this._noticeBarEl.style.display = q.length ? '' : 'none';
+        }
+        if (q.length === 0) {
+            this._tickerIdx = 0;
+            this._tickerTap = 'notice';
+            return;
+        }
         const cur = q[this._tickerIdx % q.length];
         this._tickerTap = cur.tap;
         if (this._noticeTextEl) {

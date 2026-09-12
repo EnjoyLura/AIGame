@@ -23,7 +23,7 @@ ok('独立存档键', /SAVE_KEY = 'zombie-shooter-notice'/.test(notice));
 ok('import NoticeSystem', /import \{ NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES \} from '\.\.\/core\/NoticeData';/.test(ui));
 ok('_build 挂公告条', /this\._buildTopbar\(root\);\s*\n\s*this\._buildNoticeBar\(root\);/.test(ui));
 ok('_refreshAll 刷公告条', /this\._refreshBase\(\);\s*\n\s*this\._refreshNoticeBar\(\);/.test(ui));
-ok('公告条走马灯取公告全量(新→旧)', /\[\.\.\.NOTICE_DEFS\]\.sort\(\(a, b\) => b\.id - a\.id\)/.test(ui));
+ok('公告条走马灯只滚未读公告', /for \(const n of NoticeSystem\.instance\.unreadList\(\)\)/.test(ui));
 ok('公告条红点未读点亮', /_noticeRedEl\.classList\.toggle\('on', NoticeSystem\.instance\.hasUnread\(\)\)/.test(ui));
 ok('弹窗打开即 markAllRead', /_openNoticeModal\(\): void \{\s*\n\s*NoticeSystem\.instance\.markAllRead\(\);/.test(ui));
 ok('弹窗倒序渲染(新→旧)', /for \(let i = NOTICE_DEFS\.length - 1; i >= 0; i--\)/.test(ui));

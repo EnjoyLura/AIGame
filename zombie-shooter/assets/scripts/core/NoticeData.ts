@@ -93,6 +93,11 @@ export class NoticeSystem {
         return this._lastReadId < this.latest().id;
     }
 
+    /** 未读公告（新→旧）；走马灯只滚未读，已读公告不再占屏 */
+    unreadList(): NoticeDef[] {
+        return NOTICE_DEFS.filter(n => n.id > this._lastReadId).sort((a, b) => b.id - a.id);
+    }
+
     // ================= 操作 =================
 
     /** 全部标记已读（打开公告弹窗时调用） */
