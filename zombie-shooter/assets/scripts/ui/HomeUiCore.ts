@@ -12,7 +12,7 @@ import { QUEST_DEFS, QuestSystem, QuestDef, ACTIVITY_CHESTS, ACTIVITY_MAX, rewar
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem';
 import { BestiarySystem, BESTIARY_DEFS, BestiaryDef } from '../core/BestiarySystem';
-import { MailSystem } from '../core/MailSystem';
+import { MailSystem, mailTimeText, mailExpiringSoon, MailDef } from '../core/MailSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
@@ -69,6 +69,9 @@ export abstract class HomeUiCore extends Component {
     protected _noticeTextEl: HTMLDivElement | null = null;
 
     protected _noticeRedEl: HTMLElement | null = null;
+
+    /** 顶栏邮箱按钮（未读红点驱动） */
+    protected _homeMailBtn: HTMLButtonElement | null = null;
 
     /** 本次会话是否已自动弹过公告（每次启动至多自动弹一次） */
     protected _autoNoticeShown = false;
@@ -166,6 +169,13 @@ export abstract class HomeUiCore extends Component {
             }
         }, this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
+        // 新邮件到达（投放器/运营接口触发）：toast 提醒 + 顶栏红点实时亮起
+        eventCenter.on(GameEvent.MAIL_NEW, (def: MailDef) => {
+            if (this._root) {
+                this._toast(`📬 新邮件：${def.title}`);
+                this._refreshTop();
+            }
+        }, this);
         // 远征倒计时归零没有事件源（时间自己走），靠这个低频轮询兜底补亮红点：
         // 玩家切后台回来、或停留在基地页等任务到点时，入口红点不能一直不亮。
         this._expIdleTimer = setInterval(() => {
@@ -184,6 +194,8 @@ export abstract class HomeUiCore extends Component {
 
     protected show(): void {
         if (this._root) {
+            // 每日/回归邮件投放（内部按天去重，重复调用安全）
+            MailSystem.instance.feedDaily();
             this._root.style.display = 'flex';
             this._refreshAll();
             // 有未读公告时进主城自动弹出（每次启动至多一次；已有弹窗时本次让路）
@@ -357,6 +369,18 @@ export abstract class HomeUiCore extends Component {
         mkRes('diamond', 'ui/res_diamond');
         mkRes('stamina', 'ui/res_stamina');
         bar.appendChild(reswrap);
+        // 邮箱入口（顶栏右侧，齿轮前；未读红点）
+        const mailBtn = document.createElement('button');
+        mailBtn.className = 'btn dark sm setGear homeMailBtn';
+        mailBtn.textContent = '📬';
+        mailBtn.title = '邮箱';
+        mailBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openMailModal();
+        };
+        bar.appendChild(mailBtn);
+        this._homeMailBtn = mailBtn;
         // 设置入口（顶栏右侧齿轮）
         const gear = document.createElement('button');
         gear.className = 'btn dark sm setGear';
@@ -386,6 +410,8 @@ export abstract class HomeUiCore extends Component {
         if (stamina) {
             stamina.textContent = `${gm.stamina()}/${gm.staminaMax()}`;
         }
+        // 邮箱未读红点（新邮件到达/已读实时同步）
+        this._homeMailBtn?.classList.toggle('unread', MailSystem.instance.hasUnread());
         // 经验条（占位口径：最远波次 / 100）
         if (this._expFill) {
             const pct = Math.min(100, Math.round(gm.bestWave));
@@ -673,6 +699,176 @@ export abstract class HomeUiCore extends Component {
                 wrap.appendChild(tip);
             };
             render();
+        });
+    }
+
+    /**
+     * 主城邮箱弹窗：列表/详情两态就地重绘（render 闭包模式，与体力弹窗同款）。
+     * 战斗页菜单另有 DomHud 邮箱浮窗；这里给主城同样能力（一键领取/过期提醒/删除）。
+     */
+    protected _openMailModal(): void {
+        this._openModal('📬 邮 箱', (box, _close) => {
+            box.classList.add('mailBox');
+            const ms = MailSystem.instance;
+            const render = (openId: string | null): void => {
+                box.innerHTML = '';
+                const mails = ms.mails();
+                // ---- 详情态 ----
+                if (openId) {
+                    const m = ms.mail(openId);
+                    if (!m) {
+                        render(null);
+                        return;
+                    }
+                    ms.markRead(openId);
+                    const back = document.createElement('button');
+                    back.className = 'btn dark sm';
+                    back.textContent = '↩ 返回列表';
+                    back.onclick = () => {
+                        SoundFx.play('ui');
+                        render(null);
+                    };
+                    box.appendChild(back);
+                    const head = document.createElement('div');
+                    head.className = 'mailDetailHead';
+                    const title = document.createElement('h4');
+                    title.textContent = m.title;
+                    const from = document.createElement('div');
+                    from.className = 'mailDetailFrom';
+                    const timeText = mailTimeText(m.ts);
+                    from.textContent = `来自：${m.from}` + (timeText ? ` · ${timeText}` : '');
+                    head.appendChild(title);
+                    head.appendChild(from);
+                    box.appendChild(head);
+                    const text = document.createElement('div');
+                    text.className = 'mailDetailText';
+                    for (const line of m.body.split('\n')) {
+                        const p = document.createElement('p');
+                        p.textContent = line || ' ';
+                        text.appendChild(p);
+                    }
+                    box.appendChild(text);
+                    if (m.kind === 'reward') {
+                        const attach = document.createElement('div');
+                        attach.className = 'mailDetailAttach';
+                        const r = m.reward ?? {};
+                        const parts: string[] = [];
+                        if (r.gold) {
+                            parts.push(`🪙 ${r.gold.toLocaleString()}`);
+                        }
+                        if (r.diamond) {
+                            parts.push(`💎 ${r.diamond}`);
+                        }
+                        if (r.misc) {
+                            parts.push(`${miscDef(r.misc.id)?.ic ?? '📦'} ${miscDef(r.misc.id)?.name ?? r.misc.id} ×${r.misc.n}`);
+                        }
+                        const lab = document.createElement('div');
+                        lab.className = 'mSub';
+                        lab.textContent = '📦 附件奖励';
+                        attach.appendChild(lab);
+                        const items = document.createElement('div');
+                        items.className = 'mailDetailItems';
+                        items.textContent = parts.join('　');
+                        attach.appendChild(items);
+                        if (mailExpiringSoon(m)) {
+                            const warn = document.createElement('div');
+                            warn.className = 'mailDetailWarn';
+                            warn.textContent = '⏳ 附件 24 小时内过期，过期作废';
+                            attach.appendChild(warn);
+                        }
+                        const btn = document.createElement('button');
+                        btn.className = 'btn gold sm';
+                        if (m.claimed) {
+                            btn.textContent = '已领取';
+                            btn.disabled = true;
+                        } else {
+                            btn.textContent = '领取附件';
+                            btn.onclick = () => {
+                                SoundFx.unlock();
+                                if (ms.claim(openId)) {
+                                    SoundFx.play('coin');
+                                    this._refreshTop();
+                                    render(openId);
+                                }
+                            };
+                        }
+                        attach.appendChild(btn);
+                        box.appendChild(attach);
+                    }
+                    const del = document.createElement('button');
+                    del.className = 'btn dark sm mailDelete';
+                    del.textContent = '🗑 删除邮件';
+                    del.onclick = () => {
+                        SoundFx.play('ui');
+                        ms.remove(openId);
+                        this._refreshTop();
+                        render(null);
+                    };
+                    box.appendChild(del);
+                    return;
+                }
+                // ---- 列表态 ----
+                const claimable = mails.filter(x => x.kind === 'reward' && !x.claimed).length;
+                if (claimable > 0) {
+                    const allBtn = document.createElement('button');
+                    allBtn.className = 'btn gold sm mailClaimAll';
+                    allBtn.textContent = `📧 一键领取（${claimable} 封附件）`;
+                    allBtn.onclick = () => {
+                        SoundFx.unlock();
+                        const n = ms.claimAll();
+                        if (n > 0) {
+                            SoundFx.play('coin');
+                            this._refreshTop();
+                        }
+                        render(null);
+                    };
+                    box.appendChild(allBtn);
+                }
+                if (mails.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'mailEmptyRow';
+                    empty.textContent = '📭 暂无邮件';
+                    box.appendChild(empty);
+                    return;
+                }
+                const list = document.createElement('div');
+                list.className = 'mailListEl';
+                for (const m of mails) {
+                    const row = document.createElement('div');
+                    row.className = 'mailListRow' + (m.read ? '' : ' unread') + (m.kind === 'reward' && !m.claimed ? ' claimable' : '');
+                    const ic = document.createElement('span');
+                    ic.className = 'mIc';
+                    ic.textContent = m.kind === 'reward' ? '🎁' : '📢';
+                    row.appendChild(ic);
+                    const mid = document.createElement('div');
+                    mid.className = 'mMid';
+                    const title = document.createElement('b');
+                    title.textContent = (m.read ? '' : '● ') + m.title;
+                    const sub = document.createElement('small');
+                    const timeText = mailTimeText(m.ts);
+                    sub.textContent = `来自：${m.from} · ${m.kind === 'reward' ? (m.claimed ? '附件已领取' : '含附件奖励') : '系统通知'}` + (timeText ? ` · ${timeText}` : '');
+                    mid.appendChild(title);
+                    mid.appendChild(sub);
+                    row.appendChild(mid);
+                    const tag = document.createElement('span');
+                    tag.className = 'mTag';
+                    if (mailExpiringSoon(m)) {
+                        tag.textContent = '⏳ 将过期';
+                        tag.classList.add('expiring');
+                    } else {
+                        tag.textContent = m.kind === 'reward' && !m.claimed ? '🎁 可领' : (m.read ? '已读' : '未读');
+                    }
+                    row.appendChild(tag);
+                    row.onclick = () => {
+                        SoundFx.play('ui');
+                        render(m.id);
+                        this._refreshTop();
+                    };
+                    list.appendChild(row);
+                }
+                box.appendChild(list);
+            };
+            render(null);
         });
     }
 

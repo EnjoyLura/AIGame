@@ -130,6 +130,8 @@ export enum GameEvent {
     FLOW_CHANGED = 'flow-changed',
     GAME_RESTART = 'game-restart',
     HOME_SHOW = 'home-show',
+    /** 新邮件到达：参数 (MailDef)；驱动主城 toast 提醒与顶栏红点实时刷新 */
+    MAIL_NEW = 'mail-new',
     GOLD_EARNED = 'gold-earned',
     RES_CHANGED = 'res-changed',
     /** 远征：派出队伍，参数 (任务 id ExpeditionId, 英雄 id 数组) */

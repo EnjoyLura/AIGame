@@ -1765,4 +1765,59 @@ export const HOME_UI_CSS = `
 #homeUi .affixRow { display: flex; align-items: baseline; justify-content: space-between; gap: calc(5px * var(--pw,2.5));
   font-size: calc(11px * var(--pw,2.5)); }
 #homeUi .affixName { font-weight: 700; }
-#homeUi .affixVal { color: #46647a; }`;
+#homeUi .affixVal { color: #46647a; }
+
+/* --- 主城邮箱弹窗（base 深色层） --- */
+#homeUi .homeMailBtn { position: relative; }
+#homeUi .homeMailBtn::after { content: ''; display: none; position: absolute; top: calc(2px * var(--hs,1)); right: calc(2px * var(--hs,1));
+  width: calc(10px * var(--hs,1)); height: calc(10px * var(--hs,1)); border-radius: 50%; background: #ff5252;
+  border: calc(2px * var(--hs,1)) solid #ffd5d5; box-shadow: 0 0 calc(6px * var(--hs,1)) rgba(255,82,82,.8); }
+#homeUi .homeMailBtn.unread::after { display: block; }
+#homeUi .mailBox { width: calc(560px * var(--hs,1)); max-height: 72vh; overflow-y: auto; display: flex; flex-direction: column; gap: calc(10px * var(--hs,1)); }
+#homeUi .mailClaimAll { align-self: flex-end; }
+#homeUi .mailListEl { display: flex; flex-direction: column; gap: calc(8px * var(--hs,1)); }
+#homeUi .mailListRow { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); padding: calc(10px * var(--hs,1)) calc(12px * var(--hs,1));
+  border-radius: calc(10px * var(--hs,1)); background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.09); cursor: pointer; }
+#homeUi .mailListRow.unread { border-color: rgba(255,204,85,.5); background: rgba(255,204,85,.07); }
+#homeUi .mailListRow.claimable { border-color: rgba(156,204,101,.55); }
+#homeUi .mIc { flex: none; width: calc(34px * var(--hs,1)); height: calc(34px * var(--hs,1)); display: flex; align-items: center; justify-content: center;
+  font-size: calc(20px * var(--hs,1)); border-radius: calc(8px * var(--hs,1)); background: rgba(10,18,26,.55); border: 1px solid rgba(255,255,255,.12); }
+#homeUi .mMid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(2px * var(--hs,1)); }
+#homeUi .mMid b { font-size: calc(14px * var(--hs,1)); color: #ffe9a8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#homeUi .mMid small { font-size: calc(11px * var(--hs,1)); color: #8fa0ab; }
+#homeUi .mTag { flex: none; font-size: calc(11px * var(--hs,1)); color: #8fa0ab; }
+#homeUi .mTag.expiring { color: #ffb74d; font-weight: 700; }
+#homeUi .mailEmptyRow { padding: calc(40px * var(--hs,1)) 0; text-align: center; color: #8fa0ab; font-size: calc(14px * var(--hs,1)); }
+#homeUi .mailDetailHead h4 { margin: calc(4px * var(--hs,1)) 0 calc(2px * var(--hs,1)); font-size: calc(17px * var(--hs,1)); color: #ffe9a8; }
+#homeUi .mailDetailFrom { font-size: calc(12px * var(--hs,1)); color: #8fa0ab; }
+#homeUi .mailDetailText { font-size: calc(13px * var(--hs,1)); line-height: 1.7; color: #cfe3ee; }
+#homeUi .mailDetailText p { margin: 0 0 calc(2px * var(--hs,1)); }
+#homeUi .mailDetailAttach { padding: calc(10px * var(--hs,1)) calc(12px * var(--hs,1)); border-radius: calc(10px * var(--hs,1));
+  background: rgba(156,204,101,.08); border: 1px dashed rgba(156,204,101,.45); display: flex; flex-direction: column; gap: calc(6px * var(--hs,1)); }
+#homeUi .mailDetailItems { font-size: calc(14px * var(--hs,1)); color: #d7ffd9; font-weight: 700; }
+#homeUi .mailDetailWarn { font-size: calc(11px * var(--hs,1)); color: #ffb74d; }
+#homeUi .mailDelete { align-self: flex-end; }
+
+/* --- 主城邮箱弹窗（青瓷浅色变体） --- */
+#homeUi .homeMailBtn::after { top: calc(0px * var(--pw,2.5)); right: calc(0px * var(--pw,2.5));
+  width: calc(7px * var(--pw,2.5)); height: calc(7px * var(--pw,2.5)); border: none; }
+#homeUi .mailBox { width: calc(360px * var(--pw,2.5)); max-height: 70vh; gap: calc(8px * var(--pw,2.5)); }
+#homeUi .mailListEl { gap: calc(6px * var(--pw,2.5)); }
+#homeUi .mailListRow { gap: calc(8px * var(--pw,2.5)); padding: calc(9px * var(--pw,2.5)) calc(10px * var(--pw,2.5)); border-radius: calc(8px * var(--pw,2.5));
+  background: #f4f9fb; border: 1px solid #d7e3ea; }
+#homeUi .mailListRow.unread { border-color: #e0b45c; background: #fff8e5; }
+#homeUi .mailListRow.claimable { border-color: #8fbf6d; }
+#homeUi .mIc { width: calc(26px * var(--pw,2.5)); height: calc(26px * var(--pw,2.5)); font-size: calc(15px * var(--pw,2.5));
+  border-radius: calc(6px * var(--pw,2.5)); background: #eaf3f7; border: 1px solid #d7e3ea; }
+#homeUi .mMid b { font-size: calc(13px * var(--pw,2.5)); color: #4a5f6d; }
+#homeUi .mailListRow.unread .mMid b { color: #945d24; }
+#homeUi .mMid small { font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .mTag { font-size: calc(10px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .mTag.expiring { color: #c98a1e; }
+#homeUi .mailEmptyRow { color: #8fa9ba; font-size: calc(13px * var(--pw,2.5)); }
+#homeUi .mailDetailHead h4 { font-size: calc(15px * var(--pw,2.5)); color: #4a5f6d; }
+#homeUi .mailDetailFrom { font-size: calc(11px * var(--pw,2.5)); color: #8fa9ba; }
+#homeUi .mailDetailText { font-size: calc(12px * var(--pw,2.5)); color: #46647a; }
+#homeUi .mailDetailAttach { background: #f0f7ec; border: 1px dashed #a8cc8e; gap: calc(4px * var(--pw,2.5)); }
+#homeUi .mailDetailItems { font-size: calc(13px * var(--pw,2.5)); color: #4e7a33; }
+#homeUi .mailDetailWarn { font-size: calc(10px * var(--pw,2.5)); color: #c98a1e; }`;

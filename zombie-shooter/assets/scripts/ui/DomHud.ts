@@ -11,7 +11,7 @@ import { SoundFx } from '../core/SoundFx';
 import { FINAL_STAGE_ID } from '../battle/StageData';
 import { LootDrop, lootDropColor, tierRank, miscDef } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
-import { MailSystem, MailState } from '../core/MailSystem';
+import { MailSystem, MailState, mailTimeText, mailExpiringSoon } from '../core/MailSystem';
 import { DungeonReward, dungeonDef, DUNGEON_TIER_NAMES } from '../core/DungeonSystem';
 
 /** 伤害统计面板每英雄一行的可更新元素 */
@@ -526,6 +526,26 @@ export class DomHud extends Component {
             list.appendChild(empty);
             return;
         }
+        // 一键领取：有可领附件时列表顶部给一个快捷入口
+        const claimable = mails.filter(m => m.kind === 'reward' && !m.claimed).length;
+        if (claimable > 0) {
+            const bar = document.createElement('div');
+            bar.className = 'mailClaimBar';
+            const btn = document.createElement('button');
+            btn.className = 'menuBtn mailClaimBtn';
+            btn.textContent = `📧 一键领取（${claimable} 封附件）`;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.unlock();
+                const n = ms.claimAll();
+                if (n > 0) {
+                    SoundFx.play('coin');
+                }
+                this._fillMailList(list);
+            };
+            bar.appendChild(btn);
+            list.appendChild(bar);
+        }
         for (const m of mails) {
             const row = document.createElement('div');
             row.className = 'mailRow panel' + (m.read ? '' : ' unread') + (m.kind === 'reward' && !m.claimed ? ' claimable' : '');
@@ -540,13 +560,20 @@ export class DomHud extends Component {
             title.textContent = (m.read ? '' : '● ') + m.title;
             const from = document.createElement('div');
             from.className = 'mailFrom';
-            from.textContent = `来自：${m.from} · ${m.kind === 'reward' ? (m.claimed ? '附件已领取' : '含附件奖励') : '系统通知'}`;
+            const timeText = mailTimeText(m.ts);
+            from.textContent = `来自：${m.from} · ${m.kind === 'reward' ? (m.claimed ? '附件已领取' : '含附件奖励') : '系统通知'}` + (timeText ? ` · ${timeText}` : '');
             mid.appendChild(title);
             mid.appendChild(from);
             row.appendChild(mid);
             const tag = document.createElement('div');
             tag.className = 'mailTag';
-            tag.textContent = m.read ? '已读' : '未读';
+            if (mailExpiringSoon(m)) {
+                // 附件即将过期（<24h）：黄色提醒替代已读/未读标
+                tag.textContent = '⏳ 附件将过期';
+                tag.classList.add('expiring');
+            } else {
+                tag.textContent = m.read ? '已读' : '未读';
+            }
             row.appendChild(tag);
             row.onclick = (e) => {
                 e.stopPropagation();
@@ -1526,6 +1553,9 @@ export class DomHud extends Component {
 #domHud .mailFrom { font-size: calc(22px * var(--s,1)); color: #8fa0ab; margin-top: calc(6px * var(--s,1)); }
 #domHud .mailTag { flex: none; font-size: calc(22px * var(--s,1)); color: #8fa0ab; }
 #domHud .mailRow.unread .mailTag { color: #ffd76a; }
+#domHud .mailTag.expiring { color: #ffb74d; font-weight: 700; }
+#domHud .mailClaimBar { display: flex; justify-content: center; }
+#domHud .mailClaimBar .mailClaimBtn { margin-top: 0; min-width: calc(480px * var(--s,1)); }
 #domHud .mailEmpty { padding: calc(60px * var(--s,1)) 0; text-align: center; font-size: calc(30px * var(--s,1)); color: #8fa0ab; }
 #domHud .mailBody { width: 100%; margin-top: calc(20px * var(--s,1)); text-align: left; }
 #domHud .mailBodyTitle { font-size: calc(38px * var(--s,1)); color: #ffe9a8; font-weight: 800; }
