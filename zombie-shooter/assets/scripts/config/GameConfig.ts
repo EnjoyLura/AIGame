@@ -60,6 +60,10 @@ export const BattleConfig = {
     /** ===== BOSS 战 ===== */
     /** BOSS 生命倍率（相对本关末波同型怪；init 时与 MONSTER_HP_SCALE/hpScale 连乘） */
     BOSS_HP_SCALE: 22,
+    /** 驻留啃咬（向僵尸开炮式）：怪物到车沿不再即死消失，而是驻留按各自间隔持续咬车 */
+    BITE_GAP: 1.6,
+    /** 贴车后第一口起手延迟（秒）；精英/BOSS 咬击间隔在此基数上放大 */
+    BITE_STARTUP: 0.35,
     /** BOSS 体型放大（半径）、移速放慢、啃咬伤害倍率 */
     BOSS_RADIUS: 1.9,
     BOSS_SPEED: 0.82,

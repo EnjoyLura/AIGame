@@ -756,25 +756,25 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.ENDLESS_MILESTONE, this._waveNumber, amount);
     }
 
-    /** 怪物抵达载具：啃咬一口耐久后消失（不掉落经验）；天赋削减该伤害，改装「撞角」反伤啃咬者 */
-    onEnemyReachVehicle(enemy: Enemy): void {
-        SoundFx.play('vehicleHit');
+    /** 上次咬车音效时刻（ms）：多怪同啃时节流，防音效风暴 */
+    private _lastBiteSfx = 0;
+
+    /** 怪物驻留咬车一口：按怪的 touchDamage 扣耐久（天赋削减）；改装「撞角」反伤啃咬者，咬伤击杀走完整死亡链 */
+    onEnemyBiteVehicle(enemy: Enemy): void {
+        const now = Date.now();
+        if (now - this._lastBiteSfx >= 220) {
+            this._lastBiteSfx = now;
+            SoundFx.play('vehicleHit');
+        }
         const dmg = Math.max(1, Math.round(enemy.touchDamage * (1 - talentBiteReduce())));
         this._vehicle.takeDamage(dmg);
-        // 撞角反伤：此时啃咬者仍在 _enemies 里，走 applyDamage 才有完整死亡链（击杀数/图鉴/经验晶体）；
-        // 反伤击杀时 killEnemy 已 splice+回池，下方按 hp 跳过，防止双重回池。无来源英雄（不充大招）
+        // 撞角反伤：啃咬者驻留在场，applyDamage 走完整死亡链（击杀数/图鉴/经验晶体）；
+        // 反伤击杀时 killEnemy 已 splice+回池，本函数不再触碰其节点。无来源英雄（不充大招）
         if (!this._gameOver) {
             const thorn = tuneRamReflect();
             if (thorn > 0) {
                 this.applyDamage(this._handleOf(enemy), thorn, false, undefined);
             }
-        }
-        if (enemy.hp > 0) {
-            const idx = this._enemies.indexOf(enemy);
-            if (idx >= 0) {
-                this._enemies.splice(idx, 1);
-            }
-            this._enemyPool.put(enemy.node);
         }
     }
 

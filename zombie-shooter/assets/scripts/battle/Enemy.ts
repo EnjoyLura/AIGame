@@ -24,7 +24,8 @@ const MONSTER_ART: Record<string, string> = {
  * 变异怪物：按 WaveData 的 behavior 分派移动逻辑——
  * chaser 直线追车 / swarm 疯狗成群直线快跑 / charger 野猪贴近蓄力再冲刺 /
  * tanker 双足熊高血肉盾 / diver 疯鹰侧翼斜线俯冲。
- * 追到车尾后啃咬一口耐久并消失；被击杀掉落经验晶体。
+ * 驻留啃咬（向僵尸开炮式）：到车沿后停住不走，按各自咬击间隔持续咬车（每怪独立伤害），
+ * 直到被击杀；被击杀掉落经验晶体。
  * 占位形象由 Graphics 按 behavior 绘制（正式版替换为 sp.Skeleton）。
  */
 @ccclass('Enemy')
@@ -36,10 +37,21 @@ export class Enemy extends Component {
     speed = 100;
     radius = 30;
     touchDamage = 10;
+    /** 咬击间隔（秒）：贴车驻留后每隔该时长咬车一口；精英/BOSS 在 init 放大（咬得更疼但更慢） */
+    biteGap = 1.6;
+    /** 驻留啃咬中：已到车沿停住，位置钳在车沿上（车恒在 x=0，无需跟车） */
+    private _biting = false;
+    /** 距下次咬车的冷却（秒） */
+    private _biteCd = 0;
+    /** 咬击前扑脉冲剩余时长（占位视觉；有 attack 序列帧的怪型以帧动画为主） */
+    private _biteFxT = 0;
     private _behavior: MonsterBehavior = 'chaser';
     /** 当前垂直下压速度（px/s，向下为正）：射击预瞄用。
      *  垂直下压/冲刺 = 实际移速；蓄力定身 = 0。所有行为最终都只有纵向位移，可线性外推。 */
     get verticalSpeed(): number {
+        if (this._biting) {
+            return 0;
+        }
         if (this._behavior === 'charger' && this._chargeState === 'dash') {
             return this._dashSpeed;
         }
@@ -134,6 +146,10 @@ export class Enemy extends Component {
             * (this._affix === 'swift' ? BattleConfig.AFFIX_SWIFT_SPEED : 1);
         this.radius = info.radius * (info.tier === 1 ? 1.35 : boss ? BattleConfig.BOSS_RADIUS : 1);
         this.touchDamage = info.touchDamage * (info.tier === 1 ? 2 : boss ? BattleConfig.BOSS_TOUCH : 1);
+        this.biteGap = BattleConfig.BITE_GAP * (info.tier === 1 ? 1.3 : boss ? 2.2 : 1);
+        this._biting = false;
+        this._biteCd = 0;
+        this._biteFxT = 0;
         this._behavior = info.behavior;
         this._chargeState = 'advance';
         this._windupLeft = 0;
@@ -272,9 +288,13 @@ export class Enemy extends Component {
             return;
         }
         const p = this.node.position;
-        // 追到车尾：底边触到车尾上沿即啃咬
+        // 驻留啃咬（向僵尸开炮式）：到车沿停住不走，按咬击间隔持续咬车，直到被击杀
+        if (this._biting) {
+            this._biteTick(dt, bm);
+            return;
+        }
         if (p.y - this.radius <= bm.vehicleTopY) {
-            bm.onEnemyReachVehicle(this);
+            this._startBiting(bm);
             return;
         }
         switch (this._behavior) {
@@ -383,6 +403,52 @@ export class Enemy extends Component {
     private _descend(dt: number): void {
         const p = this.node.position;
         this.node.setPosition(p.x, p.y - this.speed * dt);
+    }
+
+    // ================= 驻留啃咬 =================
+
+    /** 抵达车沿：钳位驻车（底边贴车沿上沿），短起手后进入咬击循环 */
+    private _startBiting(bm: BattleManager): void {
+        const p = this.node.position;
+        this.node.setPosition(p.x, bm.vehicleTopY + this.radius, p.z);
+        this._biting = true;
+        this._biteCd = BattleConfig.BITE_STARTUP;
+    }
+
+    /** 咬击循环：每隔咬击间隔咬一口（伤害口径在 BattleManager），期间位置锁定在车沿 */
+    private _biteTick(dt: number, bm: BattleManager): void {
+        const p = this.node.position;
+        // 位置钳制：驻留期间不再位移（词缀/击退等位移源全部忽略，车恒在 x=0 无需跟车）
+        if (p.y !== bm.vehicleTopY + this.radius) {
+            this.node.setPosition(p.x, bm.vehicleTopY + this.radius, p.z);
+        }
+        this._biteCd -= dt;
+        if (this._biteCd <= 0) {
+            this._biteCd = this.biteGap;
+            this._biteFxT = 0.22;
+            this.playAttack();
+            bm.onEnemyBiteVehicle(this);
+        }
+        this._updateAffix(dt, bm);
+        this._updateReticle(dt);
+        this._updateWalkAnim(dt);
+        this._updateHitFx(dt);
+        this._updateBiteFx(dt);
+    }
+
+    /** 咬击前扑脉冲：前 40% 拉伸扑向车体、后 60% 回弹（零 tween 零分配；与受击红闪同为全量 setScale，同帧互踩取后写者，一帧级瑕疵可接受） */
+    private _updateBiteFx(dt: number): void {
+        if (this._biteFxT <= 0) {
+            return;
+        }
+        this._biteFxT -= dt;
+        if (this._biteFxT <= 0) {
+            this._bodyNode.setScale(1, 1, 1);
+            return;
+        }
+        const k = 1 - this._biteFxT / 0.22;
+        const s = k < 0.4 ? k / 0.4 : Math.max(0, 1 - (k - 0.4) / 0.6);
+        this._bodyNode.setScale(1 + 0.12 * s, 1 - 0.08 * s, 1);
     }
 
     private _updateCharger(dt: number, bm: BattleManager): void {
