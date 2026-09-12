@@ -231,7 +231,7 @@ export class BattleManager extends Component {
         return this._timeScale;
     }
     private _elapsed = 0;
-    private _visH = Design.HEIGHT;
+    private _visH: number = Design.HEIGHT;
     /** 实际可视宽（随窗口比例变化） */
     private get _visW(): number { return view.getVisibleSize().width; }
     /** UI/世界统一缩放系数：可视高 / 1080 设计基准高（1920） */

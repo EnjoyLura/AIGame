@@ -7,6 +7,11 @@ import { GameManager } from '../core/GameManager';
 import { BattleManager } from '../battle/BattleManager';
 import { SoundFx } from '../core/SoundFx';
 
+/** 两位数补零（计时 mm:ss；tsconfig lib 无 padStart，用本地实现） */
+function pad2(n: number): string {
+    return n < 10 ? '0' + n : String(n);
+}
+
 /**
  * 战斗 HUD：计时、波次、击杀、经验条与等级、载具耐久条、波次提示、结算面板。
  * 全部代码动态构建（不依赖预制体）；正式版逐步替换为九宫格图片 UI。
@@ -78,8 +83,8 @@ export class HUD extends Component {
             return;
         }
         const total = Math.floor(bm.elapsed);
-        const m = String(Math.floor(total / 60)).padStart(2, '0');
-        const s = String(total % 60).padStart(2, '0');
+        const m = pad2(Math.floor(total / 60));
+        const s = pad2(total % 60);
         this._timeLabel.string = `${m}:${s}`;
         // 统计浮窗打开期间每 0.5s 实时刷新
         if (this._statsPanel.active) {

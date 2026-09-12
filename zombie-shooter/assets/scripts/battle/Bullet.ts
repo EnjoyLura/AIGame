@@ -37,14 +37,14 @@ export interface ProjectileSpec {
 @ccclass('Bullet')
 export class Bullet extends Component {
     damage = 0;
-    radius = BattleConfig.BULLET_RADIUS;
+    radius: number = BattleConfig.BULLET_RADIUS;
     sourceId = '';
     /** 伤害归属槽位（伤害统计） */
     slot: DamageSlotKey = 'basic';
     /** 弹色（命中火花用） */
     specColor = new Color(255, 238, 88, 255);
 
-    private _speed = BattleConfig.BULLET_SPEED;
+    private _speed: number = BattleConfig.BULLET_SPEED;
     private _dir = new Vec3(0, 1, 0);
     private _pierce = false;
     private _canCrit = false;

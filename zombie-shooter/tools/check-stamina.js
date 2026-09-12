@@ -5,7 +5,9 @@ const ok = (name, cond) => { console.log((cond ? 'PASS' : 'FAIL') + ' ' + name);
 
 const res = fs.readFileSync('assets/scripts/core/PlayerResources.ts', 'utf8');
 const gm = fs.readFileSync('assets/scripts/core/GameManager.ts', 'utf8');
-const ui = fs.readFileSync('assets/scripts/ui/HomeUi.ts', 'utf8');
+// HomeUi 拆分后按继承链 8 文件拼接检查
+const UI_FILES = ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts', 'HomeUiStyle.ts'];
+const ui = UI_FILES.map((f) => fs.readFileSync('assets/scripts/ui/' + f, 'utf8')).join('\n');
 
 // 1. 底层口径
 ok('staminaNextIn 先结算再读', /staminaNextIn\(now: number, max: number, regenSecs: number\): number \{\s*\n\s*this\._tickStamina/.test(res));

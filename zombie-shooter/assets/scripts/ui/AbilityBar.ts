@@ -104,9 +104,16 @@ class AbilityIcon {
     private _nameLabel: Label = null!;
     private _lvLabel: Label = null!;
     private _opacity: UIOpacity = null!;
+    /** 施法进度环层（外圈亮弧，仅在进度变化时重画） */
+    private _castG: Graphics = null!;
+    /** 冷却倒计时数字（0.1s 精度，仅在文本变化时写入） */
+    private _cdLabel: Label = null!;
     private _lastUnlocked: boolean | null = null;
     private _lastLevel = -1;
     private _lastFull: boolean | null = null;
+    /** 上次写入的冷却文本 / 施法进度（变化门控，避免逐帧写 Label/重画 Graphics） */
+    private _lastCdText = '';
+    private _lastCastFrac = 0;
     private _wasCooling = false;
     private _wasFull = false;
     private _lastMaskStep = -1;
@@ -183,7 +190,7 @@ class AbilityIcon {
         this.node.on(Node.EventType.TOUCH_END, () => this._bar.onPressEnd(this), this);
         this.node.on(Node.EventType.TOUCH_CANCEL, () => this._bar.onPressCancel(this), this);
 
-        this.refresh(0);
+        this.refresh();
     }
 
     get hero(): Hero { return this._hero; }

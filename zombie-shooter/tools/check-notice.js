@@ -4,7 +4,9 @@ let fail = 0;
 const ok = (name, cond) => { console.log((cond ? 'PASS' : 'FAIL') + ' ' + name); if (!cond) fail++; };
 
 const notice = fs.readFileSync('assets/scripts/core/NoticeData.ts', 'utf8');
-const ui = fs.readFileSync('assets/scripts/ui/HomeUi.ts', 'utf8');
+// HomeUi 拆分后按继承链 8 文件拼接检查
+const UI_FILES = ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts', 'HomeUiStyle.ts'];
+const ui = UI_FILES.map((f) => fs.readFileSync('assets/scripts/ui/' + f, 'utf8')).join('\n');
 
 // 1. 数据与系统
 ok('NOTICE_DEFS 三条公告', (notice.match(/    \{\s*\n        id: \d,/g) || []).length >= 3);
@@ -30,7 +32,7 @@ ok('正文 pre-line 分段', /body\.textContent = n\.body;/.test(ui));
 ok('自动弹：未读+会话一次+弹窗让路',
   /NoticeSystem\.instance\.hasUnread\(\) && !this\._autoNoticeShown/.test(ui) &&
   /!document\.querySelector\('#homeUi \.protoMask'\)/.test(ui) &&
-  /private _autoNoticeShown = false;/.test(ui));
+  /protected _autoNoticeShown = false;/.test(ui));
 
 // 3. 两层 CSS
 ok('noticeBar base 层(--hs)', /#homeUi \.noticeBar \{[^}]*--hs,1/.test(ui));
