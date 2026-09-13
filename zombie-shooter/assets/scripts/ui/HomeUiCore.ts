@@ -298,6 +298,83 @@ export abstract class HomeUiCore extends Component {
     }
 
 
+    /** L2 半屏抽屉（底部滑出）：编队/批量操作等中低高度流程；复用 protoMask 类保证就地重开逻辑兼容 */
+    protected _openSheet(title: string, buildBody: (box: HTMLDivElement, close: () => void) => void): void {
+        if (!this._root || document.querySelector('#homeUi .protoMask')) {
+            return;
+        }
+        const mask = document.createElement('div');
+        mask.className = 'protoMask sheetMask';
+        mask.onclick = (e) => {
+            e.stopPropagation();
+            if (e.target === mask) {
+                mask.remove();
+            }
+        };
+        const box = document.createElement('div');
+        box.className = 'mbox frame sheetBox';
+        box.onclick = (e) => e.stopPropagation();
+        const head = document.createElement('div');
+        head.className = 'mHead';
+        const grip = document.createElement('i');
+        grip.className = 'sheetGrip';
+        const h3 = document.createElement('h3');
+        h3.textContent = title;
+        const x = document.createElement('button');
+        x.className = 'mClose';
+        x.textContent = '✕';
+        x.onclick = (e) => {
+            e.stopPropagation();
+            mask.remove();
+        };
+        head.appendChild(grip);
+        head.appendChild(h3);
+        head.appendChild(x);
+        box.appendChild(head);
+        const close = () => mask.remove();
+        buildBody(box, close);
+        mask.appendChild(box);
+        this._root.appendChild(mask);
+    }
+
+
+    /** L4 全屏结果层：招募揭示/大额奖励等强反馈场景；复用 protoMask 类保证就地重开逻辑兼容 */
+    protected _openResult(title: string, buildBody: (box: HTMLDivElement, close: () => void) => void): void {
+        if (!this._root || document.querySelector('#homeUi .protoMask')) {
+            return;
+        }
+        const mask = document.createElement('div');
+        mask.className = 'protoMask resultMask';
+        mask.onclick = (e) => {
+            e.stopPropagation();
+            if (e.target === mask) {
+                mask.remove();
+            }
+        };
+        const box = document.createElement('div');
+        box.className = 'mbox frame resultBox';
+        box.onclick = (e) => e.stopPropagation();
+        const head = document.createElement('div');
+        head.className = 'mHead';
+        const h3 = document.createElement('h3');
+        h3.textContent = title;
+        const x = document.createElement('button');
+        x.className = 'mClose';
+        x.textContent = '✕';
+        x.onclick = (e) => {
+            e.stopPropagation();
+            mask.remove();
+        };
+        head.appendChild(h3);
+        head.appendChild(x);
+        box.appendChild(head);
+        const close = () => mask.remove();
+        buildBody(box, close);
+        mask.appendChild(box);
+        this._root.appendChild(mask);
+    }
+
+
     // ================= 顶栏（全局） =================
 
     /** 顶栏：玩家头像 + 名牌/等级/经验条 + 三资源胶囊（金币/钻石/体力） */
@@ -356,8 +433,8 @@ export abstract class HomeUiCore extends Component {
                 ico.style.backgroundSize = 'contain';
                 ico.style.backgroundRepeat = 'no-repeat';
                 ico.style.backgroundPosition = 'center';
-                ico.style.width = 'calc(22px * var(--pw,2.5))';
-                ico.style.height = 'calc(22px * var(--pw,2.5))';
+                ico.style.width = 'calc(16px * var(--pw,2.5))';
+                ico.style.height = 'calc(16px * var(--pw,2.5))';
                 ico.style.display = 'inline-block';
                 ico.textContent = '';
             });
@@ -385,7 +462,9 @@ export abstract class HomeUiCore extends Component {
         mkRes('diamond', 'ui/res_diamond');
         mkRes('stamina', 'ui/res_stamina');
         bar.appendChild(reswrap);
-        // 邮箱入口（顶栏右侧，齿轮前；未读红点）
+        // 邮箱 + 设置收进 HUD 右侧工具组（与资源胶囊同一行，不再下探）
+        const util = document.createElement('div');
+        util.className = 'hudUtil';
         const mailBtn = document.createElement('button');
         mailBtn.className = 'btn dark sm setGear homeMailBtn';
         mailBtn.textContent = '📬';
@@ -395,9 +474,8 @@ export abstract class HomeUiCore extends Component {
             SoundFx.play('ui');
             this._openMailModal();
         };
-        bar.appendChild(mailBtn);
+        util.appendChild(mailBtn);
         this._homeMailBtn = mailBtn;
-        // 设置入口（顶栏右侧齿轮）
         const gear = document.createElement('button');
         gear.className = 'btn dark sm setGear';
         gear.textContent = '⚙️';
@@ -407,7 +485,8 @@ export abstract class HomeUiCore extends Component {
             SoundFx.play('ui');
             this._openSettingsModal();
         };
-        bar.appendChild(gear);
+        util.appendChild(gear);
+        bar.appendChild(util);
         root.appendChild(bar);
     }
 
@@ -434,7 +513,7 @@ export abstract class HomeUiCore extends Component {
             this._expFill.style.width = `${Math.max(5, pct)}%`;
         }
         if (this._expNum) {
-            this._expNum.textContent = `最远波次 ${gm.bestWave} · 已通关 ${gm.stageCleared}/${FINAL_STAGE_ID} 章`;
+            this._expNum.textContent = `波次 ${gm.bestWave} · 通关 ${gm.stageCleared}/${FINAL_STAGE_ID} 章`;
         }
         // 天赋点随经验/通关变化，顺带刷新入口红点（_refreshTop 是所有进度变动后的统一出口）
         this._refreshTalentRed();
@@ -450,7 +529,7 @@ export abstract class HomeUiCore extends Component {
         const NAV: Array<{ key: string; icon: string; name: string; main?: boolean }> = [
             { key: 'mall', icon: '🛒', name: '商店' },
             { key: 'heroes', icon: '🎖️', name: '英雄' },
-            { key: 'battle', icon: '🚚', name: '关卡', main: true },
+            { key: 'battle', icon: '🚚', name: '战斗', main: true },
             { key: 'core', icon: '🎮', name: '玩法' },
             { key: 'base', icon: '🏰', name: '基地' },
         ];
@@ -496,6 +575,10 @@ export abstract class HomeUiCore extends Component {
         for (const key of Object.keys(this._navBtns)) {
             this._navBtns[key].classList.toggle('on', key === page);
         }
+        // 悬浮栏只随战斗页出现（左运营/右快捷），其余四页通栏
+        document.querySelectorAll('#homeUi .floatRail').forEach(el => {
+            el.classList.toggle('on', page === 'battle');
+        });
         if (page === 'battle') {
             this._refreshStagePage();
         }

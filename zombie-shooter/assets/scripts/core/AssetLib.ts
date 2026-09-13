@@ -22,6 +22,7 @@ const MANIFEST = [
     'ui/res_gold', 'ui/res_diamond', 'ui/res_stamina',
     'scenes/vehicle_tail',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
+    'characters/commander', 'characters/specialists',
     'monsters/stoneape', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',
     // 怪物行走序列帧（AI 视频抽帧打包，见 tools/video_to_sheet.py；缺图回退整图/占位）
     'monsters/boar_walk', 'monsters/bear_walk', 'monsters/eagle_walk', 'monsters/stoneape_walk',

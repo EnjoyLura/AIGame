@@ -58,7 +58,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         if (!grid) {
             return;
         }
-        const cards = grid.querySelectorAll<HTMLElement>('.bcard[data-entry]');
+        const cards = grid.querySelectorAll<HTMLElement>('.modeRow[data-entry]');
         for (const card of cards) {
             const red = card.querySelector('.bcardRed');
             if (red) {
@@ -1027,48 +1027,46 @@ export abstract class HomeUiPlay extends HomeUiStage {
 
     // ================= 玩法页（日常运营 + 玩法入口） =================
 
-    /** 玩法页：每日任务/签到横幅（自基地横幅迁入）+ 试炼/副本/远征/图鉴/排行五大玩法入口卡 */
+    /** 玩法页：每日任务/签到状态卡（红点驱动，点击直达）+ 试炼/副本/远征/图鉴/排行入口行 */
     protected _buildPlayPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.core = page;
         page.appendChild(this._mkHeading('玩法大厅', '日常运营 · 挑战 · 图鉴'));
 
-        // 日常横幅：任务 + 签到（运营功能与基地建筑养成解耦，集中放在玩法页顶部）
-        const duty = document.createElement('div');
-        duty.className = 'dutyBanner panel frame';
-        duty.innerHTML = `<div class="dutyInfo"><h3>📣 每日运营</h3>` +
-            `<p>完成任务领活跃宝箱 · 连续签到拿稀有奖励</p></div>` +
-            `<button class="btn gold sm questEntry">📋 任务<span class="questRed"></span></button>` +
-            `<button class="btn gold sm signinEntry">📅 签到<span class="questRed"></span></button>`;
-        const questBtn = duty.querySelector('.questEntry') as HTMLButtonElement;
-        questBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openQuestModal();
+        // 日常状态卡：任务 + 签到（运营功能与基地建筑养成解耦，集中放在玩法页顶部）
+        const dutyRow = document.createElement('div');
+        dutyRow.className = 'dutyRow';
+        const mkDuty = (ic: string, title: string, sub: string, onTap: () => void): HTMLButtonElement => {
+            const card = document.createElement('button');
+            card.className = 'dutyCard panel frame';
+            card.innerHTML = `<span class="dcIc">${ic}</span><span class="dcTxt"><b>${title}</b><i>${sub}</i></span><i class="questRed"></i>`;
+            card.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                onTap();
+            };
+            dutyRow.appendChild(card);
+            return card;
         };
+        const questBtn = mkDuty('📋', '每日任务', '活跃宝箱 · 成就领奖', () => this._openQuestModal());
         this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
         this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
-        const signinBtn = duty.querySelector('.signinEntry') as HTMLButtonElement;
-        signinBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openSigninModal();
-        };
+        const signinBtn = mkDuty('📅', '每日签到', '七日奖励 · 断签不罚', () => this._openSigninModal());
         this._refreshSigninRed(signinBtn.querySelector('.questRed') as HTMLElement);
         this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
-        page.appendChild(duty);
+        page.appendChild(dutyRow);
 
-        // 五大玩法入口（BUILDINGS pureEntry：试炼/副本/远征/图鉴/排行）
-        const grid = document.createElement('div');
-        grid.className = 'baseGrid';
-        page.appendChild(grid);
-        this._playGridEl = grid;
+        // 玩法入口列表（BUILDINGS pureEntry：试炼/副本/远征/图鉴/排行）
+        const list = document.createElement('div');
+        list.className = 'modeList';
+        page.appendChild(list);
+        this._playGridEl = list;
         root.appendChild(page);
     }
 
 
-    /** 玩法页刷新：重建玩法入口卡（动态进度描述 + 红点 + 进入按钮） */
+    /** 玩法页刷新：入口行重绘（动态进度描述 + 红点 + 进入态） */
     protected _refreshPlayPage(): void {
         const grid = this._playGridEl;
         if (!grid) {
@@ -1076,7 +1074,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         }
         grid.innerHTML = '';
         const gm = GameManager.instance;
-        // 玩法定位短语（卡片副标题）
+        // 玩法定位短语（行内副标签）
         const sub: Record<string, string> = {
             trial: '爬塔挑战', dungeon: '材料产线', expedition: '离线派遣',
             bestiary: '图鉴收集', leaderboard: '积分竞技',
@@ -1086,39 +1084,35 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 continue;
             }
             const unlocked = gm.isBuildingUnlocked(b.id);
-            const card = document.createElement('div');
-            card.className = 'bcard panel' + (unlocked ? '' : ' locked');
-            card.dataset.entry = b.id;
-            card.title = b.intro ?? '';
+            const row = document.createElement('button');
+            row.className = 'modeRow panel' + (unlocked ? '' : ' locked lock');
+            row.dataset.entry = b.id;
+            row.title = b.intro ?? '';
             const ic = document.createElement('div');
-            ic.className = 'bIc';
+            ic.className = 'mmIc';
             ic.textContent = b.ic;
-            card.appendChild(ic);
-            const nm = document.createElement('div');
-            nm.className = 'bName';
-            nm.innerHTML = `${b.name}<span>${sub[b.id] ?? ''}</span>`;
-            card.appendChild(nm);
-            const ds = document.createElement('div');
-            ds.className = 'bDesc';
-            ds.textContent = unlocked ? this._pureEntryDesc(b.id) : `🔒 指挥中心 LV.${b.unlockHq} 解锁`;
-            card.appendChild(ds);
-            const btn = document.createElement('button');
-            btn.className = 'btn blue sm';
-            btn.style.width = '100%';
+            row.appendChild(ic);
+            const mid = document.createElement('div');
+            mid.className = 'mm';
+            mid.innerHTML = `<b>${b.name}<span class="mini4">${sub[b.id] ?? ''}</span></b>` +
+                `<i>${unlocked ? this._pureEntryDesc(b.id) : `🔒 指挥中心 LV.${b.unlockHq} 解锁`}</i>`;
+            row.appendChild(mid);
+            const btn = document.createElement('span');
+            btn.className = 'mmGo';
             btn.textContent = this._pureEntryBtnText(b.id);
-            btn.disabled = !unlocked;
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                this._enterPureEntry(b.id);
-            };
-            btn.style.opacity = btn.disabled ? '0.5' : '1';
-            card.appendChild(btn);
+            row.appendChild(btn);
+            if (unlocked) {
+                row.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._enterPureEntry(b.id);
+                };
+            }
             const red = document.createElement('span');
             red.className = 'bcardRed';
-            card.appendChild(red);
+            row.appendChild(red);
             this._refreshPureEntryRed(b.id, red);
-            grid.appendChild(card);
+            grid.appendChild(row);
         }
     }
 

@@ -19,13 +19,15 @@ ok('_build 不再构建技能页', !/_buildSkillPage\(viewport\)/.test(src));
 ok("_switchPage('core')→_refreshPlayPage", /page === 'core'[\s\S]{0,40}_refreshPlayPage\(\)/.test(src));
 ok('_refreshAll 含 _refreshPlayPage', /this\._refreshPlayPage\(\);\s*\n\s*this\._refreshBase\(\)/.test(src));
 
-// 3. 关卡页瘦身：页面无奖励预览/宝箱，收进弹窗
-ok('关卡页有 rewardEntry 按钮', /className = 'btn dark sm rewardEntry'/.test(src));
-ok('rewardEntry onclick 弹奖励弹窗', /rewardBtn\.onclick[\s\S]{0,120}_openStageRewardModal\(\)/.test(src));
+// 3. 战斗页重排：宝箱三档上浮主界面，金币区间/掉率明细收进弹窗
+ok('战斗页有宝箱详情按钮', /护送宝箱 · 奖励详情/.test(src));
+ok('详情按钮 onclick 弹奖励弹窗', /detailBtn\.onclick[\s\S]{0,120}_openStageRewardModal\(\)/.test(src));
 ok('_openStageRewardModal 存在', /protected _openStageRewardModal\(\): void \{/.test(src));
 ok('弹窗含金币区间公式(metaGoldMul×depotGoldMul×rewardMul)', /gm\.metaGoldMul\(\) \* gm\.depotGoldMul\(\) \* diffDef\.rewardMul/.test(src));
-ok('弹窗含宝箱三档+领取', /_openStageRewardModal[\s\S]{0,4000}claimKey[\s\S]{0,3000}'领 取'/.test(src));
-ok('领取后就地重开弹窗', /this\._claimedChests\.add\(claimKey\)[\s\S]{0,400}_openStageRewardModal\(\)/.test(src));
+ok('宝箱三档上浮战斗页 _refreshBattleChests', /protected _refreshBattleChests\(\): void \{/.test(src));
+ok('_refreshStagePage 调用宝箱刷新', /this\._refreshBattleChests\(\);/.test(src));
+ok('宝箱就地在主界面领取', /_claimedChests\.add\(claimKey\)[\s\S]{0,600}_refreshBattleChests\(\)/.test(src));
+ok('弹窗不再含宝箱三档(已上浮)', !/_openStageRewardModal[\s\S]{0,4000}claimKey[\s\S]{0,3000}'领 取'/.test(src));
 ok('_refreshStagePage 不再查 chests', !/const chests = this\._chestsEl/.test(src));
 ok('_refreshStagePage 页面不再构建 lootPrev', !/page\.appendChild\(lootPrev\)/.test(src));
 
@@ -39,32 +41,50 @@ ok('技能页三方法已删', !/_(build|refresh)SkillPage|_pickSkillHero/.test(
 ok('技能页三字段已删', !/_skillPickEl|_skillListEl|_skillSelIdx/.test(src));
 ok('_chestsEl/_lootPrevEl 字段已删', !/_chestsEl|_lootPrevEl/.test(src));
 
-// 5. 玩法页：任务/签到 + 五大玩法入口
+// 5. 玩法页：日常状态卡（任务/签到）+ 五大玩法入口行
 ok('_buildPlayPage 存在', /protected _buildPlayPage\(root: HTMLDivElement\): void \{/.test(src));
 ok('玩法页 heading', /玩法大厅/.test(src));
-ok('玩法页含任务+签到按钮', /dutyBanner[\s\S]{0,600}questEntry[\s\S]{0,300}signinEntry/.test(src));
+ok('玩法页含任务+签到状态卡', /dutyRow[\s\S]{0,600}dutyCard[\s\S]{0,600}questRed/.test(src));
 ok('玩法页红点接线 _questRedEl', /this\._questRedEl = questBtn\.querySelector/.test(src));
 ok('玩法页红点接线 _signinRedEl', /this\._signinRedEl = signinBtn\.querySelector/.test(src));
-ok('玩法页 grid 挂 _playGridEl', /this\._playGridEl = grid/.test(src));
-ok('玩法卡遍历 BUILDINGS pureEntry', /_refreshPlayPage[\s\S]{0,600}if \(!b\.pureEntry\) \{\s*\n\s*continue;/.test(src));
-ok('玩法卡 data-entry 属性', /card\.dataset\.entry = b\.id/.test(src));
-ok('玩法卡走 _pureEntryDesc/_pureEntryBtnText/_enterPureEntry',
-  /ds\.textContent = unlocked \? this\._pureEntryDesc\(b\.id\)/.test(src) &&
+ok('玩法行列表挂 _playGridEl', /this\._playGridEl = list/.test(src));
+ok('玩法行遍历 BUILDINGS pureEntry', /_refreshPlayPage[\s\S]{0,600}if \(!b\.pureEntry\) \{\s*\n\s*continue;/.test(src));
+ok('玩法行 data-entry 属性', /row\.dataset\.entry = b\.id/.test(src));
+ok('玩法行走 _pureEntryDesc/_pureEntryBtnText/_enterPureEntry',
+  /unlocked \? this\._pureEntryDesc\(b\.id\) :/.test(src) &&
   /btn\.textContent = this\._pureEntryBtnText\(b\.id\)/.test(src) &&
   /this\._enterPureEntry\(b\.id\)/.test(src));
-ok('玩法卡红点 _refreshPureEntryRed', /_refreshPureEntryRed\(b\.id, red\)/.test(src));
+ok('玩法行红点 _refreshPureEntryRed', /_refreshPureEntryRed\(b\.id, red\)/.test(src));
 ok('基地横幅不再含任务/签到按钮', !/questEntry|signinEntry/.test(readUi('HomeUiBase.ts')));
 
 // 6. 红点增量刷新迁移
 ok('_refreshEntryReds 查玩法页+dataset', /_refreshEntryReds[\s\S]{0,400}this\._playGridEl[\s\S]{0,300}card\.dataset\.entry/.test(src));
 ok('_refreshEntryReds 不再查基地 grid', !/const grid = this\._baseGridEl;\s*\n\s*if \(!grid\) \{\s*\n\s*return;\s*\n\s*\}\s*\n\s*const map/.test(src));
 
-// 7. 基地页只留养成建筑
+// 7. 基地页地图化：只留养成建筑 + META 局外强化卡
 ok('_refreshBase 跳过 pureEntry', /for \(const b of BUILDINGS\) \{\s*\n\s*if \(b\.pureEntry\) \{\s*\n\s*continue;\s*\n\s*\}/.test(src));
+ok('基地页挂 _baseMapEl 地图', /this\._baseMapEl = map/.test(src));
+ok('基地地图节点点击开详情抽屉', /node\.onclick[\s\S]{0,160}_openBuildingInfoModal\(b\.id\)/.test(src));
+ok('建筑详情走 _openSheet 抽屉', /_openBuildingInfoModal[\s\S]{0,400}this\._openSheet\(/.test(src));
+ok('建筑升级在抽屉内接线', /gm\.upgradeBuilding\(b\.id\)[\s\S]{0,300}this\._refreshBase\(\)/.test(src));
+ok('META 局外强化卡挂 _baseMetaEl', /this\._baseMetaEl = meta/.test(src));
+ok('_baseRows 累加字段已删', !/_baseRows/.test(src));
 
 // 8. 两层 CSS
-ok('dutyBanner base 层(--hs)', /#homeUi \.dutyBanner \{[^}]*--hs,1/.test(src));
-ok('dutyBanner 青瓷层(--pw)', /#homeUi \.dutyBanner \{[^}]*--pw,2\.5/.test(src));
-ok('rewardEntry 两层 CSS', (src.match(/#homeUi \.rewardEntry \{[^}]*\}/g) || []).length >= 2);
+ok('dutyCard base 层(--hs)', /#homeUi \.dutyCard \{[^}]*--hs,1/.test(src));
+ok('dutyCard 青瓷层(--pw)', /#homeUi \.dutyCard \{[^}]*--pw,2\.5/.test(src));
+ok('modeRow 两层 CSS', (src.match(/#homeUi \.modeRow \{[^}]*\}/g) || []).length >= 2);
+ok('baseMap/mapNode 两层 CSS', (src.match(/#homeUi \.mapNode \{[^}]*\}/g) || []).length >= 2);
+ok('rcard 两层 CSS', (src.match(/#homeUi \.rcard \{[^}]*\}/g) || []).length >= 2);
+ok('chestHead 两层 CSS', (src.match(/#homeUi \.chestHead \{[^}]*\}/g) || []).length >= 2);
+
+// 9. P0/P1 壳层关键接线
+ok('悬浮栏仅战斗页挂 on', /querySelectorAll\('#homeUi \.floatRail'\)[\s\S]{0,120}page === 'battle'/.test(src));
+ok('底部导航关卡→战斗', /key: 'battle', icon: '🚚', name: '战斗'/.test(src));
+ok('编队走 _openSheet 抽屉', /_openSquadModal[\s\S]{0,400}this\._openSheet\(/.test(src));
+ok('招募结果走 _openResult 全屏层', /_openRecruitResultModal[\s\S]{0,600}this\._openResult\(/.test(src));
+ok('招募单抽/十连进商店 rcard', /doPull = \(count: 1 \| 10, free = false\)/.test(src));
+ok('英雄页 fcol 三竖钮(核心/强化/天赋)', /fcol[\s\S]{0,600}_openCoreModal[\s\S]{0,400}_openWeaponModal[\s\S]{0,400}_openTalentModal/.test(src));
+ok('装备六槽 eqGrid', /className = 'eqGrid'/.test(src));
 
 process.exit(fail ? 1 : 0);

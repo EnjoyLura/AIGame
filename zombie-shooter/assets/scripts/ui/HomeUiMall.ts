@@ -53,12 +53,70 @@ export abstract class HomeUiMall extends HomeUiCore {
 
     protected _mallAdLab: HTMLDivElement | null = null;
 
+    /** 招募主卡（自英雄页上浮到商店页顶部） */
+    protected _rcardEl: HTMLDivElement | null = null;
+
+
+    // ---- 招募主卡分发（招募弹窗与结果揭示实现在链下游 HomeUiHeroes，此处声明入口） ----
+    protected abstract _openRecruitModal(): void;
+    protected abstract _openRecruitResultModal(results: RecruitResult[]): void;
+
 
     protected _buildMallPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.mall = page;
         page.appendChild(this._mkHeading('补给商店', '每日精选'));
+
+        // 招募主卡：保底进度 + 概率详情入口 + 单抽/十连/广告免费抽直达（抽卡结果走 L4 全屏结果层）
+        const rcard = document.createElement('div');
+        rcard.className = 'rcard panel frame';
+        rcard.innerHTML = `<div class="rcLeft"><div class="rcTitle">🎖️ 英雄招募</div>` +
+            `<div class="rcPity"><div class="rcBar"><i></i></div><span class="rcPityTxt"></span></div>` +
+            `<button class="rcDetail">概率详情 ›</button></div>` +
+            `<div class="rcActs"><button class="btn gold sm rcOne"></button>` +
+            `<button class="btn blue sm rcTen"></button><button class="btn adBtn sm rcAd"></button></div>`;
+        (rcard.querySelector('.rcDetail') as HTMLButtonElement).onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openRecruitModal();
+        };
+        const doPull = (count: 1 | 10, free = false) => {
+            const cost = count === 10 ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;
+            const diamNow = GameManager.instance.res.get('diamond');
+            if (!free && diamNow < cost) {
+                SoundFx.play('ui');
+                this._toast(`钻石不足：还差 💎${(cost - diamNow).toLocaleString()}`);
+                return;
+            }
+            const got = RecruitSystem.instance.recruit(count, free);
+            if (!got) {
+                SoundFx.play('ui');
+                this._toast('钻石不足');
+                return;
+            }
+            SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
+            this._refreshTop();
+            this._refreshMall();
+            this._openRecruitResultModal(got);
+        };
+        (rcard.querySelector('.rcOne') as HTMLButtonElement).onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            doPull(1);
+        };
+        (rcard.querySelector('.rcTen') as HTMLButtonElement).onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            doPull(10);
+        };
+        (rcard.querySelector('.rcAd') as HTMLButtonElement).onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            AdService.instance.claimReward('recruit', () => doPull(1, true));
+        };
+        page.appendChild(rcard);
+        this._rcardEl = rcard;
 
         // 限时礼包 banner（点击打开礼包弹窗）
         const banner = document.createElement('div');
@@ -118,6 +176,34 @@ export abstract class HomeUiMall extends HomeUiCore {
         }
         // 顶栏资源（mall 页与全局顶栏共用数据）
         this._refreshTop();
+        // 招募主卡：保底进度 + 直达按钮文案态
+        const rcard = this._rcardEl;
+        if (rcard) {
+            const rs = RecruitSystem.instance;
+            const bar = rcard.querySelector('.rcBar i') as HTMLElement | null;
+            if (bar) {
+                bar.style.width = `${Math.round((RECRUIT_PITY - rs.pityLeft) / RECRUIT_PITY * 100)}%`;
+            }
+            const pityTxt = rcard.querySelector('.rcPityTxt') as HTMLElement | null;
+            if (pityTxt) {
+                pityTxt.textContent = `已招募 ${rs.totalRecruits} 次 · 距保底 ${rs.pityLeft} 抽`;
+            }
+            const one = rcard.querySelector('.rcOne') as HTMLButtonElement | null;
+            if (one) {
+                one.textContent = `单抽 💎${RECRUIT_PRICE_1}`;
+            }
+            const ten = rcard.querySelector('.rcTen') as HTMLButtonElement | null;
+            if (ten) {
+                ten.textContent = `十连 💎${RECRUIT_PRICE_10}`;
+            }
+            const ad = rcard.querySelector('.rcAd') as HTMLButtonElement | null;
+            if (ad) {
+                const adLeft = AdService.instance.remaining('recruit');
+                ad.textContent = adLeft > 0 ? `▶ 广告免费抽 ${adLeft}/1` : '今日已免费抽';
+                ad.disabled = adLeft <= 0;
+                ad.style.opacity = ad.disabled ? '0.45' : '1';
+            }
+        }
         const TABS: Array<['hero' | 'equip' | 'gem' | 'mat', string]> = [
             ['hero', '🦸 英雄'], ['equip', '🛡️ 装备'], ['gem', '💎 宝石'], ['mat', '⚙️ 材料'],
         ];

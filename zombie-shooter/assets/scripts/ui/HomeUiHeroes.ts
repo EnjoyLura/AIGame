@@ -340,12 +340,12 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     }
 
 
-    /** 招募结果浮窗：卡片错峰揭示（复用 giftDropIn 动画），十连带汇总行 */
+    /** 招募结果浮窗（L4 全屏结果层）：卡片错峰揭示（复用 giftDropIn 动画），十连带汇总行 */
     protected _openRecruitResultModal(results: RecruitResult[]): void {
         const hasHero = results.some(r => r.kind === 'hero');
         const shardTotal = results.reduce((n, r) => n + (r.shardN ?? 0), 0);
         const heroCount = results.filter(r => r.kind === 'hero').length;
-        this._openModal(hasHero ? '🎖️ 招 募 大 成 功' : '🎖️ 招 募 结 果', (box) => {
+        this._openResult(hasHero ? '🎖️ 招 募 大 成 功' : '🎖️ 招 募 结 果', (box) => {
             box.classList.add('recruitResBox');
             const grid = document.createElement('div');
             grid.className = 'recruitResGrid' + (results.length > 1 ? ' many' : '');
@@ -492,30 +492,18 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         if (!pick || !body) {
             return;
         }
-        // 横滑选择条 + 招募入口 + 天赋入口
+        // 横滑选择条：招募入口（跳商店主卡）+ 英雄卡（天赋入口移至左功能列）
         pick.innerHTML = '';
         const recruitBtn = document.createElement('button');
         recruitBtn.className = 'hpick recruitEntry';
         recruitBtn.innerHTML = '<span class="pic rcIc">🎖️</span><i>招募</i>';
-        recruitBtn.title = '英雄招募（抽卡）';
+        recruitBtn.title = '前往商店招募主卡（抽卡）';
         recruitBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
-            this._openRecruitModal();
+            this._switchPage('mall');
         };
         pick.appendChild(recruitBtn);
-        const talentBtn = document.createElement('button');
-        talentBtn.className = 'hpick talentEntry2';
-        talentBtn.innerHTML = '<span class="pic rcIc">🌟</span><i>天赋<span class="questRed"></span></i>';
-        talentBtn.title = '天赋树（可用点数分配）';
-        talentBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openTalentModal();
-        };
-        pick.appendChild(talentBtn);
-        this._talentRedEl = talentBtn.querySelector('.questRed') as HTMLElement;
-        this._refreshTalentRed();
         HERO_DEFS.forEach((d, i) => {
             const owned = gm.isHeroOwned(d.id);
             const b = document.createElement('button');
@@ -582,7 +570,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         head.appendChild(power);
         body.appendChild(head);
 
-        // 中部：左槽列（头/身/臂）+ 立绘 + 右槽列（手/腿/脚）
+        // 中部：左功能列（核心/强化/天赋）+ 立绘 + 右装备格（2×3 六槽）
         const main = document.createElement('div');
         main.className = 'heroMain';
         const mkSlot = (slot: EquipSlot) => {
@@ -624,11 +612,6 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             };
             return el;
         };
-        const colL = document.createElement('div');
-        colL.className = 'slotCol';
-        colL.appendChild(mkSlot('head'));
-        colL.appendChild(mkSlot('body'));
-        colL.appendChild(mkSlot('gloves'));
         const fig = document.createElement('div');
         fig.className = 'heroFigure';
         const halo = document.createElement('div');
@@ -654,37 +637,51 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         fig.appendChild(emoji);
         fig.appendChild(heroLv);
         const colR = document.createElement('div');
-        colR.className = 'slotCol';
+        colR.className = 'eqGrid';
+        colR.appendChild(mkSlot('head'));
+        colR.appendChild(mkSlot('body'));
         colR.appendChild(mkSlot('wrist'));
         colR.appendChild(mkSlot('legs'));
+        colR.appendChild(mkSlot('gloves'));
         colR.appendChild(mkSlot('shoes'));
-        // 右缘纵向按钮列：英雄核心 / 武器强化（英雄立绘与左槽列之间，用户指定落点）
-        const side = document.createElement('div');
-        side.className = 'sideActions';
-        if (owned) {
-            const coreBtn = document.createElement('button');
-            coreBtn.className = 'btn blue';
-            coreBtn.textContent = '🧬 核心';
-            coreBtn.title = '英雄核心';
-            coreBtn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                this._openCoreModal(def.id);
-            };
-            const wpnBtn = document.createElement('button');
-            wpnBtn.className = 'btn blue';
-            wpnBtn.textContent = '🔧 强化';
-            wpnBtn.title = '武器强化';
-            wpnBtn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                this._openWeaponModal(def.id);
-            };
-            side.appendChild(coreBtn);
-            side.appendChild(wpnBtn);
-        }
-        main.appendChild(colL);
-        main.appendChild(side);
+        // 左功能列：英雄核心 / 武器强化 / 天赋树（未获得英雄时养成入口置灰，天赋全局可用）
+        const fcol = document.createElement('div');
+        fcol.className = 'fcol';
+        const coreBtn = document.createElement('button');
+        coreBtn.className = 'btn blue';
+        coreBtn.innerHTML = '🧬<span>核心</span>';
+        coreBtn.title = '英雄核心';
+        coreBtn.disabled = !owned;
+        coreBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openCoreModal(def.id);
+        };
+        const wpnBtn = document.createElement('button');
+        wpnBtn.className = 'btn blue';
+        wpnBtn.innerHTML = '🔧<span>强化</span>';
+        wpnBtn.title = '武器强化';
+        wpnBtn.disabled = !owned;
+        wpnBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openWeaponModal(def.id);
+        };
+        const talBtn = document.createElement('button');
+        talBtn.className = 'btn blue talentEntry2';
+        talBtn.innerHTML = '🌟<span>天赋<span class="questRed"></span></span>';
+        talBtn.title = '天赋树（可用点数分配）';
+        talBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openTalentModal();
+        };
+        fcol.appendChild(coreBtn);
+        fcol.appendChild(wpnBtn);
+        fcol.appendChild(talBtn);
+        this._talentRedEl = talBtn.querySelector('.questRed') as HTMLElement;
+        this._refreshTalentRed();
+        main.appendChild(fcol);
         main.appendChild(fig);
         main.appendChild(colR);
         body.appendChild(main);

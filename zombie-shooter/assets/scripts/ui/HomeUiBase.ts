@@ -32,21 +32,19 @@ import { HomeUiPlay } from './HomeUiPlay';
  * 基地页：建筑养成（升级建筑 + 局外强化）+ 建筑详情/载具改装弹窗。
  */
 export abstract class HomeUiBase extends HomeUiPlay {
-    /** 基地页强化行（迁移自战斗页的 META_UPGRADES） */
-    protected _baseRows: Array<{ def: (typeof META_UPGRADES)[number]; lv: HTMLElement; eff: HTMLDivElement; btn: HTMLButtonElement; cost: HTMLElement }> = [];
 
 
     /** 弹窗：护送编队（对齐原型 sq-slot + cand 网格，真数据 lineup） */
     // ================= 基地建筑详情浮窗 =================
 
-    /** 建筑详情浮窗：功能介绍 + 当前/下一级效果 + 升级信息（基地页「详情」按钮触发） */
+    /** 建筑详情抽屉（L2 sheet）：功能介绍 + 当前/下一级效果 + 升级动作（地图节点点击触发） */
     protected _openBuildingInfoModal(id: string): void {
         const gm = GameManager.instance;
         const b = BUILDINGS.find(x => x.id === id);
         if (!b) {
             return;
         }
-        this._openModal(`${b.ic} ${b.name}`, (box) => {
+        this._openSheet(`${b.ic} ${b.name}`, (box) => {
             box.classList.add('binfoBox');
             const lv = gm.buildingLevel(b.id);
             const maxed = lv >= b.maxLevel;
@@ -99,15 +97,52 @@ export abstract class HomeUiBase extends HomeUiPlay {
                 stRow.textContent = '✅ 已达满级';
                 box.appendChild(stRow);
             }
-            const ok = document.createElement('button');
-            ok.className = 'btn gold big biOk';
-            ok.textContent = '知道了';
-            ok.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                box.closest('.protoMask')?.remove();
-            };
-            box.appendChild(ok);
+            // 升级动作（可升级时直达；载具工坊附改装入口）
+            if (b.id === 'workshop' && unlocked) {
+                const tuneBtn = document.createElement('button');
+                tuneBtn.className = 'btn blue big';
+                tuneBtn.style.marginBottom = 'calc(10px * var(--hs,1))';
+                tuneBtn.textContent = '🔧 载具改装';
+                tuneBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    box.closest('.protoMask')?.remove();
+                    this._openTuningModal();
+                };
+                box.appendChild(tuneBtn);
+            }
+            const act = document.createElement('button');
+            act.className = 'btn gold big biOk';
+            if (!unlocked) {
+                act.textContent = `🔒 指挥中心 LV.${b.unlockHq} 解锁`;
+                act.disabled = true;
+            } else if (maxed) {
+                act.textContent = '已满级';
+                act.disabled = true;
+            } else if (hqBlocked) {
+                act.textContent = '🔒 先升级指挥中心';
+                act.disabled = true;
+            } else {
+                const cost = gm.buildingCost(b.id);
+                act.textContent = `🪙 ${cost.toLocaleString()} · 升 级`;
+                act.disabled = !gm.canUpgradeBuilding(b.id);
+                act.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.unlock();
+                    const nextLv = gm.buildingLevel(b.id) + 1;
+                    if (gm.upgradeBuilding(b.id)) {
+                        SoundFx.play('buy');
+                        this._toast(`${b.name} 升至 LV.${nextLv}`);
+                        this._refreshBase();
+                        this._refreshTop();
+                        // 就地重开抽屉同步等级与费用
+                        box.closest('.protoMask')?.remove();
+                        this._openBuildingInfoModal(b.id);
+                    }
+                };
+            }
+            act.style.opacity = act.disabled ? '0.5' : '1';
+            box.appendChild(act);
         });
     }
 
@@ -171,7 +206,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
 
     // ================= 基地页 =================
 
-    /** 基地页：基地横幅（繁荣度，_refreshBase 刷新）+ 建筑卡 2 列网格（真数据 BUILDINGS + META_UPGRADES） */
+    /** 基地页：基地横幅（繁荣度）+ 建筑地图（节点化布局，点击开详情/升级抽屉）+ 局外强化卡 */
     protected _buildBasePage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen';
@@ -188,23 +223,35 @@ export abstract class HomeUiBase extends HomeUiPlay {
             pros: banner.querySelector('.pros'),
             bar: banner.querySelector('.prosBar i'),
         };
-        const grid = document.createElement('div');
-        grid.className = 'baseGrid';
-        page.appendChild(grid);
-        this._baseGridEl = grid;
+        // 建筑地图（节点坐标在 _refreshBase 固定摆放）
+        const map = document.createElement('div');
+        map.className = 'baseMap';
+        page.appendChild(map);
+        this._baseMapEl = map;
+        // 局外强化（META_UPGRADES 卡网格）
+        const sec = document.createElement('div');
+        sec.className = 'secTitle';
+        sec.textContent = '⚒️ 局外强化';
+        page.appendChild(sec);
+        const meta = document.createElement('div');
+        meta.className = 'baseGrid';
+        page.appendChild(meta);
+        this._baseMetaEl = meta;
         root.appendChild(page);
     }
 
 
-    protected _baseGridEl: HTMLDivElement | null = null;
+    protected _baseMapEl: HTMLDivElement | null = null;
+
+    protected _baseMetaEl: HTMLDivElement | null = null;
 
     protected _baseBannerEls: { lv: HTMLElement | null; pros: HTMLElement | null; bar: HTMLElement | null } | null = null;
 
 
     protected _refreshBase(): void {
         const gm = GameManager.instance;
-        const grid = this._baseGridEl;
-        if (!grid) {
+        const map = this._baseMapEl;
+        if (!map) {
             return;
         }
         // 横幅：基地等级 = 指挥中心等级；繁荣度 = 建筑等级总和
@@ -221,8 +268,13 @@ export abstract class HomeUiBase extends HomeUiPlay {
                 bar.style.width = `${pro.max > 0 ? Math.max(3, Math.round(pro.cur / pro.max * 100)) : 0}%`;
             }
         }
-        grid.innerHTML = '';
-        // 建筑卡（真数据 BUILDINGS：等级持久化，升级提升全局成长上限）；玩法入口卡已迁玩法页，这里只渲染养成建筑
+        // 建筑地图节点重绘（养成建筑固定坐标摆放；玩法入口建筑不在此页）
+        map.innerHTML = '';
+        const POS: Record<string, [number, number]> = {
+            camp: [20, 12], lab: [50, 9], armory: [80, 12],
+            station: [15, 48], hq: [50, 44], depot: [85, 48],
+            workshop: [32, 80], radar: [68, 80],
+        };
         for (const b of BUILDINGS) {
             if (b.pureEntry) {
                 continue;
@@ -230,143 +282,66 @@ export abstract class HomeUiBase extends HomeUiPlay {
             const lv = gm.buildingLevel(b.id);
             const maxed = lv >= b.maxLevel;
             const unlocked = gm.isBuildingUnlocked(b.id);
-            const hqBlocked = !maxed && unlocked && b.id !== 'hq' && lv + 1 > gm.hqLevel() + 1;
-            const card = document.createElement('div');
-            card.className = 'bcard panel' + (unlocked ? '' : ' locked');
-            const ic = document.createElement('div');
-            ic.className = 'bIc';
-            ic.textContent = b.ic;
-            card.appendChild(ic);
-            const nm = document.createElement('div');
-            nm.className = 'bName';
-            nm.innerHTML = `${b.name}<span>LV.${lv}</span>`;
-            card.appendChild(nm);
-            // 详情浮窗按钮（右上角 ⓘ）
-            const infoBtn = document.createElement('button');
-            infoBtn.className = 'bInfoBtn';
-            infoBtn.textContent = 'ⓘ';
-            infoBtn.title = '建筑功能详情';
-            infoBtn.onclick = (e) => {
+            const pos = POS[b.id] ?? [50, 50];
+            const node = document.createElement('button');
+            node.className = 'mapNode panel' + (unlocked ? '' : ' lock');
+            node.style.left = `${pos[0]}%`;
+            node.style.top = `${pos[1]}%`;
+            node.innerHTML = `<span class="mnIc">${b.ic}</span><span class="mnName">${b.name}</span>` +
+                `<span class="mnLv">${unlocked ? `LV.${lv}${maxed ? ' · MAX' : ''}` : `🔒 HQ${b.unlockHq} 解锁`}</span>`;
+            node.title = unlocked ? `${b.name} · 点击查看详情/升级` : `${b.name} · 指挥中心 LV.${b.unlockHq} 解锁`;
+            node.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
                 this._openBuildingInfoModal(b.id);
             };
-            card.appendChild(infoBtn);
-            const ds = document.createElement('div');
-            ds.className = 'bDesc';
-            if (b.pureEntry) {
-                // 纯入口建筑：描述走玩法进度而非等级文案
-                ds.textContent = this._pureEntryDesc(b.id);
-            } else {
-                ds.textContent = maxed ? `${b.desc(lv)}（已满级）` : b.desc(lv + 1);
-            }
-            card.appendChild(ds);
-            const btn = document.createElement('button');
-            btn.className = 'btn gold sm';
-            btn.style.width = '100%';
-            if (b.pureEntry) {
-                // 纯入口建筑不参与升级，按钮即入口；可领/可刷时点亮红点
-                btn.className = 'btn blue sm';
-                btn.textContent = this._pureEntryBtnText(b.id);
-                btn.disabled = !unlocked;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.play('ui');
-                    this._enterPureEntry(b.id);
-                };
-                btn.style.opacity = btn.disabled ? '0.5' : '1';
-                card.appendChild(btn);
-                const red = document.createElement('span');
-                red.className = 'bcardRed';
-                card.appendChild(red);
-                this._refreshPureEntryRed(b.id, red);
-                grid.appendChild(card);
-                continue;
-            }
-            if (!unlocked) {
-                btn.textContent = `🔒 指挥中心 LV.${b.unlockHq} 解锁`;
-                btn.disabled = true;
-            } else if (maxed) {
-                btn.textContent = '已满级';
-                btn.disabled = true;
-            } else if (hqBlocked) {
-                btn.textContent = '🔒 先升级指挥中心';
-                btn.disabled = true;
-            } else {
-                const cost = gm.buildingCost(b.id);
-                btn.textContent = `🪙 ${cost.toLocaleString()}`;
-                btn.disabled = !gm.canUpgradeBuilding(b.id);
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    const nextLv = gm.buildingLevel(b.id) + 1;
-                    if (gm.upgradeBuilding(b.id)) {
-                        SoundFx.play('buy');
-                        this._toast(`${b.name} 升至 LV.${nextLv}`);
-                        this._refreshBase();
-                        this._refreshTop();
-                    }
-                };
-            }
-            btn.style.opacity = btn.disabled ? '0.5' : '1';
-            card.appendChild(btn);
-            // 载具工坊独有：改装入口（与升级按钮并存，改装上限随工坊等级走）
-            if (b.id === 'workshop' && unlocked) {
-                const tuneBtn = document.createElement('button');
-                tuneBtn.className = 'btn blue sm';
-                tuneBtn.style.width = '100%';
-                tuneBtn.textContent = '🔧 改装';
-                tuneBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.play('ui');
-                    this._openTuningModal();
-                };
-                card.appendChild(tuneBtn);
-            }
-            grid.appendChild(card);
+            map.appendChild(node);
         }
         // 局外强化卡（真数据 META_UPGRADES：火力/装甲/赏金/演练）
-        for (const def of META_UPGRADES) {
-            const lv = gm.upgradeLevel(def.id);
-            const maxed = lv >= def.maxLevel;
-            const cost = gm.upgradeCost(def.id);
-            const card = document.createElement('div');
-            card.className = 'bcard panel';
-            const ic = document.createElement('div');
-            ic.className = 'bIc';
-            ic.textContent = def.id === 'atk' ? '⚔️' : def.id === 'vehHp' ? '🛡️' : def.id === 'goldGain' ? '🪙' : '🎯';
-            card.appendChild(ic);
-            const nm = document.createElement('div');
-            nm.className = 'bName';
-            nm.innerHTML = `${def.name}<span>LV.${lv}</span>`;
-            card.appendChild(nm);
-            const ds = document.createElement('div');
-            ds.className = 'bDesc';
-            ds.textContent = maxed ? def.desc(lv) : def.desc(lv + 1);
-            card.appendChild(ds);
-            const btn = document.createElement('button');
-            btn.className = 'btn gold sm';
-            btn.style.width = '100%';
-            if (maxed) {
-                btn.textContent = '已满级';
-                btn.disabled = true;
-            } else {
-                btn.textContent = `🪙 ${cost.toLocaleString()}`;
-                btn.disabled = !gm.canUpgrade(def.id);
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    if (gm.buyUpgrade(def.id)) {
-                        SoundFx.play('buy');
-                        this._refreshBase();
-                        this._refreshTop();
-                    }
-                };
+        const meta = this._baseMetaEl;
+        if (meta) {
+            meta.innerHTML = '';
+            for (const def of META_UPGRADES) {
+                const lv = gm.upgradeLevel(def.id);
+                const maxed = lv >= def.maxLevel;
+                const cost = gm.upgradeCost(def.id);
+                const card = document.createElement('div');
+                card.className = 'bcard panel';
+                const ic = document.createElement('div');
+                ic.className = 'bIc';
+                ic.textContent = def.id === 'atk' ? '⚔️' : def.id === 'vehHp' ? '🛡️' : def.id === 'goldGain' ? '🪙' : '🎯';
+                card.appendChild(ic);
+                const nm = document.createElement('div');
+                nm.className = 'bName';
+                nm.innerHTML = `${def.name}<span>LV.${lv}</span>`;
+                card.appendChild(nm);
+                const ds = document.createElement('div');
+                ds.className = 'bDesc';
+                ds.textContent = maxed ? def.desc(lv) : def.desc(lv + 1);
+                card.appendChild(ds);
+                const btn = document.createElement('button');
+                btn.className = 'btn gold sm';
+                btn.style.width = '100%';
+                if (maxed) {
+                    btn.textContent = '已满级';
+                    btn.disabled = true;
+                } else {
+                    btn.textContent = `🪙 ${cost.toLocaleString()}`;
+                    btn.disabled = !gm.canUpgrade(def.id);
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.unlock();
+                        if (gm.buyUpgrade(def.id)) {
+                            SoundFx.play('buy');
+                            this._refreshBase();
+                            this._refreshTop();
+                        }
+                    };
+                }
+                btn.style.opacity = btn.disabled ? '0.5' : '1';
+                card.appendChild(btn);
+                meta.appendChild(card);
             }
-            btn.style.opacity = btn.disabled ? '0.5' : '1';
-            card.appendChild(btn);
-            grid.appendChild(card);
-            this._baseRows.push({ def, lv: nm, eff: ds, btn, cost: btn });
         }
         this._applyPendingTex();
     }
