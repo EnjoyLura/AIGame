@@ -33,6 +33,7 @@ import { HeroSystem, LootDrop, rollStageClearDrops, grantLootDrops } from '../co
 import { HitParticle } from './HitParticle';
 import { MortarFx, MORTAR_FX } from './MortarFx';
 import { HomeUi } from '../ui/HomeUi';
+import { LoginUi } from '../ui/LoginUi';
 import { SoundFx } from '../core/SoundFx';
 import { DungeonId, DungeonReward, dungeonFromCode, dungeonWaves, rollDungeonReward } from '../core/DungeonSystem';
 
@@ -340,11 +341,15 @@ export class BattleManager extends Component {
         this._abilityBar.rebind(this._heroes);
 
         GameManager.instance.load();
-        // 战斗外玩法：启动后先进入主城（战斗模拟冻结），点击出战才 beginRun
+        // 战斗外玩法：启动后先进入主城（战斗模拟冻结），点击出战才 beginRun；
+        // 登录层盖在主城之上（z-index 9000 > 8500），点「开始游戏」淡出揭开
         if (typeof document !== 'undefined') {
             const homeNode = createUINode('HomeUi');
             this.node.addChild(homeNode);
             homeNode.addComponent(HomeUi);
+            const loginNode = createUINode('LoginUi');
+            this.node.addChild(loginNode);
+            loginNode.addComponent(LoginUi);
         }
     }
 

@@ -656,9 +656,11 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         colR.appendChild(mkSlot('legs'));
         colR.appendChild(mkSlot('gloves'));
         colR.appendChild(mkSlot('shoes'));
-        // 左功能列：英雄核心 / 武器强化 / 技能养成 / 天赋树（未获得英雄时养成入口置灰，天赋全局可用）
+        // 功能入口拆双列分立绘两侧：左列 核心/强化/技能，右列 升星/天赋（未获得英雄时养成入口置灰，天赋全局可用）
         const fcol = document.createElement('div');
         fcol.className = 'fcol';
+        const fcolR = document.createElement('div');
+        fcolR.className = 'fcol';
         const coreBtn = document.createElement('button');
         coreBtn.className = 'btn blue';
         coreBtn.innerHTML = '🧬<span>核心</span>';
@@ -712,12 +714,13 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         fcol.appendChild(coreBtn);
         fcol.appendChild(wpnBtn);
         fcol.appendChild(skBtn);
-        fcol.appendChild(starBtn);
-        fcol.appendChild(talBtn);
+        fcolR.appendChild(starBtn);
+        fcolR.appendChild(talBtn);
         this._talentRedEl = talBtn.querySelector('.questRed') as HTMLElement;
         this._refreshTalentRed();
         main.appendChild(fcol);
         main.appendChild(fig);
+        main.appendChild(fcolR);
         main.appendChild(colR);
         body.appendChild(main);
 

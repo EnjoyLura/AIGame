@@ -90,7 +90,8 @@ ok('底部导航关卡→战斗', /key: 'battle', icon: '🚚', name: '战斗'/.
 ok('编队走 _openSheet 抽屉', /_openSquadModal[\s\S]{0,400}this\._openSheet\(/.test(src));
 ok('招募结果走 _openResult 全屏层', /_openRecruitResultModal[\s\S]{0,600}this\._openResult\(/.test(src));
 ok('招募单抽/十连进商店 rcard', /doPull = \(count: 1 \| 10, free = false\)/.test(src));
-ok('英雄页 fcol 五竖钮(核心/强化/技能/升星/天赋)', /fcol[\s\S]{0,400}_openCoreModal[\s\S]{0,400}_openWeaponModal[\s\S]{0,400}_openSkillModal[\s\S]{0,500}_openStarModal[\s\S]{0,400}_openTalentModal/.test(src));
+ok('英雄页功能钮双列(左:核心/强化/技能 右:升星/天赋)', /fcolR\.appendChild\(starBtn\)/.test(src) && /main\.appendChild\(fcol\);[\s\S]{0,200}main\.appendChild\(fcolR\);/.test(src) && !/fcol\.appendChild\(talBtn\)/.test(src));
+ok('英雄页五钮齐备(核心/强化/技能/升星/天赋)', /fcol[\s\S]{0,400}_openCoreModal[\s\S]{0,400}_openWeaponModal[\s\S]{0,400}_openSkillModal[\s\S]{0,500}_openStarModal[\s\S]{0,400}_openTalentModal/.test(src));
 ok('战力徽章挂立绘下方', /fig\.appendChild\(power\)/.test(src) && !/head\.appendChild\(power\)/.test(src));
 ok('大升星条已删·改弹窗入口', !/className = 'starBar panel'/.test(src) && /_openStarModal\(heroId: string\): void/.test(src) && /starEntry/.test(src));
 ok('战力右侧 ⓘ 详情入口', /pwInfo/.test(src) && /power\.appendChild\(pwInfo\)/.test(src));

@@ -658,8 +658,8 @@ export const HOME_UI_CSS = `
 #homeUi .bagBar { display: flex; flex-direction: column; overflow: hidden; }
 #homeUi .bagBar .bagTabs { flex: none; }
 #homeUi .bagBar .bagGrid { flex: 1 1 auto; min-height: calc(160px * var(--hs,1)); overflow-y: auto; align-content: start; }
-#homeUi .heroMain { display: grid; grid-template-columns: calc(170px * var(--hs,1)) minmax(0,1fr) calc(330px * var(--hs,1)); align-items: center; gap: calc(12px * var(--hs,1)); padding: calc(12px * var(--hs,1)) 0; }
-/* 左功能列：核心/强化/天赋（自选择条与侧缘收拢） */
+#homeUi .heroMain { display: grid; grid-template-columns: calc(120px * var(--hs,1)) minmax(0,1fr) calc(120px * var(--hs,1)) calc(250px * var(--hs,1)); align-items: center; gap: calc(12px * var(--hs,1)); padding: calc(12px * var(--hs,1)) 0; }
+/* 功能入口双列：左列 核心/强化/技能，右列 升星/天赋，分立绘两侧 */
 #homeUi .fcol { display: flex; flex-direction: column; gap: calc(14px * var(--hs,1)); align-items: stretch; }
 #homeUi .fcol .btn { position: relative; width: 100%; height: calc(76px * var(--hs,1)); font-size: calc(22px * var(--hs,1));
   padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(4px * var(--hs,1)); }
@@ -1290,9 +1290,9 @@ export const HOME_UI_CSS = `
 #homeUi .bagBar .bagTabs { flex: none; }
 #homeUi .bagBar .bagGrid { flex: 1 1 auto; min-height: calc(120px * var(--pw,2.5)); overflow-y: auto; align-content: start;
   max-height: none; overscroll-behavior: contain; }
-#homeUi .heroMain { grid-template-columns: calc(54px * var(--pw,2.5)) minmax(0, 1fr) calc(118px * var(--pw,2.5)); gap: calc(5px * var(--pw,2.5));
+#homeUi .heroMain { grid-template-columns: calc(34px * var(--pw,2.5)) minmax(0, 1fr) calc(34px * var(--pw,2.5)) calc(96px * var(--pw,2.5)); gap: calc(5px * var(--pw,2.5));
   padding: calc(10px * var(--pw,2.5)) 0; background: linear-gradient(transparent, #d2e2eb); margin: 0 calc(-2px * var(--pw,2.5)); }
-/* 左功能列（青瓷）：核心/强化/技能/升星/天赋 窄竖排（五钮，均分） */
+/* 功能入口双列（青瓷）：左列 核心/强化/技能，右列 升星/天赋，分立绘两侧 */
 #homeUi .fcol { gap: calc(4px * var(--pw,2.5)); align-self: stretch; justify-content: space-evenly; }
 #homeUi .fcol .btn { height: calc(40px * var(--pw,2.5)); font-size: calc(10.5px * var(--pw,2.5));
   padding: 0; border-radius: calc(6px * var(--pw,2.5)); min-height: 0; }
