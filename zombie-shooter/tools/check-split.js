@@ -42,7 +42,7 @@ ok('abstract _heroSelIdx 属性', /protected abstract _heroSelIdx: number;/.test
 ok('Core: _openStaminaModal', /protected _openStaminaModal\(\): void \{/.test(src['HomeUiCore.ts']));
 ok('Core: _buildNoticeBar', /_buildNoticeBar\(root: HTMLDivElement\)/.test(src['HomeUiCore.ts']));
 ok('Mall: _refreshMall', /protected _refreshMall\(\)/.test(src['HomeUiMall.ts']));
-ok('Heroes: _renderSkillCards', /protected _renderSkillCards\(def: HeroDef\)/.test(src['HomeUiHeroes.ts']));
+ok('Heroes: _renderSkillCards', /protected _renderSkillCards\(def: HeroDef, onUpgraded\?: \(\) => void\)/.test(src['HomeUiHeroes.ts']));
 ok('Stage: _buildStagePage + _startBattle', /protected _buildStagePage\(root: HTMLDivElement\)/.test(src['HomeUiStage.ts']) && /protected _startBattle\(/.test(src['HomeUiStage.ts']));
 ok('Play: _refreshEntryReds 实现', /protected _refreshEntryReds\(\): void \{/.test(src['HomeUiPlay.ts']));
 ok('Base: _openTuningModal', /protected _openTuningModal\(\): void \{/.test(src['HomeUiBase.ts']));

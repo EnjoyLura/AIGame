@@ -38,7 +38,6 @@ export class DomHud extends Component {
     private static _styleInjected = false;
 
     private _root: HTMLDivElement | null = null;
-    private _timeEl: HTMLDivElement | null = null;
     private _waveEl: HTMLDivElement | null = null;
     private _killEl: HTMLDivElement | null = null;
     private _levelEl: HTMLDivElement | null = null;
@@ -134,12 +133,6 @@ export class DomHud extends Component {
         }
         const bm = BattleManager.instance;
         if (bm) {
-            const total = Math.floor(bm.elapsed);
-            const m = total / 60 | 0;
-            const s = total % 60;
-            if (this._timeEl) {
-                this._timeEl.textContent = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
-            }
             // 战斗暂停（含升级选卡）→ 冻结 DOM 伤害数字动画
             this._root.classList.toggle('paused', bm.isPaused);
             // 统计浮窗打开期间每 0.5s 实时刷新
@@ -949,6 +942,18 @@ export class DomHud extends Component {
     }
 
     private _build(): void {
+        // 安全区令牌兜底：正常流程 HomeUi 已填 --sat/--sab，直进战斗时在此自测填充
+        if (typeof document !== 'undefined' && !document.documentElement.style.getPropertyValue('--sat')) {
+            try {
+                const probe = document.createElement('div');
+                probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;'
+                    + 'padding-top:env(safe-area-inset-top,0px);';
+                document.body.appendChild(probe);
+                const top = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+                probe.remove();
+                document.documentElement.style.setProperty('--sat', `${top}px`);
+            } catch { /* 令牌保持默认 0px */ }
+        }
         const root = document.createElement('div');
         root.id = 'domHud';
         this._root = root;
@@ -960,46 +965,38 @@ export class DomHud extends Component {
         stamp.textContent = BUILD_STAMP + (bt ? '·' + bt : '');
         root.appendChild(stamp);
 
-        // 顶部信息板：深色渐变横条 + 左按钮组 / 中央波次 / 右侧时间·击杀 chips
+        // 顶部窄条 HUD（参考主流竖屏射击单行布局）：左按钮组 / 中央等级+经验条 / 右波次·击杀。
+        // 高度压到最小给战斗区让位；战斗时长不占 HUD（统计面板已有）。
         const top = document.createElement('div');
         top.className = 'topbar';
         root.appendChild(top);
         const topLeft = document.createElement('div');
         topLeft.className = 'topLeft';
         top.appendChild(topLeft);
-        topLeft.appendChild(this._button('暂停', () => this._togglePause(), 'pauseBtn'));
-        topLeft.appendChild(this._button('统计', () => this._toggleStats(), 'statsBtn'));
-        const waveChip = document.createElement('div');
-        waveChip.className = 'chip waveChip';
-        waveChip.appendChild(this._chipLab('波次'));
-        this._waveEl = this._chipVal(waveChip, '3 / 10');
-        top.appendChild(waveChip);
-        const topRight = document.createElement('div');
-        topRight.className = 'topRight';
-        top.appendChild(topRight);
-        const timeChip = document.createElement('div');
-        timeChip.className = 'chip';
-        timeChip.appendChild(this._chipLab('时间'));
-        this._timeEl = this._chipVal(timeChip, '00:00');
-        topRight.appendChild(timeChip);
-        const killChip = document.createElement('div');
-        killChip.className = 'chip killChip';
-        killChip.appendChild(this._chipLab('击杀'));
-        this._killEl = this._chipVal(killChip, '0');
-        topRight.appendChild(killChip);
-
-        // 经验条：等级徽章 + 渐变发光条
-        const xpRow = document.createElement('div');
-        xpRow.className = 'xpRow';
-        root.appendChild(xpRow);
-        this._levelEl = this._label(xpRow, 'levelBadge', 'Lv.1');
+        topLeft.appendChild(this._button('❚❚', () => this._togglePause(), 'pauseBtn'));
+        topLeft.appendChild(this._button('📊', () => this._toggleStats(), 'statsBtn'));
+        // 经验条并入顶栏中央：等级徽章 + 渐变发光条
         const xpBar = document.createElement('div');
         xpBar.className = 'xpBar';
         this._xpFill = document.createElement('div');
         this._xpFill.className = 'xpFill';
         this._xpFill.style.width = '0%';
         xpBar.appendChild(this._xpFill);
-        xpRow.appendChild(xpBar);
+        top.appendChild(xpBar);
+        this._levelEl = this._label(xpBar, 'levelBadge', 'Lv.1');
+        const topRight = document.createElement('div');
+        topRight.className = 'topRight';
+        top.appendChild(topRight);
+        const waveChip = document.createElement('div');
+        waveChip.className = 'chip waveChip';
+        waveChip.appendChild(this._chipLab('波次'));
+        this._waveEl = this._chipVal(waveChip, '3 / 10');
+        topRight.appendChild(waveChip);
+        const killChip = document.createElement('div');
+        killChip.className = 'chip killChip';
+        killChip.appendChild(this._chipLab('击杀'));
+        this._killEl = this._chipVal(killChip, '0');
+        topRight.appendChild(killChip);
 
         // 载具耐久：标签 + 轨道条 + 数值（warn/danger/hit 状态）+ 低耐久红晕
         const vBar = document.createElement('div');
@@ -1402,40 +1399,44 @@ export class DomHud extends Component {
 #domHud button { pointer-events: auto; cursor: pointer; font: inherit;
   transition: transform .06s ease, filter .06s ease; }
 #domHud button:active { transform: translateY(calc(4px * var(--s,1))) scale(.98); filter: brightness(.92); }
-#domHud .topbar { position: absolute; top: 0; left: 0; right: 0; height: calc(120px * var(--s, 1));
-  background: linear-gradient(180deg, rgba(9,14,20,.92) 0%, rgba(13,22,31,.75) 62%, rgba(13,22,31,0) 100%); }
-#domHud .topLeft { position: absolute; left: calc(16px * var(--s,1)); top: calc(30px * var(--s,1)); display: flex; gap: calc(12px * var(--s,1)); }
-#domHud .topRight { position: absolute; right: calc(16px * var(--s,1)); top: calc(40px * var(--s,1)); display: flex; align-items: center; gap: calc(14px * var(--s,1)); }
-#domHud .chip { display: flex; align-items: baseline; gap: calc(8px * var(--s,1)); padding: calc(10px * var(--s,1)) calc(22px * var(--s,1));
+/* 顶部窄条 HUD：高 88 设计像素 + 安全区避让（刘海屏不遮挡），单行布局 */
+#domHud .topbar { position: absolute; top: var(--sat, 0px); left: 0; right: 0; height: calc(88px * var(--s, 1));
+  display: flex; align-items: center; justify-content: space-between; gap: calc(12px * var(--s,1));
+  padding: 0 calc(12px * var(--s,1));
+  background: linear-gradient(180deg, rgba(9,14,20,.92) 0%, rgba(13,22,31,.68) 62%, rgba(13,22,31,0) 100%); }
+#domHud .topLeft { flex: none; display: flex; gap: calc(12px * var(--s,1)); }
+#domHud .topRight { flex: none; display: flex; align-items: center; gap: calc(12px * var(--s,1)); }
+#domHud .chip { display: flex; align-items: baseline; gap: calc(6px * var(--s,1)); padding: calc(6px * var(--s,1)) calc(16px * var(--s,1));
   border-radius: calc(999px * var(--s,1)); background: rgba(10,18,26,.62);
   border: calc(2px * var(--s,1)) solid rgba(128,222,228,.25);
   box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.4); }
-#domHud .chipLab { font-size: calc(22px * var(--s,1)); color: #8fa0ab; letter-spacing: 1px; }
-#domHud .chipVal { font-size: calc(34px * var(--s,1)); color: #ecf1f1; font-variant-numeric: tabular-nums; }
-#domHud .waveChip { position: absolute; left: 50%; transform: translateX(-50%); top: calc(34px * var(--s,1));
-  border-color: rgba(255,204,85,.4); }
+#domHud .chipLab { font-size: calc(19px * var(--s,1)); color: #8fa0ab; letter-spacing: 1px; }
+#domHud .chipVal { font-size: calc(26px * var(--s,1)); color: #ecf1f1; font-variant-numeric: tabular-nums; }
+#domHud .waveChip { border-color: rgba(255,204,85,.4); }
 #domHud .waveChip .chipVal { color: #ffd76a; font-weight: 800; }
+/* 经验条居中占位：等级徽章叠在轨道左端 */
+#domHud .topbar .xpBar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: calc(360px * var(--s,1)); height: calc(22px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+  background: rgba(8,14,20,.8); border: calc(2px * var(--s,1)) solid rgba(128,222,228,.28);
+  overflow: visible; box-shadow: inset 0 calc(3px * var(--s,1)) calc(6px * var(--s,1)) rgba(0,0,0,.5); }
+#domHud .topbar .xpFill { position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+  background: linear-gradient(90deg, #1e88a8, #4dd0e9 60%, #a5f3ff);
+  box-shadow: 0 0 calc(12px * var(--s,1)) rgba(77,208,233,.55); transition: width .25s ease; }
+#domHud .levelBadge { position: absolute; left: calc(-8px * var(--s,1)); top: 50%;
+  transform: translateY(-50%); z-index: 1; min-width: calc(84px * var(--s,1)); height: calc(40px * var(--s,1));
+  padding: 0 calc(14px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(26px * var(--s,1)); font-weight: 800;
+  color: #ffffff; background: linear-gradient(180deg, #2aa7cc, #1e88a8);
+  border: calc(3px * var(--s,1)) solid #9be7ff; box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
 #domHud .killChip .chipVal { color: #ff8f9a; font-weight: 800; }
 #domHud .buildStamp { position: absolute; left: calc(16px * var(--s,1)); bottom: calc(10px * var(--s,1));
   font-size: calc(22px * var(--s,1)); color: #c3ced5; letter-spacing: .5px;
   padding: 2px 4px; border-radius: 3px; background: rgba(15,22,30,.75); }
 #domHud .hudBtn { border-radius: calc(18px * var(--s,1)); border: calc(2px * var(--s,1)) solid #80dee4;
-  width: calc(84px * var(--s,1)); height: calc(84px * var(--s,1));
+  width: calc(62px * var(--s,1)); height: calc(62px * var(--s,1)); padding: 0;
   background: linear-gradient(180deg, #344652 0%, #26343f 55%, #1b2630 100%);
-  color: #ecf1f1; font-size: calc(27px * var(--s,1)); line-height: 1;
+  color: #ecf1f1; font-size: calc(24px * var(--s,1)); line-height: 1;
   box-shadow: 0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.45), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.28); }
-#domHud .xpRow { position: absolute; top: calc(128px * var(--s,1)); left: calc(34px * var(--s,1));
-  right: calc(34px * var(--s,1)); height: calc(46px * var(--s,1)); display: flex; align-items: center; gap: calc(16px * var(--s,1)); }
-#domHud .levelBadge { flex: none; min-width: calc(96px * var(--s,1)); height: calc(46px * var(--s,1));
-  padding: 0 calc(18px * var(--s,1)); border-radius: calc(999px * var(--s,1));
-  display: flex; align-items: center; justify-content: center; font-size: calc(30px * var(--s,1)); font-weight: 800;
-  color: #ffffff; background: linear-gradient(180deg, #2aa7cc, #1e88a8);
-  border: calc(3px * var(--s,1)) solid #9be7ff; box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
-#domHud .xpBar { flex: 1; height: calc(24px * var(--s,1)); border-radius: calc(999px * var(--s,1));
-  background: rgba(8,14,20,.8); border: calc(2px * var(--s,1)) solid rgba(128,222,228,.28);
-  overflow: hidden; box-shadow: inset 0 calc(3px * var(--s,1)) calc(6px * var(--s,1)) rgba(0,0,0,.5); }
-#domHud .xpFill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1e88a8, #4dd0e9 60%, #a5f3ff);
-  box-shadow: 0 0 calc(12px * var(--s,1)) rgba(77,208,233,.55); transition: width .25s ease; }
 #domHud .vehicleBar { position: absolute; left: 50%;
   transform: translateX(-50%); width: calc(480px * var(--s,1)); height: calc(40px * var(--s,1));
   display: flex; align-items: center; gap: calc(12px * var(--s,1)); padding: 0 calc(20px * var(--s,1));
@@ -1448,7 +1449,7 @@ export class DomHud extends Component {
   background: linear-gradient(90deg, #8a5a1e, #d99b42 60%, #ffcf7d); transition: width .25s ease; }
 #domHud .vehicleBar.warn .vehicleFill { background: linear-gradient(90deg, #a05a12, #ff8f3d 60%, #ffc37d); }
 #domHud .vehicleBar.danger .vehicleFill { background: linear-gradient(90deg, #8f1d1d, #ff4d4d 60%, #ff9d9d); }
-#domHud .bossBar { position: absolute; left: 50%; top: calc(196px * var(--s,1));
+#domHud .bossBar { position: absolute; left: 50%; top: calc(var(--sat, 0px) + 104px * var(--s,1));
   transform: translateX(-50%); width: calc(640px * var(--s,1)); display: flex; flex-direction: column;
   align-items: center; gap: calc(6px * var(--s,1)); padding: calc(10px * var(--s,1)) calc(24px * var(--s,1));
   border-radius: calc(16px * var(--s,1)); background: rgba(8,12,18,.72);
