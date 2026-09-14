@@ -1032,7 +1032,6 @@ export abstract class HomeUiPlay extends HomeUiStage {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.core = page;
-        page.appendChild(this._mkHeading('玩法大厅', '日常运营 · 挑战 · 图鉴'));
 
         // 日常状态卡：任务 + 签到（运营功能与基地建筑养成解耦，集中放在玩法页顶部）
         const dutyRow = document.createElement('div');

@@ -66,7 +66,6 @@ export abstract class HomeUiMall extends HomeUiCore {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.mall = page;
-        page.appendChild(this._mkHeading('补给商店', '每日精选'));
 
         // 招募主卡：保底进度 + 概率详情入口 + 单抽/十连/广告免费抽直达（抽卡结果走 L4 全屏结果层）
         const rcard = document.createElement('div');

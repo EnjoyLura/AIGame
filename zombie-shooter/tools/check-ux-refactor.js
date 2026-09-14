@@ -32,9 +32,11 @@ ok('_refreshStagePage 不再查 chests', !/const chests = this\._chestsEl/.test(
 ok('_refreshStagePage 页面不再构建 lootPrev', !/page\.appendChild\(lootPrev\)/.test(src));
 
 // 4. 英雄页吸收技能
-ok('_renderSkillCards 存在', /protected _renderSkillCards\(def: HeroDef\): HTMLDivElement \{/.test(src));
-ok('英雄页插入技能区块(secTitle)', /技能养成 · 点击卡片查看升级详情/.test(src));
-ok('英雄页技能区块仅 owned 显示', /if \(owned\) \{\s*\n\s*const skillHead/.test(src));
+ok('_renderSkillCards 存在', /protected _renderSkillCards\(def: HeroDef, onUpgraded\?: \(\) => void\): HTMLDivElement \{/.test(src));
+ok('技能养成改左功能列按钮入口', /skillEntry/.test(src) && /⚡<span>技能<\/span>/.test(src));
+ok('技能弹窗 _openSkillModal 存在', /protected _openSkillModal\(heroId: string\): void/.test(src));
+ok('英雄页不再内联技能区块', !/skillHead/.test(src));
+ok('技能弹窗升级原位重建', /this\._refreshTop\(\);\s*\n\s*onUpgraded\?\.\(\)/.test(src));
 ok('技能升级成功走 _refreshHeroes', /hs\.upgradeAbility\(def\.id, c\.slot\)\)[\s\S]{0,300}this\._refreshHeroes\(\)/.test(src));
 ok('技能弹窗升级同步英雄页', /this\._refreshHeroes\(\);\s*\n\s*this\._openAbilityModal\(heroId, slot\)/.test(src));
 ok('技能页三方法已删', !/_(build|refresh)SkillPage|_pickSkillHero/.test(src));
@@ -43,7 +45,8 @@ ok('_chestsEl/_lootPrevEl 字段已删', !/_chestsEl|_lootPrevEl/.test(src));
 
 // 5. 玩法页：日常状态卡（任务/签到）+ 五大玩法入口行
 ok('_buildPlayPage 存在', /protected _buildPlayPage\(root: HTMLDivElement\): void \{/.test(src));
-ok('玩法页 heading', /玩法大厅/.test(src));
+ok('玩法页不再有页标题', !/_mkHeading\(/.test(src));
+ok('页标题方法已删（CSS 遗留规则无害）', !/protected _mkHeading/.test(src));
 ok('玩法页含任务+签到状态卡', /dutyRow[\s\S]{0,600}dutyCard[\s\S]{0,600}questRed/.test(src));
 ok('玩法页红点接线 _questRedEl', /this\._questRedEl = questBtn\.querySelector/.test(src));
 ok('玩法页红点接线 _signinRedEl', /this\._signinRedEl = signinBtn\.querySelector/.test(src));
@@ -80,11 +83,19 @@ ok('chestHead 两层 CSS', (src.match(/#homeUi \.chestHead \{[^}]*\}/g) || []).l
 
 // 9. P0/P1 壳层关键接线
 ok('悬浮栏仅战斗页挂 on', /querySelectorAll\('#homeUi \.floatRail'\)[\s\S]{0,120}page === 'battle'/.test(src));
+ok('胶囊禁入区：viewport-fit=cover', /viewport-fit=cover/.test(require('fs').readFileSync('build-templates/web-mobile/index.html', 'utf8')));
+ok('胶囊禁入区：_applySafeArea 探针填令牌', /_applySafeArea/.test(src) && /setProperty\('--sat'/.test(src) && /setProperty\('--sab'/.test(src));
+ok('胶囊禁入区：CSS 挂令牌（顶栏/CTA/底栏/悬浮栏/toast/弹窗）', (src.match(/var\(--sat,0px\)|var\(--sab,0px\)/g) || []).length >= 10);
 ok('底部导航关卡→战斗', /key: 'battle', icon: '🚚', name: '战斗'/.test(src));
 ok('编队走 _openSheet 抽屉', /_openSquadModal[\s\S]{0,400}this\._openSheet\(/.test(src));
 ok('招募结果走 _openResult 全屏层', /_openRecruitResultModal[\s\S]{0,600}this\._openResult\(/.test(src));
 ok('招募单抽/十连进商店 rcard', /doPull = \(count: 1 \| 10, free = false\)/.test(src));
-ok('英雄页 fcol 三竖钮(核心/强化/天赋)', /fcol[\s\S]{0,600}_openCoreModal[\s\S]{0,400}_openWeaponModal[\s\S]{0,400}_openTalentModal/.test(src));
+ok('英雄页 fcol 五竖钮(核心/强化/技能/升星/天赋)', /fcol[\s\S]{0,400}_openCoreModal[\s\S]{0,400}_openWeaponModal[\s\S]{0,400}_openSkillModal[\s\S]{0,500}_openStarModal[\s\S]{0,400}_openTalentModal/.test(src));
+ok('战力徽章挂立绘下方', /fig\.appendChild\(power\)/.test(src) && !/head\.appendChild\(power\)/.test(src));
+ok('大升星条已删·改弹窗入口', !/className = 'starBar panel'/.test(src) && /_openStarModal\(heroId: string\): void/.test(src) && /starEntry/.test(src));
+ok('战力右侧 ⓘ 详情入口', /pwInfo/.test(src) && /power\.appendChild\(pwInfo\)/.test(src));
+ok('属性详情弹窗 _openPowerDetailModal', /protected _openPowerDetailModal\(heroId: string\): void/.test(src));
+ok('三维栏已删（statRow 不再构建）', !/className = 'statRow'/.test(src) && !/mkStat\(/.test(src));
 ok('装备六槽 eqGrid', /className = 'eqGrid'/.test(src));
 
 process.exit(fail ? 1 : 0);

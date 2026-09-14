@@ -458,7 +458,6 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const page = document.createElement('div');
         page.className = 'screen';
         this._pages.heroes = page;
-        page.appendChild(this._mkHeading('英雄档案', '护卫队 / 04'));
         const pick = document.createElement('div');
         pick.className = 'heroPick';
         page.appendChild(pick);
@@ -563,11 +562,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             `<span class="tag">${inLineup ? '已上阵' : '未上阵'} ${gm.lineup.length}/${GameManager.LINEUP_MAX}</span>`;
         hLeft.appendChild(hName);
         hLeft.appendChild(tagRow);
-        const power = document.createElement('div');
-        power.className = 'powerBadge';
-        power.innerHTML = `⚡ <span>${owned ? this._heroPower(def.id).toLocaleString() : '---'}</span>`;
         head.appendChild(hLeft);
-        head.appendChild(power);
         body.appendChild(head);
 
         // 中部：左功能列（核心/强化/天赋）+ 立绘 + 右装备格（2×3 六槽）
@@ -629,13 +624,30 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             emoji.style.backgroundPosition = 'center';
         });
         emoji.title = owned ? def.name : '未获得';
+        // 战力徽章挂在立绘正下方（火焰+数字，参考主流卡牌页），不再占头牌右侧
         const heroLv = document.createElement('div');
         heroLv.className = 'heroLv';
         heroLv.textContent = owned ? def.role : '未获得';
+        const power = document.createElement('div');
+        power.className = 'powerBadge';
+        power.innerHTML = `🔥 <span>${owned ? this._heroPower(def.id).toLocaleString() : '---'}</span>`;
+        // 战力右侧 ⓘ 详情：攻击/战力/装备加成明细收进弹窗（三维栏已从主页面移除）
+        const pwInfo = document.createElement('button');
+        pwInfo.className = 'pwInfo';
+        pwInfo.textContent = 'ⓘ';
+        pwInfo.title = '属性详情';
+        pwInfo.disabled = !owned;
+        pwInfo.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openPowerDetailModal(def.id);
+        };
+        power.appendChild(pwInfo);
         fig.appendChild(halo);
         fig.appendChild(halo2);
         fig.appendChild(emoji);
         fig.appendChild(heroLv);
+        fig.appendChild(power);
         const colR = document.createElement('div');
         colR.className = 'eqGrid';
         colR.appendChild(mkSlot('head'));
@@ -644,7 +656,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         colR.appendChild(mkSlot('legs'));
         colR.appendChild(mkSlot('gloves'));
         colR.appendChild(mkSlot('shoes'));
-        // 左功能列：英雄核心 / 武器强化 / 天赋树（未获得英雄时养成入口置灰，天赋全局可用）
+        // 左功能列：英雄核心 / 武器强化 / 技能养成 / 天赋树（未获得英雄时养成入口置灰，天赋全局可用）
         const fcol = document.createElement('div');
         fcol.className = 'fcol';
         const coreBtn = document.createElement('button');
@@ -667,6 +679,27 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             SoundFx.play('ui');
             this._openWeaponModal(def.id);
         };
+        const skBtn = document.createElement('button');
+        skBtn.className = 'btn blue skillEntry';
+        skBtn.innerHTML = '⚡<span>技能</span>';
+        skBtn.title = '技能养成（普攻/技能/大招升级）';
+        skBtn.disabled = !owned;
+        skBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openSkillModal(def.id);
+        };
+        // 升星入口（参考主流卡牌「1阶」角标）：碎片进度与升星操作收进弹窗
+        const starBtn = document.createElement('button');
+        starBtn.className = 'btn blue starEntry';
+        starBtn.innerHTML = `⭐<span>${owned ? rs.stars(def.id) + '阶' : '升星'}</span>`;
+        starBtn.title = '升星（碎片进度与升星操作）';
+        starBtn.disabled = !owned;
+        starBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openStarModal(def.id);
+        };
         const talBtn = document.createElement('button');
         talBtn.className = 'btn blue talentEntry2';
         talBtn.innerHTML = '🌟<span>天赋<span class="questRed"></span></span>';
@@ -678,6 +711,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         };
         fcol.appendChild(coreBtn);
         fcol.appendChild(wpnBtn);
+        fcol.appendChild(skBtn);
+        fcol.appendChild(starBtn);
         fcol.appendChild(talBtn);
         this._talentRedEl = talBtn.querySelector('.questRed') as HTMLElement;
         this._refreshTalentRed();
@@ -686,76 +721,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         main.appendChild(colR);
         body.appendChild(main);
 
-        // 三维面板（攻击/战力口径真实；生命/防御占位推算）
-        const stats = document.createElement('div');
-        stats.className = 'statRow';
-        const mkStat = (lab: string, val: string) => {
-            const s = document.createElement('div');
-            s.className = 'stat panel';
-            s.innerHTML = `${lab}<b>${val}</b>`;
-            stats.appendChild(s);
-        };
-        if (owned) {
-            mkStat('⚔️ 攻击', String(Math.round(def.atk * hs.atkMulOf(def.id))));
-            mkStat('⚡ 战力', this._heroPower(def.id).toLocaleString());
-            // 加成口径 = 装备+宝石+核心（不含星级，星级单独在升星条展示）
-            mkStat('🛡️ 装备加成', `+${Math.round((hs.equipMulOf(def.id).atk - 1) * 100)}%`);
-        } else {
-            mkStat('⚔️ 攻击', '---');
-            mkStat('⚡ 战力', '---');
-            mkStat('🛡️ 装备加成', '---');
-        }
-        body.appendChild(stats);
-
-        // 升星条（仅已拥有英雄）：星级 + 碎片进度 + 升星按钮
-        if (owned) {
-            const st = rs.stars(def.id);
-            const cost = rs.starCost(def.id);
-            const have = rs.shards(def.id);
-            const bar = document.createElement('div');
-            bar.className = 'starBar panel' + (st >= HERO_STAR_MAX ? ' max' : '');
-            const line = document.createElement('div');
-            line.className = 'sbLine';
-            line.innerHTML = `<b class="sbStars">${'★'.repeat(st)}${'☆'.repeat(HERO_STAR_MAX - st)}</b>`
-                + `<span class="sbLv">${st} / ${HERO_STAR_MAX} 星</span>`;
-            bar.appendChild(line);
-            const prog = document.createElement('div');
-            prog.className = 'sbProg';
-            if (st >= HERO_STAR_MAX) {
-                prog.innerHTML = '<span class="sbDone">★ 已 满 星 ★ 该英雄已无升星空间</span>';
-            } else {
-                prog.innerHTML = `<span class="sbNum">碎片 <b>${have}</b> / ${cost}</span>`
-                    + `<span class="sbAdd">（招募重复获得可转碎片）</span>`;
-            }
-            bar.appendChild(prog);
-            const btn = document.createElement('button');
-            btn.className = 'btn gold sm sbBtn';
-            if (st >= HERO_STAR_MAX) {
-                btn.textContent = '已满星';
-                btn.disabled = true;
-            } else if (rs.canStarUp(def.id)) {
-                btn.textContent = `⚡ 升 星（−${cost} 碎片）`;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    const next = rs.starUp(def.id);
-                    if (next !== null) {
-                        SoundFx.play('buy');
-                        this._toast(`${def.name} 升至 ★${next}`);
-                        this._refreshTop();
-                        this._refreshHeroes();
-                    } else {
-                        SoundFx.play('ui');
-                    }
-                };
-            } else {
-                btn.textContent = `还差 ${cost - have} 片`;
-                btn.disabled = true;
-            }
-            bar.appendChild(btn);
-            body.appendChild(bar);
-        }
-
+        // 三维面板已移除：攻击/战力/装备加成明细走战力右侧 ⓘ 详情弹窗
         if (!owned) {
             const unlock = document.createElement('button');
             unlock.className = 'btn gold big';
@@ -771,15 +737,6 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         }
 
         // 大按钮（上阵/下阵）已按需求移除：编队切换统一走关卡页护送编队弹窗
-
-        // 技能养成区块（原独立技能页并入英雄详情：选人即看技能，省一次切页）
-        if (owned) {
-            const skillHead = document.createElement('div');
-            skillHead.className = 'secTitle';
-            skillHead.textContent = '⚡ 技能养成 · 点击卡片查看升级详情';
-            body.appendChild(skillHead);
-            body.appendChild(this._renderSkillCards(def));
-        }
 
         // 底部内嵌物品栏：四页签（装备/宝石/材料/道具），点击物品弹详情
         const bar = document.createElement('div');
@@ -1476,8 +1433,115 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     }
 
 
-    /** 技能养成三线卡（普攻/技能/大招）——原技能页主体并入英雄详情页，选人即看技能 */
-    protected _renderSkillCards(def: HeroDef): HTMLDivElement {
+    /** 技能养成弹窗（英雄页左功能列「技能」入口）：三线技能卡，就地升级后原位重建 */
+    protected _openSkillModal(heroId: string): void {
+        const def = HERO_DEFS.find(d => d.id === heroId);
+        if (!def) {
+            return;
+        }
+        this._openModal(`⚡ 技能养成 · ${def.name}`, (box) => {
+            box.classList.add('skillBox');
+            const wrap = document.createElement('div');
+            const rebuild = () => {
+                wrap.innerHTML = '';
+                wrap.appendChild(this._renderSkillCards(def, rebuild));
+                this._applyPendingTex();
+            };
+            rebuild();
+            box.appendChild(wrap);
+        });
+    }
+
+
+    /** 属性详情弹窗（战力右侧 ⓘ 入口）：攻击/战力/装备加成明细 */
+    protected _openPowerDetailModal(heroId: string): void {
+        const hs = HeroSystem.instance;
+        const def = HERO_DEFS.find(d => d.id === heroId);
+        if (!def) {
+            return;
+        }
+        this._openModal(`📊 属性详情 · ${def.name}`, (box) => {
+            box.classList.add('pwBox');
+            const mkRow = (lab: string, val: string, note: string) => {
+                const row = document.createElement('div');
+                row.className = 'mRow pwRow';
+                row.innerHTML = `<span>${lab}</span><b>${val}</b><i>${note}</i>`;
+                box.appendChild(row);
+            };
+            mkRow('⚔️ 攻击', String(Math.round(def.atk * hs.atkMulOf(def.id))), '基础攻击 × 全部加成');
+            mkRow('⚡ 战力', this._heroPower(def.id).toLocaleString(), '综合养成评价');
+            mkRow('🛡️ 装备加成', `+${Math.round((hs.equipMulOf(def.id).atk - 1) * 100)}%`, '装备+宝石+核心（不含星级）');
+            const note = document.createElement('p');
+            note.className = 'mSub';
+            note.textContent = '星级加成单独体现在升星面板；生命/防御为局内口径，不在此展示';
+            box.appendChild(note);
+        });
+    }
+
+
+    /** 升星弹窗（英雄页左功能列「N阶」入口）：当前星级 + 碎片进度 + 升星操作，成功后原位重建 */
+    protected _openStarModal(heroId: string): void {
+        const rs = RecruitSystem.instance;
+        const def = HERO_DEFS.find(d => d.id === heroId);
+        if (!def) {
+            return;
+        }
+        this._openModal(`⭐ 升星 · ${def.name}`, (box) => {
+            box.classList.add('starBox');
+            const wrap = document.createElement('div');
+            const rebuild = () => {
+                wrap.innerHTML = '';
+                const st = rs.stars(def.id);
+                const cost = rs.starCost(def.id);
+                const have = rs.shards(def.id);
+                const line = document.createElement('div');
+                line.className = 'sbLine';
+                line.innerHTML = `<b class="sbStars">${'★'.repeat(st)}${'☆'.repeat(HERO_STAR_MAX - st)}</b>`
+                    + `<span class="sbLv">${st} / ${HERO_STAR_MAX} 阶</span>`;
+                wrap.appendChild(line);
+                const prog = document.createElement('div');
+                prog.className = 'sbProg';
+                if (st >= HERO_STAR_MAX) {
+                    prog.innerHTML = '<span class="sbDone">★ 已 满 星 ★ 该英雄已无升星空间</span>';
+                } else {
+                    prog.innerHTML = `<span class="sbNum">碎片 <b>${have}</b> / ${cost}</span>`
+                        + `<span class="sbAdd">（招募重复获得可转碎片）</span>`;
+                }
+                wrap.appendChild(prog);
+                const btn = document.createElement('button');
+                btn.className = 'btn gold sm sbBtn';
+                if (st >= HERO_STAR_MAX) {
+                    btn.textContent = '已满星';
+                    btn.disabled = true;
+                } else if (rs.canStarUp(def.id)) {
+                    btn.textContent = `⚡ 升 星（−${cost} 碎片）`;
+                    btn.onclick = () => {
+                        SoundFx.unlock();
+                        const next = rs.starUp(def.id);
+                        if (next !== null) {
+                            SoundFx.play('buy');
+                            this._toast(`${def.name} 升至 ★${next}`);
+                            this._refreshTop();
+                            this._refreshHeroes();
+                            rebuild();
+                        } else {
+                            SoundFx.play('ui');
+                        }
+                    };
+                } else {
+                    btn.textContent = `还差 ${cost - have} 片`;
+                    btn.disabled = true;
+                }
+                wrap.appendChild(btn);
+            };
+            rebuild();
+            box.appendChild(wrap);
+        });
+    }
+
+
+    /** 技能养成三线卡（普攻/技能/大招）——英雄页左功能列「技能」入口的弹窗主体 */
+    protected _renderSkillCards(def: HeroDef, onUpgraded?: () => void): HTMLDivElement {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
         const list = document.createElement('div');
@@ -1547,9 +1611,10 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     if (hs.upgradeAbility(def.id, c.slot)) {
                         SoundFx.play('buy');
                         this._toast(`${c.n} 升至 Lv.${lv + 1}`);
-                        // 技能卡内嵌英雄详情页，升级后整页重建同步等级与金币态
+                        // 英雄页整页重建同步等级与金币态；弹窗内则原位重建技能卡
                         this._refreshHeroes();
                         this._refreshTop();
+                        onUpgraded?.();
                     }
                 };
             }

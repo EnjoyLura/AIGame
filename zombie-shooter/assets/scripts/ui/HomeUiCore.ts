@@ -155,14 +155,18 @@ export abstract class HomeUiCore extends Component {
         const applyScale = () => {
             const canvas = document.querySelector('canvas');
             if (canvas) {
-                const w = canvas.getBoundingClientRect().width;
+                // 画布在超长屏上按高度铺满时 CSS 宽会超出视口；DOM 覆盖层必须按视口宽缩放，
+                // 否则 --pw 偏大导致 HUD 超屏被裁。取画布宽与视口宽的较小值。
+                const w = Math.min(canvas.getBoundingClientRect().width, window.innerWidth);
                 // --hs：设计宽 1080 缩放；--pw：原型 430px 手机框等比缩放（interface.css 覆盖层用）
                 document.documentElement.style.setProperty('--hs', (w / 1080).toFixed(4));
                 document.documentElement.style.setProperty('--pw', (w / 430).toFixed(4));
             }
+            this._applySafeArea();
         };
         applyScale();
         window.addEventListener('resize', applyScale);
+        window.addEventListener('orientationchange', applyScale);
         eventCenter.on(GameEvent.RES_CHANGED, () => {
             this._refreshTop();
             this._refreshMall();
@@ -565,6 +569,23 @@ export abstract class HomeUiCore extends Component {
             this._navBtns[item.key] = btn;
         }
         root.appendChild(nav);
+    }
+
+
+    /** 胶囊禁入区：读系统安全区 env() 填充 --sat/--sab 令牌（刘海屏/虚拟条避让；env 不可用时回退 0） */
+    protected _applySafeArea(): void {
+        try {
+            const probe = document.createElement('div');
+            probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;'
+                + 'padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);';
+            document.body.appendChild(probe);
+            const cs = getComputedStyle(probe);
+            const top = parseFloat(cs.paddingTop) || 0;
+            const bottom = parseFloat(cs.paddingBottom) || 0;
+            probe.remove();
+            document.documentElement.style.setProperty('--sat', `${top}px`);
+            document.documentElement.style.setProperty('--sab', `${bottom}px`);
+        } catch (e) { /* 忽略：令牌保持默认 0px */ }
     }
 
 
@@ -1058,18 +1079,7 @@ export abstract class HomeUiCore extends Component {
     }
 
 
-    /** 页面头部标题（对齐原型 screen-heading：h2 主标题 + small 副题） */
-    protected _mkHeading(h2: string, small: string): HTMLDivElement {
-        const hd = document.createElement('div');
-        hd.className = 'screenHeading';
-        const t = document.createElement('h2');
-        t.textContent = h2;
-        const s = document.createElement('small');
-        s.textContent = small;
-        hd.appendChild(t);
-        hd.appendChild(s);
-        return hd;
-    }
+    /** 页面头部标题已按需求移除（补给商店/英雄档案/玩法大厅等页顶大字不再显示） */
 
 
     // ================= 任务与成就 =================
