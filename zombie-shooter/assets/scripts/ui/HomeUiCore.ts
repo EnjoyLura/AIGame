@@ -572,17 +572,24 @@ export abstract class HomeUiCore extends Component {
     }
 
 
-    /** 胶囊禁入区：读系统安全区 env() 填充 --sat/--sab 令牌（刘海屏/虚拟条避让；env 不可用时回退 0） */
+    /** 胶囊禁入区：读系统安全区 env() 填充 --sat/--sab 令牌（刘海屏/虚拟条避让；env 不可用时回退 0）。
+     * 微信/部分安卓 WebView 对普通流内元素可能报 env()=0，故再挂一个 fixed 全屏探针兜底取最大值。 */
     protected _applySafeArea(): void {
         try {
             const probe = document.createElement('div');
             probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;'
                 + 'padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);';
+            const probe2 = document.createElement('div');
+            probe2.style.cssText = 'position:fixed;inset:0;visibility:hidden;pointer-events:none;'
+                + 'padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);';
             document.body.appendChild(probe);
+            document.body.appendChild(probe2);
             const cs = getComputedStyle(probe);
-            const top = parseFloat(cs.paddingTop) || 0;
-            const bottom = parseFloat(cs.paddingBottom) || 0;
+            const cs2 = getComputedStyle(probe2);
+            const top = Math.max(parseFloat(cs.paddingTop) || 0, parseFloat(cs2.paddingTop) || 0);
+            const bottom = Math.max(parseFloat(cs.paddingBottom) || 0, parseFloat(cs2.paddingBottom) || 0);
             probe.remove();
+            probe2.remove();
             document.documentElement.style.setProperty('--sat', `${top}px`);
             document.documentElement.style.setProperty('--sab', `${bottom}px`);
         } catch (e) { /* 忽略：令牌保持默认 0px */ }

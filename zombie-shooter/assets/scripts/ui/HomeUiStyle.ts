@@ -12,7 +12,8 @@ export const HOME_UI_CSS = `
   color: #dce8f7; user-select: none; overflow: hidden; }
 
 /* ===== 顶栏 ===== */
-#homeUi .topbar { flex: none; display: flex; align-items: center; gap: calc(16px * var(--hs,1)); padding: calc(14px * var(--hs,1)) calc(20px * var(--hs,1));
+#homeUi .topbar { flex: none; display: flex; align-items: center; gap: calc(16px * var(--hs,1));
+  padding: calc(14px * var(--hs,1) + max(var(--sat,0px), env(safe-area-inset-top,0px))) calc(20px * var(--hs,1));
   background: linear-gradient(180deg, #1e3054, #141f38); border-bottom: 1px solid #33507a; }
 #homeUi .pAvatar { width: calc(92px * var(--hs,1)); height: calc(92px * var(--hs,1)); flex: none; border-radius: 50%; padding: calc(4px * var(--hs,1));
   background: conic-gradient(from 210deg, #f7d98a, #b47b1e, #ffe9a8, #8a5c12, #f7d98a); }
@@ -1131,7 +1132,7 @@ export const HOME_UI_CSS = `
 
 /* --- 布局骨架（P0：HUD 单行 = 头像｜名牌/经验｜三资源胶囊｜邮箱/设置；安全区令牌避让胶囊） --- */
 #homeUi .topbar { display: flex; align-items: center; gap: calc(6px * var(--pw,2.5)); flex-wrap: nowrap; white-space: nowrap;
-  padding: calc(10px * var(--pw,2.5) + var(--sat,0px)) calc(12px * var(--pw,2.5)) calc(8px * var(--pw,2.5));
+  padding: calc(10px * var(--pw,2.5) + max(var(--sat,0px), env(safe-area-inset-top,0px))) calc(12px * var(--pw,2.5)) calc(8px * var(--pw,2.5));
   background: linear-gradient(#50788c, #355b70); border-bottom: calc(3px * var(--pw,2.5)) solid #26485b; color: #fff; }
 #homeUi .pAvatar { height: calc(40px * var(--pw,2.5)); width: calc(40px * var(--pw,2.5)); border-radius: calc(8px * var(--pw,2.5));
   background: #eab56c; padding: calc(2px * var(--pw,2.5)); flex: none; }
