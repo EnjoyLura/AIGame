@@ -903,6 +903,14 @@ export const HOME_UI_CSS = `
 #homeUi .mHead h3 { font-size: calc(32px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); color: #ffe9a8; }
 #homeUi .mClose { background: #0d1930; border: 1px solid #33507a; color: #8ba3c7; width: calc(52px * var(--hs,1)); height: calc(52px * var(--hs,1));
   border-radius: 50%; cursor: pointer; font-size: calc(24px * var(--hs,1)); }
+/* ===== 二级弹层系统（UX 布局稿落地）：主题令牌 + 尺寸单位 --pu =====
+   几何（宽高/间距/停靠）统一写在文件末尾「弹层系统几何」，两主题共用一套；
+   本块只负责深色层配色与单位（浅色青瓷层在末尾覆盖同名令牌）。 */
+#homeUi .pop { --pu: var(--hs,1);
+  --pbg:#232937; --pbg2:#252c3b; --pbg3:#1e2532; --pdeep:#1b2130; --pink:#12151d;
+  --pline:#3a4356; --pline2:#2c3342; --ptx:#dbe2ef; --pdim:#8d97ab; --pdim2:#5c6678;
+  --pk:#f0b34e; --pks:#ffd98f; --pgreen:#58c48c; --pine:#bff0d5; --pred:#e5534b; --pred2:#ff8d86;
+  --prow:#272e3d; --pshad:0 24px 60px rgba(0,0,0,.6); }
 #homeUi .mSub { font-size: calc(22px * var(--hs,1)); color: #8ba3c7; margin-bottom: calc(20px * var(--hs,1)); }
 #homeUi .mRow { display: flex; justify-content: space-between; align-items: center; background: #0d1930; border: 1px solid #33507a;
   border-radius: calc(18px * var(--hs,1)); padding: calc(20px * var(--hs,1)); margin-bottom: calc(16px * var(--hs,1)); font-size: calc(24px * var(--hs,1)); gap: calc(16px * var(--hs,1)); }
@@ -2076,4 +2084,309 @@ export const HOME_UI_CSS = `
 #homeUi .diffBtn { min-width: 0; height: auto; min-height: calc(40px * var(--pw,2.5));
   padding: calc(4px * var(--pw,2.5)) calc(3px * var(--pw,2.5)); gap: calc(2px * var(--pw,2.5)); }
 #homeUi .diffBtn b { font-size: calc(11px * var(--pw,2.5)); white-space: nowrap; }
-#homeUi .diffBtn span { font-size: calc(8.5px * var(--pw,2.5)); line-height: 1.35; }`;
+#homeUi .diffBtn span { font-size: calc(8.5px * var(--pw,2.5)); line-height: 1.35; }
+
+/* ================================================================
+   二级弹层系统几何（UX 布局交互稿 v1.0 落地 · 布局不含美术）
+   层级 L2 全屏二级页 / L3 二级弹窗 / L4 半屏抽屉 / L5 结果演出层
+   尺寸 S 确认 / M 列表 / L 详情 / XL 全屏页
+   五段式：头部区 → 说明·页签区 → 内容滚动区 → 槽位·消耗区 → CTA 底栏
+   仅一条滚动轴（.popScroll），头部/说明/页签/槽位/CTA 全程固定不滚。
+   ================================================================ */
+/* 青瓷浅色令牌覆盖（后声明者胜，故本块必须在深色层令牌之后） */
+#homeUi .pop { --pu: var(--pw,2.5);
+  --pbg:#edf4f8; --pbg2:#e2edf3; --pbg3:#dae6ee; --pdeep:#dae6ee; --pink:#ffffff;
+  --pline:#9db9ca; --pline2:#c3d6e1; --ptx:#264756; --pdim:#5b7f92; --pdim2:#7b9aa9;
+  --pk:#c8862f; --pks:#88551f; --pgreen:#2f8f63; --pine:#1d6b48; --pred:#c0483f; --pred2:#a8362e;
+  --prow:#ffffff; --pshad:0 24px 60px rgba(23,58,74,.28); }
+
+/* --- 分层：L2 全屏页 / L3 弹窗 / L4 半屏抽屉 / L5 结果演出 --- */
+#homeUi .protoMask.popL2 { z-index: 210; }
+#homeUi .protoMask.popL3 { z-index: 220; }
+#homeUi .protoMask.popL4 { z-index: 230; }
+#homeUi .protoMask.popL5 { z-index: 240; background: rgba(4,8,16,.86); }
+/* 旧弹窗叠在新弹层之上（迁移过渡期）：抬到最高层，关闭后回到下方新弹层 */
+#homeUi .protoMask.popAbove { z-index: 250; }
+#homeUi .pop { background: var(--pbg); border: 1px solid var(--pline); display: flex; flex-direction: column;
+  overflow: hidden; box-shadow: var(--pshad); animation: popIn .16s ease-out; color: var(--ptx); }
+@keyframes popIn { from { opacity: 0; transform: translateY(calc(8px * var(--pu,1))); } to { opacity: 1; transform: none; } }
+
+/* --- 尺寸档：M/L 用视口比例定位（跨长宽比稳），S 居中偏上，XL 满屏 --- */
+#homeUi .pop.M { position: absolute; left: calc(23px * var(--pu,1)); right: calc(23px * var(--pu,1));
+  top: calc(18vh + var(--sat,0px)); bottom: calc(18vh + var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
+#homeUi .pop.L { position: absolute; left: calc(17px * var(--pu,1)); right: calc(17px * var(--pu,1));
+  top: calc(14vh + var(--sat,0px)); bottom: calc(13vh + var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
+#homeUi .pop.S { position: absolute; left: 50%; transform: translateX(-50%); top: 30vh;
+  width: calc(287px * var(--pu,1)); max-width: 86vw; border-radius: calc(12px * var(--pu,1)); }
+#homeUi .pop.S.center { top: 50%; margin-top: calc(-0px * var(--pu,1)); transform: translate(-50%, -50%); }
+#homeUi .pop.XL { position: absolute; inset: 0; border: 0; border-radius: 0; }
+#homeUi .pop.XL.L5 { background: #12151d; color: #dbe2ef; }
+#homeUi .pop.XL .popShow { padding-top: calc(24px * var(--pu,1)); }
+
+/* --- 头部区（固定）--- */
+#homeUi .popBanner { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1));
+  padding: calc(12px * var(--pu,1)) calc(48px * var(--pu,1)) calc(12px * var(--pu,1)) calc(14px * var(--pu,1));
+  background: linear-gradient(90deg, rgba(200,134,47,.16), rgba(200,134,47,.04));
+  border-bottom: 1px solid var(--pline); position: relative; }
+#homeUi .popBanner b { font-size: calc(16px * var(--pu,1)); color: var(--pks); letter-spacing: calc(1px * var(--pu,1)); }
+#homeUi .popBanner .art { margin-left: auto; width: calc(84px * var(--pu,1)); height: calc(34px * var(--pu,1));
+  border: 1px dashed var(--pline); border-radius: calc(8px * var(--pu,1)); display: flex; align-items: center;
+  justify-content: center; font-size: calc(9.5px * var(--pu,1)); color: var(--pdim2); }
+#homeUi .popTop { flex: none; position: relative; display: flex; align-items: center; justify-content: center;
+  padding: calc(11px * var(--pu,1)) calc(48px * var(--pu,1)); border-bottom: 1px solid var(--pline);
+  background: var(--pbg2); font-size: calc(15px * var(--pu,1)); font-weight: 700; }
+#homeUi .popClose, #homeUi .popBack { position: absolute; top: 50%; transform: translateY(-50%);
+  width: calc(30px * var(--pu,1)); height: calc(30px * var(--pu,1)); border-radius: calc(9px * var(--pu,1));
+  border: 1px solid var(--pline); background: var(--pdeep); color: var(--pdim);
+  font-size: calc(13px * var(--pu,1)); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+#homeUi .popClose { right: calc(8px * var(--pu,1)); }
+#homeUi .popBack { left: calc(8px * var(--pu,1)); }
+#homeUi .popQ { flex: none; display: flex; align-items: center; gap: calc(12px * var(--pu,1));
+  padding: calc(12px * var(--pu,1)); border-bottom: 1px solid var(--pline); color: #fff;
+  background: linear-gradient(120deg,#33532f,#26401f); }
+#homeUi .popQ.q2 { background: linear-gradient(120deg,#2f4a63,#22354a); }
+#homeUi .popQ.q3 { background: linear-gradient(120deg,#4a3a63,#33274a); }
+#homeUi .popQ.q4 { background: linear-gradient(120deg,#63502f,#4a3a1f); }
+#homeUi .popQ .qi { width: calc(58px * var(--pu,1)); height: calc(58px * var(--pu,1)); flex: none;
+  border-radius: calc(11px * var(--pu,1)); border: 2px solid rgba(255,255,255,.55); background: rgba(0,0,0,.28);
+  display: flex; align-items: center; justify-content: center; font-size: calc(30px * var(--pu,1)); position: relative; }
+#homeUi .popQ .qm { flex: 1; min-width: 0; }
+#homeUi .popQ .qm b { display: block; font-size: calc(16px * var(--pu,1)); color: #fff; }
+#homeUi .popQ .qs { display: flex; gap: calc(12px * var(--pu,1)); flex-wrap: wrap;
+  font-size: calc(11px * var(--pu,1)); color: rgba(255,255,255,.85); margin-top: calc(3px * var(--pu,1)); }
+#homeUi .popQ .qtag { font-size: calc(10px * var(--pu,1)); font-weight: 700; color: #fff;
+  background: rgba(255,255,255,.2); border-radius: calc(4px * var(--pu,1)); padding: 0 calc(6px * var(--pu,1)); }
+
+/* --- 说明行 / 页签（固定）--- */
+#homeUi .popMeta { flex: none; display: flex; align-items: center; justify-content: center; gap: calc(7px * var(--pu,1));
+  padding: calc(9px * var(--pu,1)) calc(14px * var(--pu,1)); font-size: calc(12px * var(--pu,1));
+  color: var(--pdim); border-bottom: 1px solid var(--pline2); }
+#homeUi .popMeta .q { width: calc(17px * var(--pu,1)); height: calc(17px * var(--pu,1)); flex: none;
+  border-radius: 50%; border: 1px solid var(--pline); display: flex; align-items: center; justify-content: center;
+  font-size: calc(10px * var(--pu,1)); color: var(--pdim2); cursor: pointer; }
+#homeUi .popTabs { flex: none; display: flex; border-bottom: 1px solid var(--pline); background: var(--pbg3); }
+#homeUi .popTabs div { flex: 1; text-align: center; font-size: calc(13px * var(--pu,1));
+  padding: calc(10px * var(--pu,1)) calc(4px * var(--pu,1)); color: var(--pdim); cursor: pointer; position: relative; }
+#homeUi .popTabs div.on { color: var(--pks); font-weight: 700; }
+#homeUi .popTabs div.on::after { content: ''; position: absolute; left: 14%; right: 14%; bottom: -1px;
+  height: calc(2px * var(--pu,1)); background: var(--pk); border-radius: calc(2px * var(--pu,1)); }
+#homeUi .popFixBar { flex: none; display: flex; align-items: center; gap: calc(8px * var(--pu,1)); flex-wrap: wrap;
+  padding: calc(8px * var(--pu,1)) calc(12px * var(--pu,1)); border-bottom: 1px solid var(--pline2); background: var(--pdeep); }
+#homeUi .popChip { font-size: calc(11.5px * var(--pu,1)); color: var(--pdim); border: 1px solid var(--pline);
+  border-radius: 99px; padding: calc(3px * var(--pu,1)) calc(11px * var(--pu,1)); white-space: nowrap; cursor: pointer; }
+#homeUi .popChip.on { color: var(--pks); border-color: var(--pk); background: rgba(200,134,47,.1); }
+
+/* --- 内容滚动区（唯一滚动轴）--- */
+#homeUi .popScroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: calc(10px * var(--pu,1)) calc(12px * var(--pu,1)); display: flex; flex-direction: column;
+  gap: calc(8px * var(--pu,1)); -webkit-overflow-scrolling: touch; }
+#homeUi .popScroll > .popFade { position: sticky; bottom: -1px; flex: none; height: calc(20px * var(--pu,1));
+  margin-top: auto; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0), var(--pbg)); opacity: .96; }
+#homeUi .popSec { flex: none; font-size: calc(11.5px * var(--pu,1)); color: var(--pdim2);
+  letter-spacing: calc(1px * var(--pu,1)); border-left: 2px solid var(--pline); padding-left: calc(8px * var(--pu,1)); }
+
+/* --- 槽位条（固定）--- */
+#homeUi .popSlots { flex: none; display: flex; gap: calc(6px * var(--pu,1));
+  padding: calc(7px * var(--pu,1)) calc(10px * var(--pu,1)); border-top: 1px solid var(--pline2); }
+#homeUi .popSlots .sc { flex: 1; min-width: 0; height: calc(50px * var(--pu,1)); position: relative;
+  border-radius: calc(9px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
+  display: flex; align-items: center; justify-content: center; font-size: calc(20px * var(--pu,1)); cursor: pointer; }
+#homeUi .popSlots .sc.on { border-color: var(--pk); box-shadow: inset 0 0 0 1px rgba(200,134,47,.45); }
+#homeUi .popSlots .sc .tg { position: absolute; left: calc(2px * var(--pu,1)); top: calc(2px * var(--pu,1));
+  font-size: calc(8.5px * var(--pu,1)); color: var(--pdim); background: var(--pbg); line-height: 1.25;
+  border-radius: calc(3px * var(--pu,1)); padding: 0 calc(3px * var(--pu,1)); }
+#homeUi .popSlots .sc .rd { position: absolute; right: calc(-2px * var(--pu,1)); top: calc(-2px * var(--pu,1));
+  width: calc(11px * var(--pu,1)); height: calc(11px * var(--pu,1)); border-radius: 50%;
+  background: var(--pred); border: 1px solid var(--pbg); }
+
+/* --- 底部操作栏（XL：返回 + 页签）--- */
+#homeUi .popBar { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1));
+  padding: calc(8px * var(--pu,1)) calc(12px * var(--pu,1)) calc(10px * var(--pu,1));
+  border-top: 1px solid var(--pline2); }
+#homeUi .popBar .bk { width: calc(44px * var(--pu,1)); height: calc(44px * var(--pu,1)); flex: none;
+  border-radius: 50%; border: 1px solid var(--pline); background: var(--pdeep); color: var(--ptx);
+  font-size: calc(18px * var(--pu,1)); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+#homeUi .popBar .pt { margin-left: auto; display: flex; gap: calc(10px * var(--pu,1)); }
+#homeUi .popBar .pt div { min-width: calc(52px * var(--pu,1)); padding: calc(5px * var(--pu,1)) 0;
+  border: 1px solid transparent; border-radius: calc(9px * var(--pu,1)); display: flex; flex-direction: column;
+  align-items: center; gap: calc(2px * var(--pu,1)); font-size: calc(10px * var(--pu,1));
+  color: var(--pdim); cursor: pointer; position: relative; }
+#homeUi .popBar .pt div i { font-style: normal; font-size: calc(17px * var(--pu,1)); }
+#homeUi .popBar .pt div.on { color: var(--pks); border-color: var(--pk); background: rgba(200,134,47,.1); }
+
+/* --- 消耗行 + CTA 区（固定）--- */
+#homeUi .popCost { flex: none; display: flex; gap: calc(16px * var(--pu,1)); justify-content: center;
+  align-items: flex-start; padding: calc(8px * var(--pu,1)) calc(12px * var(--pu,1)) 0; }
+#homeUi .popCost .c { display: flex; flex-direction: column; align-items: center; gap: calc(3px * var(--pu,1)); }
+#homeUi .popCost .c .ci { width: calc(40px * var(--pu,1)); height: calc(40px * var(--pu,1));
+  border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
+  display: flex; align-items: center; justify-content: center; font-size: calc(20px * var(--pu,1)); }
+#homeUi .popCost .c .cv { font-size: calc(12px * var(--pu,1)); color: var(--ptx); white-space: nowrap; }
+#homeUi .popCost .c .cv.lack { color: var(--pred2); font-weight: 700; }
+#homeUi .popCost .c .cv.ok { color: var(--pgreen); }
+#homeUi .popCTA { flex: none; border-top: 1px solid var(--pline); background: var(--pbg2);
+  padding: calc(10px * var(--pu,1)) calc(12px * var(--pu,1)) calc(11px * var(--pu,1));
+  display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--pu,1)); }
+#homeUi .popCTA .row { display: flex; gap: calc(10px * var(--pu,1)); width: 100%; }
+#homeUi .popCTA .row.justify { justify-content: center; }
+#homeUi .popBtn { height: calc(44px * var(--pu,1)); border-radius: calc(9px * var(--pu,1));
+  display: flex; align-items: center; justify-content: center; gap: calc(6px * var(--pu,1));
+  font-size: calc(15px * var(--pu,1)); font-weight: 700; cursor: pointer; position: relative;
+  padding: 0 calc(22px * var(--pu,1)); border: 2px solid var(--pk); color: var(--pks);
+  background: rgba(200,134,47,.12); }
+#homeUi .popBtn.green { border-color: var(--pgreen); color: var(--pine); background: rgba(47,143,99,.1); }
+#homeUi .popBtn.danger { border-color: var(--pred); color: var(--pred2); background: rgba(192,72,63,.1); }
+#homeUi .popBtn.grey { border: 1px solid var(--pline); color: var(--pdim); background: none; font-weight: 400; }
+#homeUi .popBtn.wide { flex: 1; }
+#homeUi .popBtn.disabled { opacity: .5; border-color: var(--pline); color: var(--pdim); background: none; cursor: default; }
+#homeUi .popCTA .note { font-size: calc(10.5px * var(--pu,1)); color: var(--pdim2); text-align: center; }
+#homeUi .popRed { position: absolute; right: calc(-4px * var(--pu,1)); top: calc(-4px * var(--pu,1));
+  width: calc(12px * var(--pu,1)); height: calc(12px * var(--pu,1)); border-radius: 50%;
+  background: var(--pred); border: 2px solid var(--pbg2); }
+#homeUi .popTitle { flex: none; text-align: center; font-size: calc(21px * var(--pu,1)); font-weight: 800;
+  letter-spacing: calc(6px * var(--pu,1)); color: var(--pks); }
+#homeUi .popSub2 { flex: none; font-size: calc(11px * var(--pu,1)); color: var(--pdim); text-align: center; }
+
+/* --- XL 展示台（英雄养成 / 装备强化 / 工坊共用头部）--- */
+#homeUi .popShow { flex: none; display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--pu,1));
+  padding: calc(12px * var(--pu,1)) 0 calc(8px * var(--pu,1)); }
+#homeUi .popPedestal { width: calc(94px * var(--pu,1)); height: calc(94px * var(--pu,1)); position: relative;
+  border-radius: calc(16px * var(--pu,1)); border: 2px solid rgba(90,167,232,.55); background: var(--pdeep);
+  display: flex; align-items: center; justify-content: center; font-size: calc(44px * var(--pu,1));
+  box-shadow: 0 0 0 calc(10px * var(--pu,1)) rgba(90,167,232,.08); }
+#homeUi .popTierTag { position: absolute; left: calc(-8px * var(--pu,1)); top: calc(-8px * var(--pu,1));
+  font-size: calc(10px * var(--pu,1)); background: var(--pbg); border: 1px solid var(--pline);
+  border-radius: calc(4px * var(--pu,1)); padding: 0 calc(5px * var(--pu,1)); color: var(--pks); }
+#homeUi .popName { font-size: calc(18px * var(--pu,1)); font-weight: 800; letter-spacing: calc(3px * var(--pu,1));
+  color: var(--pks); border: 1px solid rgba(200,134,47,.35); background: rgba(200,134,47,.08);
+  border-radius: calc(8px * var(--pu,1)); padding: calc(2px * var(--pu,1)) calc(20px * var(--pu,1)); }
+
+/* --- 组件：列表行（图标 + 两行文本 + 状态列 + 行内动作 + 红点）--- */
+#homeUi .popRow { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1)); position: relative;
+  border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--prow);
+  padding: calc(9px * var(--pu,1)) calc(11px * var(--pu,1)); cursor: pointer; }
+#homeUi .popRow .ic { width: calc(44px * var(--pu,1)); height: calc(44px * var(--pu,1)); flex: none;
+  border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
+  display: flex; align-items: center; justify-content: center; font-size: calc(22px * var(--pu,1)); }
+#homeUi .popRow .m { flex: 1; min-width: 0; }
+#homeUi .popRow .m b { display: block; font-size: calc(14px * var(--pu,1)); font-weight: 600; color: var(--ptx);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#homeUi .popRow .m .ln { display: flex; align-items: center; gap: calc(8px * var(--pu,1)); flex-wrap: wrap;
+  font-size: calc(11px * var(--pu,1)); color: var(--pdim2); margin-top: calc(2px * var(--pu,1)); }
+#homeUi .popRow .m .ln .d { border: 1px solid var(--pline); border-radius: calc(5px * var(--pu,1));
+  padding: 0 calc(5px * var(--pu,1)); font-size: calc(10.5px * var(--pu,1)); color: var(--pdim); }
+#homeUi .popRow .m .ln .exp { color: var(--pred2); font-weight: 700; }
+#homeUi .popRow .m .ln .soon { color: var(--pks); }
+#homeUi .popRow .pbar { height: calc(7px * var(--pu,1)); border-radius: calc(4px * var(--pu,1));
+  background: var(--pdeep); border: 1px solid var(--pline2); overflow: hidden; margin-top: calc(4px * var(--pu,1)); }
+#homeUi .popRow .pbar i { display: block; height: 100%; background: var(--pgreen); }
+#homeUi .popRow .st { flex: none; font-size: calc(12px * var(--pu,1)); color: var(--pdim2); text-align: right; }
+#homeUi .popRow .act { flex: none; font-size: calc(12px * var(--pu,1)); font-weight: 700;
+  border: 1px solid var(--pgreen); color: var(--pine); background: rgba(47,143,99,.1);
+  border-radius: calc(8px * var(--pu,1)); padding: calc(4px * var(--pu,1)) calc(11px * var(--pu,1)); }
+#homeUi .popRow .act.gold { border-color: var(--pk); color: var(--pks); background: rgba(200,134,47,.1); }
+#homeUi .popRow .act.grey { border-color: var(--pline); color: var(--pdim2); background: none; }
+#homeUi .popRow .act.off { opacity: .45; }
+#homeUi .popRow.expired { opacity: .58; }
+#homeUi .popRow.on { border-color: var(--pk); box-shadow: inset 0 0 0 1px rgba(200,134,47,.3); }
+
+/* --- 组件：属性行 / 对比块 / KV --- */
+#homeUi .popAttr { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1));
+  border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--prow);
+  padding: calc(8px * var(--pu,1)) calc(10px * var(--pu,1)); }
+#homeUi .popAttr .ai { width: calc(38px * var(--pu,1)); height: calc(38px * var(--pu,1)); flex: none;
+  border-radius: calc(8px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
+  display: flex; align-items: center; justify-content: center; font-size: calc(19px * var(--pu,1)); }
+#homeUi .popAttr .at { flex: 1; min-width: 0; font-size: calc(12.5px * var(--pu,1)); line-height: 1.4; color: var(--ptx); }
+#homeUi .popAttr .at em { font-style: normal; color: var(--pks); font-weight: 700; }
+#homeUi .popAttr .ab { flex: none; width: calc(34px * var(--pu,1)); height: calc(32px * var(--pu,1));
+  border-radius: calc(8px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep); color: var(--pdim);
+  font-size: calc(13px * var(--pu,1)); display: flex; align-items: center; justify-content: center; }
+#homeUi .popAttr .abAct { flex: none; font-size: calc(12px * var(--pu,1)); font-weight: 700;
+  border: 1px solid var(--pk); color: var(--pks); background: rgba(200,134,47,.1);
+  border-radius: calc(8px * var(--pu,1)); padding: calc(4px * var(--pu,1)) calc(13px * var(--pu,1)); }
+#homeUi .popAttr .abAct.info { border-color: #5aa7e8; color: #2c6f9e; background: rgba(90,167,232,.12); }
+#homeUi .popAttr.empty { border-style: dashed; }
+#homeUi .popAttr.empty .at { color: var(--pdim2); }
+#homeUi .popCmp { flex: none; border: 1px solid var(--pline); border-radius: calc(10px * var(--pu,1)); overflow: hidden; }
+#homeUi .popCmp .ch { padding: calc(6px * var(--pu,1)) 0; text-align: center;
+  font-size: calc(11.5px * var(--pu,1)); color: var(--pdim); background: var(--pbg3); border-bottom: 1px solid var(--pline2); }
+#homeUi .popCmp .cb { padding: calc(9px * var(--pu,1)) calc(12px * var(--pu,1)); background: var(--pdeep);
+  display: flex; flex-direction: column; gap: calc(6px * var(--pu,1)); }
+#homeUi .popCmp .cl { display: flex; align-items: center; justify-content: space-between; gap: calc(8px * var(--pu,1));
+  font-size: calc(15px * var(--pu,1)); }
+#homeUi .popCmp .cl .lbl { font-size: calc(12.5px * var(--pu,1)); color: var(--ptx); }
+#homeUi .popCmp .cl .old { color: var(--pdim); font-weight: 700; }
+#homeUi .popCmp .cl .new { color: var(--pks); font-weight: 700; }
+#homeUi .popCmp .cl .arrow { color: var(--pgreen); font-size: calc(16px * var(--pu,1)); }
+#homeUi .popKV { flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: calc(10px * var(--pu,1)); padding: calc(6px * var(--pu,1)) calc(3px * var(--pu,1));
+  font-size: calc(12.5px * var(--pu,1)); color: var(--pdim); border-bottom: 1px dashed var(--pline2); }
+#homeUi .popKV b { color: var(--ptx); font-weight: 600; }
+#homeUi .popKV.total { border-bottom: 0; padding-top: calc(9px * var(--pu,1)); }
+#homeUi .popKV.total b { color: var(--pks); font-size: calc(17px * var(--pu,1)); }
+#homeUi .popKV.free { border-bottom: 0; }
+
+/* --- 组件：格子网格 / 卡片行 / 空态 --- */
+#homeUi .popGrid { display: grid; gap: calc(7px * var(--pu,1)); }
+#homeUi .popGrid.c3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+#homeUi .popGrid.c4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+#homeUi .popGrid.c5 { grid-template-columns: repeat(5, minmax(0,1fr)); }
+#homeUi .popGrid i { aspect-ratio: 1; border-radius: calc(8px * var(--pu,1)); border: 1px solid var(--pline);
+  background: var(--pdeep); display: flex; align-items: center; justify-content: center; font-style: normal;
+  font-size: calc(18px * var(--pu,1)); position: relative; cursor: pointer; }
+#homeUi .popGrid i .cnt { position: absolute; left: calc(2px * var(--pu,1)); bottom: calc(1px * var(--pu,1));
+  font-size: calc(9px * var(--pu,1)); color: var(--ptx); background: var(--pbg);
+  border-radius: calc(4px * var(--pu,1)); padding: 0 calc(3px * var(--pu,1)); }
+#homeUi .popGrid i.sel { border-color: var(--pk); background: rgba(200,134,47,.12); }
+#homeUi .popGrid i .ck { position: absolute; left: calc(2px * var(--pu,1)); top: calc(2px * var(--pu,1));
+  font-size: calc(10px * var(--pu,1)); color: var(--pks); }
+#homeUi .popCardRow { flex: none; display: flex; gap: calc(10px * var(--pu,1)); justify-content: center; flex-wrap: wrap; }
+#homeUi .popCard { width: calc(92px * var(--pu,1)); padding: calc(10px * var(--pu,1)) calc(6px * var(--pu,1));
+  border-radius: calc(11px * var(--pu,1)); border: 2px solid var(--pk); background: rgba(200,134,47,.08);
+  display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--pu,1));
+  font-size: calc(12px * var(--pu,1)); color: var(--pdim); position: relative; }
+#homeUi .popCard .gi { font-size: calc(32px * var(--pu,1)); }
+#homeUi .popCard .nb { font-size: calc(10px * var(--pu,1)); border-radius: calc(5px * var(--pu,1));
+  padding: 0 calc(6px * var(--pu,1)); background: var(--pred); color: #fff; }
+#homeUi .popCard .nb.dup { background: var(--pline); color: var(--ptx); }
+#homeUi .popEmpty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(6px * var(--pu,1)); color: var(--pdim2); font-size: calc(13px * var(--pu,1)); text-align: center;
+  min-height: calc(120px * var(--pu,1)); }
+#homeUi .popEmpty .ei { font-size: calc(38px * var(--pu,1)); opacity: .75; }
+#homeUi .popEmpty small { font-size: calc(11px * var(--pu,1)); color: var(--pdim2); opacity: .8; }
+
+/* --- 组件：正文段 / 警示条 / S 型居中块 --- */
+#homeUi .popBody { flex: none; display: flex; flex-direction: column; gap: calc(7px * var(--pu,1));
+  font-size: calc(12.5px * var(--pu,1)); line-height: 1.7; color: var(--ptx); }
+#homeUi .popBody p { margin: 0; }
+#homeUi .popBody .sub { font-size: calc(11px * var(--pu,1)); color: var(--pdim); }
+#homeUi .popWarn { flex: none; font-size: calc(11.5px * var(--pu,1)); color: var(--pred2);
+  border: 1px dashed var(--pred); border-radius: calc(8px * var(--pu,1));
+  padding: calc(7px * var(--pu,1)) calc(10px * var(--pu,1)); background: rgba(192,72,63,.06); }
+#homeUi .popCenter { flex: none; display: flex; flex-direction: column; align-items: center;
+  gap: calc(8px * var(--pu,1)); padding: calc(2px * var(--pu,1)) 0; }
+#homeUi .popIcBig { width: calc(62px * var(--pu,1)); height: calc(62px * var(--pu,1));
+  border-radius: calc(14px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
+  display: flex; align-items: center; justify-content: center; font-size: calc(31px * var(--pu,1)); }
+#homeUi .popDesc { font-size: calc(12.5px * var(--pu,1)); line-height: 1.6; color: var(--pdim); text-align: center; }
+#homeUi .popHL { color: var(--pks); font-weight: 700; }
+
+/* --- 组件：活跃度固定块（任务页顶栏：总览进度 + 宝箱横排） --- */
+#homeUi .popAct { flex: 1 1 100%; display: flex; flex-direction: column; gap: calc(5px * var(--pu,1)); }
+#homeUi .popAct .hd { display: flex; align-items: center; justify-content: space-between;
+  font-size: calc(12px * var(--pu,1)); color: var(--ptx); }
+#homeUi .popAct .hd b { color: var(--pks); }
+#homeUi .popAct .bar { height: calc(8px * var(--pu,1)); border-radius: calc(4px * var(--pu,1));
+  background: var(--pdeep); border: 1px solid var(--pline2); overflow: hidden; }
+#homeUi .popAct .bar i { display: block; height: 100%; background: var(--pk); }
+#homeUi .popAct .chs { display: flex; gap: calc(6px * var(--pu,1)); }
+#homeUi .popAct .chs .ch { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center;
+  gap: calc(1px * var(--pu,1)); border: 1px solid var(--pline); border-radius: calc(8px * var(--pu,1));
+  padding: calc(4px * var(--pu,1)) calc(2px * var(--pu,1)); font-size: calc(10px * var(--pu,1));
+  color: var(--pdim); cursor: pointer; }
+#homeUi .popAct .chs .ch .ci { font-size: calc(16px * var(--pu,1)); }
+#homeUi .popAct .chs .ch em { font-style: normal; font-size: calc(9px * var(--pu,1)); white-space: nowrap; }
+#homeUi .popAct .chs .ch.ready { border-color: var(--pk); background: rgba(200,134,47,.1); color: var(--pks); }
+#homeUi .popAct .chs .ch.done { opacity: .5; }`;

@@ -709,7 +709,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
                     e.stopPropagation();
                     gm.save();
                     SoundFx.play('buy');
-                    document.querySelector('#homeUi .protoMask')?.remove();
+                    this._closeTopMask();
                     this._toast('编队已保存');
                 };
                 wrap.appendChild(save);

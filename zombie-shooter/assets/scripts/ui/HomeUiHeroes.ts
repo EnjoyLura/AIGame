@@ -14,7 +14,7 @@ import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem
 import { BestiarySystem, BESTIARY_DEFS, BestiaryDef } from '../core/BestiarySystem';
 import { MailSystem } from '../core/MailSystem';
 import { SoundFx } from '../core/SoundFx';
-import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
+import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, WEAPON_ATK_STEP, WEAPON_LEVEL_MAX, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDef, StageDifficulty } from '../battle/StageData';
 import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MILESTONE_EVERY } from '../core/TrialSystem';
@@ -27,6 +27,7 @@ import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/Vehicle
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { SLOT_EMOJI } from './HomeUiCore';
+import type { PopOpts } from './HomeUiCore';
 import { HomeUiMall } from './HomeUiMall';
 
 /**
@@ -116,7 +117,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     node.onclick = (e) => {
                         e.stopPropagation();
                         SoundFx.play('ui');
-                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._closeTopMask();
                         this._openTalentModal(def.id);
                     };
                     nodes.appendChild(node);
@@ -175,7 +176,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 this._toast(`${def.name} 升至 Lv.${lvNow}`);
                 this._refreshTop();
                 this._refreshTalentRed();
-                document.querySelector('#homeUi .protoMask')?.remove();
+                this._closeTopMask();
                 this._openTalentModal(def.id);
             };
             btns.appendChild(up);
@@ -199,7 +200,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 this._toast(`洗点完成，退还 ${back} 点天赋点`);
                 this._refreshTop();
                 this._refreshTalentRed();
-                document.querySelector('#homeUi .protoMask')?.remove();
+                this._closeTopMask();
                 this._openTalentModal(def.id);
             };
             btns.appendChild(reset);
@@ -208,223 +209,25 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         });
     }
 
-
     /**
-     * 英雄招募弹窗：保底进度 + 概率表 + 四英雄碎片库存 + 单抽/十连/看广告免费招募。
-     * 结果不在此展示，交由 _openRecruitResultModal 做揭示动画。
+     * 英雄招募（UX 布局稿：L3·M 列表型）：固定保底进度条 + 概率表与碎片库存 + 单抽/十连 CTA，
+     * 免费招募作为行内动作；结果交给 L5 结果演出层揭示。
      */
     protected _openRecruitModal(): void {
         const rs = RecruitSystem.instance;
         const gm = GameManager.instance;
-        const diam = gm.res.get('diamond');
-        this._openModal('🎖️ 英雄招募', (box) => {
-            box.classList.add('recruitBox');
-            // 头部：累计抽数 + 保底进度条
-            const head = document.createElement('div');
-            head.className = 'rcHead';
-            head.innerHTML = `<div class="rcHeadTop"><b>已招募 <i>${rs.totalRecruits}</i> 次</b>`
-                + `<span>💎 ${diam.toLocaleString()} · 距保底还差 ${rs.pityLeft} 抽</span></div>`;
-            const barWrap = document.createElement('div');
-            barWrap.className = 'rcBar';
-            const barIn = document.createElement('i');
-            barIn.style.width = `${Math.round((RECRUIT_PITY - rs.pityLeft) / RECRUIT_PITY * 100)}%`;
-            barWrap.appendChild(barIn);
-            head.appendChild(barWrap);
-            box.appendChild(head);
-
-            // 概率表
-            const rate = document.createElement('div');
-            rate.className = 'rcRate panel';
-            rate.innerHTML =
-                `<div class="rcRateRow hero"><span>🎖️ 英雄本体（未获得优先）</span><b>6%</b></div>` +
-                `<div class="rcRateRow r5"><span>⭐ 传说碎片 ×10</span><b>14%</b></div>` +
-                `<div class="rcRateRow r3"><span>🔷 稀有碎片 ×5</span><b>40%</b></div>` +
-                `<div class="rcRateRow r2"><span>🔹 普通碎片 ×2</span><b>40%</b></div>` +
-                `<div class="rcRateNote">🛡️ 十连必出稀有以上 · ${RECRUIT_PITY} 抽内必出英雄本体</div>`;
-            box.appendChild(rate);
-
-            // 四英雄碎片库存
-            const shardBox = document.createElement('div');
-            shardBox.className = 'rcShards';
-            const shardHead = document.createElement('div');
-            shardHead.className = 'rcShardsHead';
-            shardHead.textContent = '碎 片 库 存';
-            shardBox.appendChild(shardHead);
-            const shardGrid = document.createElement('div');
-            shardGrid.className = 'rcShardGrid';
-            HERO_DEFS.forEach((d, i) => {
-                const cell = document.createElement('div');
-                cell.className = 'rcShard';
-                const pic = document.createElement('span');
-                pic.className = 'rcShardPic';
-                const photo = this._heroPhoto(i, 'slot');
-                this._tex(photo.key, u => {
-                    pic.style.backgroundImage = u;
-                    pic.style.backgroundRepeat = 'no-repeat';
-                    pic.style.cssText += photo.css;
-                });
-                const info = document.createElement('span');
-                info.className = 'rcShardInfo';
-                const own = gm.isHeroOwned(d.id);
-                info.innerHTML = `<b>${d.name}</b><i>${rs.stars(d.id)}★ · 🔩${rs.shards(d.id)}</i>`;
-                if (!own) {
-                    cell.classList.add('lock');
-                }
-                cell.appendChild(pic);
-                cell.appendChild(info);
-                shardGrid.appendChild(cell);
-            });
-            shardBox.appendChild(shardGrid);
-            box.appendChild(shardBox);
-
-            // 抽卡按钮组
-            const btns = document.createElement('div');
-            btns.className = 'rcBtns';
-            const mkPull = (label: string, cost: number, count: 1 | 10) => {
-                const b = document.createElement('button');
-                b.className = 'btn big rcBtn' + (count === 10 ? ' gold' : '');
-                b.textContent = `${label}（💎 ${cost.toLocaleString()}）`;
-                b.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    // 钻石不足：按钮不再置灰，改为点击时明确提示还差多少
-                    if (gm.res.get('diamond') < cost) {
-                        SoundFx.play('ui');
-                        this._toast(`钻石不足：还差 💎${(cost - gm.res.get('diamond')).toLocaleString()}`);
-                        return;
-                    }
-                    const got = rs.recruit(count);
-                    if (!got) {
-                        SoundFx.play('ui');
-                        this._toast('钻石不足');
-                        return;
-                    }
-                    SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
-                    this._refreshTop();
-                    document.querySelector('#homeUi .protoMask')?.remove();
-                    this._openRecruitResultModal(got);
-                };
-                btns.appendChild(b);
-            };
-            mkPull('单 抽', RECRUIT_PRICE_1, 1);
-            mkPull('十 连', RECRUIT_PRICE_10, 10);
-            box.appendChild(btns);
-
-            // 看广告免费招募（每日 1 次）
-            const left = AdService.instance.remaining('recruit');
-            const ad = document.createElement('button');
-            ad.className = 'btn big rcAdBtn';
-            ad.textContent = left > 0 ? `▶ 看广告免费招募（今日 ${left}/1）` : '▶ 今日免费招募已用完';
-            ad.disabled = left <= 0;
-            ad.onclick = (e) => {
-                e.stopPropagation();
+        const opt = (): PopOpts => {
+            const diam = gm.res.get('diamond');
+            const pull = (count: 1 | 10): void => {
                 SoundFx.unlock();
-                AdService.instance.claimReward('recruit', () => {
-                    const got = rs.recruit(1, true);
-                    if (!got) {
-                        return;
-                    }
-                    SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
-                    this._refreshTop();
-                    document.querySelector('#homeUi .protoMask')?.remove();
-                    this._openRecruitResultModal(got);
-                });
-            };
-            box.appendChild(ad);
-            const note = document.createElement('p');
-            note.className = 'giftNote';
-            note.textContent = '抽到已拥有的英雄会转化为该英雄碎片，碎片用于升星';
-            box.appendChild(note);
-            this._applyPendingTex();
-        });
-    }
-
-
-    /** 招募结果浮窗（L4 全屏结果层）：卡片错峰揭示（复用 giftDropIn 动画），十连带汇总行 */
-    protected _openRecruitResultModal(results: RecruitResult[]): void {
-        const hasHero = results.some(r => r.kind === 'hero');
-        const shardTotal = results.reduce((n, r) => n + (r.shardN ?? 0), 0);
-        const heroCount = results.filter(r => r.kind === 'hero').length;
-        this._openResult(hasHero ? '🎖️ 招 募 大 成 功' : '🎖️ 招 募 结 果', (box) => {
-            box.classList.add('recruitResBox');
-            const grid = document.createElement('div');
-            grid.className = 'recruitResGrid' + (results.length > 1 ? ' many' : '');
-            results.forEach((r, i) => {
-                const idx = HERO_DEFS.findIndex(d => d.id === r.heroId);
-                const cell = document.createElement('div');
-                cell.className = `rcCard r${r.tierRank}` + (r.kind === 'hero' ? ' hero' : '');
-                cell.style.animationDelay = `${(0.1 + i * 0.15).toFixed(2)}s`;
-                // 英雄本体用立绘，碎片用 emoji
-                if (r.kind === 'hero' && idx >= 0) {
-                    const pic = document.createElement('span');
-                    pic.className = 'rcCardPic';
-                    const photo = this._heroPhoto(idx, 'figure');
-                    this._tex(photo.key, u => {
-                        pic.style.backgroundImage = u;
-                        pic.style.backgroundRepeat = 'no-repeat';
-                        pic.style.cssText += photo.css;
-                    });
-                    cell.appendChild(pic);
-                } else if (idx >= 0) {
-                    const pic = document.createElement('span');
-                    pic.className = 'rcCardPic';
-                    const photo = this._heroPhoto(idx, 'slot');
-                    this._tex(photo.key, u => {
-                        pic.style.backgroundImage = u;
-                        pic.style.backgroundRepeat = 'no-repeat';
-                        pic.style.cssText += photo.css;
-                    });
-                    cell.appendChild(pic);
-                } else {
-                    const ic = document.createElement('span');
-                    ic.className = 'rcCardIc';
-                    ic.textContent = r.ic;
-                    cell.appendChild(ic);
-                }
-                if (r.kind === 'hero') {
-                    const flag = document.createElement('span');
-                    flag.className = 'rcNew';
-                    flag.textContent = 'NEW!';
-                    cell.appendChild(flag);
-                } else if (r.duplicate) {
-                    const flag = document.createElement('span');
-                    flag.className = 'rcDup';
-                    flag.textContent = '转化为碎片';
-                    cell.appendChild(flag);
-                }
-                const nm = document.createElement('span');
-                nm.className = 'rcCardNm';
-                nm.textContent = r.kind === 'hero' ? r.name : `${r.name}`;
-                cell.appendChild(nm);
-                grid.appendChild(cell);
-                this.scheduleOnce(() => {
-                    SoundFx.play(r.kind === 'hero' ? 'bigkill' : r.tier === 'legend' ? 'buy' : 'ui');
-                }, 0.15 + i * 0.15);
-            });
-            box.appendChild(grid);
-            if (results.length > 1) {
-                const sum = document.createElement('div');
-                sum.className = 'rcSum';
-                sum.textContent = `本次获得：英雄 ×${heroCount} · 碎片 ×${shardTotal}`;
-                box.appendChild(sum);
-            }
-            // 再来一次（钻石够时显示）+ 关闭
-            const again = document.createElement('button');
-            again.className = 'btn gold big rcAgain';
-            again.textContent = results.length > 1
-                ? `再 来 一 次（💎 ${RECRUIT_PRICE_10.toLocaleString()}）`
-                : `再 来 一 次（💎 ${RECRUIT_PRICE_1.toLocaleString()}）`;
-            const cost = results.length > 1 ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;
-            again.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                const diamNow = GameManager.instance.res.get('diamond');
-                if (diamNow < cost) {
+                const cost = count === 10 ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;
+                // 钻石不足：按钮不置灰，点击时明确提示还差多少
+                if (gm.res.get('diamond') < cost) {
                     SoundFx.play('ui');
-                    this._toast(`钻石不足：还差 💎${(cost - diamNow).toLocaleString()}`);
+                    this._toast(`钻石不足：还差 💎${(cost - gm.res.get('diamond')).toLocaleString()}`);
                     return;
                 }
-                const got = RecruitSystem.instance.recruit(results.length > 1 ? 10 : 1);
+                const got = rs.recruit(count);
                 if (!got) {
                     SoundFx.play('ui');
                     this._toast('钻石不足');
@@ -432,21 +235,170 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 }
                 SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
                 this._refreshTop();
-                document.querySelector('#homeUi .protoMask')?.remove();
                 this._openRecruitResultModal(got);
             };
-            box.appendChild(again);
-            const ok = document.createElement('button');
-            ok.className = 'btn big rcClose';
-            ok.textContent = '关 闭';
-            ok.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                document.querySelector('#homeUi .protoMask')?.remove();
-                this._refreshHeroes();
+            const adLeft = AdService.instance.remaining('recruit');
+            return {
+                tier: 3,
+                size: 'M',
+                banner: '🎖️ 英雄招募',
+                art: `💎 ${diam.toLocaleString()}`,
+                subtitle: `${RECRUIT_PITY} 抽内必出英雄本体 · 十连必出稀有以上`,
+                fixed: bar => {
+                    const box = this._el('div', 'popAct');
+                    const hd = this._el('div', 'hd');
+                    const lbl = this._el('span');
+                    lbl.innerHTML = `🎖️ 已招募 <b>${rs.totalRecruits}</b> 次`;
+                    hd.appendChild(lbl);
+                    hd.appendChild(this._el('span', undefined, `距保底还差 ${rs.pityLeft} 抽`));
+                    box.appendChild(hd);
+                    const pbar = this._el('div', 'bar');
+                    const fill = this._el('i');
+                    fill.style.width = `${Math.round((RECRUIT_PITY - rs.pityLeft) / RECRUIT_PITY * 100)}%`;
+                    pbar.appendChild(fill);
+                    box.appendChild(pbar);
+                    bar.appendChild(box);
+                },
+                build: c => {
+                    c.appendChild(this._popSec('概率表'));
+                    c.appendChild(this._popAttr({ icon: '🎖️', text: '英雄本体（未获得优先） **6%**' }));
+                    c.appendChild(this._popAttr({ icon: '⭐', text: '传说碎片 **×10** · 14%' }));
+                    c.appendChild(this._popAttr({ icon: '🔷', text: '稀有碎片 **×5** · 40%' }));
+                    c.appendChild(this._popAttr({ icon: '🔹', text: '普通碎片 **×2** · 40%' }));
+                    c.appendChild(this._popSec('碎片库存'));
+                    HERO_DEFS.forEach((d, i) => {
+                        const own = gm.isHeroOwned(d.id);
+                        c.appendChild(this._popRow({
+                            icon: '🎖',
+                            iconTex: this._heroPhoto(i, 'slot').key,
+                            title: d.name,
+                            lines: [`${rs.stars(d.id)}★ · 🔩 碎片 ${rs.shards(d.id)}`],
+                            status: own ? '已拥有' : '未拥有',
+                            statusKind: own ? undefined : 'soon'
+                        }));
+                    });
+                    c.appendChild(this._popSec('免费招募'));
+                    c.appendChild(this._popRow({
+                        icon: '📺',
+                        title: '看广告免费招募 1 次',
+                        lines: [`今日剩余 ${adLeft}/1 次`],
+                        action: {
+                            label: adLeft > 0 ? '免费' : '已用完',
+                            kind: 'green',
+                            disabled: adLeft <= 0,
+                            onClick: () => {
+                                SoundFx.unlock();
+                                AdService.instance.claimReward('recruit', () => {
+                                    const got = rs.recruit(1, true);
+                                    if (!got) {
+                                        return;
+                                    }
+                                    SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
+                                    this._refreshTop();
+                                    this._openRecruitResultModal(got);
+                                });
+                            }
+                        }
+                    }));
+                },
+                ctas: [
+                    { label: `单 抽（💎 ${RECRUIT_PRICE_1.toLocaleString()}）`, kind: 'grey', onClick: () => pull(1) },
+                    { label: `十 连（💎 ${RECRUIT_PRICE_10.toLocaleString()}）`, onClick: () => pull(10) }
+                ],
+                note: '抽到已拥有的英雄会转化为该英雄碎片，碎片用于升星'
             };
-            box.appendChild(ok);
-            this._applyPendingTex();
+        };
+        this._openPop(opt());
+    }
+
+    /**
+     * 招募结果（UX 布局稿 L5 结果演出层）：卡片错峰揭示 + 汇总行 + 再来一次/关闭。
+     * 英雄本体挂立绘，碎片走图标；点遮罩可关（结果层不阻塞主流程）。
+     */
+    protected _openRecruitResultModal(results: RecruitResult[]): void {
+        const hasHero = results.some(r => r.kind === 'hero');
+        const shardTotal = results.reduce((n, r) => n + (r.shardN ?? 0), 0);
+        const heroCount = results.filter(r => r.kind === 'hero').length;
+        const many = results.length > 1;
+        const cost = many ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;
+        this._openPop({
+            tier: 5,
+            size: 'M',
+            banner: hasHero ? '🎖️ 招 募 大 成 功' : '🎖️ 招 募 结 果',
+            art: many ? `十连 · ${results.length} 项` : '单抽',
+            maskClose: true,
+            build: c => {
+                const row = this._popCardRow(results.map(r => ({
+                    icon: r.ic,
+                    name: r.name,
+                    badge: r.kind === 'hero' ? 'NEW!' : r.duplicate ? '转化为碎片' : undefined,
+                    dup: r.duplicate
+                })));
+                // 错峰揭示：逐卡延迟入场 + 逐卡音效
+                row.querySelectorAll<HTMLElement>('.popCard').forEach((el, i) => {
+                    const r = results[i];
+                    el.style.animationDelay = `${(0.1 + i * 0.15).toFixed(2)}s`;
+                    this.scheduleOnce(() => {
+                        SoundFx.play(r.kind === 'hero' ? 'bigkill' : r.tier === 'legend' ? 'buy' : 'ui');
+                    }, 0.15 + i * 0.15);
+                });
+                c.appendChild(row);
+                if (many) {
+                    c.appendChild(this._popKV('本次获得', `英雄 ×${heroCount} · 碎片 ×${shardTotal}`, 'total'));
+                }
+            },
+            ctas: [
+                {
+                    label: `再 来 一 次（💎 ${cost.toLocaleString()}）`,
+                    onClick: () => {
+                        SoundFx.unlock();
+                        const diamNow = GameManager.instance.res.get('diamond');
+                        if (diamNow < cost) {
+                            SoundFx.play('ui');
+                            this._toast(`钻石不足：还差 💎${(cost - diamNow).toLocaleString()}`);
+                            return;
+                        }
+                        const got = RecruitSystem.instance.recruit(many ? 10 : 1);
+                        if (!got) {
+                            SoundFx.play('ui');
+                            this._toast('钻石不足');
+                            return;
+                        }
+                        SoundFx.play(got.some(x => x.kind === 'hero') ? 'bigkill' : 'coin');
+                        this._refreshTop();
+                        this._openRecruitResultModal(got);
+                    }
+                },
+                {
+                    label: '收 下 关 闭',
+                    kind: 'grey',
+                    onClick: () => {
+                        this._closePop();
+                        this._refreshHeroes();
+                    }
+                }
+            ],
+            note: '碎片与英雄已入账 · 碎片可在英雄页升星消耗',
+            onClose: () => this._refreshHeroes()
+        });
+        // 卡片就位后异步贴图：本体用立绘，碎片用头像格
+        this._popMask?.querySelectorAll('.popCardRow .popCard').forEach((card, i) => {
+            const r = results[i];
+            const idx = HERO_DEFS.findIndex(d => d.id === r.heroId);
+            if (idx < 0) {
+                return;
+            }
+            const gi = card.querySelector('.gi') as HTMLElement | null;
+            if (!gi) {
+                return;
+            }
+            const photo = this._heroPhoto(idx, r.kind === 'hero' ? 'figure' : 'slot');
+            this._tex(photo.key, u => {
+                gi.textContent = '';
+                gi.style.backgroundImage = u;
+                gi.style.backgroundRepeat = 'no-repeat';
+                gi.style.cssText += photo.css;
+            });
         });
     }
 
@@ -669,7 +621,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         coreBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
-            this._openCoreModal(def.id);
+            this._openHeroGrowModal(def.id, 1);
         };
         const wpnBtn = document.createElement('button');
         wpnBtn.className = 'btn blue';
@@ -679,7 +631,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         wpnBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
-            this._openWeaponModal(def.id);
+            this._openHeroGrowModal(def.id, 3);
         };
         const skBtn = document.createElement('button');
         skBtn.className = 'btn blue skillEntry';
@@ -689,7 +641,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         skBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
-            this._openSkillModal(def.id);
+            this._openHeroGrowModal(def.id, 0);
         };
         // 升星入口（参考主流卡牌「1阶」角标）：碎片进度与升星操作收进弹窗
         const starBtn = document.createElement('button');
@@ -709,7 +661,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         talBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
-            this._openTalentModal();
+            this._openHeroGrowModal(def.id, 2);
         };
         fcol.appendChild(coreBtn);
         fcol.appendChild(wpnBtn);
@@ -832,123 +784,142 @@ export abstract class HomeUiHeroes extends HomeUiMall {
 
     // ================= 背包工坊（合成/分解） =================
 
-    /** 工坊弹窗：合成区（同槽同品质 3→1）+ 分解区（单件产出材料 + 一键分解白绿） */
-    protected _openForgeModal(): void {
+    /**
+     * 工坊（UX 布局稿 4-C · L3·L）：合成/分解双页签，行内动作 + 底部一键分解；
+     * 合成与分解均为危险/不可逆操作，统一走 S 型确认模板（3-A / 3-B）后再执行。
+     */
+    protected _openForgeModal(tab = 0): void {
         const hs = HeroSystem.instance;
         const gm = GameManager.instance;
-        this._openModal('⚒️ 装备工坊', (box) => {
-            box.classList.add('forgeBox');
-            const rebuild = () => {
-                box.querySelectorAll('.fSec,.fNote').forEach(el => el.remove());
-                // ---- 合成区 ----
-                const secC = document.createElement('div');
-                secC.className = 'fSec';
-                secC.innerHTML = `<div class="fHead"><b>🔮 合成</b><span>同部位同品质 ×3 → 高一品质（保留最高强化级）</span></div>`;
-                let hasGroup = false;
-                for (const slot of EQUIP_SLOTS) {
-                    for (let tier = 1; tier <= 5; tier++) {
-                        const groups = combineGroupCount(slot, tier as EquipTier);
-                        if (groups <= 0) {
-                            continue;
-                        }
-                        hasGroup = true;
-                        const row = document.createElement('div');
-                        row.className = 'fRow';
-                        const cost = hs.combineCost((tier + 1) as EquipTier);
-                        const info = document.createElement('div');
-                        info.className = 'fInfo';
-                        info.innerHTML =
-                            `<b style="color:${EQUIP_TIER_COLORS[tier - 1]}">${SLOT_EMOJI[slot]} ${EQUIP_TIER_NAMES[tier - 1]}${EQUIP_SLOT_NAMES[slot]} ×3</b>` +
-                            `<span>→ <i style="color:${EQUIP_TIER_COLORS[tier]}">${EQUIP_TIER_NAMES[tier]}${EQUIP_SLOT_NAMES[slot]} ×1</i> · 🪙 ${cost}/组</span>`;
-                        row.appendChild(info);
-                        const btn = document.createElement('button');
-                        btn.className = 'btn gold sm';
-                        btn.textContent = `合成 ×${groups}`;
-                        btn.disabled = gm.gold < cost;
-                        btn.onclick = () => {
-                            if (hs.combine(null, slot, tier as EquipTier)) {
-                                SoundFx.play('buy');
-                                this._toast(`合成成功：${EQUIP_TIER_NAMES[tier]}${EQUIP_SLOT_NAMES[slot]}`);
-                                this._refreshTop();
-                                rebuild();
-                            } else {
-                                SoundFx.play('ui');
-                            }
-                        };
-                        row.appendChild(btn);
-                        secC.appendChild(row);
+        const opt = (): PopOpts => {
+            const bag = gm.bag;
+            const lowCount = bag.filter(x => x.tier <= 2).length;
+            const groups: Array<{ slot: EquipSlot; tier: EquipTier; n: number; cost: number }> = [];
+            for (const slot of EQUIP_SLOTS) {
+                for (let tier = 1; tier <= 5; tier++) {
+                    const n = combineGroupCount(slot, tier as EquipTier);
+                    if (n > 0) {
+                        groups.push({ slot, tier: tier as EquipTier, n, cost: hs.combineCost((tier + 1) as EquipTier) });
                     }
                 }
-                if (!hasGroup) {
-                    const empty = document.createElement('p');
-                    empty.className = 'mSub';
-                    empty.textContent = '凑齐 3 件同部位同品质装备即可合成';
-                    secC.appendChild(empty);
-                }
-                box.appendChild(secC);
-                // ---- 分解区 ----
-                const secS = document.createElement('div');
-                secS.className = 'fSec';
-                secS.innerHTML = `<div class="fHead"><b>♻️ 分解</b><span>装备→强化石（紫+额外返还精炼合金）</span></div>`;
-                const bag = gm.bag;
-                if (bag.length === 0) {
-                    const empty = document.createElement('p');
-                    empty.className = 'mSub';
-                    empty.textContent = '背包中没有可分解的装备';
-                    secS.appendChild(empty);
-                }
-                bag.forEach((it, index) => {
-                    const row = document.createElement('div');
-                    row.className = 'fRow';
-                    const info = document.createElement('div');
-                    info.className = 'fInfo';
-                    const alloy = salvageAlloyYield(it.tier);
-                    info.innerHTML =
-                        `<b style="color:${EQUIP_TIER_COLORS[it.tier - 1]}">${SLOT_EMOJI[it.slot]} ${bagItemName(it)} +${it.lv}</b>` +
-                        `<span>→ 🧱 ${salvageStoneYield(it.tier)}${alloy > 0 ? ` · 🔩 ${alloy}` : ''}</span>`;
-                    row.appendChild(info);
-                    const btn = document.createElement('button');
-                    btn.className = 'btn dark sm';
-                    btn.textContent = '分解';
-                    btn.onclick = () => {
-                        if (hs.salvage(index)) {
-                            SoundFx.play('ui');
-                            this._toast('分解完成，材料入包');
-                            this._refreshTop();
-                            rebuild();
+            }
+            return {
+                tier: 3,
+                size: 'L',
+                banner: '⚒️ 装备工坊',
+                art: tab === 0 ? `${groups.length} 组可合成` : `${bag.length} 件在包`,
+                tabs: ['合成', '分解'],
+                tab,
+                onTab: i => this._openForgeModal(i),
+                build: c => {
+                    if (tab === 0) {
+                        if (!groups.length) {
+                            c.appendChild(this._popEmpty('暂无可合成组合', '凑齐 3 件同部位同品质装备即可合成', '🔮'));
+                            return;
                         }
-                    };
-                    row.appendChild(btn);
-                    secS.appendChild(row);
-                });
-                // 一键分解白绿（保留蓝+）
-                const lowCount = bag.filter(it => it.tier <= 2).length;
-                if (lowCount > 0) {
-                    const quick = document.createElement('button');
-                    quick.className = 'btn dark big fQuick';
-                    quick.textContent = `一键分解白绿装备（${lowCount} 件）`;
-                    quick.onclick = () => {
-                        // 索引降序分解防串位
-                        for (let i = bag.length - 1; i >= 0; i--) {
-                            if (bag[i].tier <= 2) {
-                                hs.salvage(i);
+                        for (const g of groups) {
+                            const enough = gm.gold >= g.cost;
+                            const nameA = `${EQUIP_TIER_NAMES[g.tier - 1]}${EQUIP_SLOT_NAMES[g.slot]}`;
+                            const nameB = `${EQUIP_TIER_NAMES[g.tier]}${EQUIP_SLOT_NAMES[g.slot]}`;
+                            c.appendChild(this._popRow({
+                                icon: SLOT_EMOJI[g.slot],
+                                title: `${nameA} ×3`,
+                                tag: `可合 ${g.n} 组`,
+                                lines: [`→ ${nameB} ×1`, `🪙 ${g.cost} / 组`],
+                                status: enough ? undefined : '金币不足',
+                                statusKind: enough ? undefined : 'expire',
+                                action: {
+                                    label: '合 成',
+                                    disabled: !enough,
+                                    onClick: () => this._popConfirm({
+                                        title: '合成装备',
+                                        icon: '🔮',
+                                        desc: `${nameA} ×3 合成 ${nameB} ×1（保留最高强化级）`,
+                                        preview: this._popGrid([
+                                            { icon: SLOT_EMOJI[g.slot], count: 3, title: '消耗 3 件' },
+                                            { icon: '✨', title: '合成' },
+                                            { icon: SLOT_EMOJI[g.slot], count: 1, title: '产出 1 件' }
+                                        ], 3),
+                                        cost: [{ icon: '🪙', have: gm.gold, need: g.cost }],
+                                        ok: '确认合成',
+                                        onOk: () => {
+                                            if (hs.combine(null, g.slot, g.tier)) {
+                                                SoundFx.play('buy');
+                                                this._toast(`合成成功：${nameB}`);
+                                                this._refreshTop();
+                                            }
+                                            this._openForgeModal(0);
+                                        },
+                                        onCancel: () => this._openForgeModal(0)
+                                    })
+                                }
+                            }));
+                        }
+                        return;
+                    }
+                    if (!bag.length) {
+                        c.appendChild(this._popEmpty('背包中没有可分解的装备', '关卡掉落与商店购买会进入背包', '♻️'));
+                        return;
+                    }
+                    for (const it of bag) {
+                        const alloy = salvageAlloyYield(it.tier);
+                        const stone = salvageStoneYield(it.tier);
+                        c.appendChild(this._popRow({
+                            icon: SLOT_EMOJI[it.slot],
+                            title: `${bagItemName(it)} +${it.lv}`,
+                            tag: EQUIP_TIER_NAMES[it.tier - 1],
+                            lines: [`→ 🧱 ${stone}${alloy > 0 ? ` · 🔩 ${alloy}` : ''}`],
+                            action: {
+                                label: '分解',
+                                kind: 'grey',
+                                onClick: () => this._popConfirm({
+                                    title: '分解装备',
+                                    icon: '♻️',
+                                    desc: `${bagItemName(it)} +${it.lv} 分解为 🧱 ${stone}${alloy > 0 ? ` · 🔩 ${alloy}` : ''}`,
+                                    danger: true,
+                                    ok: '确认分解',
+                                    onOk: () => {
+                                        const idx = gm.bag.indexOf(it);
+                                        if (idx >= 0 && hs.salvage(idx)) {
+                                            SoundFx.play('ui');
+                                            this._toast('分解完成，材料入包');
+                                            this._refreshTop();
+                                        }
+                                        this._openForgeModal(1);
+                                    },
+                                    onCancel: () => this._openForgeModal(1)
+                                })
                             }
-                        }
-                        SoundFx.play('coin');
-                        this._toast(`已分解 ${lowCount} 件，强化石/合金入包`);
-                        this._refreshTop();
-                        rebuild();
-                    };
-                    secS.appendChild(quick);
-                }
-                box.appendChild(secS);
-                const note = document.createElement('p');
-                note.className = 'fNote giftNote';
-                note.textContent = '强化石用于武器强化 · 精炼合金用于装备强化（材料消耗口已打通）';
-                box.appendChild(note);
+                        }));
+                    }
+                },
+                ctas: tab === 1 && lowCount > 0 ? [{
+                    label: `一键分解白绿（${lowCount} 件）`,
+                    kind: 'danger',
+                    onClick: () => this._popConfirm({
+                        title: '一键分解',
+                        icon: '♻️',
+                        desc: `分解背包中全部白绿（★1-★2）装备，共 ${lowCount} 件，不可恢复`,
+                        danger: true,
+                        ok: '确认分解',
+                        onOk: () => {
+                            for (let i = gm.bag.length - 1; i >= 0; i--) {
+                                if (gm.bag[i].tier <= 2) {
+                                    hs.salvage(i);
+                                }
+                            }
+                            SoundFx.play('coin');
+                            this._toast(`已分解 ${lowCount} 件，强化石/合金入包`);
+                            this._refreshTop();
+                            this._openForgeModal(1);
+                        },
+                        onCancel: () => this._openForgeModal(1)
+                    })
+                }] : undefined,
+                note: '强化石用于武器强化 · 精炼合金用于装备强化（材料消耗口已打通）'
             };
-            rebuild();
-        });
+        };
+        this._openPop(opt());
     }
 
 
@@ -983,477 +954,731 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     }
 
 
-    /** 内嵌物品栏物品详情弹窗：装备可穿戴（走穿戴面板），道具可用则显示使用按钮 */
-    protected _openBagItemTip(heroId: string, src: BagItem | MiscItemDef): void {
-        const hs = HeroSystem.instance;
-        const isEquip = (src as BagItem).slot !== undefined;
-        const title = isEquip
-            ? `${bagItemName(src as BagItem)} · +${(src as BagItem).lv}`
-            : `${(src as MiscItemDef).ic} ${(src as MiscItemDef).name}`;
-        this._openModal(title, (box, close) => {
-            const info = document.createElement('p');
-            info.className = 'mSub';
-            if (isEquip) {
-                const it = src as BagItem;
-                const parts: string[] = [];
+    /** 内嵌物品栏物品详情：装备走 2-A（品质头 + 双页签），材料/道具走 2-B（材料详情 + 使用） */
+    protected _openBagItemTip(heroId: string, src: BagItem | MiscItemDef, tab = 0): void {
+        if ((src as BagItem).slot !== undefined) {
+            this._openEquipDetail(heroId, src as BagItem, tab);
+            return;
+        }
+        this._openMiscDetail(src as MiscItemDef);
+    }
+
+    /**
+     * 装备详情（UX 布局稿 2-A · L3·L）：品质头 → 「装备属性 / 宝石属性」页签 → 装备动作。
+     * 宝石插槽按品质给数，实际镶嵌在「穿戴」面板中对已装备物品进行（页签内明确指路）。
+     */
+    protected _openEquipDetail(heroId: string, it: BagItem, tab = 0): void {
+        const statOf = (key: 'atkPct' | 'ratePct' | 'rangePct'): number => Math.round(bagItemValue(it, key) * 100);
+        const label = (key: 'atkPct' | 'ratePct' | 'rangePct'): string =>
+            key === 'atkPct' ? '攻击加成' : key === 'ratePct' ? '射速加成' : '射程加成';
+        const ico = (key: 'atkPct' | 'ratePct' | 'rangePct'): string =>
+            key === 'atkPct' ? '⚔' : key === 'ratePct' ? '⏱' : '🎯';
+        const opt = (): PopOpts => ({
+            tier: 3,
+            size: 'L',
+            quality: {
+                q: Math.min(4, Math.max(1, it.tier)) as 1 | 2 | 3 | 4,
+                name: bagItemName(it),
+                icon: SLOT_EMOJI[it.slot],
+                tier: `+${it.lv}`,
+                stats: [EQUIP_TIER_NAMES[it.tier - 1], `强化 +${it.lv}`, `${EQUIP_SLOT_NAMES[it.slot]}位`]
+            },
+            tabs: ['装备属性', '宝石属性'],
+            tab,
+            onTab: i => this._openEquipDetail(heroId, it, i),
+            build: c => {
+                if (tab === 1) {
+                    const n = gemSlots(it.tier);
+                    c.appendChild(this._popSec(`宝石插槽（${n}）`));
+                    for (let i = 0; i < n; i++) {
+                        c.appendChild(this._popAttr({
+                            icon: '💠',
+                            text: `插槽 ${i + 1} · 空（装备后可镶嵌）`,
+                            empty: true,
+                            slot: true
+                        }));
+                    }
+                    c.appendChild(this._popKV('镶嵌费用', `🪙 ${gemSocketCost(it.tier)} / 次`, 'total'));
+                    c.appendChild(this._el('div', 'popWarn', '⚠ 宝石镶嵌在「穿戴」面板中对已装备物品操作，拆卸免费返还'));
+                    return;
+                }
+                c.appendChild(this._popSec('基础属性'));
                 for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
-                    const v = Math.round(bagItemValue(it, key) * 100);
-                    if (v > 0) {
-                        parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
-                    }
+                    const v = statOf(key);
+                    c.appendChild(this._popAttr({
+                        icon: ico(key),
+                        text: `${label(key)} **+${v}%**`,
+                        empty: v <= 0
+                    }));
                 }
-                info.innerHTML = `<b style="color:${EQUIP_TIER_COLORS[it.tier - 1]}">${EQUIP_TIER_NAMES[it.tier - 1]}${EQUIP_SLOT_NAMES[it.slot]}</b>` +
-                    ` · 强化 +${it.lv}<br>${parts.join(' ') || '无属性'}`;
-                box.appendChild(info);
-                const affixBox = this._affixBlock(it.affixes, it.tier);
-                if (affixBox) {
-                    box.appendChild(affixBox);
-                }
-            } else {
-                const md = src as MiscItemDef;
-                const n = hs.miscCount(md.id);
-                info.innerHTML = `<b style="color:${EQUIP_TIER_COLORS[md.tier - 1]}">${md.name}</b> · 持有 ×${n}<br>${md.desc}`;
-            }
-            box.appendChild(info);
-            if (isEquip) {
-                const btn = document.createElement('button');
-                btn.className = 'btn gold big';
-                btn.textContent = '装 备';
-                btn.onclick = () => {
-                    close();
-                    document.querySelector('#homeUi .protoMask')?.remove();
-                    this._openEquipSlotPanel(heroId, (src as BagItem).slot);
-                };
-                box.appendChild(btn);
-            } else if (miscDef((src as MiscItemDef).id)?.use) {
-                const btn = document.createElement('button');
-                btn.className = 'btn gold big';
-                btn.textContent = '使 用';
-                btn.onclick = () => {
-                    if (hs.useMisc((src as MiscItemDef).id)) {
-                        SoundFx.play('buy');
-                        this._toast('使用成功');
-                        close();
-                        this._refreshHeroes();
+                c.appendChild(this._popSec(`词缀（${it.affixes?.length ?? 0}）`));
+                if (it.affixes?.length) {
+                    for (const id of it.affixes) {
+                        c.appendChild(this._popAttr({
+                            icon: '✦',
+                            text: `**${affixName(id)}** ${affixValueText(id, it.tier)}`
+                        }));
                     }
-                };
-                box.appendChild(btn);
-            }
-            const closeBar = document.createElement('button');
-            closeBar.className = 'btn dark sm';
-            closeBar.textContent = '关 闭';
-            closeBar.onclick = (e) => {
-                e.stopPropagation();
-                close();
-            };
-            box.appendChild(closeBar);
+                } else {
+                    c.appendChild(this._popAttr({ icon: '✦', text: '暂无词缀（高品质装备自带词条）', empty: true }));
+                }
+                c.appendChild(this._popKV('强化等级', `+${it.lv}`, 'free'));
+            },
+            ctas: [{
+                label: '装 备',
+                onClick: () => {
+                    this._closePop();
+                    this._openEquipSlotPanel(heroId, it.slot);
+                }
+            }],
+            note: '装备后属性立即生效 · 替换同部位自动回收旧件'
         });
+        this._openPop(opt());
+    }
+
+    /** 材料/道具详情（UX 布局稿 2-B · L3·M）：品质头 + 说明 + 持有/来源 + 使用 */
+    protected _openMiscDetail(md: MiscItemDef): void {
+        const hs = HeroSystem.instance;
+        const opt = (): PopOpts => {
+            const cur = hs.miscCount(md.id);
+            const usable = !!md.use && cur > 0;
+            return {
+                tier: 3,
+                size: 'M',
+                quality: {
+                    q: Math.min(4, Math.max(1, md.tier)) as 1 | 2 | 3 | 4,
+                    name: md.name,
+                    icon: md.ic,
+                    tier: '材料',
+                    stats: [`持有 ×${cur}`]
+                },
+                build: c => {
+                    c.appendChild(this._popSec('说明'));
+                    const body = this._el('div', 'popBody');
+                    body.appendChild(this._el('p', undefined, md.desc));
+                    c.appendChild(body);
+                    c.appendChild(this._popKV('持有数量', `×${cur}`));
+                    c.appendChild(this._popKV('主要来源', '关卡掉落 / 商店 / 邮件附件', 'free'));
+                },
+                ctas: md.use ? [{
+                    label: usable ? '使 用' : '数量不足',
+                    disabled: !usable,
+                    onClick: () => {
+                        if (hs.useMisc(md.id)) {
+                            SoundFx.play('buy');
+                            this._toast('使用成功');
+                            this._refreshHeroes();
+                            this._popRebuild(opt());
+                        }
+                    }
+                }] : undefined,
+                note: md.use ? '使用后立即生效' : '该材料用于合成/强化消耗'
+            };
+        };
+        this._openPop(opt());
     }
 
 
-    /** 宝石镶嵌选择面板：列出库存中的宝石（含效果与镶嵌费），点击镶嵌到空孔 */
+    /**
+     * 宝石镶嵌（UX 布局稿 2-A 的钻取层 · L3·M）：持有宝石列表（行内镶嵌）+ 固定费用行 + 空态。
+     * 费用不足或无可镶嵌宝石时就地置灰，避免点了才报错。
+     */
     protected _openGemPickPanel(heroId: string, slot: EquipSlot): void {
         const hs = HeroSystem.instance;
         const gm = GameManager.instance;
-        this._openModal('💎 选择宝石镶嵌', (box, close) => {
+        const opt = (): PopOpts => {
             const state = hs.equipped(heroId, slot);
             const def = state ? hs.equipDef(state.id) : null;
             const tier = def?.tier ?? (state && state.id.startsWith('bag:') ? Number(state.id.split(':')[2]) as EquipTier : 1);
             const cost = gemSocketCost(tier);
-            const tip = document.createElement('p');
-            tip.className = 'mSub';
-            tip.textContent = `镶嵌费用：🪙 ${cost}（拆卸免费返还）`;
-            box.appendChild(tip);
-            const ownedGems = GEM_EFFECTS.filter(g => HeroSystem.instance.miscCount(g.miscId) > 0);
-            if (ownedGems.length === 0) {
-                const empty = document.createElement('p');
-                empty.className = 'mSub';
-                empty.textContent = '背包中没有宝石 · 通关掉落/商店获取';
-                box.appendChild(empty);
-            }
-            for (const g of ownedGems) {
-                const gd = miscDef(g.miscId)!;
-                const effTxt = (g.key === 'atkPct' ? '攻击' : g.key === 'ratePct' ? '射速' : g.key === 'rangePct' ? '射程' : '暴击')
-                    + `+${Math.round(g.value * 100)}%`;
-                const row = document.createElement('div');
-                row.className = 'equipRow';
-                row.innerHTML =
-                    `<div class="equipInfo"><div class="equipName" style="color:${EQUIP_TIER_COLORS[gd.tier - 1]}">${gd.ic} ${gd.name} ×${HeroSystem.instance.miscCount(g.miscId)}</div>` +
-                    `<div class="equipStat">${effTxt}</div></div>`;
-                const btn = document.createElement('button');
-                btn.className = 'btn gold sm';
-                btn.textContent = '镶 嵌';
-                btn.disabled = gm.gold < cost;
-                btn.onclick = () => {
-                    if (hs.socketGem(heroId, slot, g.miscId)) {
-                        SoundFx.play('buy');
-                        document.querySelector('#homeUi .protoMask')?.remove();
-                        this._refreshHeroes();
-                        this._openEquipSlotPanel(heroId, slot);
+            const gems = hs.equippedGems(heroId, slot);
+            const owned = GEM_EFFECTS.filter(g => hs.miscCount(g.miscId) > 0);
+            const enough = gm.gold >= cost;
+            return {
+                tier: 3,
+                size: 'M',
+                banner: '💎 镶嵌宝石',
+                art: `${EQUIP_SLOT_NAMES[slot]} ${gems.length}/${gemSlots(tier)}`,
+                onBack: () => this._openEquipSlotPanel(heroId, slot),
+                cost: [{ icon: '🪙', have: gm.gold, need: cost }],
+                build: c => {
+                    if (!owned.length) {
+                        c.appendChild(this._popEmpty('背包中没有宝石', '通关掉落 / 商店 / 邮件附件获取', '💎'));
+                        return;
                     }
-                };
-                row.appendChild(btn);
-                box.appendChild(row);
-            }
-            const back = document.createElement('button');
-            back.className = 'btn dark big';
-            back.style.marginTop = 'calc(12px * var(--hs,1))';
-            back.textContent = '返 回';
-            back.onclick = (e) => {
-                e.stopPropagation();
-                close();
-                this._openEquipSlotPanel(heroId, slot);
+                    for (const g of owned) {
+                        const gd = miscDef(g.miscId)!;
+                        const keyName = g.key === 'atkPct' ? '攻击' : g.key === 'ratePct' ? '射速' : g.key === 'rangePct' ? '射程' : '暴击';
+                        c.appendChild(this._popRow({
+                            icon: gd.ic,
+                            title: gd.name,
+                            tag: EQUIP_TIER_NAMES[gd.tier - 1],
+                            lines: [`${keyName} +${Math.round(g.value * 100)}%`, `持有 ×${hs.miscCount(g.miscId)}`],
+                            status: enough ? undefined : '金币不足',
+                            statusKind: enough ? undefined : 'expire',
+                            action: {
+                                label: '镶 嵌',
+                                disabled: !enough,
+                                onClick: () => {
+                                    if (hs.socketGem(heroId, slot, g.miscId)) {
+                                        SoundFx.play('buy');
+                                        this._refreshHeroes();
+                                        this._openEquipSlotPanel(heroId, slot);
+                                    }
+                                }
+                            }
+                        }));
+                    }
+                },
+                ctas: [{ label: '返回穿戴', kind: 'grey', onClick: () => this._openEquipSlotPanel(heroId, slot) }],
+                note: '镶嵌消耗金币 · 拆卸免费返还宝石'
             };
-            box.appendChild(back);
-        });
+        };
+        this._openPop(opt());
     }
 
 
     /** 弹窗：英雄核心（武器核心嵌入/拆除，口径同旧 gem 钮） */
-    protected _openCoreModal(heroId: string): void {
-        const hs = HeroSystem.instance;
-        const def = HERO_DEFS.find(d => d.id === heroId);
-        const core = hs.weaponCore(heroId);
-        this._openModal('🧬 英雄核心', (box, close) => {
-            const sub = document.createElement('p');
-            sub.className = 'mSub';
-            sub.textContent = `核心为 ${def?.name ?? ''} 提供武器特效加成（暴击/攻击等）`;
-            box.appendChild(sub);
-            if (core) {
-                const row = document.createElement('div');
-                row.className = 'mRow';
-                row.innerHTML = `<span>当前核心 <b class="goldT" style="color:${EQUIP_TIER_COLORS[core.tier - 1]}">${core.name}</b> · ${core.desc}</span>`;
-                const off = document.createElement('button');
-                off.className = 'btn dark sm';
-                off.textContent = '拆 除';
-                off.onclick = () => {
-                    if (hs.removeCore(heroId)) {
-                        SoundFx.play('ui');
-                        this._toast('核心已拆除');
-                        close();
-                        this._refreshHeroes();
-                    }
-                };
-                row.appendChild(off);
-                box.appendChild(row);
-            } else {
-                const rec = WEAPON_CORE_DEFS.slice()
-                    .sort((a, b) => (a.tier - b.tier) || (a.baseCost - b.baseCost))[0] ?? null;
-                if (rec) {
-                    const row = document.createElement('div');
-                    row.className = 'mRow';
-                    row.innerHTML = `<span>未嵌入核心 · 推荐 <b class="goldT">${rec.name}</b>（${rec.desc}）</span>`;
-                    const buy = document.createElement('button');
-                    buy.className = 'btn gold sm';
-                    buy.textContent = `🪙 ${rec.baseCost} 嵌入`;
-                    buy.disabled = GameManager.instance.gold < rec.baseCost;
-                    buy.onclick = () => {
-                        if (hs.buyCore(heroId, rec.id)) {
-                            SoundFx.play('buy');
-                            this._toast(`${rec.name} 嵌入成功`);
-                            close();
-                            this._refreshHeroes();
-                        }
-                    };
-                    row.appendChild(buy);
-                    box.appendChild(row);
-                }
-                // 全核心列表（供选择）
-                for (const c of WEAPON_CORE_DEFS) {
-                    const row = document.createElement('div');
-                    row.className = 'mRow';
-                    row.innerHTML = `<span><b style="color:${EQUIP_TIER_COLORS[c.tier - 1]}">${c.name}</b> · ${c.desc}</span>`;
-                    const b2 = document.createElement('button');
-                    b2.className = 'btn blue sm';
-                    b2.textContent = `🪙 ${c.baseCost}`;
-                    b2.disabled = GameManager.instance.gold < c.baseCost;
-                    b2.onclick = () => {
-                        if (hs.buyCore(heroId, c.id)) {
-                            SoundFx.play('buy');
-                            this._toast(`${c.name} 嵌入成功`);
-                            close();
-                            this._refreshHeroes();
-                        }
-                    };
-                    row.appendChild(b2);
-                    box.appendChild(row);
-                }
-            }
-        });
-    }
 
 
     /** 弹窗：武器强化 */
-    protected _openWeaponModal(heroId: string): void {
+
+    /**
+     * 英雄养成二级页（UX 布局稿 4-B · L2·XL 全屏页）：四条养成线收进一页，页签直达。
+     * 展示台[固定] → 线内容[滚动] → 消耗行[固定] → CTA[固定] → 装备六槽[固定] → 底栏(返回+四线页签)。
+     * 天赋树本体仍是独立大图，页签内以分支摘要 + 前往入口衔接（避免此处复制一套树）。
+     */
+    protected _openHeroGrowModal(heroId: string, tab = 0): void {
         const hs = HeroSystem.instance;
+        const gm = GameManager.instance;
         const def = HERO_DEFS.find(d => d.id === heroId);
-        this._openModal(`🔧 武器强化 · ${def?.name ?? ''}`, (box, close) => {
-            const lv = hs.weaponLevel(heroId);
-            const sub = document.createElement('p');
-            sub.className = 'mSub';
-            sub.textContent = '武器强化提升普攻基础伤害（每级攻击加成叠加）';
-            box.appendChild(sub);
-            const cur = document.createElement('div');
-            cur.className = 'mRow';
-            cur.innerHTML = `<span>当前武器 <b class="goldT">+${lv}</b> · 攻击加成 +${Math.round((hs.weaponAtkMul(heroId) - 1) * 100)}%</span>`;
-            box.appendChild(cur);
-            const row = document.createElement('div');
-            row.className = 'mRow';
-            if (hs.isWeaponMaxLevel(heroId)) {
-                row.innerHTML = '<span>武器已满级</span>';
-                const b = document.createElement('button');
-                b.className = 'btn dark sm';
-                b.disabled = true;
-                b.textContent = '已满级';
-                row.appendChild(b);
-            } else {
-                const cost = hs.weaponUpgradeCost(heroId);
-                const stone = hs.weaponUpgradeStone(heroId);
-                const stoneLeft = hs.miscCount('mat_stone');
-                row.innerHTML = `<span>强化至 +${lv + 1}（攻击加成 +${Math.round((Math.pow(1 + 0.05, lv + 1) - 1) * 100)}%）</span>` +
-                    `<span class="matNeed">🪙 ${cost} · 🧱 强化石 ×${stone}（余 ${stoneLeft}）</span>`;
-                const b = document.createElement('button');
-                b.className = 'btn gold sm';
-                b.textContent = '强 化';
-                b.disabled = GameManager.instance.gold < cost || stoneLeft < stone;
-                b.onclick = () => {
-                    if (hs.upgradeWeapon(heroId)) {
-                        SoundFx.play('buy');
-                        this._toast(`武器强化至 +${lv + 1}`);
-                        close();
-                        this._refreshHeroes();
-                    } else {
-                        this._toast('材料不足：分解装备或通关掉落获取强化石');
+        if (!def || !gm.isHeroOwned(heroId)) {
+            return;
+        }
+        const ts = TalentSystem.instance;
+        const opt = (): PopOpts => {
+            const wlv = hs.weaponLevel(heroId);
+            const wMax = hs.isWeaponMaxLevel(heroId);
+            const wCost = hs.weaponUpgradeCost(heroId);
+            const wStone = hs.weaponUpgradeStone(heroId);
+            const stoneLeft = hs.miscCount('mat_stone');
+            const core = hs.weaponCore(heroId);
+            const wEnough = !wMax && gm.gold >= wCost && stoneLeft >= wStone;
+            const upWeapon = (n: number): number => {
+                let done = 0;
+                while (done < n) {
+                    if (hs.isWeaponMaxLevel(heroId)
+                        || gm.gold < hs.weaponUpgradeCost(heroId)
+                        || hs.miscCount('mat_stone') < hs.weaponUpgradeStone(heroId)) {
+                        break;
                     }
-                };
-                row.appendChild(b);
+                    if (!hs.upgradeWeapon(heroId)) {
+                        break;
+                    }
+                    done++;
+                }
+                return done;
+            };
+            return {
+                tier: 2,
+                size: 'XL',
+                title: `英雄养成 · ${def.name}`,
+                onBack: () => this._closePop(),
+                show: {
+                    icon: '🎖',
+                    tier: `Lv.${gm.heroLevels[heroId] ?? 1}`,
+                    name: def.name,
+                    sub: `战力 ${this._heroPower(heroId).toLocaleString()} · ${def.role}`
+                },
+                cost: tab === 3 && !wMax ? [
+                    { icon: '🪙', have: gm.gold, need: wCost },
+                    { icon: '🧱', have: stoneLeft, need: wStone }
+                ] : undefined,
+                build: c => {
+                    if (tab === 0) {
+                        c.appendChild(this._popSec('技能与大招 · 升级卡提升等级'));
+                        c.appendChild(this._renderSkillCards(def, () => this._popRebuild(opt())));
+                        return;
+                    }
+                    if (tab === 1) {
+                        c.appendChild(this._popSec('武器核心'));
+                        if (core) {
+                            c.appendChild(this._popAttr({
+                                icon: '🧬',
+                                text: `**${core.name}** · ${core.desc}`,
+                                action: {
+                                    label: '拆 除',
+                                    onClick: () => {
+                                        if (hs.removeCore(heroId)) {
+                                            SoundFx.play('ui');
+                                            this._toast('核心已拆除');
+                                            this._refreshHeroes();
+                                            this._popRebuild(opt());
+                                        }
+                                    }
+                                }
+                            }));
+                        } else {
+                            c.appendChild(this._popAttr({
+                                icon: '🧬',
+                                text: '未嵌入核心 · 核心为武器提供额外特效',
+                                empty: true
+                            }));
+                        }
+                        c.appendChild(this._popSec('可选核心（嵌入即生效）'));
+                        for (const cd of WEAPON_CORE_DEFS) {
+                            const afford = gm.gold >= cd.baseCost;
+                            c.appendChild(this._popRow({
+                                icon: '🧬',
+                                title: cd.name,
+                                tag: EQUIP_TIER_NAMES[cd.tier - 1],
+                                lines: [cd.desc],
+                                status: afford ? undefined : '金币不足',
+                                statusKind: afford ? undefined : 'expire',
+                                action: {
+                                    label: `🪙 ${cd.baseCost}`,
+                                    disabled: !afford,
+                                    onClick: () => {
+                                        if (hs.buyCore(heroId, cd.id)) {
+                                            SoundFx.play('buy');
+                                            this._toast(`${cd.name} 嵌入成功`);
+                                            this._refreshHeroes();
+                                            this._popRebuild(opt());
+                                        }
+                                    }
+                                }
+                            }));
+                        }
+                        return;
+                    }
+                    if (tab === 2) {
+                        c.appendChild(this._popSec('天赋总览'));
+                        c.appendChild(this._popKV('可用天赋点', String(ts.available)));
+                        c.appendChild(this._popKV('已投 / 总点', `${ts.spent} / ${ts.total}`));
+                        c.appendChild(this._popSec('三分支'));
+                        for (const br of TALENT_BRANCHES) {
+                            const nodes = branchNodes(br);
+                            c.appendChild(this._popRow({
+                                icon: '🌟',
+                                title: TALENT_BRANCH_NAMES[br],
+                                lines: [`已投 ${ts.spentIn(br)} / ${branchPointTotal(br)} 点`],
+                                progress: branchPointTotal(br) > 0 ? ts.spentIn(br) / branchPointTotal(br) : 0,
+                                status: ts.available > 0 ? '可加点' : '无点数',
+                                statusKind: ts.available > 0 ? 'soon' : undefined,
+                                red: ts.available > 0,
+                                action: {
+                                    label: '前往天赋图',
+                                    kind: 'gold',
+                                    onClick: () => this._openTalentModal(nodes[0]?.id ?? 'fire_1')
+                                }
+                            }));
+                        }
+                        c.appendChild(this._el('div', 'popWarn', '天赋点来源：累计等级每 5 级 +1 · 通关每关 +1 · 爬塔每 5 层 +1 · 招募每 10 抽 +1'));
+                        return;
+                    }
+                    // 页签 3：武器强化
+                    c.appendChild(this._popSec('武器强化 · 每级提升普攻基础伤害'));
+                    if (wMax) {
+                        c.appendChild(this._el('div', 'popWarn', `✨ 武器已强化至上限 +${wlv}`));
+                    } else {
+                        c.appendChild(this._popCmp('强化预览', [{
+                            label: '武器等级',
+                            old: `+${wlv}`,
+                            now: `+${wlv + 1}`
+                        }, {
+                            label: '攻击加成',
+                            old: `+${Math.round((hs.weaponAtkMul(heroId) - 1) * 100)}%`,
+                            now: `+${Math.round((1 + WEAPON_ATK_STEP * wlv - 1) * 100)}%`
+                        }]));
+                    }
+                    c.appendChild(this._popKV('当前武器等级', `+${wlv} / +${WEAPON_LEVEL_MAX}`, 'total'));
+                    c.appendChild(this._popKV('强化石持有', `🧱 ×${stoneLeft}`));
+                    c.appendChild(this._popKV('金币持有', `🪙 ${gm.gold.toLocaleString()}`, 'free'));
+                },
+                ctas: tab === 3 && !wMax ? [{
+                    label: '强 化',
+                    disabled: !wEnough,
+                    onClick: () => {
+                        if (upWeapon(1) > 0) {
+                            SoundFx.play('buy');
+                            this._refreshTop();
+                            this._refreshHeroes();
+                        } else {
+                            this._toast('材料不足：分解装备或通关掉落获取强化石');
+                        }
+                        this._popRebuild(opt());
+                    }
+                }, {
+                    label: '一键强化',
+                    kind: 'green',
+                    disabled: !wEnough,
+                    onClick: () => {
+                        const n = upWeapon(20);
+                        if (n > 0) {
+                            SoundFx.play('coin');
+                            this._toast(`一键强化武器 +${n} 级`);
+                            this._refreshTop();
+                            this._refreshHeroes();
+                        } else {
+                            this._toast('材料不足：无法继续强化');
+                        }
+                        this._popRebuild(opt());
+                    }
+                }] : undefined,
+                note: tab === 3 ? '强化石来自分解装备与关卡掉落' : '四条养成线共用英雄等级：技能 / 核心 / 天赋 / 武器',
+                slots: sb => {
+                    for (const s of EQUIP_SLOTS) {
+                        const st = hs.equipped(heroId, s);
+                        sb.appendChild(this._popSlot({
+                            icon: SLOT_EMOJI[s],
+                            tier: st ? `+${st.lv}` : undefined,
+                            red: hs.gemSlotCount(heroId, s) > hs.equippedGems(heroId, s).length,
+                            onClick: () => this._openEquipSlotPanel(heroId, s, 0)
+                        }));
+                    }
+                },
+                barBack: true,
+                barTabs: [
+                    { icon: '⚡', label: '技能', on: tab === 0, onClick: () => this._openHeroGrowModal(heroId, 0) },
+                    { icon: '🧬', label: '核心', on: tab === 1, red: !core, onClick: () => this._openHeroGrowModal(heroId, 1) },
+                    { icon: '🌟', label: '天赋', on: tab === 2, red: ts.available > 0, onClick: () => this._openHeroGrowModal(heroId, 2) },
+                    { icon: '🔧', label: '武器', on: tab === 3, red: wEnough, onClick: () => this._openHeroGrowModal(heroId, 3) }
+                ]
+            };
+        };
+        this._openPop(opt());
+        // 展示台挂英雄立绘（资源就绪后替换占位）
+        const ph = this._heroPhoto(HERO_DEFS.indexOf(def), 'figure');
+        this._tex(ph.key, u => {
+            const ped = this._root?.querySelector('.popPedestal') as HTMLElement | null;
+            if (ped) {
+                ped.textContent = '';
+                ped.style.backgroundImage = u;
+                ped.style.backgroundSize = 'cover';
+                ped.style.backgroundPosition = 'center 12%';
             }
-            box.appendChild(row);
         });
     }
-
-
-    /** 穿戴面板（对齐原型 mbox 风格）：已穿件（强化/卸下）+ 背包件（穿戴） */
-    protected _openEquipSlotPanel(heroId: string, slot: EquipSlot): void {
+    /**
+     * 装备养成二级页（UX 布局稿 4-A · L2·XL 全屏页）：
+     * 展示台[固定] → 强化预览/词缀[滚动] → 消耗行[固定] → 强化·一键强化[固定] → 六槽位条[固定] → 底栏(返回+页签)。
+     * 页签：强化（升级/重铸/卸下）· 宝石（镶嵌/拆卸）· 穿戴（背包件换上）。
+     */
+    protected _openEquipSlotPanel(heroId: string, slot: EquipSlot, tab = 0): void {
         const hs = HeroSystem.instance;
         const gm = GameManager.instance;
         if (!gm.isHeroOwned(heroId)) {
             return;
         }
-        this._openModal(`${EQUIP_SLOT_NAMES[slot]} · 穿戴`, (box, close) => {
-            const list = document.createElement('div');
-            list.className = 'equipSlots wide';
-            box.appendChild(list);
+        const heroName = HERO_DEFS.find(d => d.id === heroId)?.name ?? heroId;
+        const keyName = (key: 'atkPct' | 'ratePct' | 'rangePct'): string =>
+            key === 'atkPct' ? '攻击加成' : key === 'ratePct' ? '射速加成' : '射程加成';
+        const opt = (): PopOpts => {
             const cur = hs.equipped(heroId, slot);
-            if (cur) {
-                const row = document.createElement('div');
-                row.className = 'equipRow';
-                const info = document.createElement('div');
-                info.className = 'equipInfo';
-                let tier: EquipTier = 1;
-                let name = '';
-                if (cur.id.startsWith('bag:')) {
-                    tier = Number(cur.id.split(':')[2]) as EquipTier;
-                    name = bagItemName({ slot, tier, lv: cur.lv });
-                } else {
-                    const d = hs.equipDef(cur.id);
-                    if (d) {
-                        tier = d.tier;
-                        name = d.name;
+            const def = cur ? hs.equipDef(cur.id) : null;
+            const tier: EquipTier = def?.tier
+                ?? (cur && cur.id.startsWith('bag:') ? (Number(cur.id.split(':')[2]) || 1) as EquipTier : 1);
+            const name = cur
+                ? (def ? def.name : bagItemName({ slot, tier, lv: cur.lv }))
+                : `${EQUIP_SLOT_NAMES[slot]}（空）`;
+            const maxed = !!cur && hs.isEquipMaxLevel(cur);
+            const cost = cur ? hs.equipUpgradeCost(cur) : 0;
+            const alloy = cur ? hs.equipUpgradeAlloy(cur) : 0;
+            const alloyLeft = hs.miscCount('mat_alloy');
+            const enough = !!cur && !maxed && gm.gold >= cost && alloyLeft >= alloy;
+            const bar = tab === 0 ? '强化' : tab === 1 ? '宝石' : '穿戴';
+            const doUpgrade = (n: number): number => {
+                let done = 0;
+                while (done < n) {
+                    const st = hs.equipped(heroId, slot);
+                    if (!st || hs.isEquipMaxLevel(st)
+                        || gm.gold < hs.equipUpgradeCost(st)
+                        || hs.miscCount('mat_alloy') < hs.equipUpgradeAlloy(st)) {
+                        break;
                     }
-                }
-                const parts: string[] = [];
-                for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
-                    const v = Math.round(hs.equipSlotValue(cur, key) * 100);
-                    if (v > 0) {
-                        parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
+                    if (!hs.upgradeEquip(heroId, slot)) {
+                        break;
                     }
+                    done++;
                 }
-                info.innerHTML =
-                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[tier - 1]}">当前：${name}</div>` +
-                    `<div class="equipStat">强化 +${cur.lv} · ${parts.join(' ') || '无属性'}</div>`;
-                const btn = document.createElement('button');
-                btn.className = 'btn gold sm';
-                if (!hs.isEquipMaxLevel(cur)) {
-                    const cost = hs.equipUpgradeCost(cur);
-                    const alloy = hs.equipUpgradeAlloy(cur);
-                    const alloyLeft = hs.miscCount('mat_alloy');
-                    info.innerHTML =
-                        `<div class="equipName" style="color:${EQUIP_TIER_COLORS[tier - 1]}">当前：${name}</div>` +
-                        `<div class="equipStat">强化 +${cur.lv} · ${parts.join(' ') || '无属性'}</div>` +
-                        `<div class="equipStat matNeed">强化需 🪙 ${cost} · 🔩 精炼合金 ×${alloy}（余 ${alloyLeft}）</div>`;
-                    btn.textContent = '强 化';
-                    btn.disabled = gm.gold < cost || alloyLeft < alloy;
-                    btn.onclick = () => {
-                        if (hs.upgradeEquip(heroId, slot)) {
-                            SoundFx.play('buy');
-                            document.querySelector('#homeUi .protoMask')?.remove();
-                            this._refreshHeroes();
-                        } else {
-                            this._toast('材料不足：分解紫装以上或礼包获取精炼合金');
-                        }
-                    };
-                } else {
-                    btn.textContent = '已满级';
-                    btn.disabled = true;
-                }
-                // 词缀重铸：重新随机词缀（满条保底），只动词缀不动强化/宝石
-                const rfBtn = document.createElement('button');
-                rfBtn.className = 'btn blue sm';
-                const rfAlloy = hs.reforgeAlloyCost(cur);
-                const rfGem = hs.reforgeGemCost(cur);
-                const rfAlloyLeft = hs.miscCount('mat_alloy');
-                info.innerHTML +=
-                    `<div class="equipStat matNeed">重铸需 🔩 ${rfAlloy}（余 ${rfAlloyLeft}）· 💎 ${rfGem}</div>`;
-                rfBtn.textContent = '✦ 重铸';
-                rfBtn.disabled = rfAlloyLeft < rfAlloy || gm.res.get('diamond') < rfGem;
-                rfBtn.title = '重新随机词缀（保底满条）；强化等级与宝石不变';
-                rfBtn.onclick = () => {
-                    if (hs.reforgeAffixes(heroId, slot)) {
-                        SoundFx.play('buy');
-                        this._toast('词缀已重铸');
-                        document.querySelector('#homeUi .protoMask')?.remove();
-                        this._refreshHeroes();
-                        this._openEquipSlotPanel(heroId, slot);
-                    } else {
-                        this._toast('材料不足：重铸需精炼合金与钻石');
-                    }
-                };
-                const offBtn = document.createElement('button');
-                offBtn.className = 'btn dark sm';
-                offBtn.textContent = '卸 下';
-                offBtn.onclick = () => {
-                    if (hs.unequipToBag(heroId, slot)) {
-                        SoundFx.play('ui');
-                        document.querySelector('#homeUi .protoMask')?.remove();
-                        this._refreshHeroes();
-                    }
-                };
-                const wrap = document.createElement('div');
-                wrap.style.display = 'flex';
-                wrap.style.gap = 'calc(8px * var(--hs,1))';
-                wrap.style.flexWrap = 'wrap';
-                wrap.appendChild(btn);
-                wrap.appendChild(rfBtn);
-                wrap.appendChild(offBtn);
-                row.appendChild(info);
-                row.appendChild(wrap);
-                list.appendChild(row);
-                // 已穿件的词缀明细（数值已计入上面的「含词缀」总属性）
-                const curAffix = this._affixBlock(cur.affixes, tier);
-                if (curAffix) {
-                    list.appendChild(curAffix);
-                }
-
-                // ---- 宝石孔区：已镶宝石可拆卸，空孔选择库存宝石镶嵌 ----
-                const holes = hs.gemSlotCount(heroId, slot);
-                if (holes > 0) {
-                    const gemBox = document.createElement('div');
-                    gemBox.className = 'gemBox';
-                    const gems = hs.equippedGems(heroId, slot);
-                    for (let hi = 0; hi < holes; hi++) {
-                        const hole = document.createElement('div');
-                        hole.className = 'gemHole';
-                        const gid = gems[hi];
-                        if (gid) {
-                            const gd = miscDef(gid)!;
-                            const eff = GEM_EFFECTS.find(g => g.miscId === gid);
-                            const effTxt = eff ? (eff.key === 'atkPct' ? '攻击' : eff.key === 'ratePct' ? '射速' : eff.key === 'rangePct' ? '射程' : '暴击')
-                                + `+${Math.round(eff.value * 100)}%` : '';
-                            hole.innerHTML = `<span class="ghIc">${gd.ic}</span><span class="ghNm" style="color:${EQUIP_TIER_COLORS[gd.tier - 1]}">${gd.name}</span><span class="ghEff">${effTxt}</span>`;
-                            hole.title = '点击拆卸（宝石返还背包）';
-                            hole.onclick = () => {
-                                if (hs.unsocketGem(heroId, slot, hi)) {
-                                    SoundFx.play('ui');
-                                    document.querySelector('#homeUi .protoMask')?.remove();
-                                    this._refreshHeroes();
-                                    this._openEquipSlotPanel(heroId, slot);
-                                }
-                            };
-                        } else {
-                            hole.innerHTML = `<span class="ghIc dim">◇</span><span class="ghNm dim">空孔位</span><span class="ghEff">点击镶嵌</span>`;
-                            hole.onclick = () => {
-                                document.querySelector('#homeUi .protoMask')?.remove();
-                                this._openGemPickPanel(heroId, slot);
-                            };
-                        }
-                        gemBox.appendChild(hole);
-                    }
-                    list.appendChild(gemBox);
-                }
-            }
-            const items = hs.bagItemsOf(slot);
-            if (items.length === 0) {
-                const empty = document.createElement('p');
-                empty.className = 'mSub';
-                empty.textContent = cur ? '背包中该部位没有其他件' : '背包中该部位没有装备 · 去商店购买';
-                list.appendChild(empty);
-            }
-            for (const { index, item } of items) {
-                const row = document.createElement('div');
-                row.className = 'equipRow';
-                const info = document.createElement('div');
-                info.className = 'equipInfo';
-                const parts: string[] = [];
-                for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
-                    const v = Math.round(bagItemValue(item, key) * 100);
-                    if (v > 0) {
-                        parts.push((key === 'atkPct' ? '攻击+' : key === 'ratePct' ? '射速+' : '射程+') + v + '%');
-                    }
-                }
-                info.innerHTML =
-                    `<div class="equipName" style="color:${EQUIP_TIER_COLORS[item.tier - 1]}">${bagItemName(item)}`
-                    + `${this._affixBadge(item.affixes) ? ` <span class="affixMark">${this._affixBadge(item.affixes)}</span>` : ''}</div>` +
-                    `<div class="equipStat">${parts.join(' ') || '无属性'}</div>`;
-                const btn = document.createElement('button');
-                btn.className = 'btn gold sm';
-                btn.textContent = '穿 戴';
-                btn.onclick = () => {
-                    if (hs.equipFromBag(heroId, index)) {
-                        SoundFx.play('buy');
-                        document.querySelector('#homeUi .protoMask')?.remove();
-                        this._refreshHeroes();
-                    }
-                };
-                row.appendChild(info);
-                row.appendChild(btn);
-                list.appendChild(row);
-                const bagAffix = this._affixBlock(item.affixes, item.tier);
-                if (bagAffix) {
-                    list.appendChild(bagAffix);
-                }
-            }
-            const closeBar = document.createElement('button');
-            closeBar.className = 'btn dark big';
-            closeBar.style.marginTop = 'calc(12px * var(--hs,1))';
-            closeBar.textContent = '关 闭';
-            closeBar.onclick = (e) => {
-                e.stopPropagation();
-                close();
+                return done;
             };
-            box.appendChild(closeBar);
-        });
+            return {
+                tier: 2,
+                size: 'XL',
+                title: `${EQUIP_SLOT_NAMES[slot]}养成 · ${heroName}`,
+                onBack: () => this._closePop(),
+                show: {
+                    icon: SLOT_EMOJI[slot],
+                    tier: cur ? `+${cur.lv}` : '空',
+                    name,
+                    sub: `${heroName} · ${EQUIP_TIER_NAMES[tier - 1]}${EQUIP_SLOT_NAMES[slot]}`
+                },
+                cost: cur && !maxed ? [
+                    { icon: '🪙', have: gm.gold, need: cost },
+                    { icon: '🔩', have: alloyLeft, need: alloy }
+                ] : undefined,
+                build: c => {
+                    if (!cur) {
+                        c.appendChild(this._popEmpty('该部位尚未装备', '在下方「穿戴」页签选择背包中的装备', SLOT_EMOJI[slot]));
+                        for (const { index, item } of hs.bagItemsOf(slot)) {
+                            c.appendChild(this._popRow({
+                                icon: SLOT_EMOJI[slot],
+                                title: bagItemName(item),
+                                tag: EQUIP_TIER_NAMES[item.tier - 1],
+                                lines: [`强化 +${item.lv}`, this._affixBadge(item.affixes) || '无词缀'],
+                                action: {
+                                    label: '穿 戴',
+                                    onClick: () => {
+                                        if (hs.equipFromBag(heroId, index)) {
+                                            SoundFx.play('buy');
+                                            this._refreshHeroes();
+                                            this._openEquipSlotPanel(heroId, slot, tab);
+                                        }
+                                    }
+                                }
+                            }));
+                        }
+                        return;
+                    }
+                    if (tab === 1) {
+                        const holes = hs.gemSlotCount(heroId, slot);
+                        const gems = hs.equippedGems(heroId, slot);
+                        c.appendChild(this._popSec(`宝石插槽（${gems.length}/${holes}）`));
+                        if (holes === 0) {
+                            c.appendChild(this._popEmpty('该装备没有宝石插槽', '品质 ★2 起开放镶嵌孔', '💠'));
+                        }
+                        for (let hi = 0; hi < holes; hi++) {
+                            const gid = gems[hi];
+                            if (gid) {
+                                const gd = miscDef(gid)!;
+                                const eff = GEM_EFFECTS.find(g => g.miscId === gid);
+                                const effTxt = eff
+                                    ? `${keyName(eff.key === 'critPct' ? 'atkPct' : eff.key).replace('加成', '')}+${Math.round(eff.value * 100)}%`
+                                    : '';
+                                c.appendChild(this._popAttr({
+                                    icon: gd.ic,
+                                    text: `插槽 ${hi + 1} · **${gd.name}** ${effTxt}`,
+                                    action: {
+                                        label: '拆 卸',
+                                        onClick: () => {
+                                            if (hs.unsocketGem(heroId, slot, hi)) {
+                                                SoundFx.play('ui');
+                                                this._toast('宝石已返还背包');
+                                                this._refreshHeroes();
+                                                this._openEquipSlotPanel(heroId, slot, 1);
+                                            }
+                                        }
+                                    }
+                                }));
+                            } else {
+                                c.appendChild(this._popAttr({
+                                    icon: '◇',
+                                    text: `插槽 ${hi + 1} · 空孔位`,
+                                    empty: true,
+                                    action: {
+                                        label: '镶 嵌',
+                                        kind: 'info',
+                                        onClick: () => {
+                                            this._refreshHeroes();
+                                            this._openGemPickPanel(heroId, slot);
+                                        }
+                                    }
+                                }));
+                            }
+                        }
+                        c.appendChild(this._popKV('镶嵌费用', `🪙 ${gemSocketCost(tier)} / 次 · 拆卸免费返还`, 'total'));
+                        return;
+                    }
+                    if (tab === 2) {
+                        const items = hs.bagItemsOf(slot);
+                        c.appendChild(this._popSec('当前穿戴'));
+                        c.appendChild(this._popAttr({
+                            icon: SLOT_EMOJI[slot],
+                            text: `**${name}** 强化 +${cur.lv} · 孔位 ${hs.equippedGems(heroId, slot).length}/${hs.gemSlotCount(heroId, slot)}`
+                        }));
+                        c.appendChild(this._popSec('卸下与替换'));
+                        c.appendChild(this._popAttr({
+                            icon: '📤',
+                            text: '卸下到背包（不消耗材料，属性立即失效）',
+                            action: {
+                                label: '卸 下',
+                                kind: 'info',
+                                onClick: () => {
+                                    if (hs.unequipToBag(heroId, slot)) {
+                                        SoundFx.play('ui');
+                                        this._refreshHeroes();
+                                        this._openEquipSlotPanel(heroId, slot, 0);
+                                    }
+                                }
+                            }
+                        }));
+                        if (!items.length) {
+                            c.appendChild(this._popEmpty('背包中该部位没有其他件', '去商店购买或关卡掉落', '🎒'));
+                        }
+                        for (const { index, item } of items) {
+                            c.appendChild(this._popRow({
+                                icon: SLOT_EMOJI[slot],
+                                title: bagItemName(item),
+                                tag: EQUIP_TIER_NAMES[item.tier - 1],
+                                lines: [`强化 +${item.lv}`, this._affixBadge(item.affixes) || '无词缀'],
+                                action: {
+                                    label: '穿 戴',
+                                    onClick: () => {
+                                        if (hs.equipFromBag(heroId, index)) {
+                                            SoundFx.play('buy');
+                                            this._refreshHeroes();
+                                            this._openEquipSlotPanel(heroId, slot, 0);
+                                        }
+                                    }
+                                }
+                            }));
+                        }
+                        return;
+                    }
+                    // 页签 0：强化
+                    if (maxed) {
+                        c.appendChild(this._el('div', 'popWarn', `✨ 已强化至上限 +${cur.lv}`));
+                    } else {
+                        const clean = { ...cur, gems: [] as string[], affixes: [] as string[] };
+                        const lines: Array<{ label: string; old: string; now: string }> = [{
+                            label: '强化等级',
+                            old: `+${cur.lv}`,
+                            now: `+${cur.lv + 1}`
+                        }];
+                        for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
+                            const o = Math.round(hs.equipSlotValue({ ...clean, lv: cur.lv }, key) * 100);
+                            const n = Math.round(hs.equipSlotValue({ ...clean, lv: cur.lv + 1 }, key) * 100);
+                            if (o > 0 || n > 0) {
+                                lines.push({ label: keyName(key), old: `+${o}%`, now: `+${n}%` });
+                            }
+                        }
+                        c.appendChild(this._popCmp('强化预览', lines));
+                    }
+                    const tot: string[] = [];
+                    for (const key of ['atkPct', 'ratePct', 'rangePct'] as const) {
+                        const v = Math.round(hs.equipSlotValue(cur, key) * 100);
+                        if (v > 0) {
+                            tot.push(`${keyName(key).replace('加成', '')} +${v}%`);
+                        }
+                    }
+                    c.appendChild(this._popKV('当前总属性（含宝石/词缀）', tot.join(' · ') || '无', 'total'));
+                    c.appendChild(this._popSec(`词缀（${cur.affixes?.length ?? 0}）`));
+                    if (cur.affixes?.length) {
+                        for (const id of cur.affixes) {
+                            c.appendChild(this._popAttr({
+                                icon: '✦',
+                                text: `**${affixName(id)}** ${affixValueText(id, tier)}`
+                            }));
+                        }
+                    } else {
+                        c.appendChild(this._popAttr({ icon: '✦', text: '暂无词缀（重铸可为该件生成）', empty: true }));
+                    }
+                    const rfAlloy = hs.reforgeAlloyCost(cur);
+                    const rfGem = hs.reforgeGemCost(cur);
+                    const rfOk = alloyLeft >= rfAlloy && gm.res.get('diamond') >= rfGem;
+                    c.appendChild(this._popAttr({
+                        icon: '🎲',
+                        text: `重铸词缀（保底满条 · 强化与宝石不变）需 🔩 ${rfAlloy}（余 ${alloyLeft}）· 💎 ${rfGem}`,
+                        empty: !rfOk,
+                        action: {
+                            label: '重 铸',
+                            kind: rfOk ? 'gold' : 'info',
+                            onClick: () => {
+                                if (!rfOk) {
+                                    this._toast('材料不足：重铸需精炼合金与钻石');
+                                    return;
+                                }
+                                if (hs.reforgeAffixes(heroId, slot)) {
+                                    SoundFx.play('buy');
+                                    this._toast('词缀已重铸');
+                                    this._refreshHeroes();
+                                    this._openEquipSlotPanel(heroId, slot, 0);
+                                }
+                            }
+                        }
+                    }));
+                },
+                ctas: cur && tab === 0 ? [
+                    {
+                        label: maxed ? '已满级' : '强 化',
+                        disabled: !enough,
+                        onClick: () => {
+                            const n = doUpgrade(1);
+                            if (n > 0) {
+                                SoundFx.play('buy');
+                                this._refreshTop();
+                                this._refreshHeroes();
+                            } else {
+                                this._toast('材料不足：分解紫装以上或礼包获取精炼合金');
+                            }
+                            this._openEquipSlotPanel(heroId, slot, 0);
+                        }
+                    },
+                    {
+                        label: '一键强化',
+                        kind: 'green',
+                        disabled: !enough,
+                        onClick: () => {
+                            const n = doUpgrade(20);
+                            if (n > 0) {
+                                SoundFx.play('coin');
+                                this._toast(`一键强化 +${n} 级`);
+                                this._refreshTop();
+                                this._refreshHeroes();
+                            } else {
+                                this._toast('材料不足：无法继续强化');
+                            }
+                            this._openEquipSlotPanel(heroId, slot, 0);
+                        }
+                    }
+                ] : undefined,
+                note: maxed ? '已达当前工坊等级上限' : '强化消耗金币与精炼合金 · 换装继承强化等级',
+                slots: sb => {
+                    for (const s of EQUIP_SLOTS) {
+                        const st = hs.equipped(heroId, s);
+                        const d = st ? hs.equipDef(st.id) : null;
+                        const t = d?.tier ?? (st && st.id.startsWith('bag:') ? (Number(st.id.split(':')[2]) || 1) as EquipTier : 1);
+                        const empty = hs.gemSlotCount(heroId, s) > hs.equippedGems(heroId, s).length;
+                        sb.appendChild(this._popSlot({
+                            icon: SLOT_EMOJI[s],
+                            tier: st ? `+${st.lv}` : undefined,
+                            on: s === slot,
+                            red: !!st && empty,
+                            onClick: () => this._openEquipSlotPanel(heroId, s, 0)
+                        }));
+                    }
+                },
+                barBack: true,
+                barTabs: [
+                    {
+                        icon: '⚒',
+                        label: '强化',
+                        on: tab === 0,
+                        red: enough,
+                        onClick: () => this._openEquipSlotPanel(heroId, slot, 0)
+                    },
+                    {
+                        icon: '💠',
+                        label: '宝石',
+                        on: tab === 1,
+                        red: cur ? hs.gemSlotCount(heroId, slot) > hs.equippedGems(heroId, slot).length : false,
+                        onClick: () => this._openEquipSlotPanel(heroId, slot, 1)
+                    },
+                    {
+                        icon: '🎒',
+                        label: '穿戴',
+                        on: tab === 2,
+                        onClick: () => this._openEquipSlotPanel(heroId, slot, 2)
+                    }
+                ]
+            };
+        };
+        this._openPop(opt());
     }
 
 
     /** 技能养成弹窗（英雄页左功能列「技能」入口）：三线技能卡，就地升级后原位重建 */
-    protected _openSkillModal(heroId: string): void {
-        const def = HERO_DEFS.find(d => d.id === heroId);
-        if (!def) {
-            return;
-        }
-        this._openModal(`⚡ 技能养成 · ${def.name}`, (box) => {
-            box.classList.add('skillBox');
-            const wrap = document.createElement('div');
-            const rebuild = () => {
-                wrap.innerHTML = '';
-                wrap.appendChild(this._renderSkillCards(def, rebuild));
-                this._applyPendingTex();
-            };
-            rebuild();
-            box.appendChild(wrap);
-        });
-    }
 
 
     /** 属性详情弹窗（战力右侧 ⓘ 入口）：攻击/战力/装备加成明细 */
@@ -1734,7 +1959,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                         SoundFx.play('buy');
                         this._toast(`${an} 升至 Lv.${lv + 1}`);
                         this._refreshTop();
-                        document.querySelector('#homeUi .protoMask')?.remove();
+                        this._closeTopMask();
                         // 技能卡已并入英雄详情页，升级后同步英雄页内嵌技能卡再重开弹窗
                         this._refreshHeroes();
                         this._openAbilityModal(heroId, slot);

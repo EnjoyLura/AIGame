@@ -28,6 +28,7 @@ import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { MALL_AD_STAMINA, SLOT_EMOJI } from './HomeUiCore';
 import { HomeUiCore } from './HomeUiCore';
+import type { PopOpts } from './HomeUiCore';
 
 /**
  * 商店页：礼包 banner + 四页签商品网格 + 广告补给卡 + 礼包弹窗。
@@ -455,147 +456,90 @@ export abstract class HomeUiMall extends HomeUiCore {
         el.classList.toggle('dotOn', !!freeDef && !this._giftSvc.hasBoughtToday(freeDef));
     }
 
-
-    /** 礼包中心弹窗：每日免费补给 + 钻石礼包，购买后掉落以结算样式翻出 */
+    /**
+     * 礼包中心（UX 布局稿：L3·M 列表型）：每日免费补给 + 钻石礼包逐行展示，行尾购买/领取，
+     * 售罄行置灰；购买后掉落交给 L5 结果演出层翻出。
+     */
     protected _openGiftModal(): void {
-        const gm = GameManager.instance;
-        this._openModal('🎁 限时礼包中心', (box) => {
-            box.classList.add('giftBox');
-            const list = document.createElement('div');
-            list.className = 'giftList';
-            for (const def of GIFT_PACKS) {
-                const left = this._giftSvc.remaining(def);
-                const free = def.price.amount <= 0;
-                const card = document.createElement('div');
-                card.className = `giftCard panel r${tierRank(def.tier)}`;
-                if (free && left >= def.dailyLimit) {
-                    card.classList.add('done');
-                }
-                // 角标：FREE / 划线原价
-                if (free) {
-                    const tag = document.createElement('span');
-                    tag.className = 'gTagTop free';
-                    tag.textContent = 'FREE';
-                    card.appendChild(tag);
-                } else if (def.originalPrice) {
-                    const tag = document.createElement('span');
-                    tag.className = 'gTagTop sale';
-                    tag.textContent = `省${Math.round((1 - def.price.amount / def.originalPrice) * 100)}%`;
-                    card.appendChild(tag);
-                }
-                const ic = document.createElement('div');
-                ic.className = 'giftIc';
-                ic.textContent = def.ic;
-                card.appendChild(ic);
-                const info = document.createElement('div');
-                info.className = 'giftInfo';
-                const name = document.createElement('b');
-                name.textContent = def.name;
-                info.appendChild(name);
-                const desc = document.createElement('p');
-                desc.textContent = def.desc;
-                info.appendChild(desc);
-                const entries = document.createElement('div');
-                entries.className = 'giftEntries';
-                entries.textContent = def.entries.map(e => e.label).join(' · ');
-                info.appendChild(entries);
-                card.appendChild(info);
-                const side = document.createElement('div');
-                side.className = 'giftSide';
-                const price = document.createElement('div');
-                price.className = 'giftPrice';
-                price.innerHTML = free
-                    ? '<em>免费</em>'
-                    : `💎 ${def.price.amount.toLocaleString()}${def.originalPrice ? ` <s>💎${def.originalPrice.toLocaleString()}</s>` : ''}`;
-                side.appendChild(price);
-                const buy = document.createElement('button');
-                buy.className = `btn ${free ? 'adBtn' : 'gold'}`;
-                const soldOut = left <= 0;
-                buy.textContent = soldOut ? '今日已购' : free ? '领 取' : '购 买';
-                buy.disabled = soldOut;
-                buy.style.opacity = soldOut ? '0.45' : '1';
-                buy.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    const r = this._giftSvc.buy(def);
-                    if (!r.ok) {
-                        SoundFx.play('ui');
-                        this._toast(r.reason ?? '购买失败');
-                        return;
+        const opt = (): PopOpts => {
+            return {
+                tier: 3,
+                size: 'M',
+                banner: '🎁 限时礼包中心',
+                art: `${GIFT_PACKS.length} 档补给`,
+                subtitle: '每日 0 点重置次数 · 免费补给可攒钻石',
+                build: c => {
+                    for (const def of GIFT_PACKS) {
+                        const left = this._giftSvc.remaining(def);
+                        const free = def.price.amount <= 0;
+                        const soldOut = left <= 0;
+                        const tag = free
+                            ? 'FREE'
+                            : def.originalPrice
+                                ? `省${Math.round((1 - def.price.amount / def.originalPrice) * 100)}%`
+                                : undefined;
+                        c.appendChild(this._popRow({
+                            icon: def.ic,
+                            title: def.name,
+                            tag,
+                            lines: [def.entries.map(e => e.label).join(' · '), def.desc],
+                            status: `今日剩余 ${left}/${def.dailyLimit}`,
+                            statusKind: soldOut ? 'expire' : (free ? 'soon' : undefined),
+                            action: {
+                                label: soldOut ? '今日已购' : free ? '领 取' : `💎${def.price.amount.toLocaleString()}`,
+                                kind: free ? 'green' : 'gold',
+                                disabled: soldOut,
+                                onClick: () => {
+                                    SoundFx.unlock();
+                                    const r = this._giftSvc.buy(def);
+                                    if (!r.ok) {
+                                        SoundFx.play('ui');
+                                        this._toast(r.reason ?? '购买失败');
+                                        return;
+                                    }
+                                    SoundFx.play(r.drops.some(d => d.tier >= 5) ? 'buy' : 'coin');
+                                    this._toast(free ? '每日补给已到账！' : `${def.name} 购买成功！`);
+                                    this._refreshTop();
+                                    this._refreshMall();
+                                    this._refreshGiftDot(this._giftBannerEl?.querySelector('.giftDot') as HTMLElement | null);
+                                    this._openGiftResultModal(def, r.drops);
+                                }
+                            }
+                        }));
                     }
-                    SoundFx.play(r.drops.some(d => d.tier >= 5) ? 'buy' : 'coin');
-                    this._toast(free ? '每日补给已到账！' : `${def.name} 购买成功！`);
-                    this._refreshTop();
-                    this._refreshMall();
-                    this._refreshGiftDot(this._giftBannerEl?.querySelector('.giftDot') as HTMLElement | null);
-                    // 翻牌式展示获得物
-                    this._openGiftResultModal(def, r.drops);
-                };
-                side.appendChild(buy);
-                const quota = document.createElement('div');
-                quota.className = 'giftQuota';
-                quota.textContent = `今日剩余 ${left}/${def.dailyLimit}`;
-                side.appendChild(quota);
-                card.appendChild(side);
-                list.appendChild(card);
-            }
-            box.appendChild(list);
-            const note = document.createElement('p');
-            note.className = 'giftNote';
-            note.textContent = '钻石可用每日免费补给攒取 · 次数每日 0 点重置';
-            box.appendChild(note);
-        });
+                },
+                note: '钻石可用每日免费补给攒取 · 次数每日 0 点重置'
+            };
+        };
+        this._openPop(opt());
     }
 
-
-    /** 礼包购买结果：获得物翻牌展示（复用结算掉落视觉） */
+    /** 礼包购买结果（L5 结果演出层）：获得物逐格翻出（错峰入场）+ 资源合并行 + 收下 */
     protected _openGiftResultModal(def: GiftPackDef, drops: LootDrop[]): void {
-        this._openModal(`🎉 ${def.name}`, (box) => {
-            box.classList.add('giftBox');
-            const head = document.createElement('p');
-            head.className = 'giftResHead';
-            head.textContent = '获得以下物品：';
-            box.appendChild(head);
-            const grid = document.createElement('div');
-            grid.className = 'giftResGrid';
-            drops.forEach((d, i) => {
-                const cell = document.createElement('div');
-                cell.className = `clDrop r${tierRank(d.tier)}`;
-                cell.style.animationDelay = `${(0.1 + i * 0.15).toFixed(2)}s`;
-                const ic = document.createElement('span');
-                ic.className = 'clDropIc';
-                ic.textContent = d.ic;
-                const nm = document.createElement('span');
-                nm.className = 'clDropNm';
-                nm.textContent = d.name;
-                nm.style.color = lootDropColor(d);
-                cell.appendChild(ic);
-                cell.appendChild(nm);
-                grid.appendChild(cell);
-            });
-            // res 类内容（金币/钻石）没有 LootDrop 形态，展示为合并文本
-            const resParts: string[] = [];
-            for (const e of def.entries) {
-                if (e.kind === 'res') {
-                    resParts.push(e.label);
+        const resParts = def.entries.filter(e => e.kind === 'res').map(e => e.label);
+        this._openPop({
+            tier: 5,
+            size: 'M',
+            banner: `🎉 ${def.name}`,
+            art: `${drops.length} 项掉落`,
+            maskClose: true,
+            build: c => {
+                c.appendChild(this._popSec('获得以下物品'));
+                const row = this._popCardRow(drops.map(d => ({ icon: d.ic, name: d.name })));
+                row.querySelectorAll<HTMLElement>('.popCard').forEach((el, i) => {
+                    el.style.animationDelay = `${(0.1 + i * 0.15).toFixed(2)}s`;
+                    const nameEl = el.children[1] as HTMLElement | undefined;
+                    if (nameEl) {
+                        nameEl.style.color = lootDropColor(drops[i]);
+                    }
+                });
+                c.appendChild(row);
+                if (resParts.length > 0) {
+                    c.appendChild(this._popKV('附加资源', `＋ ${resParts.join('　')}`, 'total'));
                 }
-            }
-            if (resParts.length > 0) {
-                const resRow = document.createElement('div');
-                resRow.className = 'giftResRow';
-                resRow.textContent = `＋ ${resParts.join('　')}`;
-                box.appendChild(resRow);
-            }
-            box.appendChild(grid);
-            const ok = document.createElement('button');
-            ok.className = 'btn gold giftOkBtn';
-            ok.textContent = '收 下';
-            ok.onclick = () => {
-                SoundFx.play('ui');
-                const mask = box.closest('.protoMask');
-                mask?.remove();
-            };
-            box.appendChild(ok);
+            },
+            ctas: [{ label: '收 下', onClick: () => this._closePop() }],
+            note: '已全部入账 · 可在背包与英雄页查看'
         });
     }
 

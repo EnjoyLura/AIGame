@@ -25,7 +25,7 @@ import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUN
 import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
-import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
+import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES, NoticeKind } from '../core/NoticeData';
 import { HOME_UI_CSS } from './HomeUiStyle';
 
 export const MALL_AD_STAMINA = 10;
@@ -42,6 +42,99 @@ export const SLOT_EMOJI: Record<EquipSlot, string> = {
 };
 
 /** 章节主题（对应 STAGES 五关的场景表现：场景渐变/载具 emoji/怪物 emoji） */
+
+/** 弹层档位：L2 全屏二级页 / L3 二级弹窗 / L4 半屏抽屉 / L5 结果演出层 */
+export type PopTier = 2 | 3 | 4 | 5;
+
+/** 弹层尺寸档：S 确认型 / M 列表型 / L 详情型 / XL 全屏页 */
+export type PopSize = 'S' | 'M' | 'L' | 'XL';
+
+/** 文本片段：字符串为普通说明，对象可指定强调样式（d 胶囊 / exp 过期 / soon 即将到期） */
+export type PopText = string | { text: string; kind?: 'd' | 'exp' | 'soon' };
+
+/** 弹层底部按钮 */
+export interface PopCta {
+    label: string;
+    kind?: 'gold' | 'green' | 'danger' | 'grey';
+    disabled?: boolean;
+    red?: boolean;
+    onClick: () => void;
+}
+
+/** 列表行：图标 + 两行文本（可带标签/进度条）+ 状态列 + 行内动作 */
+export interface PopRowOpts {
+    icon?: string;
+    iconTex?: string;
+    title: string;
+    tag?: string;
+    lines?: PopText[];
+    progress?: number;
+    status?: string;
+    statusKind?: 'expire' | 'soon';
+    action?: { label: string; kind?: 'green' | 'gold' | 'grey'; disabled?: boolean; onClick: () => void };
+    red?: boolean;
+    expired?: boolean;
+    /** 高亮当前行（如排行榜里的「我」） */
+    on?: boolean;
+    onClick?: () => void;
+}
+
+/** 属性行：图标 + 说明（**xx** 高亮）+ 行尾动作按钮 / 空插槽 */
+export interface PopAttrOpts {
+    icon?: string;
+    text: string;
+    action?: { label: string; kind?: 'gold' | 'info'; onClick: () => void };
+    slot?: boolean;
+    empty?: boolean;
+}
+
+/** 弹层统一入参（UX 布局稿 §0 五段式骨架） */
+export interface PopOpts {
+    /** 层级，默认 L3 */
+    tier?: PopTier;
+    /** 尺寸档，默认 M */
+    size?: PopSize;
+    /** 细标题条文案（与 banner/quality 二选一） */
+    title?: string;
+    /** 横幅标题（列表型头部） */
+    banner?: string;
+    /** 横幅右侧美术位占位说明 */
+    art?: string;
+    /** 品质头（详情型头部） */
+    quality?: { q: 1 | 2 | 3 | 4; name: string; icon: string; tier?: string; stats?: string[] };
+    /** 展示台（XL 全屏页头部） */
+    show?: { icon: string; tier?: string; name?: string; sub?: string };
+    /** 说明行（居中副标题 + 可选问号） */
+    subtitle?: string;
+    help?: () => void;
+    /** 顶部页签 */
+    tabs?: string[];
+    tab?: number;
+    onTab?: (i: number) => void;
+    /** 固定筛选条（不随内容滚动） */
+    fixed?: (bar: HTMLElement) => void;
+    /** 内容滚动区（唯一滚动轴） */
+    build: (content: HTMLElement) => void;
+    /** 槽位条（固定） */
+    slots?: (bar: HTMLElement) => void;
+    /** 消耗行（固定，不足自动标红） */
+    cost?: Array<{ icon: string; have: number; need: number }>;
+    /** CTA 底栏（固定） */
+    ctas?: PopCta[];
+    note?: string;
+    /** 底部操作栏：左侧返回 + 右侧页签（XL 二级页） */
+    barBack?: boolean;
+    barTabs?: Array<{ icon: string; label: string; on?: boolean; red?: boolean; onClick: () => void }>;
+    /** 右上关闭，默认 true */
+    closable?: boolean;
+    /** 点遮罩关闭，默认 L3/L4 可关、L5 与 XL 不可关 */
+    maskClose?: boolean;
+    /** 钻取：保留返回栈（左上出现返回），关闭时逐级回退 */
+    push?: boolean;
+    /** 自定义返回（左上返回键 / barBack 触发）：用于返回时重新取数的层级（如列表→详情） */
+    onBack?: () => void;
+    onClose?: () => void;
+}
 
 /**
  * HomeUi 壳：组件生命周期/事件接线、共享工具（弹窗骨架/toast/贴图挂载）、
@@ -87,6 +180,9 @@ export abstract class HomeUiCore extends Component {
 
     /** 远征弹窗的秒级倒计时刷新定时器（弹窗关闭即清，防泄漏） */
     protected _expTimer = 0;
+
+    /** 远征弹窗固定条里的倒计时胶囊（每秒就地改文案，不重绘整层） */
+    protected _expTimerEl: HTMLElement | null = null;
 
     /** 基地区红点兜底轮询：倒计时归零没有事件驱动，靠低频轮询补亮 */
     protected _expIdleTimer = 0;
@@ -267,11 +363,12 @@ export abstract class HomeUiCore extends Component {
 
     /** 原型风弹窗：mask + mbox frame（英雄核心/武器强化/背包共用） */
     protected _openModal(title: string, buildBody: (box: HTMLDivElement, close: () => void) => void): void {
-        if (!this._root || document.querySelector('#homeUi .protoMask')) {
+        if (!this._root || this._legacyMaskOpen()) {
             return;
         }
         const mask = document.createElement('div');
         mask.className = 'protoMask';
+        this._stackOverPop(mask);
         mask.onclick = (e) => {
             e.stopPropagation();
             if (e.target === mask) {
@@ -304,11 +401,12 @@ export abstract class HomeUiCore extends Component {
 
     /** L2 半屏抽屉（底部滑出）：编队/批量操作等中低高度流程；复用 protoMask 类保证就地重开逻辑兼容 */
     protected _openSheet(title: string, buildBody: (box: HTMLDivElement, close: () => void) => void): void {
-        if (!this._root || document.querySelector('#homeUi .protoMask')) {
+        if (!this._root || this._legacyMaskOpen()) {
             return;
         }
         const mask = document.createElement('div');
         mask.className = 'protoMask sheetMask';
+        this._stackOverPop(mask);
         mask.onclick = (e) => {
             e.stopPropagation();
             if (e.target === mask) {
@@ -344,11 +442,12 @@ export abstract class HomeUiCore extends Component {
 
     /** L4 全屏结果层：招募揭示/大额奖励等强反馈场景；复用 protoMask 类保证就地重开逻辑兼容 */
     protected _openResult(title: string, buildBody: (box: HTMLDivElement, close: () => void) => void): void {
-        if (!this._root || document.querySelector('#homeUi .protoMask')) {
+        if (!this._root || this._legacyMaskOpen()) {
             return;
         }
         const mask = document.createElement('div');
         mask.className = 'protoMask resultMask';
+        this._stackOverPop(mask);
         mask.onclick = (e) => {
             e.stopPropagation();
             if (e.target === mask) {
@@ -376,6 +475,623 @@ export abstract class HomeUiCore extends Component {
         buildBody(box, close);
         mask.appendChild(box);
         this._root.appendChild(mask);
+    }
+
+
+    // ================= 二级弹层系统（UX 布局稿 §0 落地） =================
+
+    protected _popMask: HTMLDivElement | null = null;
+
+    protected _popOpts: PopOpts | null = null;
+
+    /** 钻取返回栈：push 打开的层压栈，左上返回逐级回退（最多保留 2 跳） */
+    protected _popStack: PopOpts[] = [];
+
+    /** 元素工厂（新弹层内部使用，避免与既有 createElement 样板重复） */
+    protected _el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, txt?: string): HTMLElementTagNameMap[K] {
+        const el = document.createElement(tag);
+        if (cls) {
+            el.className = cls;
+        }
+        if (txt !== undefined) {
+            el.textContent = txt;
+        }
+        return el;
+    }
+
+    protected _esc(s: string): string {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    /**
+     * 二级弹层统一入口（五段式）：
+     * 头部区[固定] → 说明·页签区[固定] → 内容区[唯一滚动轴] → 消耗·槽位区[固定] → CTA 底栏[固定]
+     * 同层就地替换：同一时刻 #homeUi 下只保留一个 .protoMask，沿用既有重入判断语义。
+     */
+    protected _openPop(opts: PopOpts): void {
+        if (!this._root) {
+            return;
+        }
+        if (opts.push && this._popOpts) {
+            this._popStack.push(this._popOpts);
+            if (this._popStack.length > 2) {
+                this._popStack.shift();
+            }
+        } else {
+            this._popStack = [];
+        }
+        this._renderPop(opts);
+    }
+
+    /** 就地重绘当前弹层（保留滚动位置）：领取/切换等状态变化后调用；传入 next 可换用新入参 */
+    protected _popRebuild(next?: PopOpts): void {
+        if (next) {
+            this._popOpts = next;
+        }
+        if (this._popOpts) {
+            this._renderPop(this._popOpts, true);
+        }
+    }
+
+    protected _popOpen(): boolean {
+        return !!this._popMask;
+    }
+
+    /** 关闭整层（清空返回栈）；右上 ✕ 与遮罩点击走这里 */
+    protected _closePop(): void {
+        const opts = this._popOpts;
+        this._popMask?.remove();
+        this._popMask = null;
+        this._popOpts = null;
+        this._popStack = [];
+        opts?.onClose?.();
+    }
+
+    /** 旧弹窗是否已开（旧弹窗之间互斥；新弹层不挡旧弹窗，二者可叠放） */
+    protected _legacyMaskOpen(): boolean {
+        return !!document.querySelector('#homeUi .protoMask:not(.popL2):not(.popL3):not(.popL4):not(.popL5)');
+    }
+
+    /** 旧弹窗叠在新弹层之上时抬到层级 250，关闭后自然回到下方新弹层 */
+    private _stackOverPop(mask: HTMLDivElement): void {
+        if (document.querySelector('#homeUi .pop')) {
+            mask.classList.add('popAbove');
+        }
+    }
+
+    /** 关闭最上层弹窗（旧弹窗/新弹层共存时的统一出口，避免误删底层弹层） */
+    protected _closeTopMask(): void {
+        const all = this._root?.querySelectorAll('.protoMask');
+        if (all && all.length) {
+            all[all.length - 1].remove();
+        }
+    }
+
+    /** 返回上一级：栈空则关闭整层 */
+    protected _popBack(): void {
+        const prev = this._popStack.pop();
+        if (prev) {
+            this._renderPop(prev);
+            return;
+        }
+        this._closePop();
+    }
+
+    private _renderPop(opts: PopOpts, keepScroll = false): void {
+        const root = this._root;
+        if (!root) {
+            return;
+        }
+        const prevScroll = keepScroll ? (root.querySelector('.popScroll') as HTMLElement | null)?.scrollTop ?? 0 : 0;
+        root.querySelectorAll('.protoMask').forEach(m => m.remove());
+
+        const tier = opts.tier ?? 3;
+        const size = opts.size ?? 'M';
+        const closable = opts.closable ?? true;
+        const canBack = this._popStack.length > 0 || !!opts.onBack;
+        const goBack = (): void => {
+            SoundFx.play('ui');
+            if (opts.onBack) {
+                opts.onBack();
+                return;
+            }
+            this._popBack();
+        };
+
+        const mask = this._el('div', `protoMask popL${tier}`);
+        const maskClose = opts.maskClose ?? (tier !== 5 && size !== 'XL');
+        mask.onclick = (e) => {
+            e.stopPropagation();
+            if (e.target === mask && maskClose) {
+                this._closePop();
+            }
+        };
+        const pop = this._el('div', `pop ${size} L${tier}`);
+        pop.onclick = (e) => e.stopPropagation();
+
+        // —— 1. 头部区（固定）：横幅 / 品质头 / 细标题条 ——
+        const closeBtn = () => {
+            const x = this._el('div', 'popClose', '✕');
+            x.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._closePop();
+            };
+            return x;
+        };
+        const backBtn = () => {
+            const b = this._el('div', 'popBack', '‹');
+            b.onclick = (e) => {
+                e.stopPropagation();
+                goBack();
+            };
+            return b;
+        };
+        if (opts.banner) {
+            const head = this._el('div', 'popBanner');
+            head.appendChild(this._el('b', undefined, opts.banner));
+            if (opts.art) {
+                head.appendChild(this._el('div', 'art', opts.art));
+            }
+            if (canBack) {
+                head.appendChild(backBtn());
+            } else if (closable) {
+                head.appendChild(closeBtn());
+            }
+            pop.appendChild(head);
+        } else if (opts.quality) {
+            const q = opts.quality;
+            const head = this._el('div', `popQ q${q.q}`);
+            const qi = this._el('div', 'qi', q.icon);
+            if (q.tier) {
+                qi.appendChild(this._el('span', 'qtag', q.tier));
+            }
+            head.appendChild(qi);
+            const qm = this._el('div', 'qm');
+            qm.appendChild(this._el('b', undefined, q.name));
+            if (q.stats?.length) {
+                const qs = this._el('div', 'qs');
+                q.stats.forEach(s => qs.appendChild(this._el('span', undefined, s)));
+                qm.appendChild(qs);
+            }
+            head.appendChild(qm);
+            if (canBack) {
+                head.appendChild(backBtn());
+            } else if (closable) {
+                head.appendChild(closeBtn());
+            }
+            pop.appendChild(head);
+        } else if (opts.title) {
+            const head = this._el('div', 'popTop', opts.title);
+            if (canBack) {
+                head.insertBefore(backBtn(), head.firstChild);
+            }
+            if (closable) {
+                head.appendChild(closeBtn());
+            }
+            pop.appendChild(head);
+        }
+
+        // —— XL 展示台（固定在头部之下） ——
+        if (opts.show) {
+            const sh = this._el('div', 'popShow');
+            const ped = this._el('div', 'popPedestal', opts.show.icon);
+            if (opts.show.tier) {
+                ped.appendChild(this._el('span', 'popTierTag', opts.show.tier));
+            }
+            sh.appendChild(ped);
+            if (opts.show.name) {
+                sh.appendChild(this._el('div', 'popName', opts.show.name));
+            }
+            if (opts.show.sub) {
+                sh.appendChild(this._el('div', 'popSub2', opts.show.sub));
+            }
+            pop.appendChild(sh);
+        }
+
+        // —— 2. 说明行 / 页签 / 固定筛选条 ——
+        if (opts.subtitle) {
+            const meta = this._el('div', 'popMeta');
+            meta.appendChild(this._el('span', undefined, opts.subtitle));
+            if (opts.help) {
+                const q = this._el('div', 'q', '?');
+                q.onclick = (e) => {
+                    e.stopPropagation();
+                    opts.help!();
+                };
+                meta.appendChild(q);
+            }
+            pop.appendChild(meta);
+        }
+        if (opts.tabs?.length) {
+            const bar = this._el('div', 'popTabs');
+            opts.tabs.forEach((label, i) => {
+                const t = this._el('div', i === (opts.tab ?? 0) ? 'on' : undefined, label);
+                t.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    opts.onTab?.(i);
+                };
+                bar.appendChild(t);
+            });
+            pop.appendChild(bar);
+        }
+        if (opts.fixed) {
+            const bar = this._el('div', 'popFixBar');
+            opts.fixed(bar);
+            pop.appendChild(bar);
+        }
+
+        // —— 3. 内容滚动区（唯一滚动轴） ——
+        const scroll = this._el('div', 'popScroll');
+        opts.build(scroll);
+        if (size !== 'S') {
+            scroll.appendChild(this._el('div', 'popFade'));
+        }
+        pop.appendChild(scroll);
+
+        // —— 4. 消耗行（固定，不足标红） ——
+        if (opts.cost?.length) {
+            const cr = this._el('div', 'popCost');
+            opts.cost.forEach(c => {
+                const one = this._el('div', 'c');
+                one.appendChild(this._el('div', 'ci', c.icon));
+                const lack = c.have < c.need;
+                one.appendChild(this._el('div', `cv ${lack ? 'lack' : 'ok'}`, `${c.have}/${c.need}`));
+                cr.appendChild(one);
+            });
+            pop.appendChild(cr);
+        }
+
+        // —— 5. CTA 底栏（固定） ——
+        if (opts.ctas?.length || opts.note) {
+            const cta = this._el('div', 'popCTA');
+            if (opts.ctas?.length) {
+                const multi = opts.ctas.length > 1;
+                const row = this._el('div', `row${multi ? '' : ' justify'}`);
+                opts.ctas.forEach(c => {
+                    const b = this._el('div',
+                        `popBtn ${c.kind ?? 'gold'}${multi ? ' wide' : ''}${c.disabled ? ' disabled' : ''}`, c.label);
+                    if (c.red) {
+                        b.appendChild(this._el('i', 'popRed'));
+                    }
+                    b.onclick = (e) => {
+                        e.stopPropagation();
+                        if (c.disabled) {
+                            return;
+                        }
+                        SoundFx.play('ui');
+                        c.onClick();
+                    };
+                    row.appendChild(b);
+                });
+                cta.appendChild(row);
+            }
+            if (opts.note) {
+                cta.appendChild(this._el('div', 'note', opts.note));
+            }
+            pop.appendChild(cta);
+        }
+
+        // —— 6. 槽位条（固定） ——
+        if (opts.slots) {
+            const sb = this._el('div', 'popSlots');
+            opts.slots(sb);
+            pop.appendChild(sb);
+        }
+
+        // —— 7. 底部操作栏（XL 二级页：返回 + 页签） ——
+        if (opts.barBack || opts.barTabs?.length) {
+            const bar = this._el('div', 'popBar');
+            if (opts.barBack) {
+                const bk = this._el('div', 'bk', opts.barTabs?.length ? '↩' : '←');
+                bk.onclick = (e) => {
+                    e.stopPropagation();
+                    goBack();
+                };
+                bar.appendChild(bk);
+            }
+            if (opts.barTabs?.length) {
+                const pt = this._el('div', 'pt');
+                opts.barTabs.forEach(t => {
+                    const one = this._el('div', t.on ? 'on' : undefined);
+                    one.appendChild(this._el('i', undefined, t.icon));
+                    one.appendChild(this._el('span', undefined, t.label));
+                    if (t.red) {
+                        one.appendChild(this._el('i', 'popRed'));
+                    }
+                    one.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.play('ui');
+                        t.onClick();
+                    };
+                    pt.appendChild(one);
+                });
+                bar.appendChild(pt);
+            }
+            pop.appendChild(bar);
+        }
+
+        mask.appendChild(pop);
+        root.appendChild(mask);
+        this._popMask = mask;
+        this._popOpts = opts;
+        if (prevScroll) {
+            scroll.scrollTop = prevScroll;
+        }
+    }
+
+    /** 组件：列表行（图标 + 两行文本 + 状态列 + 行内动作 + 红点） */
+    protected _popRow(o: PopRowOpts): HTMLElement {
+        const row = this._el('div', `popRow${o.expired ? ' expired' : ''}${o.on ? ' on' : ''}`);
+        if (o.onClick) {
+            row.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                o.onClick!();
+            };
+        }
+        if (o.red) {
+            row.appendChild(this._el('i', 'popRed'));
+        }
+        const ic = this._el('div', 'ic', o.icon ?? '📦');
+        row.appendChild(ic);
+        const m = this._el('div', 'm');
+        m.appendChild(this._el('b', undefined, o.title));
+        if (o.tag || o.lines?.length) {
+            const ln = this._el('div', 'ln');
+            if (o.tag) {
+                ln.appendChild(this._el('span', 'd', o.tag));
+            }
+            (o.lines ?? []).forEach(t => {
+                const text = typeof t === 'string' ? t : t.text;
+                const kind = typeof t === 'string' ? '' : t.kind ?? '';
+                ln.appendChild(this._el('span', kind || undefined, text));
+            });
+            m.appendChild(ln);
+        }
+        if (o.progress !== undefined) {
+            const pbar = this._el('div', 'pbar');
+            const fill = this._el('i');
+            fill.style.width = `${Math.round(Math.max(0, Math.min(1, o.progress)) * 100)}%`;
+            pbar.appendChild(fill);
+            m.appendChild(pbar);
+        }
+        row.appendChild(m);
+        if (o.status) {
+            const st = this._el('div', 'st', o.status);
+            if (o.statusKind === 'expire') {
+                st.style.color = 'var(--pred2)';
+            } else if (o.statusKind === 'soon') {
+                st.style.color = 'var(--pks)';
+            }
+            row.appendChild(st);
+        }
+        if (o.action) {
+            const kind = o.action.kind && o.action.kind !== 'green' ? ` ${o.action.kind}` : '';
+            const act = this._el('div', `act${kind}${o.action.disabled ? ' off' : ''}`, o.action.label);
+            act.onclick = (e) => {
+                e.stopPropagation();
+                if (o.action!.disabled) {
+                    return;
+                }
+                SoundFx.play('ui');
+                o.action!.onClick();
+            };
+            row.appendChild(act);
+        }
+        if (o.iconTex) {
+            this._tex(o.iconTex, u => {
+                ic.textContent = '';
+                ic.style.backgroundImage = u;
+                ic.style.backgroundSize = 'cover';
+                ic.style.backgroundPosition = 'center';
+            });
+        }
+        return row;
+    }
+
+    /** 组件：属性行（说明里的 **xx** 高亮为 em，行尾可挂动作按钮或空插槽） */
+    protected _popAttr(o: PopAttrOpts): HTMLElement {
+        const row = this._el('div', `popAttr${o.empty ? ' empty' : ''}`);
+        row.appendChild(this._el('div', 'ai', o.empty ? '＋' : o.icon ?? '🔹'));
+        const at = this._el('div', 'at');
+        at.innerHTML = this._esc(o.text).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>');
+        row.appendChild(at);
+        if (o.action) {
+            const b = this._el('div', `abAct${o.action.kind === 'info' ? ' info' : ''}`, o.action.label);
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                o.action!.onClick();
+            };
+            row.appendChild(b);
+        } else if (o.slot) {
+            row.appendChild(this._el('div', 'ab', '＋'));
+        }
+        return row;
+    }
+
+    /** 组件：对比块（战力/属性 拆解与预览） */
+    protected _popCmp(title: string, lines: Array<{ label: string; old: string; now: string }>): HTMLElement {
+        const box = this._el('div', 'popCmp');
+        box.appendChild(this._el('div', 'ch', title));
+        const body = this._el('div', 'cb');
+        lines.forEach(l => {
+            const cl = this._el('div', 'cl');
+            cl.appendChild(this._el('span', 'lbl', l.label));
+            cl.appendChild(this._el('span', 'old', l.old));
+            cl.appendChild(this._el('span', 'arrow', '▶'));
+            cl.appendChild(this._el('span', 'new', l.now));
+            body.appendChild(cl);
+        });
+        box.appendChild(body);
+        return box;
+    }
+
+    /** 组件：KV 行（.total 合计强调 / .free 去下边框） */
+    protected _popKV(label: string, value: string, cls?: 'total' | 'free'): HTMLElement {
+        const row = this._el('div', `popKV${cls ? ` ${cls}` : ''}`);
+        row.appendChild(this._el('span', undefined, label));
+        row.appendChild(this._el('b', undefined, value));
+        return row;
+    }
+
+    /** 组件：格子网格（装备/材料/宝石/层格） */
+    protected _popGrid(
+        items: Array<{ icon: string; count?: number | string; sel?: boolean; title?: string }>,
+        cols: 3 | 4 | 5,
+        onPick?: (i: number) => void
+    ): HTMLElement {
+        const grid = this._el('div', `popGrid c${cols}`);
+        items.forEach((it, i) => {
+            const cell = this._el('i', it.sel ? 'sel' : undefined, it.icon);
+            if (it.title) {
+                cell.title = it.title;
+            }
+            if (it.count !== undefined) {
+                cell.appendChild(this._el('span', 'cnt', String(it.count)));
+            }
+            if (it.sel) {
+                cell.appendChild(this._el('span', 'ck', '✓'));
+            }
+            if (onPick) {
+                cell.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    onPick(i);
+                };
+            }
+            grid.appendChild(cell);
+        });
+        return grid;
+    }
+
+    /** 组件：卡片行（招募/奖励揭示） */
+    protected _popCardRow(cards: Array<{ icon: string; name: string; badge?: string; dup?: boolean }>): HTMLElement {
+        const row = this._el('div', 'popCardRow');
+        cards.forEach(c => {
+            const card = this._el('div', 'popCard');
+            card.appendChild(this._el('div', 'gi', c.icon));
+            card.appendChild(this._el('div', undefined, c.name));
+            if (c.badge) {
+                card.appendChild(this._el('div', `nb${c.dup ? ' dup' : ''}`, c.badge));
+            }
+            row.appendChild(card);
+        });
+        return row;
+    }
+
+    /** 组件：空态（无数据/筛选无结果） */
+    protected _popEmpty(text: string, hint?: string, icon = '📭'): HTMLElement {
+        const box = this._el('div', 'popEmpty');
+        box.appendChild(this._el('div', 'ei', icon));
+        box.appendChild(this._el('div', undefined, text));
+        if (hint) {
+            box.appendChild(this._el('small', undefined, hint));
+        }
+        return box;
+    }
+
+    /** 组件：分组小标题 */
+    protected _popSec(text: string): HTMLElement {
+        return this._el('div', 'popSec', text);
+    }
+
+    /** 组件：告警行（解锁门槛 / 材料或体力不足） */
+    protected _popWarn(text: string): HTMLElement {
+        return this._el('div', 'popWarn', text);
+    }
+
+    /** 组件：固定条里的静态信息胶囊（不响应点击：倒计时/口径说明） */
+    protected _popInfo(text: string, on = false): HTMLElement {
+        return this._el('div', `popChip${on ? ' on' : ''}`, text);
+    }
+
+    /** 组件：筛选胶囊（放入 PopOpts.fixed 的固定条中） */
+    protected _popChip(text: string, on: boolean, onClick: () => void): HTMLElement {
+        const chip = this._el('div', `popChip${on ? ' on' : ''}`, text);
+        chip.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            onClick();
+        };
+        return chip;
+    }
+
+    /** 组件：槽位格（放入 PopOpts.slots 的固定条中） */
+    protected _popSlot(o: { icon: string; tier?: string; on?: boolean; red?: boolean; onClick?: () => void }): HTMLElement {
+        const cell = this._el('div', `sc${o.on ? ' on' : ''}`, o.icon);
+        if (o.tier) {
+            cell.appendChild(this._el('span', 'tg', o.tier));
+        }
+        if (o.red) {
+            cell.appendChild(this._el('i', 'rd'));
+        }
+        if (o.onClick) {
+            cell.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                o.onClick!();
+            };
+        }
+        return cell;
+    }
+
+    /**
+     * 二次确认模板（L3 · S）：大图标 + 说明 + 可选消耗/预览 + 取消·确认双按钮。
+     * push 打开，取消/确认后回到上级层；confirm 由调用方决定危险色。
+     */
+    protected _popConfirm(o: {
+        title: string;
+        icon?: string;
+        desc: string;
+        cost?: Array<{ icon: string; have: number; need: number }>;
+        preview?: HTMLElement;
+        ok: string;
+        cancel?: string;
+        danger?: boolean;
+        note?: string;
+        onOk: () => void;
+        onCancel?: () => void;
+    }): void {
+        this._openPop({
+            tier: 3,
+            size: 'S',
+            title: o.title,
+            push: true,
+            cost: o.cost,
+            note: o.note,
+            build: c => {
+                const center = this._el('div', 'popCenter');
+                if (o.icon) {
+                    center.appendChild(this._el('div', 'popIcBig', o.icon));
+                }
+                center.appendChild(this._el('div', 'popDesc', o.desc));
+                c.appendChild(center);
+                if (o.preview) {
+                    c.appendChild(o.preview);
+                }
+            },
+            ctas: [
+                {
+                    label: o.cancel ?? '取消',
+                    kind: 'grey',
+                    onClick: () => {
+                        if (o.onCancel) {
+                            o.onCancel();
+                            return;
+                        }
+                        this._popBack();
+                    }
+                },
+                {
+                    label: o.ok,
+                    kind: o.danger ? 'danger' : 'gold',
+                    onClick: () => o.onOk()
+                }
+            ]
+        });
     }
 
 
@@ -767,27 +1483,60 @@ export abstract class HomeUiCore extends Component {
 
 
     /** 公告列表弹窗（新→旧全量展示）；打开即全部标记已读：红点熄灭、下次进主城不再自动弹 */
-    protected _openNoticeModal(): void {
+    /** 游戏公告（UX 布局稿 1-B · L3·L）：分类页签 + 列表（标题/日期/摘要）+ 点行就地展开全文 */
+    protected _openNoticeModal(tab = 0, expand = -1): void {
         NoticeSystem.instance.markAllRead();
         this._refreshNoticeBar();
-        this._openModal('📣 游戏公告', (box) => {
-            box.classList.add('noticeBox');
-            for (let i = NOTICE_DEFS.length - 1; i >= 0; i--) {
-                const n = NOTICE_DEFS[i];
-                const item = document.createElement('div');
-                item.className = 'nItem panel';
-                const head = document.createElement('div');
-                head.className = 'nHead';
-                head.innerHTML = `<span class="tag ${n.kind === 'update' ? 'g' : n.kind === 'activity' ? 'p' : 'b'}">${NOTICE_KIND_NAMES[n.kind]}</span>` +
-                    `<b class="nTitle">${n.title}</b><span class="nDate">${n.date}</span>`;
-                const body = document.createElement('p');
-                body.className = 'nBody';
-                body.textContent = n.body;
-                item.appendChild(head);
-                item.appendChild(body);
-                box.appendChild(item);
-            }
-        });
+        const filters: Array<{ label: string; kind: NoticeKind | null }> = [
+            { label: '全部', kind: null },
+            { label: '更新', kind: 'update' },
+            { label: '活动', kind: 'activity' },
+            { label: '公告', kind: 'notice' }
+        ];
+        const opt = (): PopOpts => {
+            const cur = filters[Math.max(0, Math.min(filters.length - 1, tab))];
+            const list = NOTICE_DEFS
+                .filter(n => !cur.kind || n.kind === cur.kind)
+                .slice()
+                .sort((a, b) => b.id - a.id);
+            const opened = list.find(n => n.id === expand) ?? null;
+            return {
+                tier: 3,
+                size: 'L',
+                banner: '📣 游戏公告',
+                art: `${list.length} 条`,
+                tabs: filters.map(f => f.label),
+                tab,
+                onTab: i => this._openNoticeModal(i, -1),
+                build: c => {
+                    if (!list.length) {
+                        c.appendChild(this._popEmpty('该分类暂无公告', undefined, '📣'));
+                        return;
+                    }
+                    for (const n of list) {
+                        const on = opened?.id === n.id;
+                        const brief = n.body.split('\n').find(x => x.trim()) ?? '';
+                        c.appendChild(this._popRow({
+                            icon: n.kind === 'update' ? '🛠' : n.kind === 'activity' ? '🎉' : '📢',
+                            title: n.title,
+                            tag: NOTICE_KIND_NAMES[n.kind],
+                            lines: [n.date, on ? '点击收起' : `摘要：${brief.slice(0, 14)}…`],
+                            status: on ? '▾' : '▸',
+                            onClick: () => this._openNoticeModal(tab, on ? -1 : n.id)
+                        }));
+                        if (on) {
+                            const body = this._el('div', 'popBody');
+                            for (const line of n.body.split('\n')) {
+                                body.appendChild(this._el('p', undefined, line || ' '));
+                            }
+                            c.appendChild(body);
+                        }
+                    }
+                },
+                note: '公告按发布时间倒序 · 新公告会出现在主城顶部公告条'
+            };
+        };
+        this._openPop(opt());
     }
 
 
@@ -891,173 +1640,172 @@ export abstract class HomeUiCore extends Component {
     }
 
     /**
-     * 主城邮箱弹窗：列表/详情两态就地重绘（render 闭包模式，与体力弹窗同款）。
+     * 主城邮箱（UX 布局稿 1-A · L3·M）：横幅头 + 列表行（状态列/行内领取）+ 固定「一键领取」底栏 + 过期注脚。
+     * 详情为钻取层（列表 ↔ 详情各自重新取数，避免快照过期）；删除走 S 型确认模板。
      * 战斗页菜单另有 DomHud 邮箱浮窗；这里给主城同样能力（一键领取/过期提醒/删除）。
      */
-    protected _openMailModal(): void {
-        this._openModal('📬 邮 箱', (box, _close) => {
-            box.classList.add('mailBox');
-            const ms = MailSystem.instance;
-            const render = (openId: string | null): void => {
-                box.innerHTML = '';
-                const mails = ms.mails();
-                // ---- 详情态 ----
-                if (openId) {
-                    const m = ms.mail(openId);
-                    if (!m) {
-                        render(null);
+    protected _openMailModal(openId: string | null = null): void {
+        const ms = MailSystem.instance;
+        if (openId) {
+            this._openMailDetail(openId);
+            return;
+        }
+        const opt = (): PopOpts => {
+            const mails = ms.mails();
+            const claimable = mails.filter(x => x.kind === 'reward' && !x.claimed).length;
+            const unread = ms.unreadCount();
+            return {
+                tier: 3,
+                size: 'M',
+                banner: '📬 邮箱',
+                art: `待领 ${claimable} · 未读 ${unread}`,
+                build: c => {
+                    if (!mails.length) {
+                        c.appendChild(this._popEmpty('暂无邮件', '战役与活动奖励会送达这里', '📭'));
                         return;
                     }
-                    ms.markRead(openId);
-                    const back = document.createElement('button');
-                    back.className = 'btn dark sm';
-                    back.textContent = '↩ 返回列表';
-                    back.onclick = () => {
-                        SoundFx.play('ui');
-                        render(null);
-                    };
-                    box.appendChild(back);
-                    const head = document.createElement('div');
-                    head.className = 'mailDetailHead';
-                    const title = document.createElement('h4');
-                    title.textContent = m.title;
-                    const from = document.createElement('div');
-                    from.className = 'mailDetailFrom';
-                    const timeText = mailTimeText(m.ts);
-                    from.textContent = `来自：${m.from}` + (timeText ? ` · ${timeText}` : '');
-                    head.appendChild(title);
-                    head.appendChild(from);
-                    box.appendChild(head);
-                    const text = document.createElement('div');
-                    text.className = 'mailDetailText';
-                    for (const line of m.body.split('\n')) {
-                        const p = document.createElement('p');
-                        p.textContent = line || ' ';
-                        text.appendChild(p);
-                    }
-                    box.appendChild(text);
-                    if (m.kind === 'reward') {
-                        const attach = document.createElement('div');
-                        attach.className = 'mailDetailAttach';
-                        const r = m.reward ?? {};
-                        const parts: string[] = [];
-                        if (r.gold) {
-                            parts.push(`🪙 ${r.gold.toLocaleString()}`);
+                    for (const m of mails) {
+                        const timeText = mailTimeText(m.ts);
+                        const soon = mailExpiringSoon(m);
+                        const canClaim = m.kind === 'reward' && !m.claimed;
+                        const lines: PopText[] = [`来自：${m.from}`];
+                        if (timeText) {
+                            lines.push(timeText);
                         }
-                        if (r.diamond) {
-                            parts.push(`💎 ${r.diamond}`);
-                        }
-                        if (r.misc) {
-                            parts.push(`${miscDef(r.misc.id)?.ic ?? '📦'} ${miscDef(r.misc.id)?.name ?? r.misc.id} ×${r.misc.n}`);
-                        }
-                        const lab = document.createElement('div');
-                        lab.className = 'mSub';
-                        lab.textContent = '📦 附件奖励';
-                        attach.appendChild(lab);
-                        const items = document.createElement('div');
-                        items.className = 'mailDetailItems';
-                        items.textContent = parts.join('　');
-                        attach.appendChild(items);
-                        if (mailExpiringSoon(m)) {
-                            const warn = document.createElement('div');
-                            warn.className = 'mailDetailWarn';
-                            warn.textContent = '⏳ 附件 24 小时内过期，过期作废';
-                            attach.appendChild(warn);
-                        }
-                        const btn = document.createElement('button');
-                        btn.className = 'btn gold sm';
-                        if (m.claimed) {
-                            btn.textContent = '已领取';
-                            btn.disabled = true;
-                        } else {
-                            btn.textContent = '领取附件';
-                            btn.onclick = () => {
-                                SoundFx.unlock();
-                                if (ms.claim(openId)) {
-                                    SoundFx.play('coin');
-                                    this._refreshTop();
-                                    render(openId);
+                        c.appendChild(this._popRow({
+                            icon: m.kind === 'reward' ? '🎁' : '📢',
+                            title: m.title,
+                            tag: m.kind === 'reward' ? '附件' : '系统',
+                            lines,
+                            red: !m.read,
+                            status: canClaim ? (soon ? '将过期' : '可领') : (m.kind === 'reward' ? '已领' : (m.read ? '已读' : '未读')),
+                            statusKind: canClaim && soon ? 'soon' : undefined,
+                            action: canClaim ? {
+                                label: '领取',
+                                onClick: () => {
+                                    SoundFx.unlock();
+                                    if (ms.claim(m.id)) {
+                                        SoundFx.play('coin');
+                                        this._refreshTop();
+                                        this._popRebuild(opt());
+                                    }
                                 }
-                            };
-                        }
-                        attach.appendChild(btn);
-                        box.appendChild(attach);
+                            } : undefined,
+                            onClick: () => this._openMailDetail(m.id)
+                        }));
                     }
-                    const del = document.createElement('button');
-                    del.className = 'btn dark sm mailDelete';
-                    del.textContent = '🗑 删除邮件';
-                    del.onclick = () => {
-                        SoundFx.play('ui');
-                        ms.remove(openId);
-                        this._refreshTop();
-                        render(null);
-                    };
-                    box.appendChild(del);
-                    return;
-                }
-                // ---- 列表态 ----
-                const claimable = mails.filter(x => x.kind === 'reward' && !x.claimed).length;
-                if (claimable > 0) {
-                    const allBtn = document.createElement('button');
-                    allBtn.className = 'btn gold sm mailClaimAll';
-                    allBtn.textContent = `📧 一键领取（${claimable} 封附件）`;
-                    allBtn.onclick = () => {
+                },
+                ctas: claimable > 0 ? [{
+                    label: `一键领取（${claimable} 封）`,
+                    red: true,
+                    onClick: () => {
                         SoundFx.unlock();
                         const n = ms.claimAll();
                         if (n > 0) {
                             SoundFx.play('coin');
                             this._refreshTop();
+                            this._toast(`已领取 ${n} 封附件`);
                         }
-                        render(null);
-                    };
-                    box.appendChild(allBtn);
-                }
-                if (mails.length === 0) {
-                    const empty = document.createElement('div');
-                    empty.className = 'mailEmptyRow';
-                    empty.textContent = '📭 暂无邮件';
-                    box.appendChild(empty);
-                    return;
-                }
-                const list = document.createElement('div');
-                list.className = 'mailListEl';
-                for (const m of mails) {
-                    const row = document.createElement('div');
-                    row.className = 'mailListRow' + (m.read ? '' : ' unread') + (m.kind === 'reward' && !m.claimed ? ' claimable' : '');
-                    const ic = document.createElement('span');
-                    ic.className = 'mIc';
-                    ic.textContent = m.kind === 'reward' ? '🎁' : '📢';
-                    row.appendChild(ic);
-                    const mid = document.createElement('div');
-                    mid.className = 'mMid';
-                    const title = document.createElement('b');
-                    title.textContent = (m.read ? '' : '● ') + m.title;
-                    const sub = document.createElement('small');
-                    const timeText = mailTimeText(m.ts);
-                    sub.textContent = `来自：${m.from} · ${m.kind === 'reward' ? (m.claimed ? '附件已领取' : '含附件奖励') : '系统通知'}` + (timeText ? ` · ${timeText}` : '');
-                    mid.appendChild(title);
-                    mid.appendChild(sub);
-                    row.appendChild(mid);
-                    const tag = document.createElement('span');
-                    tag.className = 'mTag';
-                    if (mailExpiringSoon(m)) {
-                        tag.textContent = '⏳ 将过期';
-                        tag.classList.add('expiring');
-                    } else {
-                        tag.textContent = m.kind === 'reward' && !m.claimed ? '🎁 可领' : (m.read ? '已读' : '未读');
+                        this._popRebuild(opt());
                     }
-                    row.appendChild(tag);
-                    row.onclick = () => {
-                        SoundFx.play('ui');
-                        render(m.id);
-                        this._refreshTop();
-                    };
-                    list.appendChild(row);
-                }
-                box.appendChild(list);
+                }] : undefined,
+                note: '附件 24 小时内过期作废 · 点击邮件查看详情'
             };
-            render(null);
-        });
+        };
+        this._openPop(opt());
+    }
+
+    /** 邮件详情（1-A 的钻取层）：发件人/时间 → 正文 → 附件格 → 领取·删除双动作 */
+    protected _openMailDetail(openId: string): void {
+        const ms = MailSystem.instance;
+        const opt = (): PopOpts => {
+            const m = ms.mail(openId);
+            const reward = m?.reward ?? {};
+            const attach: Array<{ icon: string; count?: number; title?: string }> = [];
+            if (reward.gold) {
+                attach.push({ icon: '🪙', count: reward.gold, title: `金币 ×${reward.gold.toLocaleString()}` });
+            }
+            if (reward.diamond) {
+                attach.push({ icon: '💎', count: reward.diamond, title: `钻石 ×${reward.diamond}` });
+            }
+            if (reward.misc) {
+                attach.push({
+                    icon: miscDef(reward.misc.id)?.ic ?? '📦',
+                    count: reward.misc.n,
+                    title: `${miscDef(reward.misc.id)?.name ?? reward.misc.id} ×${reward.misc.n}`
+                });
+            }
+            const timeText = m ? mailTimeText(m.ts) : '';
+            const del = (): void => {
+                this._popConfirm({
+                    title: '删除邮件',
+                    icon: '🗑',
+                    desc: m?.kind === 'reward' && !m.claimed ? '附件尚未领取，删除后附件一并作废' : '删除后不可恢复',
+                    danger: true,
+                    ok: '确认删除',
+                    onOk: () => {
+                        SoundFx.play('ui');
+                        ms.remove(openId);
+                        this._refreshTop();
+                        this._openMailModal();
+                    },
+                    onCancel: () => this._openMailDetail(openId)
+                });
+            };
+            const ctas: PopCta[] = [];
+            if (m && m.kind === 'reward') {
+                ctas.push({ label: '🗑 删除', kind: 'danger', onClick: del });
+                ctas.push({
+                    label: m.claimed ? '已领取' : '领取附件',
+                    disabled: m.claimed,
+                    onClick: () => {
+                        SoundFx.unlock();
+                        if (ms.claim(openId)) {
+                            SoundFx.play('coin');
+                            this._refreshTop();
+                            this._popRebuild(opt());
+                        }
+                    }
+                });
+            } else {
+                ctas.push({ label: '🗑 删除', kind: 'danger', onClick: del });
+            }
+            return {
+                tier: 3,
+                size: 'M',
+                title: '✉ 邮件详情',
+                onBack: () => this._openMailModal(),
+                build: c => {
+                    if (!m) {
+                        c.appendChild(this._popEmpty('邮件已删除', '返回列表查看其他邮件', '📭'));
+                        return;
+                    }
+                    ms.markRead(openId);
+                    c.appendChild(this._popKV('发件人', m.from));
+                    if (timeText) {
+                        c.appendChild(this._popKV('时间', timeText));
+                    }
+                    const body = this._el('div', 'popBody');
+                    for (const line of m.body.split('\n')) {
+                        body.appendChild(this._el('p', undefined, line || ' '));
+                    }
+                    c.appendChild(body);
+                    if (m.kind === 'reward') {
+                        c.appendChild(this._popSec('附件奖励'));
+                        c.appendChild(attach.length
+                            ? this._popGrid(attach, 4)
+                            : this._popEmpty('附件为空', undefined, '📦'));
+                        c.appendChild(this._popKV('领取状态', m.claimed ? '已领取' : '未领取', 'free'));
+                        if (mailExpiringSoon(m) && !m.claimed) {
+                            c.appendChild(this._el('div', 'popWarn', '⏳ 附件 24 小时内过期，过期作废'));
+                        }
+                    }
+                },
+                ctas,
+                note: '删除后不可恢复'
+            };
+        };
+        this._openPop(opt());
     }
 
 
@@ -1229,101 +1977,85 @@ export abstract class HomeUiCore extends Component {
     // ================= 设置 =================
 
     /** 设置弹窗：音效开关/音量、版本信息、重置存档（输入 CONFIRM 二次确认） */
+    /** 设置（UX 布局稿：L3·L 列表型）：音效/音量/关于 + 危险操作走 S 型确认（替代原双击确认） */
     protected _openSettingsModal(): void {
-        this._openModal('⚙️ 设置', (box) => {
-            box.classList.add('setBox');
-
-            // ---- 音效 ----
-            const secSound = document.createElement('div');
-            secSound.className = 'setSec';
-            secSound.innerHTML = '<div class="setHead"><b>🔊 音效</b></div>';
-            const soundRow = document.createElement('div');
-            soundRow.className = 'setRow';
-            soundRow.innerHTML = `<span>战斗与界面音效</span>`;
-            const sndBtn = document.createElement('button');
-            sndBtn.className = 'btn dark sm';
-            const syncSnd = () => {
-                sndBtn.textContent = SoundFx.muted ? '🔇 已静音' : '🔊 开启';
-            };
-            syncSnd();
-            sndBtn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.setMuted(!SoundFx.muted);
-                syncSnd();
-                if (!SoundFx.muted) {
-                    SoundFx.play('ui');
-                }
-            };
-            soundRow.appendChild(sndBtn);
-            secSound.appendChild(soundRow);
-
-            // 音量滑条
-            const volRow = document.createElement('div');
-            volRow.className = 'setRow';
-            volRow.innerHTML = `<span>音量</span>`;
-            const volWrap = document.createElement('div');
-            volWrap.className = 'volWrap';
-            const slider = document.createElement('input');
-            slider.type = 'range';
-            slider.min = '0';
-            slider.max = '100';
-            slider.value = String(Math.round(SoundFx.volume * 100));
-            slider.oninput = () => {
-                SoundFx.setVolume(Number(slider.value) / 100);
-            };
-            slider.onchange = () => {
-                SoundFx.play('coin');
-            };
-            volWrap.appendChild(slider);
-            const volNum = document.createElement('b');
-            const syncVol = () => {
-                volNum.textContent = `${slider.value}%`;
-            };
-            syncVol();
-            slider.addEventListener('input', syncVol);
-            volWrap.appendChild(volNum);
-            volRow.appendChild(volWrap);
-            secSound.appendChild(volRow);
-            box.appendChild(secSound);
-
-            // ---- 关于 ----
-            const secAbout = document.createElement('div');
-            secAbout.className = 'setSec';
-            secAbout.innerHTML =
-                `<div class="setHead"><b>ℹ️ 关于</b></div>` +
-                `<div class="setRow"><span>版本</span><b>${BUILD_STAMP}</b></div>` +
-                `<div class="setRow"><span>游戏</span><b>末日航线 · 尸潮突围</b></div>`;
-            box.appendChild(secAbout);
-
-            // ---- 危险区：重置存档 ----
-            const secDanger = document.createElement('div');
-            secDanger.className = 'setSec';
-            secDanger.innerHTML = '<div class="setHead danger"><b>⚠️ 危险操作</b></div>';
-            const dangerRow = document.createElement('div');
-            dangerRow.className = 'setRow col';
-            const resetBtn = document.createElement('button');
-            resetBtn.className = 'btn dark sm resetBtn';
-            resetBtn.textContent = '🗑️ 重置全部存档';
-            let confirmState = 0;
-            resetBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (confirmState === 0) {
-                    confirmState = 1;
-                    resetBtn.textContent = '再次点击确认重置（5 秒内）';
-                    setTimeout(() => {
-                        confirmState = 0;
-                        resetBtn.textContent = '🗑️ 重置全部存档';
-                    }, 5000);
-                    return;
-                }
-                sys.localStorage.removeItem(GameManager.SAVE_KEY);
-                this._toast('存档已重置，即将刷新页面');
-                setTimeout(() => location.reload(), 800);
-            };
-            dangerRow.appendChild(resetBtn);
-            secDanger.appendChild(dangerRow);
-            box.appendChild(secDanger);
+        const opt = (): PopOpts => ({
+            tier: 3,
+            size: 'L',
+            banner: '⚙️ 设置',
+            art: `版本 ${BUILD_STAMP}`,
+            build: c => {
+                c.appendChild(this._popSec('🔊 音效'));
+                c.appendChild(this._popAttr({
+                    icon: SoundFx.muted ? '🔇' : '🔊',
+                    text: `战斗与界面音效 **${SoundFx.muted ? '已静音' : '已开启'}**`,
+                    action: {
+                        label: SoundFx.muted ? '开启' : '静音',
+                        kind: SoundFx.muted ? 'gold' : 'info',
+                        onClick: () => {
+                            SoundFx.setMuted(!SoundFx.muted);
+                            if (!SoundFx.muted) {
+                                SoundFx.play('ui');
+                            }
+                            this._popRebuild(opt());
+                        }
+                    }
+                }));
+                const volRow = this._el('div', 'popAttr');
+                volRow.appendChild(this._el('div', 'ai', '🎚'));
+                const at = this._el('div', 'at');
+                at.style.display = 'flex';
+                at.style.alignItems = 'center';
+                at.style.gap = 'calc(8px * var(--pu,1))';
+                at.appendChild(this._el('span', undefined, '音量'));
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = '0';
+                slider.max = '100';
+                slider.value = String(Math.round(SoundFx.volume * 100));
+                slider.style.flex = '1';
+                slider.style.minWidth = '0';
+                slider.oninput = () => {
+                    SoundFx.setVolume(Number(slider.value) / 100);
+                    num.textContent = `${slider.value}%`;
+                };
+                slider.onchange = () => SoundFx.play('coin');
+                at.appendChild(slider);
+                const num = this._el('b', undefined, `${slider.value}%`);
+                at.appendChild(num);
+                volRow.appendChild(at);
+                c.appendChild(volRow);
+                c.appendChild(this._popSec('ℹ️ 关于'));
+                c.appendChild(this._popKV('版本', BUILD_STAMP));
+                c.appendChild(this._popKV('游戏', '末日航线 · 尸潮突围'));
+                c.appendChild(this._popKV('类型', '竖屏 · 塔防割草 · 微信小游戏', 'free'));
+                c.appendChild(this._popSec('⚠️ 危险操作'));
+                c.appendChild(this._popAttr({
+                    icon: '🗑',
+                    text: '重置全部存档：进度/装备/英雄**全部清空且不可恢复**',
+                    empty: true
+                }));
+            },
+            ctas: [{
+                label: '🗑 重置全部存档',
+                kind: 'danger',
+                onClick: () => this._popConfirm({
+                    title: '重置存档',
+                    icon: '⚠️',
+                    desc: '所有进度、装备、英雄与货币将被清空，且无法恢复',
+                    danger: true,
+                    ok: '确认重置',
+                    cancel: '我再想想',
+                    onOk: () => {
+                        sys.localStorage.removeItem(GameManager.SAVE_KEY);
+                        this._toast('存档已重置，即将刷新页面');
+                        setTimeout(() => location.reload(), 800);
+                    }
+                })
+            }],
+            note: '存档保存在本机浏览器 · 重置后从第一关重新开始'
         });
+        this._openPop(opt());
     }
 
 
