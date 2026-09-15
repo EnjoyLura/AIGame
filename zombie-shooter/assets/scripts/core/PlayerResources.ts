@@ -37,8 +37,9 @@ export class PlayerResources {
         if (this._amounts.stamina >= max) {
             return 0;
         }
-        // _staminaTs 是恢复起点：下一次 +1 发生在起点后一个恢复周期
-        return Math.max(0, this._staminaTs + regenSecs - now);
+        // _staminaTs 是恢复起点：下一次 +1 发生在起点后一个恢复周期。
+        // 上限兜底：坏档时间戳若落在未来，倒计时不该溢出成天文数字。
+        return Math.min(regenSecs, Math.max(0, this._staminaTs + regenSecs - now));
     }
 
     add(id: ResourceId, n: number): void {
@@ -104,6 +105,14 @@ export class PlayerResources {
                 this._amounts[k] = data.amounts[k] ?? 0;
             }
         }
-        this._staminaTs = data.staminaTs ?? 0;
+        // 时间戳兜底：坏档/老档可能把秒写成毫秒或落在未来——一旦落在未来，
+        // 体力会永久停止恢复（倒计时也会显示成天文数字），故一律拉回当前时间。
+        const now = Math.floor(Date.now() / 1000);
+        let ts = Math.floor(data.staminaTs ?? 0);
+        if (ts > now) {
+            const asSecs = Math.floor(ts / 1000);
+            ts = asSecs > 0 && asSecs <= now ? asSecs : now;
+        }
+        this._staminaTs = ts > 0 ? ts : now;
     }
 }

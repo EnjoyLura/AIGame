@@ -5,6 +5,8 @@ const readUi = (f) => fs.readFileSync('assets/scripts/ui/' + f, 'utf8');
 const src = UI_FILES.map(readUi).join('\n');
 // 仅拼接 TS 类文件（排除样式表）：用于断言"旧 DOM 结构已消失"这类会在 CSS 里留死样式的情况
 const clsSrc = UI_FILES.filter((f) => f !== 'HomeUiStyle.ts').map(readUi).join('\n');
+// 资源与体力时间戳兜底检查需要读核心层
+const resSrc = fs.readFileSync('assets/scripts/core/PlayerResources.ts', 'utf8');
 let fail = 0;
 const ok = (name, cond) => {
   console.log((cond ? 'PASS' : 'FAIL') + ' ' + name);
@@ -186,7 +188,7 @@ ok('编队改动就地重绘并回写战斗页 CTA 行', /const applyToggle = \(
 
 // 14. 3-C 拦截层 + S 档确认模板统一（UX 3-3/3-4）
 const interceptBody = (src.match(/protected _popIntercept\(o: \{[\s\S]{0,1800}?\n        \}\);\n    \}/) ?? [''])[0];
-ok('3-C 拦截型 S 弹窗：体力不足/未解锁两条出路，不出现「取消」', /protected _popIntercept\(o: \{/.test(src) && /protected _openStaminaGate\(need: number, after\?: \(\) => void, stayLabel\?: string\): void \{/.test(src) && /protected _openUnlockGate\(title: string, icon: string, reason: string, goLabel = '前 往 关 卡'\): void \{/.test(src) && interceptBody.indexOf('取消') < 0 && /再 等 等/.test(interceptBody) && /o\.ok\.label/.test(interceptBody));
+ok('3-C 拦截型 S 弹窗：体力不足/未解锁两条出路，不出现「取消」', /protected _popIntercept\(o: \{/.test(src) && /protected _openStaminaGate\(need: number, after\?: \(\) => void, stayLabel\?: string\): void \{/.test(src) && /protected _openUnlockGate\(\s*\n\s*title: string,\s*\n\s*icon: string,\s*\n\s*reason: string,\s*\n\s*goLabel = '前 往 关 卡',\s*\n\s*go\?: \(\) => void,\s*\n\s*note = '解锁进度随主线推进自动刷新'\s*\n\s*\): void \{/.test(src) && interceptBody.indexOf('取消') < 0 && /再 等 等/.test(interceptBody) && /o\.ok\.label/.test(interceptBody));
 ok('体力不足不再 toast 混杂：出战与副本各一处走拦截弹窗', /this\._openStaminaGate\(BattleConfig\.RUN_STAMINA_COST\);/.test(clsSrc) && /this\._openStaminaGate\(DUNGEON_STAMINA_COST/.test(clsSrc));
 ok('禁用键不是死键：PopCta/PopRow/商城键各有 onDisabled 通道', /onDisabled\?: \(\) => void;/.test(src) && /c\.onDisabled\?\.\(\);/.test(src) && /o\.action!\.onDisabled\?\.\(\);/.test(src) && /opt\.onBlocked\?\.\(\);/.test(src));
 ok('交互入口不用 HTML disabled（会吞掉 click，缺口提示无法触达）', !/buy\.disabled = !!opt\.disabled/.test(src) && !/endChip\.disabled = !endlessOk/.test(src) && !/this\._railEndlessBtn\.disabled = !endlessOk/.test(src) && /'btn gold gBuy' \+ \(opt\.disabled \? ' off' : ''\)/.test(src));
@@ -199,7 +201,7 @@ ok('HomeUiStage 旧弹窗入口清零', !/_openStageRewardModal[\s\S]{0,600}this
 
 // 12. 建筑详情 / 载具改装迁移
 ok('建筑详情 L3·M：效果 + 升级 KV + 受限告警', /banner: `\$\{b\.ic\} \$\{b\.name\}`/.test(src) && /text: `升到 LV\.\$\{lv \+ 1\}：\*\*\$\{b\.desc\(lv \+ 1\)\}\*\*`/.test(src) && /c\.appendChild\(this\._popWarn\(`需指挥中心 LV\.\$\{b\.unlockHq\} 解锁（当前 LV\.\$\{gm\.hqLevel\(\)\}）`\)\);/.test(src));
-ok('建筑详情升级就地重绘（不再拆弹窗重开）', /_openBuildingInfoModal\(id: string\): void \{[\s\S]{0,4200}?this\._popRebuild\(opt\(\)\);/.test(src) && !/biLvRow/.test(clsSrc));
+ok('建筑详情升级就地重绘（不再拆弹窗重开）', /_openBuildingInfoModal\(id: string\): void \{[\s\S]{0,5200}?this\._popRebuild\(opt\(\)\);/.test(src) && !/biLvRow/.test(clsSrc));
 ok('建筑详情受指挥中心上限约束走告警行', /c\.appendChild\(this\._popWarn\('受指挥中心上限约束 · 先升级指挥中心'\)\);/.test(src));
 ok('载具工坊钻取改装 + onBack 回建筑详情', /_openTuningModal\(\(\) => this\._openBuildingInfoModal\(b\.id\)\)/.test(src) && /protected _openTuningModal\(onBack\?: \(\) => void\): void \{/.test(src) && /^\s+onBack,$/m.test(src));
 ok('载具改装 XL 二级页：四部位槽位条 + 展示台 + 对比块', /title: '🔧 载具改装'/.test(src) && /tier: maxed \? 'MAX' : `LV\.\$\{lv\}`/.test(src) && /this\._popCmp\('改装预览', \[\{/.test(src) && /for \(let i = 0; i < TUNE_SLOTS\.length; i\+\+\)/.test(src));
@@ -218,6 +220,22 @@ ok('体力补给 L3·M：固定条秒级倒计时胶囊 + 两条获取路径行�
 ok('体力倒计时停表判定挂在胶囊连通性上（重绘后仍续跑）', /private _stamTick\(\): void \{\s*\n\s*if \(!this\._stamTimerEl \|\| !this\._stamTimerEl\.isConnected\) \{\s*\n\s*clearInterval\(this\._stamTimer\);/.test(src) && /onClose: \(\) => \{\s*\n\s*clearInterval\(this\._stamTimer\);/.test(src));
 ok('个人主页 L3·L：名片 + 战绩/养成/系统/账号四段', /banner: '🎖️ 个人主页'/.test(src) && /iconTex: 'characters\/commander',/.test(src) && /c\.appendChild\(this\._popSec\('📊 战绩统计'\)\);/.test(src) && /c\.appendChild\(this\._popSec\('🎖️ 养成收集'\)\);/.test(src) && /c\.appendChild\(this\._popSec\('🏗️ 系统进度'\)\);/.test(src) && /c\.appendChild\(this\._popSec\('ℹ️ 账号信息'\)\);/.test(src));
 ok('全部二级界面已迁新弹层（旧 _openModal/_openSheet/_openResult 调用点清零）', !/this\._openModal\(/.test(clsSrc) && !/this\._openSheet\(/.test(clsSrc) && !/this\._openResult\(/.test(clsSrc));
+
+
+// 14. 大额购买确认统一 + 禁用态补全覆盖 + 体力时间戳兜底
+ok('商城大额购买统一确认模板（_confirmSpend 承载金币英雄/装备/核心）', /protected _confirmSpend\(o: \{[\s\S]{0,400}?res: 'gold' \| 'diamond';[\s\S]{0,900}?this\._popConfirm\(\{/.test(src) && /onTap: \(\) => this\._confirmSpend\(\{\s*\n\s*name: def\.name,\s*\n\s*desc: `解锁英雄/.test(src) && /onTap: \(\) => this\._confirmSpend\(\{\s*\n\s*name: def\.name,\s*\n\s*desc: `装备入包/.test(src) && /onTap: \(\) => this\._confirmSpend\(\{\s*\n\s*name: core\.name,/.test(src));
+ok('材料/道具等廉价金币购买不经确认（保持即点即得）', /protected _tapBuy\(item: ShopItem, buy: \(\) => void\): void \{\s*\n\s*if \(item\.price\.res !== 'diamond'\) \{\s*\n\s*buy\(\);/.test(src) && /this\._confirmSpend\(\{\s*\n\s*name: item\.name,\s*\n\s*desc: item\.desc,\s*\n\s*res: 'diamond',/.test(src));
+ok('建筑升级禁用态三通道（未达标转指挥中心 / 满级 / 金币差额）', /const can = [\s\S]{0,120}?;/.test(src) && /onDisabled: \(\) => \{[\s\S]{0,700}?this\._openUnlockGate\([\s\S]{0,240}?'前 往 指 挥 中 心'/.test(src) && /this\._toast\('该建筑已满级'\)/.test(src) && /this\._toast\(`金币不足 · 还差 🪙 \$\{\(cost - gm\.gold\)\.toLocaleString\(\)\}`\)/.test(src));
+ok('试炼/远征禁用态补拦截（不再静默置灰）', /this\._openUnlockGate\('试炼未解锁', '🗼'/.test(src) && /this\._openUnlockGate\('暂不可派遣', '🚀'/.test(src) && /this\._openResGate\('diamond', cost, '立即完成'\)/.test(src));
+ok('体力时间戳兜底：毫秒值降级为秒 + 未来时间钳回当前', /const asSecs = Math\.floor\(ts \/ 1000\);\s*\n\s*ts = asSecs > 0 && asSecs <= now \? asSecs : now;/.test(resSrc) && /this\._staminaTs = ts > 0 \? ts : now;/.test(resSrc));
+ok('体力倒计时上界不超过一个恢复周期', /return Math\.min\(regenSecs, Math\.max\(0, this\._staminaTs \+ regenSecs - now\)\);/.test(resSrc));
+
+
+// 15. 本轮补漏：试炼锁定层段可解释、远征标签与拦截同源、英雄卡金币门槛、倒计时文案
+ok('试炼锁定层段/层位给 3-C 拦截（不再是裸 toast）', /if \(lockedSect\) \{\s*\n\s*this\._openUnlockGate\('试炼未解锁', '🗼', `需先通关第 \$\{from - 1\} 层`\);/.test(src) && /if \(!ts\.isFloorUnlocked\(f\)\) \{\s*\n\s*this\._openUnlockGate\('试炼未解锁', '🗼', `需先通关第 \$\{Math\.max\(0, f - 1\)\} 层`\);/.test(src) && !/this\._toast\(`第 \$\{f\} 层尚未解锁`\)/.test(src) && !/this\._toast\(`第 \$\{from\} 层尚未解锁`\)/.test(src));
+ok('远征派遣标签与拦截弹窗同源（不出现两套说辞）', /label: gate\.ok \? '派 遣' : gate\.reason \?\? '不可派遣',/.test(src) && !/`请选择 \$\{def\.slots - picked\.length\} 名英雄`/.test(src));
+ok('商城英雄卡受金币门槛约束（不再出现注定失败的购买确认）', /const poor = !owned && gm\.gold < price;/.test(src) && /disabled: owned \|\| poor,/.test(src) && /this\._openResGate\('gold', price, def\.name\);/.test(src) && /this\._toast\('金币不足 · 未能解锁'\);/.test(src));
+ok('体力倒计时文案无错字（下一点）', /⏳ 下一点 \$\{Math\.floor\(nextIn \/ 60\)\}/.test(src) && !/下一几点/.test(src));
 
 
 process.exit(fail ? 1 : 0);

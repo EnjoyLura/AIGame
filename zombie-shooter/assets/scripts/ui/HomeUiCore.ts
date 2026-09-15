@@ -1223,7 +1223,14 @@ export abstract class HomeUiCore extends Component {
 
 
     /** 未解锁拦截（3-C）：说明解锁条件 + 两条出路（知道了 / 前往条件所在地） */
-    protected _openUnlockGate(title: string, icon: string, reason: string, goLabel = '前 往 关 卡'): void {
+    protected _openUnlockGate(
+        title: string,
+        icon: string,
+        reason: string,
+        goLabel = '前 往 关 卡',
+        go?: () => void,
+        note = '解锁进度随主线推进自动刷新'
+    ): void {
         this._popIntercept({
             title,
             icon,
@@ -1233,11 +1240,15 @@ export abstract class HomeUiCore extends Component {
                 kind: 'gold',
                 onClick: () => {
                     this._closePop();
-                    this._switchPage('battle');
+                    if (go) {
+                        go();
+                    } else {
+                        this._switchPage('battle');
+                    }
                 }
             },
             stayLabel: '知 道 了',
-            note: '解锁进度随主线推进自动刷新'
+            note
         });
     }
 
@@ -1789,7 +1800,7 @@ export abstract class HomeUiCore extends Component {
             return;
         }
         const ss = nextIn % 60;
-        this._stamTimerEl.textContent = `⏳ 下一几点 ${Math.floor(nextIn / 60)}:${ss < 10 ? '0' + ss : ss}`;
+        this._stamTimerEl.textContent = `⏳ 下一点 ${Math.floor(nextIn / 60)}:${ss < 10 ? '0' + ss : ss}`;
     }
 
 

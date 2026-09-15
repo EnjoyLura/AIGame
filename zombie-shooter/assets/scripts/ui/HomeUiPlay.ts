@@ -91,7 +91,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
             const sectTo = Math.min(TRIAL_MAX_FLOOR, sectFrom + TRIAL_MILESTONE_EVERY - 1);
             const pick = (f: number): void => {
                 if (!ts.isFloorUnlocked(f)) {
-                    this._toast(`第 ${f} 层尚未解锁`);
+                    this._openUnlockGate('试炼未解锁', '🗼', `需先通关第 ${Math.max(0, f - 1)} 层`);
                     return;
                 }
                 this._trialSelFloor = f;
@@ -116,7 +116,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         const lockedSect = from > ts.nextFloor;
                         bar.appendChild(this._popChip(`${from}~${to}${lockedSect ? ' 🔒' : ''}`, s === curSect - 1, () => {
                             if (lockedSect) {
-                                this._toast(`第 ${from} 层尚未解锁`);
+                                this._openUnlockGate('试炼未解锁', '🗼', `需先通关第 ${from - 1} 层`);
                                 return;
                             }
                             pick(from);
@@ -204,6 +204,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     label: !unlocked ? `🔒 第 ${sel} 层未解锁` : cleared ? `⚔️ 重挑 第 ${sel} 层` : `⚔️ 挑战 第 ${sel} 层`,
                     kind: 'gold',
                     disabled: !unlocked,
+                    // 禁用不是死键：点未解锁层给 3-C 拦截（解锁条件 + 前往关卡）
+                    onDisabled: () => this._openUnlockGate('试炼未解锁', '🗼', `需先通关第 ${sel - 1} 层`),
                     onClick: () => this._startTrial(sel)
                 }],
                 note: '试炼不消耗体力、不限次数；层内失败不影响已通关进度'
@@ -433,10 +435,12 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 }
                 if (st === 'idle') {
                     return [{
-                        label: picked.length < def.slots
-                            ? `请选择 ${def.slots - picked.length} 名英雄`
-                            : gate.ok ? '派 遣' : gate.reason ?? '不可派遣',
+                        // 标签直接取 gate.reason：与「不可派遣」拦截弹窗同源，避免
+                        // 「显示选人提示、点开却说未解锁」两套说辞（选人进度下方 0/N 已可见）
+                        label: gate.ok ? '派 遣' : gate.reason ?? '不可派遣',
                         disabled: !gate.ok,
+                        // 禁用不是死键：点不可派遣给 3-C 拦截（条件说明 + 前往关卡）
+                        onDisabled: () => this._openUnlockGate('暂不可派遣', '🚀', gate.reason ?? '未满足派遣条件'),
                         onClick: () => {
                             SoundFx.unlock();
                             if (es.start(def.id, picked)) {
@@ -473,6 +477,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     {
                         label: cost > 0 ? `💎${cost} 立即完成` : '立即完成',
                         disabled: gm.res.get('diamond') < cost,
+                        // 禁用不是死键：钻石不够给 3-C 资源拦截（差额 + 获取去向）
+                        onDisabled: () => this._openResGate('diamond', cost, '立即完成'),
                         onClick: () => {
                             SoundFx.unlock();
                             const pay = es.speedUpCost(def.id);
@@ -496,6 +502,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         label: adLeft > 0 ? `📺 免费完成 (${adLeft})` : '📺 今日已用完',
                         kind: 'grey',
                         disabled: adLeft <= 0,
+                        onDisabled: () => this._toast('今日广告额度已用完 · 隔日重置'),
                         onClick: () => {
                             SoundFx.unlock();
                             AdService.instance.claimReward('expedition', () => {

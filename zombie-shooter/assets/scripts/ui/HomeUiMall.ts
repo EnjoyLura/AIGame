@@ -269,19 +269,32 @@ export abstract class HomeUiMall extends HomeUiCore {
                     continue;
                 }
                 const owned = gm.isHeroOwned(def.id);
+                const poor = !owned && gm.gold < price;
                 mkGood({
                     ic: '🎖️', name: def.name, tag: `${def.role} · ${this._heroWeaponName(def.id)}`,
                     price: owned ? '已拥有' : `🪙 ${price.toLocaleString()}`,
-                    r: price >= 2000 ? 5 : 4, disabled: owned,
-                    onTap: () => {
-                        if (gm.unlockHero(def.id)) {
-                            SoundFx.play('buy');
-                            this._toast(`${def.name} 解锁成功！`);
+                    r: price >= 2000 ? 5 : 4, disabled: owned || poor,
+                    onBlocked: () => {
+                        if (owned) {
+                            this._toast('该英雄已拥有');
                         } else {
-                            SoundFx.play('ui');
+                            this._openResGate('gold', price, def.name);
                         }
-                        this._refreshMall();
                     },
+                    onTap: () => this._confirmSpend({
+                        name: def.name,
+                        desc: `解锁英雄 · ${def.role} · ${this._heroWeaponName(def.id)}`,
+                        res: 'gold', need: price, okLabel: '确 认 解 锁',
+                        onOk: () => {
+                            if (gm.unlockHero(def.id)) {
+                                SoundFx.play('buy');
+                                this._toast(`${def.name} 解锁成功！`);
+                            } else {
+                                SoundFx.play('ui');
+                                this._toast('金币不足 · 未能解锁');
+                            }
+                        }
+                    }),
                 });
             }
         } else if (this._mallTab === 'equip') {
@@ -304,15 +317,20 @@ export abstract class HomeUiMall extends HomeUiCore {
                         r: tierRank(def.tier),
                         hot: def.tier >= 4,
                         disabled: gm.gold < def.baseCost,
-                        onTap: () => {
-                            if (hs.buyEquipToBag(def.id)) {
-                                SoundFx.play('buy');
-                                this._toast(`${def.name} 已放入背包`);
-                            } else {
-                                SoundFx.play('ui');
+                        onBlocked: () => this._openResGate('gold', def.baseCost, def.name),
+                        onTap: () => this._confirmSpend({
+                            name: def.name,
+                            desc: `装备入包 · ${EQUIP_SLOT_NAMES[slot]} · ${EQUIP_TIER_NAMES[def.tier - 1]} · ${parts.join(' ')}`,
+                            res: 'gold', need: def.baseCost, okLabel: '确 认 购 买',
+                            onOk: () => {
+                                if (hs.buyEquipToBag(def.id)) {
+                                    SoundFx.play('buy');
+                                    this._toast(`${def.name} 已放入背包`);
+                                } else {
+                                    SoundFx.play('ui');
+                                }
                             }
-                            this._refreshMall();
-                        },
+                        }),
                     });
                 }
             }
@@ -324,18 +342,23 @@ export abstract class HomeUiMall extends HomeUiCore {
                     price: `🪙 ${core.baseCost.toLocaleString()}`,
                     r: tierRank(core.tier === 1 ? 3 : core.tier === 2 ? 5 : 4),
                     disabled: gm.gold < core.baseCost,
-                    onTap: () => {
-                        // 买核心入背包口径：直接挂到当前选中英雄（若未嵌）
-                        const heroId = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length].id;
-                        if (hs.buyCore(heroId, core.id)) {
-                            SoundFx.play('buy');
-                            this._toast(`${core.name} 已嵌入 ${HERO_DEFS.find(d => d.id === heroId)?.name ?? ''}`);
-                        } else {
-                            SoundFx.play('ui');
-                            this._toast('该英雄已有核心，先到英雄页拆除');
+                    onBlocked: () => this._openResGate('gold', core.baseCost, core.name),
+                    onTap: () => this._confirmSpend({
+                        name: core.name,
+                        desc: `武器核心 · ${core.desc}`,
+                        res: 'gold', need: core.baseCost, okLabel: '确 认 购 买',
+                        onOk: () => {
+                            // 买核心入背包口径：直接挂到当前选中英雄（若未嵌）
+                            const heroId = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length].id;
+                            if (hs.buyCore(heroId, core.id)) {
+                                SoundFx.play('buy');
+                                this._toast(`${core.name} 已嵌入 ${HERO_DEFS.find(d => d.id === heroId)?.name ?? ''}`);
+                            } else {
+                                SoundFx.play('ui');
+                                this._toast('该英雄已有核心，先到英雄页拆除');
+                            }
                         }
-                        this._refreshMall();
-                    },
+                    }),
                 });
             }
         } else {
@@ -421,8 +444,41 @@ export abstract class HomeUiMall extends HomeUiCore {
 
 
     /**
-     * 购买入口分发（UX 3-D 危险操作）：钻石等贵重资源付款走 S 型双按钮确认，
-     * 金币购买保持即点即得（廉价高频，多一层确认只会变钝）。
+     * 大额购买确认（S 型双按钮 · 与钻石购买同模板）：
+     * 英雄/装备/核心单价从数百到数千金币，误触一次代价明显，故与钻石付款共用同一确认口径。
+     * 确认后由调用方 `onOk` 自行结算；取消走 `_popBack`，不产生任何副作用。
+     */
+    protected _confirmSpend(o: {
+        name: string;
+        desc: string;
+        res: 'gold' | 'diamond';
+        need: number;
+        okLabel?: string;
+        onOk: () => void;
+    }): void {
+        const gm = GameManager.instance;
+        const isGem = o.res === 'diamond';
+        this._popConfirm({
+            title: '购买确认',
+            icon: isGem ? '💎' : '🛒',
+            desc: `${o.name} · ${o.desc}`,
+            cost: [{ icon: isGem ? '💎' : '🪙', have: gm.res.get(o.res), need: o.need }],
+            ok: o.okLabel ?? '确 认 购 买',
+            cancel: '再 想 想',
+            note: isGem ? '钻石为贵重资源 · 购买后不可退回'
+                : `确认后扣除 ${o.need.toLocaleString()} 金币 · 关卡结算可持续回收`,
+            onOk: () => {
+                this._popBack();
+                o.onOk();
+                this._refreshMall();
+            }
+        });
+    }
+
+
+    /**
+     * 购买入口分发（UX 3-D 危险操作）：钻石贵重资源付款走 S 型确认，
+     * 金币材料/道具保持即点即得（廉价高频，多一层确认只会变钝）。
      */
     protected _tapBuy(item: ShopItem, buy: () => void): void {
         if (item.price.res !== 'diamond') {
@@ -430,19 +486,12 @@ export abstract class HomeUiMall extends HomeUiCore {
             this._refreshMall();
             return;
         }
-        this._popConfirm({
-            title: '购买确认',
-            icon: '🛒',
-            desc: `${item.name} · ${item.desc}`,
-            cost: [{ icon: '💎', have: GameManager.instance.res.get('diamond'), need: item.price.amount }],
-            ok: '确 认 购 买',
-            cancel: '再 想 想',
-            note: '钻石为贵重资源 · 购买后不可退回',
-            onOk: () => {
-                this._popBack();
-                buy();
-                this._refreshMall();
-            }
+        this._confirmSpend({
+            name: item.name,
+            desc: item.desc,
+            res: 'diamond',
+            need: item.price.amount,
+            onOk: buy
         });
     }
 

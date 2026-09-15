@@ -105,6 +105,24 @@ export abstract class HomeUiBase extends HomeUiPlay {
                             : hqBlocked ? '🔒 先升级指挥中心'
                                 : `🪙 ${cost.toLocaleString()} · 升 级`,
                     disabled: !can,
+                    // 禁用不是死键：按缺口分派到拦截弹窗或差额 toast（UX 0-4）
+                    onDisabled: () => {
+                        if (!unlocked) {
+                            this._openUnlockGate('指挥中心未达标', '🏛️',
+                                `需指挥中心 LV.${b.unlockHq}（当前 LV.${gm.hqLevel()}）`,
+                                '前 往 指 挥 中 心', () => this._openBuildingInfoModal('hq'),
+                                '升级指挥中心后本建筑自动解锁');
+                        } else if (hqBlocked) {
+                            this._openUnlockGate('受指挥中心上限约束', '🏛️',
+                                `本建筑上限 LV.${gm.hqLevel() + 1} · 需先升级指挥中心`,
+                                '前 往 指 挥 中 心', () => this._openBuildingInfoModal('hq'),
+                                '指挥中心等级即全基地等级上限');
+                        } else if (maxed) {
+                            this._toast('该建筑已满级');
+                        } else {
+                            this._toast(`金币不足 · 还差 🪙 ${(cost - gm.gold).toLocaleString()}`);
+                        }
+                    },
                     onClick: () => {
                         SoundFx.unlock();
                         const nextLv = gm.buildingLevel(b.id) + 1;
