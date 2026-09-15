@@ -139,14 +139,14 @@ ok('英雄养成展示台挂立绘', /querySelector\('\.popPedestal'\)/.test(src
 
 // 9. 玩法页四玩法迁移（试炼/副本/远征/图鉴）+ 组件库补件
 ok('组件库补件：告警行 _popWarn + 固定条静态胶囊 _popInfo', /protected _popWarn\(text: string\): HTMLElement \{/.test(src) && /protected _popInfo\(text: string, on = false\): HTMLElement \{/.test(src));
-ok('层格网格支持字符角标（✅/▶/◻/🔒）', /count\?: number \| string;/.test(src) && /count: fl \? '✅' : now \? '▶'/.test(src));
-ok('试炼塔 L3·L：层段胶囊固定条 + 层格点选', /banner: '🗼 试炼之塔'/.test(src) && /_popChip\(`\$\{from\}~\$\{to\}\$\{lockedSect \? ' 🔒' : ''\}`/.test(src) && /_popGrid\(cells, 5, i => pick\(from \+ i\)\)/.test(src));
-ok('试炼塔里程碑层 👑 + 未推进层段折叠成行', /\$\{f\}\$\{mile \? '👑' : ''\}/.test(src) && /通关第 \$\{from - 1\} 层后解锁/.test(src));
+ok('槽位条支持字符角标（✅/▶/◻/🔒）', /count\?: number \| string;/.test(src) && /tier: fl \? '✅' : now \? '▶' : open \? '◻' : '🔒',/.test(src));
+ok('试炼塔 XL 二级页：层段胶囊固定条 + 层格槽位条点选', /title: '🗼 试炼之塔'/.test(src) && /_popChip\(`\$\{from\}~\$\{to\}\$\{lockedSect \? ' 🔒' : ''\}`/.test(src) && /tier: 2,\s*\n\s*size: 'XL',\s*\n\s*title: '🗼 试炼之塔',/.test(src) && /for \(let f = sectFrom; f <= sectTo; f\+\+\)/.test(src));
+ok('试炼塔里程碑层 👑 + 未推进层段折叠成行 + 展示台', /\$\{f\}\$\{f % TRIAL_MILESTONE_EVERY === 0 \? '👑' : ''\}/.test(src) && /通关第 \$\{from - 1\} 层后解锁/.test(src) && /tier: `第 \$\{sel\} 层\$\{def\.milestone \? ' 👑' : ''\}`/.test(src));
 ok('试炼塔层详情 KV + 怪物池挂图鉴美术', /icon: bd \? '👾' : '❓',\s*\n\s*iconTex: bd \? bd\.art : undefined,/.test(src));
-ok('副本 L3·M：固定三档胶囊就地重开', /banner: '🏰 资源副本'/.test(src) && /_popChip\(nm, t === selTier, \(\) => this\._openDungeonModal\(t\)\)/.test(src));
+ok('副本 XL 二级页：三档页签 + 复制卡槽位条选副本', /title: '🏰 资源副本'/.test(src) && /tabs: DUNGEON_TIER_NAMES,/.test(src) && /onTab: t => this\._openDungeonModal\(t\),/.test(src) && /tier: `\$\{rest\}次`,/.test(src));
 ok('副本体力消耗行 + 门槛告警行', /cost: \[\{ icon: '⚡', have: gm\.stamina\(\), need: DUNGEON_STAMINA_COST \}\]/.test(src) && /this\._popWarn\(`⚠️ 体力不足，本次需要 \$\{DUNGEON_STAMINA_COST\} 点`\)/.test(src));
-ok('副本列表含今日剩余与用完标色', /lines: \[`\$\{DUNGEON_TIER_NAMES\[selTier\]\} · 今日剩余 \$\{rest\}\/\$\{DUNGEON_RUNS_PER_DAY\}`\]/.test(src) && /statusKind: rest <= 0 \? 'expire' : undefined/.test(src));
-ok('远征 L3·L：任务胶囊带状态与倒计时', /banner: '🚀 远征派遣'/.test(src) && /const mark = dst === 'ready' \? ' ✨' : dst === 'running' \? ` ⏳\$\{es\.remainText\(d\.id\)\}` : '';/.test(src));
+ok('副本明细含今日剩余与用完标色', /c\.appendChild\(this\._popKV\('今日剩余', `\$\{left\}\/\$\{DUNGEON_RUNS_PER_DAY\}`/.test(src) && /statusKind: rest <= 0 \|\| !dg\.ok \? 'expire' : undefined,/.test(src));
+ok('远征 XL 二级页：任务胶囊固定条 + 队伍槽位条', /title: '🚀 远征派遣'/.test(src) && /const mark = dst === 'ready' \? ' ✨' : dst === 'running' \? ` ⏳\$\{es\.remainText\(d\.id\)\}` : '';/.test(src) && /slots: slotCount > 0 \? sb => \{/.test(src) && /const slotHeroes: string\[\] = run \? run\.heroes\.slice\(\) : picked\.slice\(\);/.test(src));
 ok('远征英雄行内选择（上阵/远征禁用）', /status: inLineup \? '上阵中' : busy \? '远征中' : undefined,/.test(src) && /disabled: locked \|\| inLineup \|\| busy,/.test(src) && /on: isPicked/.test(src));
 ok('远征三态 CTA：派遣/领取/立即完成+广告', /gate\.ok \? '派 遣' : gate\.reason \?\? '不可派遣'/.test(src) && /label: '领 取 奖 励',\s*\n\s*red: true,/.test(src) && /label: cost > 0 \? `💎\$\{cost\} 立即完成` : '立即完成',/.test(src) && /📺 免费完成 \(\$\{adLeft\}\)/.test(src));
 ok('远征秒级倒计时只改固定条胶囊文案', /this\._expTimerEl = this\._popInfo\(runningText\(\)\);/.test(src) && /this\._expTimerEl\.textContent = runningText\(\);/.test(src) && /_expTimerEl: HTMLElement \| null = null;/.test(src));
@@ -156,7 +156,7 @@ ok('图鉴 L3·L：条目挂美术 + 未解锁剪影', /banner: '📖 怪物图�
 ok('图鉴威胁星级 + 精英怪累计', /tag: unlocked \? `\$\{'★'\.repeat\(def\.threat\)\}\$\{'☆'\.repeat\(5 - def\.threat\)\}` : undefined,/.test(src) && /累计击杀', `×\$\{bs\.eliteKills\}`/.test(src));
 ok('图鉴详情钻取：push + onBack 回列表 + 展示台立绘', /protected _openBestiaryDetail\(def: BestiaryDef\): void \{/.test(src) && /push: true,\s*\n\s*onBack: \(\) => this\._openBestiaryModal\(\),/.test(src) && /querySelector\('\.popPedestal'\)[\s\S]{0,200}ped\.style\.backgroundImage = u;/.test(src));
 ok('图鉴详情未收录态走告警行', /c\.appendChild\(this\._popWarn\('击杀该怪物后解锁完整档案'\)\);/.test(src));
-ok('玩法页四玩法已全部改走 _openPop', /protected _openTrialModal\(\): void \{[\s\S]{0,6000}?size: 'L',/.test(src) && /protected _openDungeonModal\(tier = 0\): void \{[\s\S]{0,4000}?this\._openPop\(opt\(\)\);/.test(src) && /protected _openExpeditionModal\(\): void \{[\s\S]{0,12000}?this\._openPop\(opt\(\)\);/.test(src));
+ok('玩法页四玩法已全部改走 _openPop（试炼/副本/远征为 XL 二级页）', /protected _openTrialModal\(\): void \{[\s\S]{0,1400}?size: 'XL',/.test(src) && /protected _openDungeonModal\(tier = 0\): void \{[\s\S]{0,5800}?this\._openPop\(opt\(\)\);/.test(src) && /protected _openExpeditionModal\(\): void \{[\s\S]{0,14000}?this\._openPop\(opt\(\)\);/.test(src));
 
 
 // 10. 招募 / 礼包迁移（含两处 L5 结果演出层）
@@ -190,8 +190,8 @@ ok('建筑详情 L3·M：效果 + 升级 KV + 受限告警', /banner: `\$\{b\.ic
 ok('建筑详情升级就地重绘（不再拆弹窗重开）', /_openBuildingInfoModal\(id: string\): void \{[\s\S]{0,4200}?this\._popRebuild\(opt\(\)\);/.test(src) && !/biLvRow/.test(clsSrc));
 ok('建筑详情受指挥中心上限约束走告警行', /c\.appendChild\(this\._popWarn\('受指挥中心上限约束 · 先升级指挥中心'\)\);/.test(src));
 ok('载具工坊钻取改装 + onBack 回建筑详情', /_openTuningModal\(\(\) => this\._openBuildingInfoModal\(b\.id\)\)/.test(src) && /protected _openTuningModal\(onBack\?: \(\) => void\): void \{/.test(src) && /^\s+onBack,$/m.test(src));
-ok('载具改装 L3·M：四槽行内升级 + 上限行', /banner: '🔧 载具改装'/.test(src) && /art: `上限 LV\.\$\{vt\.capOf\(\)\}`/.test(src) && /for \(const def of TUNE_SLOTS\)/.test(src));
-ok('载具改装受限槽位标红 + 告警原因行', /statusKind: !maxed && !gate\.ok \? 'expire' : undefined,/.test(src) && /c\.appendChild\(this\._popWarn\(reason\)\);/.test(src));
+ok('载具改装 XL 二级页：四部位槽位条 + 展示台 + 对比块', /title: '🔧 载具改装'/.test(src) && /tier: maxed \? 'MAX' : `LV\.\$\{lv\}`/.test(src) && /this\._popCmp\('改装预览', \[\{/.test(src) && /for \(let i = 0; i < TUNE_SLOTS\.length; i\+\+\)/.test(src));
+ok('载具改装受限/图纸不足走告警行 + 槽位红点', /c\.appendChild\(this\._popWarn\(gate\.reason\)\);/.test(src) && /c\.appendChild\(this\._popWarn\(`图纸不足 · 还差 \$\{cost\.blueprint - bp\} 张`\)\);/.test(src) && /red: !dmax && vt\.canUpgrade\(d\.id\)\.ok,/.test(src));
 ok('HomeUiBase 旧弹窗入口清零', !/tuneBox/.test(clsSrc) && !/binfoBox/.test(clsSrc) && !/sq-slot \+ cand/.test(clsSrc));
 
 

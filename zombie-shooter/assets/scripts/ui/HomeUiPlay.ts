@@ -69,8 +69,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
     }
 
     /**
-     * 试炼之塔（UX 布局稿：L3·L 爬塔型）：固定层段胶囊 + 内容区层格与选中层详情 + 底部挑战 CTA。
-     * 层格：✅ 已通 / ▶ 当前可挑战（高亮）/ ◻ 可挑战 / 🔒 未解锁，里程碑层带 👑。
+     * 试炼之塔（UX 布局稿 · XL 二级页）：固定层段胶囊 + 展示台（选中层/层段）+ 底部层格槽位条
+     * + 层段参数/怪物池/首通奖励明细 + 挑战 CTA。
      */
     protected _openTrialModal(): void {
         const ts = TrialSystem.instance;
@@ -87,6 +87,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
             const unlocked = ts.isFloorUnlocked(sel);
             const totalSects = Math.ceil(TRIAL_MAX_FLOOR / TRIAL_MILESTONE_EVERY);
             const curSect = Math.ceil(sel / TRIAL_MILESTONE_EVERY);
+            const sectFrom = (curSect - 1) * TRIAL_MILESTONE_EVERY + 1;
+            const sectTo = Math.min(TRIAL_MAX_FLOOR, sectFrom + TRIAL_MILESTONE_EVERY - 1);
             const pick = (f: number): void => {
                 if (!ts.isFloorUnlocked(f)) {
                     this._toast(`第 ${f} 层尚未解锁`);
@@ -96,11 +98,17 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 this._popRebuild(opt());
             };
             return {
-                tier: 3,
-                size: 'L',
-                banner: '🗼 试炼之塔',
-                art: ts.maxFloor > 0 ? `已通 ${ts.clearedCount} · 最高第 ${ts.maxFloor} 层` : '尚未登塔',
-                subtitle: `每层 3 波 · 每 ${TRIAL_MILESTONE_EVERY} 层大奖 · 免体力不限次`,
+                tier: 2,
+                size: 'XL',
+                title: '🗼 试炼之塔',
+                barBack: true,
+                show: {
+                    icon: '🗼',
+                    tier: `第 ${sel} 层${def.milestone ? ' 👑' : ''}`,
+                    name: def.sectName,
+                    sub: `${cleared ? '已通关' : unlocked ? '可挑战' : '未解锁'} · 怪物强度 ×${def.hpMul.toFixed(1)} · 精英率 ${Math.round(def.eliteChance * 100)}%`
+                },
+                subtitle: `每层 3 波 · 每 ${TRIAL_MILESTONE_EVERY} 层大奖 · 免体力不限次 · ${ts.maxFloor > 0 ? `已通 ${ts.clearedCount} 层 · 最高第 ${ts.maxFloor} 层` : '尚未登塔'}`,
                 fixed: bar => {
                     for (let s = 0; s < totalSects; s++) {
                         const from = s * TRIAL_MILESTONE_EVERY + 1;
@@ -115,34 +123,21 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         }));
                     }
                 },
-                build: c => {
-                    c.appendChild(this._popSec('层段 · 点选已解锁层'));
-                    for (let s = 0; s < totalSects; s++) {
-                        const from = s * TRIAL_MILESTONE_EVERY + 1;
-                        const to = Math.min(TRIAL_MAX_FLOOR, from + TRIAL_MILESTONE_EVERY - 1);
-                        if (from > ts.nextFloor) {
-                            // 未推进到的层段折叠成一行，避免 60 层摊开太长
-                            c.appendChild(this._popRow({
-                                icon: '🔒',
-                                title: `第 ${from}~${to} 层`,
-                                lines: [`通关第 ${from - 1} 层后解锁`]
-                            }));
-                            continue;
-                        }
-                        const cells: Array<{ icon: string; count?: number | string; sel?: boolean; title?: string }> = [];
-                        for (let f = from; f <= to; f++) {
-                            const fl = ts.isFloorCleared(f);
-                            const now = f === ts.nextFloor && !fl;
-                            const mile = f % TRIAL_MILESTONE_EVERY === 0;
-                            cells.push({
-                                icon: `${f}${mile ? '👑' : ''}`,
-                                count: fl ? '✅' : now ? '▶' : ts.isFloorUnlocked(f) ? '◻' : '🔒',
-                                sel: f === sel,
-                                title: fl ? `第 ${f} 层 已通关` : now ? `第 ${f} 层 当前可挑战` : `第 ${f} 层`
-                            });
-                        }
-                        c.appendChild(this._popGrid(cells, 5, i => pick(from + i)));
+                slots: sb => {
+                    for (let f = sectFrom; f <= sectTo; f++) {
+                        const fl = ts.isFloorCleared(f);
+                        const now = f === ts.nextFloor && !fl;
+                        const open = ts.isFloorUnlocked(f);
+                        sb.appendChild(this._popSlot({
+                            icon: `${f}${f % TRIAL_MILESTONE_EVERY === 0 ? '👑' : ''}`,
+                            tier: fl ? '✅' : now ? '▶' : open ? '◻' : '🔒',
+                            on: f === sel,
+                            red: now,
+                            onClick: () => pick(f)
+                        }));
                     }
+                },
+                build: c => {
                     c.appendChild(this._popSec(`第 ${sel} 层${def.milestone ? ' · 👑 层段大奖' : ''}`));
                     c.appendChild(this._popKV('层段名称', def.sectName));
                     c.appendChild(this._popKV('怪物强度', `×${def.hpMul.toFixed(1)}`));
@@ -174,9 +169,40 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     } else {
                         c.appendChild(this._popAttr({ icon: '🔒', text: `需先通关第 **${sel - 1}** 层` }));
                     }
+                    c.appendChild(this._popSec('后续层段'));
+                    for (let s = 0; s < totalSects; s++) {
+                        const from = s * TRIAL_MILESTONE_EVERY + 1;
+                        const to = Math.min(TRIAL_MAX_FLOOR, from + TRIAL_MILESTONE_EVERY - 1);
+                        if (s === curSect - 1) {
+                            continue;
+                        }
+                        if (from > ts.nextFloor) {
+                            // 未推进到的层段折叠成一行，避免 60 层摊开太长
+                            c.appendChild(this._popRow({
+                                icon: '🔒',
+                                title: `第 ${from}~${to} 层`,
+                                lines: [`通关第 ${from - 1} 层后解锁`]
+                            }));
+                            continue;
+                        }
+                        let done = 0;
+                        for (let f = from; f <= to; f++) {
+                            if (ts.isFloorCleared(f)) {
+                                done++;
+                            }
+                        }
+                        c.appendChild(this._popRow({
+                            icon: '🗼',
+                            title: `第 ${from}~${to} 层`,
+                            lines: [`已通 ${done}/${to - from + 1} 层`],
+                            progress: done / (to - from + 1),
+                            action: { label: '前 往', kind: 'gold', onClick: () => pick(from) }
+                        }));
+                    }
                 },
                 ctas: [{
                     label: !unlocked ? `🔒 第 ${sel} 层未解锁` : cleared ? `⚔️ 重挑 第 ${sel} 层` : `⚔️ 挑战 第 ${sel} 层`,
+                    kind: 'gold',
                     disabled: !unlocked,
                     onClick: () => this._startTrial(sel)
                 }],
@@ -185,6 +211,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         };
         this._openPop(opt());
     }
+
 
 
     /** 选中层记忆（弹窗重开时保持焦点） */
@@ -210,8 +237,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
     protected _dungeonSel: DungeonId = 'gold';
 
     /**
-     * 资源副本（UX 布局稿：L3·M 列表型）：固定档位胶囊 + 副本列表（含今日剩余）+ 选中副本产出预览
-     * + 体力消耗行 + 挑战 CTA。切换档位/副本就地重开，选中态与详情区同步刷新。
+     * 资源副本（UX 布局稿 · XL 二级页）：顶部分档页签 + 展示台（今日次数/体力）+ 底部副本档位卡
+     * + 产出与解锁明细 + 体力消耗行 + 挑战 CTA（解锁/次数/体力三态）。
      */
     protected _openDungeonModal(tier = 0): void {
         const ds = DungeonSystem.instance;
@@ -231,70 +258,103 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         ? `💠 随机宝石 ×${range.lo}~${range.hi}（档位越高品质越好）`
                         : `${def.rewardIc[selTier]} ${def.id === 'stone' ? '强化石' : '精炼合金'} ×${range.lo}~${range.hi}`;
             return {
-                tier: 3,
-                size: 'M',
-                banner: '🏰 资源副本',
-                art: `体力 ${gm.stamina()}/${gm.staminaMax()}`,
-                subtitle: `每副本每日 ${DUNGEON_RUNS_PER_DAY} 次 · 隔日重置 · 打满 ${DUNGEON_WAVES} 波结算`,
-                fixed: bar => {
-                    DUNGEON_TIER_NAMES.forEach((nm, t) => {
-                        bar.appendChild(this._popChip(nm, t === selTier, () => this._openDungeonModal(t)));
-                    });
+                tier: 2,
+                size: 'XL',
+                title: '🏰 资源副本',
+                barBack: true,
+                show: {
+                    icon: def ? def.ic : '🏰',
+                    tier: DUNGEON_TIER_NAMES[selTier],
+                    name: def ? def.name : '副本数据缺失',
+                    sub: `今日剩余 ${left}/${DUNGEON_RUNS_PER_DAY} · 体力 ${gm.stamina()}/${gm.staminaMax()}`
                 },
-                build: c => {
-                    c.appendChild(this._popSec('选择副本'));
+                tab: selTier,
+                tabs: DUNGEON_TIER_NAMES,
+                onTab: t => this._openDungeonModal(t),
+                slots: sb => {
                     for (const d of DUNGEON_DEFS) {
                         const rest = ds.remaining(d.id);
-                        c.appendChild(this._popRow({
+                        const dg = ds.canEnter(d.id, selTier);
+                        sb.appendChild(this._popSlot({
                             icon: d.ic,
-                            title: d.name,
-                            lines: [`${DUNGEON_TIER_NAMES[selTier]} · 今日剩余 ${rest}/${DUNGEON_RUNS_PER_DAY}`],
+                            tier: `${rest}次`,
                             on: d.id === selId,
-                            status: rest <= 0 ? '次数用完' : undefined,
-                            statusKind: rest <= 0 ? 'expire' : undefined,
+                            red: rest > 0 && dg.ok && gm.stamina() >= DUNGEON_STAMINA_COST,
                             onClick: () => {
                                 this._dungeonSel = d.id;
                                 this._openDungeonModal(selTier);
                             }
                         }));
                     }
+                },
+                build: c => {
                     if (!def) {
                         c.appendChild(this._popEmpty('副本数据缺失', undefined, '🏰'));
                         return;
                     }
                     c.appendChild(this._popSec(`${def.ic} ${def.name} · ${DUNGEON_TIER_NAMES[selTier]}`));
                     c.appendChild(this._popAttr({ icon: '📄', text: def.desc }));
-                    c.appendChild(this._popKV('今日剩余', `${left}/${DUNGEON_RUNS_PER_DAY}`));
-                    c.appendChild(this._popKV('预计产出', yieldText));
+                    c.appendChild(this._popKV('今日剩余', `${left}/${DUNGEON_RUNS_PER_DAY}`, left <= 0 ? 'total' : undefined));
+                    c.appendChild(this._popKV('预计产出', yieldText, 'total'));
                     c.appendChild(this._popKV('解锁状态', gate.ok ? '已解锁' : gate.reason ?? '未解锁'));
+                    c.appendChild(this._popKV('波次', `打满 ${DUNGEON_WAVES} 波结算`, 'free'));
                     if (!gate.ok) {
                         c.appendChild(this._popWarn(`🔒 ${gate.reason ?? '未解锁'}`));
+                    } else if (left <= 0) {
+                        c.appendChild(this._popWarn('今日次数已用完 · 隔日重置'));
                     } else if (!staminaOk) {
                         c.appendChild(this._popWarn(`⚠️ 体力不足，本次需要 ${DUNGEON_STAMINA_COST} 点`));
+                    }
+                    c.appendChild(this._popSec('全部副本'));
+                    for (const d of DUNGEON_DEFS) {
+                        if (d.id === def.id) {
+                            continue;
+                        }
+                        const rest = ds.remaining(d.id);
+                        const dg = ds.canEnter(d.id, selTier);
+                        c.appendChild(this._popRow({
+                            icon: d.ic,
+                            title: d.name,
+                            lines: [`${DUNGEON_TIER_NAMES[selTier]} · 今日剩余 ${rest}/${DUNGEON_RUNS_PER_DAY}`],
+                            status: rest <= 0 ? '次数用完' : !dg.ok ? '未解锁' : undefined,
+                            statusKind: rest <= 0 || !dg.ok ? 'expire' : undefined,
+                            action: {
+                                label: '选 中',
+                                kind: 'gold',
+                                disabled: d.id === selId,
+                                onClick: () => {
+                                    this._dungeonSel = d.id;
+                                    this._openDungeonModal(selTier);
+                                }
+                            }
+                        }));
                     }
                 },
                 cost: [{ icon: '⚡', have: gm.stamina(), need: DUNGEON_STAMINA_COST }],
                 ctas: [{
-                    label: !gate.ok ? '未 解 锁' : staminaOk ? '挑 战' : '体力不足',
-                    disabled: !gate.ok || !staminaOk,
+                    label: !def || !gate.ok ? '未 解 锁' : left <= 0 ? '今日次数已用完' : staminaOk ? '挑 战' : '体力不足',
+                    kind: 'gold',
+                    disabled: !def || !gate.ok || left <= 0 || !staminaOk,
                     onClick: () => {
                         if (def) {
                             this._startDungeon(def.id, selTier);
                         }
                     }
                 }],
-                note: '副本是材料产线：金币 / 宝石 / 强化石 / 精炼合金各一条线'
+                note: '副本是材料产线：金币 / 宝石 / 强化石 / 精炼合金各一条线 · 档位越高产出越好'
             };
         };
         this._openPop(opt());
     }
 
 
+
     // ================= 远征派遣 =================
 
     /**
-     * 远征派遣（UX 布局稿：L3·L 详情型）：固定任务胶囊（状态 + 最近归来的倒计时）+ 任务详情与产出预览
-     * + 英雄选择 + 派遣/领取/加速 CTA。倒计时每秒只改固定条胶囊文案，归零广播一次并就地重绘。
+     * 远征派遣（UX 布局稿 · XL 二级页）：固定任务胶囊（状态 + 最近归来的倒计时）+ 展示台
+     * （任务 + 奖励预览）+ 英雄属性匹配列表 + 队伍槽位条 + 派遣/领取/加速 CTA。
+     * 倒计时每秒只改固定条胶囊文案，归零广播一次并就地重绘。
      */
     protected _openExpeditionModal(): void {
         const es = ExpeditionSystem.instance;
@@ -435,12 +495,21 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     }
                 ];
             })();
+            // 队伍槽位条：idle 显示已选（点格取消），running/ready 显示出征队伍
+            const slotHeroes: string[] = run ? run.heroes.slice() : picked.slice();
+            const slotCount = run ? run.heroes.length : def ? def.slots : 0;
             return {
-                tier: 3,
-                size: 'L',
-                banner: '🚀 远征派遣',
-                art: `今日剩余 ${es.remainingToday()}/${EXPEDITION_RUNS_PER_DAY}`,
-                subtitle: '派英雄执行限时任务 · 真实时间到点领取 · 三任务位可并行',
+                tier: 2,
+                size: 'XL',
+                title: '🚀 远征派遣',
+                barBack: true,
+                show: {
+                    icon: def ? def.ic : '🚀',
+                    tier: stateText,
+                    name: def ? def.name : '任务数据缺失',
+                    sub: def ? `${HERO_ATTR_IC[def.attr]}${HERO_ATTR_NAMES[def.attr]} · ${def.slots} 人 · 奖励 ×${(multPct / 100).toFixed(2)}` : ''
+                },
+                subtitle: `今日剩余 ${es.remainingToday()}/${EXPEDITION_RUNS_PER_DAY} · 派英雄执行限时任务 · 真实时间到点领取 · 三任务位可并行`,
                 fixed: bar => {
                     for (const d of EXPEDITION_DEFS) {
                         const dst = es.stateOf(d.id);
@@ -454,6 +523,27 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     this._expTimerEl = this._popInfo(runningText());
                     bar.appendChild(this._expTimerEl);
                 },
+                slots: slotCount > 0 ? sb => {
+                    const locked = !!def && st === 'idle' && gm.stageCleared < def.unlockStage;
+                    for (let i = 0; i < slotCount; i++) {
+                        const hid = slotHeroes[i];
+                        const cell = this._popSlot({
+                            icon: hid ? '🎖' : '＋',
+                            on: !!hid,
+                            onClick: !hid || locked || st !== 'idle' ? undefined : () => pickHero(hid)
+                        });
+                        if (hid) {
+                            const idx = Math.max(0, HERO_DEFS.findIndex(d => d.id === hid));
+                            const photo = this._heroPhoto(idx, 'slot');
+                            this._tex(photo.key, u => {
+                                cell.textContent = '';
+                                cell.style.backgroundImage = u;
+                                cell.style.cssText += photo.css;
+                            });
+                        }
+                        sb.appendChild(cell);
+                    }
+                } : undefined,
                 build: c => {
                     if (!def) {
                         c.appendChild(this._popEmpty('任务数据缺失', undefined, '🚀'));
@@ -463,49 +553,60 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     c.appendChild(this._popKV('任务状态', stateText));
                     c.appendChild(this._popKV('耗时', `${def.minutes} 分钟`));
                     c.appendChild(this._popKV('需求', `${HERO_ATTR_IC[def.attr]}${HERO_ATTR_NAMES[def.attr]} · ${def.slots} 人`));
-                    c.appendChild(this._popKV('预计产出', rewardParts.join(' · ')));
+                    c.appendChild(this._popKV('预计产出', rewardParts.join(' · '), 'total'));
                     c.appendChild(this._popKV('队伍匹配', `奖励 ×${(multPct / 100).toFixed(2)}`, 'free'));
                     c.appendChild(this._popAttr({ icon: '📄', text: def.desc }));
                     if (st === 'idle') {
                         const locked = gm.stageCleared < def.unlockStage;
-                        c.appendChild(this._popSec(`选择英雄 ${picked.length}/${def.slots}`));
+                        c.appendChild(this._popSec(`选择英雄 ${picked.length}/${def.slots} · 匹配度越高奖励越多`));
                         if (locked) {
                             c.appendChild(this._popWarn(`🔒 需通关第 ${def.unlockStage} 关`));
                         }
-                        let shown = 0;
-                        for (const hid of gm.ownedHeroes) {
-                            const hdef = HERO_DEFS.find(d => d.id === hid);
+                        // 按该任务属性从高到低排序：一眼看出派谁收益最高
+                        const cands = gm.ownedHeroes
+                            .map(hid => ({ hid, val: heroAttrValue(hid, def.attr) }))
+                            .filter(o => !!HERO_DEFS.find(d => d.id === o.hid))
+                            .sort((a, b) => b.val - a.val);
+                        for (const o of cands) {
+                            const hdef = HERO_DEFS.find(d => d.id === o.hid);
                             if (!hdef) {
                                 continue;
                             }
-                            shown++;
-                            const inLineup = gm.isInLineup(hid);
-                            const busy = es.isHeroBusy(hid);
-                            const isPicked = picked.indexOf(hid) >= 0;
+                            const inLineup = gm.isInLineup(o.hid);
+                            const busy = es.isHeroBusy(o.hid);
+                            const isPicked = picked.indexOf(o.hid) >= 0;
                             c.appendChild(this._popRow({
                                 icon: '🎖',
+                                iconTex: this._heroPhoto(Math.max(0, HERO_DEFS.indexOf(hdef)), 'slot').key,
                                 title: hdef.name,
                                 tag: isPicked ? '已选' : undefined,
-                                lines: [`${HERO_ATTR_IC[def.attr]}${HERO_ATTR_NAMES[def.attr]} ${Math.round(heroAttrValue(hid, def.attr))}`],
+                                lines: [`${HERO_ATTR_IC[def.attr]}${HERO_ATTR_NAMES[def.attr]} ${Math.round(o.val)}`],
                                 on: isPicked,
                                 status: inLineup ? '上阵中' : busy ? '远征中' : undefined,
                                 action: {
                                     label: isPicked ? '取消' : '选择',
                                     kind: isPicked ? 'gold' : 'green',
                                     disabled: locked || inLineup || busy,
-                                    onClick: () => pickHero(hid)
+                                    onClick: () => pickHero(o.hid)
                                 }
                             }));
                         }
-                        if (shown === 0) {
+                        if (cands.length === 0) {
                             c.appendChild(this._popEmpty('暂无可用英雄', '先去招募英雄再来派遣', '🎖'));
                         }
-                    } else if (run) {
+                    } else {
                         c.appendChild(this._popSec('出征队伍'));
-                        c.appendChild(this._popGrid(run.heroes.map(hid => {
+                        for (const hid of (run ? run.heroes : [])) {
                             const hdef = HERO_DEFS.find(d => d.id === hid);
-                            return { icon: hdef ? hdef.name.slice(0, 1) : '?', title: hdef ? hdef.name : hid };
-                        }), 4));
+                            c.appendChild(this._popRow({
+                                icon: '🎖',
+                                iconTex: this._heroPhoto(Math.max(0, HERO_DEFS.indexOf(hdef ?? HERO_DEFS[0])), 'slot').key,
+                                title: hdef ? hdef.name : hid,
+                                lines: [`${HERO_ATTR_IC[def.attr]}${HERO_ATTR_NAMES[def.attr]} ${Math.round(heroAttrValue(hid, def.attr))}`],
+                                status: '任务中',
+                                statusKind: 'soon'
+                            }));
+                        }
                         c.appendChild(this._popWarn(st === 'running'
                             ? `⏳ 剩余 ${es.remainText(def.id)} · 到点回来领取`
                             : '✨ 任务已完成，领取后英雄归队'));
@@ -542,6 +643,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
             }
         }, 1000) as unknown as number;
     }
+
 
 
     /** 进入资源副本：走流程状态机（内部校验次数/体力/档位，失败给出具体原因） */

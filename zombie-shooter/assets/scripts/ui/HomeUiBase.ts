@@ -127,71 +127,111 @@ export abstract class HomeUiBase extends HomeUiPlay {
 
 
     /**
-     * 载具改装（UX 布局稿：L3·M）：四槽独立升级行，改装上限 = 载具工坊等级。
-     * 由建筑详情钻取时带 onBack 回到建筑详情，就地重绘同步等级与图纸余量。
+     * 载具改装（UX 布局稿 · XL 二级页）：四部位槽位条 + 选中部位展示台 + 当前/下级对比块
+     * + 消耗行 + 底栏返回。改装上限 = 载具工坊等级；由建筑详情钻取时底栏返回回建筑详情。
      */
     protected _openTuningModal(onBack?: () => void): void {
         const vt = VehicleTuningSystem.instance;
+        let sel = 0;
         const opt = (): PopOpts => {
+            const def = TUNE_SLOTS[sel];
+            const lv = vt.level(def.id);
+            const maxed = lv >= TUNE_MAX_LEVEL;
+            const gate = vt.canUpgrade(def.id);
             const bp = vt.blueprintCount;
+            const cost = maxed ? null : vt.nextCosts(def.id);
             return {
-                tier: 3,
-                size: 'M',
-                banner: '🔧 载具改装',
-                art: `上限 LV.${vt.capOf()}`,
-                subtitle: `改装上限 = 载具工坊等级（当前 LV.${vt.capOf()}）· 图纸余量 ${bp}`,
+                tier: 2,
+                size: 'XL',
+                title: '🔧 载具改装',
                 onBack,
-                build: c => {
-                    c.appendChild(this._popSec('改装槽位'));
-                    for (const def of TUNE_SLOTS) {
-                        const lv = vt.level(def.id);
-                        const maxed = lv >= TUNE_MAX_LEVEL;
-                        const gate = vt.canUpgrade(def.id);
-                        const lines: PopText[] = [lv > 0 ? def.desc(lv) : '尚未改装'];
-                        if (!maxed) {
-                            const cost = vt.nextCosts(def.id);
-                            lines.push({ text: `升 LV.${lv + 1}：${def.desc(lv + 1).split('（')[0]}`, kind: 'd' });
-                            lines.push(`🔧 ×${cost.blueprint}（余 ${bp}）· 🪙 ${cost.gold.toLocaleString()}`);
-                        }
-                        c.appendChild(this._popRow({
-                            icon: def.ic,
-                            title: `${def.name} LV.${lv}`,
-                            lines,
-                            status: maxed ? '已满级' : !gate.ok ? '受限' : undefined,
-                            statusKind: !maxed && !gate.ok ? 'expire' : undefined,
-                            action: {
-                                label: '改 装',
-                                kind: 'gold',
-                                disabled: maxed || !gate.ok,
-                                onClick: () => {
-                                    if (vt.upgrade(def.id)) {
-                                        SoundFx.play('buy');
-                                        this._toast(`${def.name} 升至 LV.${lv + 1}`);
-                                        this._refreshBase();
-                                        this._refreshTop();
-                                        this._popRebuild(opt());
-                                    } else {
-                                        this._toast('图纸或金币不足');
-                                    }
-                                }
+                barBack: true,
+                show: {
+                    icon: def.ic,
+                    tier: maxed ? 'MAX' : `LV.${lv}`,
+                    name: def.name,
+                    sub: lv > 0 ? def.desc(lv) : '尚未改装 · 改装后获得加成'
+                },
+                slots: sb => {
+                    for (let i = 0; i < TUNE_SLOTS.length; i++) {
+                        const d = TUNE_SLOTS[i];
+                        const dlv = vt.level(d.id);
+                        const dmax = dlv >= TUNE_MAX_LEVEL;
+                        sb.appendChild(this._popSlot({
+                            icon: d.ic,
+                            tier: dmax ? 'MAX' : `L${dlv}`,
+                            on: i === sel,
+                            red: !dmax && vt.canUpgrade(d.id).ok,
+                            onClick: () => {
+                                sel = i;
+                                this._popRebuild(opt());
                             }
                         }));
                     }
-                    if (TUNE_SLOTS.some(d => !vt.canUpgrade(d.id).ok && vt.level(d.id) < TUNE_MAX_LEVEL)) {
-                        const reason = TUNE_SLOTS
-                            .filter(d => vt.level(d.id) < TUNE_MAX_LEVEL)
-                            .map(d => vt.canUpgrade(d.id).reason)
-                            .find(r => !!r);
-                        if (reason) {
-                            c.appendChild(this._popWarn(reason));
+                },
+                build: c => {
+                    c.appendChild(this._popSec(`${def.name} · 改装进度`));
+                    c.appendChild(this._popKV('当前等级', `LV.${lv} / ${TUNE_MAX_LEVEL}`, maxed ? 'total' : undefined));
+                    if (!maxed) {
+                        c.appendChild(this._popCmp('改装预览', [{
+                            label: def.name,
+                            old: def.desc(lv),
+                            now: def.desc(lv + 1)
+                        }]));
+                        c.appendChild(this._popAttr({
+                            icon: '⬆️',
+                            text: `升到 LV.${lv + 1} 后生效 · 改装加成计入**载具基础属性**`
+                        }));
+                    } else {
+                        c.appendChild(this._popAttr({ icon: '🏁', text: '该部位已改装至上限' }));
+                    }
+                    c.appendChild(this._popSec('改装条件'));
+                    c.appendChild(this._popKV('改装上限', `LV.${vt.capOf()}（载具工坊等级）`));
+                    c.appendChild(this._popKV('改装图纸', `${bp} 张`, 'free'));
+                    if (!maxed && !gate.ok && gate.reason) {
+                        c.appendChild(this._popWarn(gate.reason));
+                    } else if (!maxed && cost && bp < cost.blueprint) {
+                        c.appendChild(this._popWarn(`图纸不足 · 还差 ${cost.blueprint - bp} 张`));
+                    }
+                    c.appendChild(this._popSec('其余部位'));
+                    for (const d of TUNE_SLOTS) {
+                        if (d.id === def.id) {
+                            continue;
                         }
+                        const dlv = vt.level(d.id);
+                        c.appendChild(this._popAttr({
+                            icon: d.ic,
+                            text: `${d.name} **LV.${dlv}**（${dlv > 0 ? d.desc(dlv) : '尚未改装'}）`
+                        }));
                     }
                 },
-                note: '图纸由关卡掉落与商店获取 · 改装加成计入载具基础属性'
+                cost: maxed || !cost ? undefined : [
+                    { icon: '🔧', have: bp, need: cost.blueprint },
+                    { icon: '🪙', have: GameManager.instance.gold, need: cost.gold }
+                ],
+                ctas: [{
+                    label: maxed ? '已 满 级' : `🔧 改 装（LV.${lv + 1}）`,
+                    kind: 'gold',
+                    disabled: maxed || !gate.ok,
+                    onClick: () => {
+                        SoundFx.unlock();
+                        if (vt.upgrade(def.id)) {
+                            SoundFx.play('buy');
+                            this._toast(`${def.name} 升至 LV.${lv + 1}`);
+                            this._refreshBase();
+                            this._refreshTop();
+                            this._popRebuild(opt());
+                        } else {
+                            this._toast('图纸或金币不足');
+                        }
+                    }
+                }],
+                note: '图纸由关卡掉落与商店获取 · 提升载具工坊等级可提高改装上限'
             };
         };
         this._openPop(opt());
     }
+
 
 
 
