@@ -27,7 +27,7 @@ import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/Vehicle
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { SLOT_EMOJI } from './HomeUiCore';
-import type { PopOpts } from './HomeUiCore';
+import type { PopCta, PopOpts } from './HomeUiCore';
 import { HomeUiMall } from './HomeUiMall';
 
 /**
@@ -749,142 +749,241 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     // ================= 背包工坊（合成/分解） =================
 
     /**
-     * 工坊（UX 布局稿 4-C · L3·L）：合成/分解双页签，行内动作 + 底部一键分解；
-     * 合成与分解均为危险/不可逆操作，统一走 S 型确认模板（3-A / 3-B）后再执行。
+     * 装备工坊（UX 布局稿 4-C · L2·XL 二级页）：合成/分解双页签 + 品质筛选固定条 +
+     * 按品质分段的 5 列网格挑选 + 底部「已选/产出」汇总条；合成与分解均不可逆，
+     * 执行前统一走 S 型确认模板（3-A / 3-B）。
      */
     protected _openForgeModal(tab = 0): void {
         const hs = HeroSystem.instance;
         const gm = GameManager.instance;
+        /** 品质筛选：0 = 全部，1..5 = 仅该品质（合成按材料品质 / 分解按装备品质） */
+        let qFilter = 0;
+        /** 网格选中下标（-1 = 未选）；底部汇总条与 CTA 随选中态重算 */
+        let sel = -1;
         const opt = (): PopOpts => {
             const bag = gm.bag;
             const lowCount = bag.filter(x => x.tier <= 2).length;
+            // 合成候选按品质由低到高归组，同品质内按部位顺序 → 便于分段铺 5 列网格
             const groups: Array<{ slot: EquipSlot; tier: EquipTier; n: number; cost: number }> = [];
-            for (const slot of EQUIP_SLOTS) {
-                for (let tier = 1; tier <= 5; tier++) {
+            // 顶档（★6）没有更高品质可合，故合成只遍历到末档之前
+            for (let tier = 1; tier < EQUIP_TIER_NAMES.length; tier++) {
+                for (const slot of EQUIP_SLOTS) {
                     const n = combineGroupCount(slot, tier as EquipTier);
-                    if (n > 0) {
+                    if (n > 0 && (qFilter === 0 || qFilter === tier)) {
                         groups.push({ slot, tier: tier as EquipTier, n, cost: hs.combineCost((tier + 1) as EquipTier) });
                     }
                 }
             }
+            const bagList = bag.filter(x => qFilter === 0 || x.tier === qFilter).sort((a, b) => a.tier - b.tier);
+            const total = tab === 0 ? groups.length : bagList.length;
+            if (sel >= total) {
+                sel = -1;
+            }
+            const g = tab === 0 && sel >= 0 ? groups[sel] : null;
+            const it = tab === 1 && sel >= 0 ? bagList[sel] : null;
+            const tierOf = (i: number): EquipTier => (tab === 0 ? groups[i].tier : bagList[i].tier);
+            const nameOf = (slot: EquipSlot, tier: EquipTier): string => `${EQUIP_TIER_NAMES[tier - 1]}${EQUIP_SLOT_NAMES[slot]}`;
+            const yieldText = (t: EquipTier): string => {
+                const alloy = salvageAlloyYield(t);
+                return `🧱 ${salvageStoneYield(t)}${alloy > 0 ? ` · 🔩 ${alloy}` : ''}`;
+            };
+            const selLine = g
+                ? `已选：${nameOf(g.slot, g.tier)} ×3 → ${nameOf(g.slot, (g.tier + 1) as EquipTier)} ×1（保留最高强化级）`
+                : it
+                    ? `已选：${bagItemName(it)} +${it.lv} → ${yieldText(it.tier)}`
+                    : tab === 0 ? '点选网格中的一组，查看消耗与产出' : '点选网格中的装备，查看分解产出';
+
+            const ctas: PopCta[] = [];
+            if (tab === 0) {
+                const enough = !!g && gm.gold >= g.cost;
+                ctas.push({
+                    label: g ? `🔮 合 成（🪙 ${g.cost}）` : '请 先 选 择 一 组',
+                    kind: 'gold',
+                    disabled: !enough,
+                    onClick: () => {
+                        if (!g) {
+                            return;
+                        }
+                        const nameA = nameOf(g.slot, g.tier);
+                        const nameB = nameOf(g.slot, (g.tier + 1) as EquipTier);
+                        const pickSlot = g.slot;
+                        const pickTier = g.tier;
+                        const pickCost = g.cost;
+                        this._popConfirm({
+                            title: '合成装备',
+                            icon: '🔮',
+                            desc: `${nameA} ×3 合成 ${nameB} ×1（保留最高强化级）`,
+                            preview: this._popGrid([
+                                { icon: SLOT_EMOJI[pickSlot], count: 3, title: '消耗 3 件' },
+                                { icon: '✨', title: '合成' },
+                                { icon: SLOT_EMOJI[pickSlot], count: 1, title: '产出 1 件' }
+                            ], 3),
+                            cost: [{ icon: '🪙', have: gm.gold, need: pickCost }],
+                            ok: '确认合成',
+                            onOk: () => {
+                                if (hs.combine(null, pickSlot, pickTier)) {
+                                    SoundFx.play('buy');
+                                    this._toast(`合成成功：${nameB}`);
+                                    this._refreshTop();
+                                }
+                                this._popBack();
+                                this._popRebuild(opt());
+                            }
+                        });
+                    }
+                });
+            } else {
+                if (it) {
+                    ctas.push({
+                        label: '♻️ 分 解',
+                        kind: 'danger',
+                        onClick: () => {
+                            if (!it) {
+                                return;
+                            }
+                            const target = it;
+                            this._popConfirm({
+                                title: '分解装备',
+                                icon: '♻️',
+                                desc: `${bagItemName(target)} +${target.lv} 分解为 ${yieldText(target.tier)}`,
+                                danger: true,
+                                ok: '确认分解',
+                                onOk: () => {
+                                    const idx = gm.bag.indexOf(target);
+                                    if (idx >= 0 && hs.salvage(idx)) {
+                                        SoundFx.play('ui');
+                                        this._toast('分解完成，材料入包');
+                                        this._refreshTop();
+                                    }
+                                    this._popBack();
+                                    this._popRebuild(opt());
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    ctas.push({
+                        label: '请 先 选 择 装 备',
+                        kind: 'grey',
+                        disabled: true,
+                        onClick: () => undefined
+                    });
+                }
+                if (lowCount > 0) {
+                    ctas.push({
+                        label: `⚠️ 一键分解白绿（${lowCount} 件）`,
+                        kind: 'grey',
+                        onClick: () => this._popConfirm({
+                            title: '一键分解',
+                            icon: '♻️',
+                            desc: `分解背包中全部白绿（★1-★2）装备，共 ${lowCount} 件，不可恢复`,
+                            danger: true,
+                            ok: '确认分解',
+                            onOk: () => {
+                                for (let i = gm.bag.length - 1; i >= 0; i--) {
+                                    if (gm.bag[i].tier <= 2) {
+                                        hs.salvage(i);
+                                    }
+                                }
+                                SoundFx.play('coin');
+                                this._toast(`已分解 ${lowCount} 件，强化石/合金入包`);
+                                this._refreshTop();
+                                this._popBack();
+                                this._popRebuild(opt());
+                            }
+                        })
+                    });
+                }
+            }
+
             return {
-                tier: 3,
-                size: 'L',
-                banner: '⚒️ 装备工坊',
-                art: tab === 0 ? `${groups.length} 组可合成` : `${bag.length} 件在包`,
+                tier: 2,
+                size: 'XL',
+                title: '⚒️ 装备工坊',
+                barBack: true,
+                show: {
+                    icon: tab === 0 ? '🔮' : '♻️',
+                    tier: tab === 0 ? `${total} 组` : `${total} 件`,
+                    name: tab === 0 ? '合成台' : '分解台',
+                    sub: tab === 0
+                        ? '3 件同部位同品质 → 1 件更高品质（保留最高强化级）'
+                        : '装备拆解为强化石与精炼合金 · 不可恢复'
+                },
                 tabs: ['合成', '分解'],
                 tab,
                 onTab: i => this._openForgeModal(i),
-                build: c => {
-                    if (tab === 0) {
-                        if (!groups.length) {
-                            c.appendChild(this._popEmpty('暂无可合成组合', '凑齐 3 件同部位同品质装备即可合成', '🔮'));
-                            return;
-                        }
-                        for (const g of groups) {
-                            const enough = gm.gold >= g.cost;
-                            const nameA = `${EQUIP_TIER_NAMES[g.tier - 1]}${EQUIP_SLOT_NAMES[g.slot]}`;
-                            const nameB = `${EQUIP_TIER_NAMES[g.tier]}${EQUIP_SLOT_NAMES[g.slot]}`;
-                            c.appendChild(this._popRow({
-                                icon: SLOT_EMOJI[g.slot],
-                                title: `${nameA} ×3`,
-                                tag: `可合 ${g.n} 组`,
-                                lines: [`→ ${nameB} ×1`, `🪙 ${g.cost} / 组`],
-                                status: enough ? undefined : '金币不足',
-                                statusKind: enough ? undefined : 'expire',
-                                action: {
-                                    label: '合 成',
-                                    disabled: !enough,
-                                    onClick: () => this._popConfirm({
-                                        title: '合成装备',
-                                        icon: '🔮',
-                                        desc: `${nameA} ×3 合成 ${nameB} ×1（保留最高强化级）`,
-                                        preview: this._popGrid([
-                                            { icon: SLOT_EMOJI[g.slot], count: 3, title: '消耗 3 件' },
-                                            { icon: '✨', title: '合成' },
-                                            { icon: SLOT_EMOJI[g.slot], count: 1, title: '产出 1 件' }
-                                        ], 3),
-                                        cost: [{ icon: '🪙', have: gm.gold, need: g.cost }],
-                                        ok: '确认合成',
-                                        onOk: () => {
-                                            if (hs.combine(null, g.slot, g.tier)) {
-                                                SoundFx.play('buy');
-                                                this._toast(`合成成功：${nameB}`);
-                                                this._refreshTop();
-                                            }
-                                            this._openForgeModal(0);
-                                        },
-                                        onCancel: () => this._openForgeModal(0)
-                                    })
-                                }
-                            }));
-                        }
-                        return;
+                // 说明·页签区：品质筛选固定条（全部/★1-★5）
+                fixed: bar => {
+                    const chips: Array<[string, number]> = [['全部', 0]];
+                    // 合成只吃 ★1-★5，故合成页签不列末档筛选（列了必是空段）
+                    const last = tab === 0 ? EQUIP_TIER_NAMES.length - 1 : EQUIP_TIER_NAMES.length;
+                    for (let t = 1; t <= last; t++) {
+                        chips.push([EQUIP_TIER_NAMES[t - 1], t]);
                     }
-                    if (!bag.length) {
-                        c.appendChild(this._popEmpty('背包中没有可分解的装备', '关卡掉落与商店购买会进入背包', '♻️'));
-                        return;
-                    }
-                    for (const it of bag) {
-                        const alloy = salvageAlloyYield(it.tier);
-                        const stone = salvageStoneYield(it.tier);
-                        c.appendChild(this._popRow({
-                            icon: SLOT_EMOJI[it.slot],
-                            title: `${bagItemName(it)} +${it.lv}`,
-                            tag: EQUIP_TIER_NAMES[it.tier - 1],
-                            lines: [`→ 🧱 ${stone}${alloy > 0 ? ` · 🔩 ${alloy}` : ''}`],
-                            action: {
-                                label: '分解',
-                                kind: 'grey',
-                                onClick: () => this._popConfirm({
-                                    title: '分解装备',
-                                    icon: '♻️',
-                                    desc: `${bagItemName(it)} +${it.lv} 分解为 🧱 ${stone}${alloy > 0 ? ` · 🔩 ${alloy}` : ''}`,
-                                    danger: true,
-                                    ok: '确认分解',
-                                    onOk: () => {
-                                        const idx = gm.bag.indexOf(it);
-                                        if (idx >= 0 && hs.salvage(idx)) {
-                                            SoundFx.play('ui');
-                                            this._toast('分解完成，材料入包');
-                                            this._refreshTop();
-                                        }
-                                        this._openForgeModal(1);
-                                    },
-                                    onCancel: () => this._openForgeModal(1)
-                                })
-                            }
+                    for (let i = 0; i < chips.length; i++) {
+                        const label = chips[i][0];
+                        const q = chips[i][1];
+                        bar.appendChild(this._popChip(label, qFilter === q, () => {
+                            qFilter = q;
+                            sel = -1;
+                            this._popRebuild(opt());
                         }));
                     }
                 },
-                ctas: tab === 1 && lowCount > 0 ? [{
-                    label: `一键分解白绿（${lowCount} 件）`,
-                    kind: 'danger',
-                    onClick: () => this._popConfirm({
-                        title: '一键分解',
-                        icon: '♻️',
-                        desc: `分解背包中全部白绿（★1-★2）装备，共 ${lowCount} 件，不可恢复`,
-                        danger: true,
-                        ok: '确认分解',
-                        onOk: () => {
-                            for (let i = gm.bag.length - 1; i >= 0; i--) {
-                                if (gm.bag[i].tier <= 2) {
-                                    hs.salvage(i);
-                                }
+                build: c => {
+                    if (!total) {
+                        c.appendChild(this._popEmpty(
+                            tab === 0 ? '暂无可合成组合' : '没有可分解的装备',
+                            tab === 0
+                                ? (qFilter ? '该品质下凑不齐 3 件同部位装备，换个品质看看' : '凑齐 3 件同部位同品质装备即可合成')
+                                : (qFilter ? '该品质下背包里没有装备，换个品质看看' : '关卡掉落与商店购买会进入背包'),
+                            tab === 0 ? '🔮' : '♻️'));
+                        return;
+                    }
+                    // 内容区：每个品质一段（品质小标题 + 该品质的 5 列网格）
+                    let i = 0;
+                    while (i < total) {
+                        const tk = tierOf(i);
+                        const start = i;
+                        while (i < total && tierOf(i) === tk) {
+                            i++;
+                        }
+                        c.appendChild(this._popSec(`★${tk} ${EQUIP_TIER_NAMES[tk - 1]}`));
+                        const cells: Array<{ icon: string; count?: number | string; sel?: boolean; title?: string }> = [];
+                        for (let k = start; k < i; k++) {
+                            if (tab === 0) {
+                                const gg = groups[k];
+                                cells.push({
+                                    icon: SLOT_EMOJI[gg.slot],
+                                    count: gg.n,
+                                    sel: k === sel,
+                                    title: `${nameOf(gg.slot, gg.tier)} ×3 → ${nameOf(gg.slot, (gg.tier + 1) as EquipTier)} ×1`
+                                        + ` · 可合 ${gg.n} 组 · 🪙 ${gg.cost}/组`
+                                });
+                            } else {
+                                const bb = bagList[k];
+                                cells.push({
+                                    icon: SLOT_EMOJI[bb.slot],
+                                    count: bb.lv > 0 ? `+${bb.lv}` : undefined,
+                                    sel: k === sel,
+                                    title: `${bagItemName(bb)} +${bb.lv} → ${yieldText(bb.tier)}`
+                                });
                             }
-                            SoundFx.play('coin');
-                            this._toast(`已分解 ${lowCount} 件，强化石/合金入包`);
-                            this._refreshTop();
-                            this._openForgeModal(1);
-                        },
-                        onCancel: () => this._openForgeModal(1)
-                    })
-                }] : undefined,
-                note: '强化石用于武器强化 · 精炼合金用于装备强化（材料消耗口已打通）'
+                        }
+                        c.appendChild(this._popGrid(cells, 5, k => {
+                            sel = start + k;
+                            this._popRebuild(opt());
+                        }));
+                    }
+                },
+                cost: g ? [{ icon: '🪙', have: gm.gold, need: g.cost }] : undefined,
+                ctas,
+                note: `${selLine}｜强化石→武器强化 · 精炼合金→装备强化`
             };
         };
         this._openPop(opt());
     }
+
 
 
     /** 背包格词缀角标文案（✦ 数量；无词缀返回空串） */
