@@ -335,6 +335,16 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     label: !def || !gate.ok ? '未 解 锁' : left <= 0 ? '今日次数已用完' : staminaOk ? '挑 战' : '体力不足',
                     kind: 'gold',
                     disabled: !def || !gate.ok || left <= 0 || !staminaOk,
+                    // 禁用不是死键：按缺口给拦截弹窗或差额说明（UX 0-4）
+                    onDisabled: () => {
+                        if (!def || !gate.ok) {
+                            this._openUnlockGate('副本未解锁', '🏰', gate.reason ?? '未解锁');
+                        } else if (left <= 0) {
+                            this._toast('今日次数已用完 · 隔日重置');
+                        } else {
+                            this._openStaminaGate(DUNGEON_STAMINA_COST, () => this._openDungeonModal(selTier));
+                        }
+                    },
                     onClick: () => {
                         if (def) {
                             this._startDungeon(def.id, selTier);
@@ -655,13 +665,11 @@ export abstract class HomeUiPlay extends HomeUiStage {
         // 进入前再校验一次（弹窗打开期间体力/次数可能已变），给出精确提示
         const gate = DungeonSystem.instance.canEnter(id, tier);
         if (!gate.ok) {
-            this._toast(gate.reason ?? '无法进入');
-            this._closeTopMask();
-            this._openDungeonModal(tier);
+            this._openUnlockGate('副本未解锁', '🏰', gate.reason ?? '未解锁');
             return;
         }
         if (GameManager.instance.stamina() < DUNGEON_STAMINA_COST) {
-            this._toast(`体力不足（需要 ${DUNGEON_STAMINA_COST} 点）`);
+            this._openStaminaGate(DUNGEON_STAMINA_COST, () => this._openDungeonModal(tier));
             return;
         }
         if (!GameFlow.instance.startRun(false, 0, encodeDungeon(id, tier))) {

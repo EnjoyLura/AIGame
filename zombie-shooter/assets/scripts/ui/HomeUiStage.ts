@@ -108,12 +108,12 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         if (!GameFlow.instance.startRun(endless, endless ? 0 : this._stageDiffSel)) {
             this._refreshAll();
             const gm = GameManager.instance;
-            if (!gm.canStartRun()) {
-                // 体力不足是最常见失败：说明需求并直接引导到体力获取面板（闭环，不让玩家干等）
-                this._toast(`体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`);
-                this._openStaminaModal();
-            } else if (endless) {
-                this._toast('无尽模式需通关全部关卡后解锁');
+            if (endless && gm.stageCleared < FINAL_STAGE_ID) {
+                // 无尽锁定优先于体力：点「无尽」看到的第一阻塞点应是解锁条件
+                this._openUnlockGate('无尽未解锁', '♾️', '无尽模式每 5 波一次里程碑奖励，需先通关全部章节');
+            } else if (!gm.canStartRun()) {
+                // 体力不足是最常见失败：3-C 拦截弹窗直接给两条出路（等待 / 看广告），不再 toast 混杂
+                this._openStaminaGate(BattleConfig.RUN_STAMINA_COST);
             }
             return;
         }
@@ -400,7 +400,8 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             const endChip = document.createElement('button');
             endChip.className = 'btn sm dark endChip';
             endChip.textContent = endlessOk ? '♾️ 无尽' : '🔒 无尽';
-            endChip.disabled = !endlessOk;
+            // 不禁用真按钮（disabled 会吞掉 click）：锁定态点击同样落进 3-C 未解锁拦截
+            endChip.style.opacity = endlessOk ? '1' : '0.45';
             endChip.title = endlessOk ? '波次无限 · 每 5 波里程碑奖励' : '通关全部章节后解锁';
             endChip.onclick = (e) => {
                 e.stopPropagation();
@@ -452,7 +453,8 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             this._refreshGiftDot(this._railGiftRed);
         }
         if (this._railEndlessBtn) {
-            this._railEndlessBtn.disabled = !endlessOk;
+            // 不禁用真按钮（disabled 会吞掉 click）：保持可点，点击落进 3-C 未解锁拦截
+            this._railEndlessBtn.style.opacity = endlessOk ? '1' : '0.45';
             this._railEndlessBtn.title = endlessOk ? '波次无限 · 每 5 波里程碑奖励' : '通关全部章节后解锁';
         }
         this._applyPendingTex();
@@ -574,13 +576,34 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             const total = gm.lineup.reduce((s, id) => s + this._heroPower(id), 0);
             const actives = activeBonds();
             const full = gm.lineup.length >= GameManager.LINEUP_MAX;
-            const toggle = (id: string): void => {
+            const applyToggle = (id: string): void => {
                 SoundFx.unlock();
                 if (gm.toggleLineupMember(id)) {
                     SoundFx.play('ui');
                     this._refreshStagePage();
                 }
+            };
+            const toggle = (id: string): void => {
+                applyToggle(id);
                 this._popRebuild(opt());
+            };
+            /** 下阵走 S 型双按钮模板（UX 3-3）：消耗/移出类操作先确认再执行 */
+            const confirmOff = (id: string): void => {
+                const def = HERO_DEFS.find(d => d.id === id);
+                const name = def ? def.name : id;
+                this._popConfirm({
+                    title: '下阵确认',
+                    icon: '👥',
+                    desc: `将「${name}」移出护送编队 · 战力 −${this._heroPower(id).toLocaleString()}`,
+                    danger: true,
+                    ok: '确 认 下 阵',
+                    cancel: '再 想 想',
+                    onOk: () => {
+                        applyToggle(id);
+                        this._popBack();
+                        this._popRebuild(opt());
+                    }
+                });
             };
             return {
                 tier: 4,
@@ -632,12 +655,17 @@ export abstract class HomeUiStage extends HomeUiHeroes {
                                 label: inLineup ? '下阵' : '上阵',
                                 kind: inLineup ? 'grey' : 'green',
                                 disabled: !inLineup && full,
+                                onDisabled: () => this._toast(`编队已满（${GameManager.LINEUP_MAX} 人）· 先下阵一名英雄`),
                                 onClick: () => {
                                     if (!owned) {
                                         this._toast(`「${def.name}」尚未获得 · 可在商店解锁`);
                                         return;
                                     }
-                                    toggle(def.id);
+                                    if (inLineup) {
+                                        confirmOff(def.id);
+                                    } else {
+                                        toggle(def.id);
+                                    }
                                 }
                             }
                         }));
@@ -649,7 +677,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
                         const cell = this._popSlot({
                             icon: id ? '🎖' : '＋',
                             on: !!id,
-                            onClick: id ? () => toggle(id) : undefined
+                            onClick: id ? () => confirmOff(id) : undefined
                         });
                         if (id) {
                             const photo = this._heroPhoto(Math.max(0, HERO_DEFS.findIndex(d => d.id === id)), 'slot');

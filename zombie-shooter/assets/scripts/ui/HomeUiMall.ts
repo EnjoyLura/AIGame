@@ -7,6 +7,7 @@ import { AssetLib } from '../core/AssetLib';
 import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem, ShopQuota } from '../core/ShopData';
+import type { ResourceId } from '../core/PlayerResources';
 import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef, ACTIVITY_CHESTS, ACTIVITY_MAX, rewardText } from '../core/QuestSystem';
 import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
@@ -221,7 +222,7 @@ export abstract class HomeUiMall extends HomeUiCore {
         }
 
         grid.innerHTML = '';
-        const mkGood = (opt: { ic: string; name: string; tag: string; price: string; r: number; hot?: boolean; disabled?: boolean; onTap: () => void }) => {
+        const mkGood = (opt: { ic: string; name: string; tag: string; price: string; r: number; hot?: boolean; disabled?: boolean; onTap: () => void; onBlocked?: () => void }) => {
             const card = document.createElement('div');
             card.className = `good panel r${opt.r}`;
             if (opt.hot) {
@@ -243,13 +244,15 @@ export abstract class HomeUiMall extends HomeUiCore {
             tag.textContent = opt.tag;
             card.appendChild(tag);
             const buy = document.createElement('button');
-            buy.className = 'btn gold gBuy';
+            // 保持可点：HTML disabled 会吞掉 click，缺口说明就走不到了，故只做视觉置灰
+            buy.className = 'btn gold gBuy' + (opt.disabled ? ' off' : '');
             buy.textContent = opt.price;
-            buy.disabled = !!opt.disabled;
             buy.style.opacity = opt.disabled ? '0.45' : '1';
             buy.onclick = (e) => {
                 e.stopPropagation();
                 if (opt.disabled) {
+                    // 禁用不是死键：差什么就说清（缺口拦截 / 差额说明）
+                    opt.onBlocked?.();
                     return;
                 }
                 SoundFx.unlock();
@@ -347,9 +350,13 @@ export abstract class HomeUiMall extends HomeUiCore {
                     price: `${item.price.res === 'gold' ? '🪙' : '💎'} ${item.price.amount.toLocaleString()}`,
                     r: 3,
                     disabled: soldOut || !gm.res.canSpend(item.price.res, item.price.amount),
-                    onTap: () => {
-                        this._buyMaterialItem(item);
-                        this._refreshMall();
+                    onTap: () => this._tapBuy(item, () => this._buyMaterialItem(item)),
+                    onBlocked: () => {
+                        if (!gm.res.canSpend(item.price.res, item.price.amount)) {
+                            this._openResGate(item.price.res, item.price.amount, item.name);
+                        } else {
+                            this._toast('今日限购已用完 · 隔日重置');
+                        }
                     },
                 });
             }
@@ -363,9 +370,15 @@ export abstract class HomeUiMall extends HomeUiCore {
                     disabled: !gm.res.canSpend(item.price.res, item.price.amount)
                         || (item.grant.res === 'stamina' && gm.stamina() >= gm.staminaMax())
                         || (!!item.canBuy && !item.canBuy()),
-                    onTap: () => {
-                        this._buyShopItem(item);
-                        this._refreshMall();
+                    onTap: () => this._tapBuy(item, () => this._buyShopItem(item)),
+                    onBlocked: () => {
+                        if (!gm.res.canSpend(item.price.res, item.price.amount)) {
+                            this._openResGate(item.price.res, item.price.amount, item.name);
+                        } else if (item.grant.res === 'stamina' && gm.stamina() >= gm.staminaMax()) {
+                            this._toast('体力已满 · 先消耗再购买');
+                        } else {
+                            this._toast('今日购买次数已用完 · 隔日重置');
+                        }
                     },
                 });
             }
@@ -404,6 +417,70 @@ export abstract class HomeUiMall extends HomeUiCore {
             grid.appendChild(adCard);
         }
         this._applyPendingTex();
+    }
+
+
+    /**
+     * 购买入口分发（UX 3-D 危险操作）：钻石等贵重资源付款走 S 型双按钮确认，
+     * 金币购买保持即点即得（廉价高频，多一层确认只会变钝）。
+     */
+    protected _tapBuy(item: ShopItem, buy: () => void): void {
+        if (item.price.res !== 'diamond') {
+            buy();
+            this._refreshMall();
+            return;
+        }
+        this._popConfirm({
+            title: '购买确认',
+            icon: '🛒',
+            desc: `${item.name} · ${item.desc}`,
+            cost: [{ icon: '💎', have: GameManager.instance.res.get('diamond'), need: item.price.amount }],
+            ok: '确 认 购 买',
+            cancel: '再 想 想',
+            note: '钻石为贵重资源 · 购买后不可退回',
+            onOk: () => {
+                this._popBack();
+                buy();
+                this._refreshMall();
+            }
+        });
+    }
+
+
+    /** 资源不足拦截（3-C 母版 · 资源变体）：给差额与两条出路（再等等 / 前往获取） */
+    protected _openResGate(res: string, need: number, itemName: string): void {
+        const gm = GameManager.instance;
+        const META: Record<string, { icon: string; name: string; from: string }> = {
+            diamond: { icon: '💎', name: '钻石', from: '礼包与关卡结算都会产出钻石' },
+            gold: { icon: '🪙', name: '金币', from: '通关结算与资源副本是金币主产线' },
+            stamina: { icon: '🍖', name: '体力', from: `体力每 ${BattleConfig.STAMINA_REGEN_MINUTES} 分钟自然恢复 1 点` }
+        };
+        const m = META[res] ?? { icon: '📦', name: res, from: '推进主线可获得' };
+        const have = gm.res.get(res as ResourceId);
+        this._popIntercept({
+            title: `${m.name}不足`,
+            icon: m.icon,
+            rows: [
+                { icon: '🛒', text: `「${itemName}」需要 **${need}** ${m.name}` },
+                { icon: m.icon, text: `当前持有 **${have.toLocaleString()}** · 还差 **${Math.max(0, need - have).toLocaleString()}**` }
+            ],
+            ok: {
+                label: '前 往 获 取',
+                kind: 'gold',
+                onClick: () => {
+                    this._closePop();
+                    if (res === 'diamond') {
+                        this._openGiftModal();
+                    } else if (res === 'stamina') {
+                        this._openStaminaModal();
+                    } else {
+                        this._switchPage('battle');
+                    }
+                }
+            },
+            stayLabel: '再 等 等',
+            note: m.from
+        });
     }
 
 

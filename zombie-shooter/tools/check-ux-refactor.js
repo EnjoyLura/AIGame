@@ -89,7 +89,7 @@ ok('胶囊禁入区：viewport-fit=cover', /viewport-fit=cover/.test(require('fs
 ok('胶囊禁入区：_applySafeArea 探针填令牌', /_applySafeArea/.test(src) && /setProperty\('--sat'/.test(src) && /setProperty\('--sab'/.test(src));
 ok('胶囊禁入区：CSS 挂令牌（顶栏/CTA/底栏/悬浮栏/toast/弹窗）', (src.match(/var\(--sat,0px\)|var\(--sab,0px\)/g) || []).length >= 10);
 ok('底部导航关卡→战斗', /key: 'battle', icon: '🚚', name: '战斗'/.test(src));
-ok('编队升级为 L4 半屏抽屉弹层', /protected _openSquadModal\(\): void \{[\s\S]{0,700}?tier: 4,\s*\n\s*size: 'M',/.test(src) && /protected _openSquadModal\(\): void \{[\s\S]{0,8600}?this\._openPop\(opt\(\)\);/.test(src));
+ok('编队升级为 L4 半屏抽屉弹层', /protected _openSquadModal\(\): void \{[\s\S]{0,1600}?tier: 4,\s*\n\s*size: 'M',/.test(src) && /protected _openSquadModal\(\): void \{[\s\S]{0,8600}?this\._openPop\(opt\(\)\);/.test(src));
 ok('招募结果层升级为 L5 结果演出层（不再走旧 _openResult）', /protected _openRecruitResultModal\(results: RecruitResult\[\]\): void \{[\s\S]{0,400}?_openPop\(\{[\s\S]{0,120}?tier: 5/.test(src));
 ok('招募单抽/十连进商店 rcard', /doPull = \(count: 1 \| 10, free = false\)/.test(src));
 ok('英雄页功能钮双列(左:核心/强化/技能 右:升星/天赋)', /fcolR\.appendChild\(starBtn\)/.test(src) && /main\.appendChild\(fcol\);[\s\S]{0,200}main\.appendChild\(fcolR\);/.test(src) && !/fcol\.appendChild\(talBtn\)/.test(src));
@@ -157,7 +157,7 @@ ok('图鉴 L3·L：条目挂美术 + 未解锁剪影', /banner: '📖 怪物图�
 ok('图鉴威胁星级 + 精英怪累计', /tag: unlocked \? `\$\{'★'\.repeat\(def\.threat\)\}\$\{'☆'\.repeat\(5 - def\.threat\)\}` : undefined,/.test(src) && /累计击杀', `×\$\{bs\.eliteKills\}`/.test(src));
 ok('图鉴详情钻取：push + onBack 回列表 + 展示台立绘', /protected _openBestiaryDetail\(def: BestiaryDef\): void \{/.test(src) && /push: true,\s*\n\s*onBack: \(\) => this\._openBestiaryModal\(\),/.test(src) && /querySelector\('\.popPedestal'\)[\s\S]{0,200}ped\.style\.backgroundImage = u;/.test(src));
 ok('图鉴详情未收录态走告警行', /c\.appendChild\(this\._popWarn\('击杀该怪物后解锁完整档案'\)\);/.test(src));
-ok('玩法页四玩法已全部改走 _openPop（试炼/副本/远征为 XL 二级页）', /protected _openTrialModal\(\): void \{[\s\S]{0,1400}?size: 'XL',/.test(src) && /protected _openDungeonModal\(tier = 0\): void \{[\s\S]{0,5800}?this\._openPop\(opt\(\)\);/.test(src) && /protected _openExpeditionModal\(\): void \{[\s\S]{0,14000}?this\._openPop\(opt\(\)\);/.test(src));
+ok('玩法页四玩法已全部改走 _openPop（试炼/副本/远征为 XL 二级页）', /protected _openTrialModal\(\): void \{[\s\S]{0,1400}?size: 'XL',/.test(src) && /protected _openDungeonModal\(tier = 0\): void \{[\s\S]{0,6100}?this\._openPop\(opt\(\)\);/.test(src) && /protected _openExpeditionModal\(\): void \{[\s\S]{0,14000}?this\._openPop\(opt\(\)\);/.test(src));
 
 
 // 10. 招募 / 礼包迁移（含两处 L5 结果演出层）
@@ -181,7 +181,17 @@ ok('关卡奖励详情不再自建旧面板结构', !/lootPrev/.test(readUi('Hom
 ok('编队 L4·M：阵容槽位条固定在弹层底部', /slots: sb => \{/.test(src) && /const cell = this\._popSlot\(\{/.test(src) && /cell\.style\.cssText \+= photo\.css;/.test(src));
 ok('编队羁绊按星级门槛实时派生条件文案', /cond = allIn \? `星级合计 \$\{b\.starSumNeed\}★（当前 \$\{sum\}★）` : '全员上阵';/.test(src) && /cond = `\$\{names\.join\(' \+ '\)\} 双双 \$\{need\}★`;/.test(src));
 ok('编队候补行内上下阵 + 满编置灰', /label: inLineup \? '下阵' : '上阵',/.test(src) && /disabled: !inLineup && full,/.test(src));
-ok('编队改动就地重绘并回写战斗页 CTA 行', /const toggle = \(id: string\): void => \{[\s\S]{0,240}?this\._refreshStagePage\(\);[\s\S]{0,80}?this\._popRebuild\(opt\(\)\);/.test(src));
+ok('编队改动就地重绘并回写战斗页 CTA 行', /const applyToggle = \(id: string\): void => \{[\s\S]{0,260}?this\._refreshStagePage\(\);/.test(src) && /const toggle = \(id: string\): void => \{[\s\S]{0,120}?this\._popRebuild\(opt\(\)\);/.test(src));
+
+// 14. 3-C 拦截层 + S 档确认模板统一（UX 3-3/3-4）
+const interceptBody = (src.match(/protected _popIntercept\(o: \{[\s\S]{0,1800}?\n        \}\);\n    \}/) ?? [''])[0];
+ok('3-C 拦截型 S 弹窗：体力不足/未解锁两条出路，不出现「取消」', /protected _popIntercept\(o: \{/.test(src) && /protected _openStaminaGate\(need: number, after\?: \(\) => void, stayLabel\?: string\): void \{/.test(src) && /protected _openUnlockGate\(title: string, icon: string, reason: string, goLabel = '前 往 关 卡'\): void \{/.test(src) && interceptBody.indexOf('取消') < 0 && /再 等 等/.test(interceptBody) && /o\.ok\.label/.test(interceptBody));
+ok('体力不足不再 toast 混杂：出战与副本各一处走拦截弹窗', /this\._openStaminaGate\(BattleConfig\.RUN_STAMINA_COST\);/.test(clsSrc) && /this\._openStaminaGate\(DUNGEON_STAMINA_COST/.test(clsSrc));
+ok('禁用键不是死键：PopCta/PopRow/商城键各有 onDisabled 通道', /onDisabled\?: \(\) => void;/.test(src) && /c\.onDisabled\?\.\(\);/.test(src) && /o\.action!\.onDisabled\?\.\(\);/.test(src) && /opt\.onBlocked\?\.\(\);/.test(src));
+ok('交互入口不用 HTML disabled（会吞掉 click，缺口提示无法触达）', !/buy\.disabled = !!opt\.disabled/.test(src) && !/endChip\.disabled = !endlessOk/.test(src) && !/this\._railEndlessBtn\.disabled = !endlessOk/.test(src) && /'btn gold gBuy' \+ \(opt\.disabled \? ' off' : ''\)/.test(src));
+ok('下阵走 S 型双按钮模板（确认后才移出编队）', /title: '下阵确认'/.test(src) && /ok: '确 认 下 阵'/.test(src) && /cancel: '再 想 想'/.test(src) && /confirmOff\(def\.id\)/.test(src));
+ok('钻石购买走双按钮确认，金币购买保持即点即得', /protected _tapBuy\(item: ShopItem, buy: \(\) => void\): void \{/.test(src) && /item\.price\.res !== 'diamond'/.test(src) && /title: '购买确认'/.test(src));
+ok('资源不足拦截（3-C 资源变体）给差额与获取去向', /protected _openResGate\(res: string, need: number, itemName: string\): void \{/.test(src) && /还差 \*\*/.test(src) && /this\._openGiftModal\(\);/.test(src) && /protected _openGiftModal\(\): void \{/.test(src));
 ok('编队保存走 gm.save + 关闭弹层', /gm\.save\(\);\s*\n\s*SoundFx\.play\('buy'\);\s*\n\s*this\._closePop\(\);/.test(src));
 ok('HomeUiStage 旧弹窗入口清零', !/_openStageRewardModal[\s\S]{0,600}this\._openModal\(/.test(src) && !/_openSquadModal[\s\S]{0,600}this\._openSheet\(/.test(src));
 

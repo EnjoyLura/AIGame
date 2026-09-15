@@ -57,6 +57,8 @@ export interface PopCta {
     label: string;
     kind?: 'gold' | 'green' | 'danger' | 'grey';
     disabled?: boolean;
+    /** 禁用态下点击的去向：缺口 toast 或 3-C 拦截弹窗（禁用不是死键） */
+    onDisabled?: () => void;
     red?: boolean;
     onClick: () => void;
 }
@@ -71,7 +73,7 @@ export interface PopRowOpts {
     progress?: number;
     status?: string;
     statusKind?: 'expire' | 'soon';
-    action?: { label: string; kind?: 'green' | 'gold' | 'grey'; disabled?: boolean; onClick: () => void };
+    action?: { label: string; kind?: 'green' | 'gold' | 'grey'; disabled?: boolean; onDisabled?: () => void; onClick: () => void };
     red?: boolean;
     expired?: boolean;
     /** 高亮当前行（如排行榜里的「我」） */
@@ -764,6 +766,8 @@ export abstract class HomeUiCore extends Component {
                     b.onclick = (e) => {
                         e.stopPropagation();
                         if (c.disabled) {
+                            // 禁用态仍可点：给出缺口说明或拦截弹窗，不打开新的执行层（UX 0-4）
+                            c.onDisabled?.();
                             return;
                         }
                         SoundFx.play('ui');
@@ -879,6 +883,7 @@ export abstract class HomeUiCore extends Component {
             act.onclick = (e) => {
                 e.stopPropagation();
                 if (o.action!.disabled) {
+                    o.action!.onDisabled?.();
                     return;
                 }
                 SoundFx.play('ui');
@@ -1097,6 +1102,142 @@ export abstract class HomeUiCore extends Component {
                     onClick: () => o.onOk()
                 }
             ]
+        });
+    }
+
+
+    /**
+     * 拦截型 S 弹窗（UX 3-C）：体力不足 / 未解锁等硬拦截只给两条出路（等待 / 获取），
+     * 不出现「取消」干扰项。右按钮是获取路径，左按钮是「再等等」（仅退出，不算取消）。
+     */
+    protected _popIntercept(o: {
+        title: string;
+        icon: string;
+        rows: Array<{ icon?: string; text: string }>;
+        note?: string;
+        ok: { label: string; kind?: 'gold' | 'green' | 'danger' | 'grey'; onClick: () => void };
+        stayLabel?: string;
+    }): void {
+        this._openPop({
+            tier: 3,
+            size: 'S',
+            title: o.title,
+            push: true,
+            build: c => {
+                const center = this._el('div', 'popCenter');
+                center.appendChild(this._el('div', 'popIcBig', o.icon));
+                c.appendChild(center);
+                for (const r of o.rows) {
+                    c.appendChild(this._popAttr({ icon: r.icon, text: r.text }));
+                }
+            },
+            ctas: [
+                {
+                    label: o.stayLabel ?? '再 等 等',
+                    kind: 'grey',
+                    onClick: () => this._popBack()
+                },
+                {
+                    label: o.ok.label,
+                    kind: o.ok.kind ?? 'green',
+                    onClick: o.ok.onClick
+                }
+            ],
+            note: o.note
+        });
+    }
+
+
+    /**
+     * 体力不足拦截（3-C 母版）：给需求/当前存量/恢复时间，出路为看广告（额度用尽则钻石购买，
+     * 都不行则退回体力补给面板——仍是「获取」而非「取消」）。
+     */
+    protected _openStaminaGate(need: number, after?: () => void, stayLabel?: string): void {
+        const gm = GameManager.instance;
+        const cur = gm.stamina();
+        const max = gm.staminaMax();
+        const adLeft = AdService.instance.remaining('stamina');
+        const diamonds = gm.res.get('diamond');
+        const nextIn = gm.staminaNextIn();
+        const ss = nextIn % 60;
+        const waitText = nextIn <= 0
+            ? '即将恢复 1 点'
+            : `距自然恢复 ${Math.floor(nextIn / 60)}:${ss < 10 ? '0' + ss : ss}`;
+        const done = (): void => {
+            // 领到体力后回到来处（副本页/关卡页），由调用方决定是否就地重绘
+            this._popBack();
+            after?.();
+        };
+        let ok: { label: string; kind?: 'gold' | 'green' | 'danger' | 'grey'; onClick: () => void };
+        if (adLeft > 0) {
+            ok = {
+                label: `📺 看广告 +${MALL_AD_STAMINA}`,
+                kind: 'green',
+                onClick: () => {
+                    SoundFx.unlock();
+                    AdService.instance.claimReward('stamina', () => {
+                        gm.res.add('stamina', MALL_AD_STAMINA);
+                        SoundFx.play('coin');
+                        this._toast(`体力 +${MALL_AD_STAMINA}`);
+                        this._refreshTop();
+                        done();
+                    });
+                }
+            };
+        } else if (diamonds >= STAMINA_BUY_COST) {
+            ok = {
+                label: `💎 ${STAMINA_BUY_COST} 买 ${STAMINA_BUY_N} 点`,
+                kind: 'gold',
+                onClick: () => {
+                    SoundFx.unlock();
+                    if (gm.buyStamina(STAMINA_BUY_N, STAMINA_BUY_COST)) {
+                        SoundFx.play('buy');
+                        this._toast(`体力 +${STAMINA_BUY_N}`);
+                        this._refreshTop();
+                        done();
+                    }
+                }
+            };
+        } else {
+            ok = {
+                label: '前 往 获 取',
+                kind: 'gold',
+                onClick: () => {
+                    this._closePop();
+                    this._openStaminaModal();
+                }
+            };
+        }
+        this._popIntercept({
+            title: '体力不足',
+            icon: '🍖',
+            rows: [
+                { icon: '⚡', text: `本次需要 **${need}** 点体力` },
+                { icon: '🍖', text: `当前 **${cur}/${max}** ｜ ${waitText}` }
+            ],
+            ok,
+            stayLabel,
+            note: `也可用 💎 ${STAMINA_BUY_COST} 购买 +${STAMINA_BUY_N} 体力 · 今日广告额度 ${adLeft} 次`
+        });
+    }
+
+
+    /** 未解锁拦截（3-C）：说明解锁条件 + 两条出路（知道了 / 前往条件所在地） */
+    protected _openUnlockGate(title: string, icon: string, reason: string, goLabel = '前 往 关 卡'): void {
+        this._popIntercept({
+            title,
+            icon,
+            rows: [{ icon: '🔒', text: reason }],
+            ok: {
+                label: goLabel,
+                kind: 'gold',
+                onClick: () => {
+                    this._closePop();
+                    this._switchPage('battle');
+                }
+            },
+            stayLabel: '知 道 了',
+            note: '解锁进度随主线推进自动刷新'
         });
     }
 
