@@ -243,7 +243,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
     protected _openDungeonModal(tier = 0): void {
         const ds = DungeonSystem.instance;
         const gm = GameManager.instance;
-        const selTier = Math.min(2, Math.max(0, Math.floor(tier)));
+        // 档位寄在方法内可变变量上：切页签就地重绘（保留滚动位），不再整层重开（UX 0-7）
+        let selTier = Math.min(2, Math.max(0, Math.floor(tier)));
         const opt = (): PopOpts => {
             const selId = this._dungeonSel;
             const def = dungeonDef(selId);
@@ -270,7 +271,10 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 },
                 tab: selTier,
                 tabs: DUNGEON_TIER_NAMES,
-                onTab: t => this._openDungeonModal(t),
+                onTab: t => {
+                    selTier = t;
+                    this._popRebuild(opt());
+                },
                 slots: sb => {
                     for (const d of DUNGEON_DEFS) {
                         const rest = ds.remaining(d.id);

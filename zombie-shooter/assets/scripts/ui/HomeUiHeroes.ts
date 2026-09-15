@@ -48,6 +48,15 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     /** 英雄页天赋入口红点（有未分配点数时点亮） */
     protected _talentRedEl: HTMLElement | null = null;
 
+    /** 工坊当前页签（0 合成 / 1 分解）：切页签与重开都回到原页签 */
+    protected _forgeTab = 0;
+
+    /** 工坊品质筛选（0 全部 / 1-6 品质）：按页签各记一份，来回切不丢挑选 */
+    protected _forgeFilter: [number, number] = [0, 0];
+
+    /** 工坊网格选中下标（-1 未选）：同上按页签各记一份 */
+    protected _forgeSel: [number, number] = [-1, -1];
+
 
     /** 天赋入口红点：有未分配的可用天赋点时点亮（英雄页选择条入口） */
     protected _refreshTalentRed(): void {
@@ -756,11 +765,14 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     protected _openForgeModal(tab = 0): void {
         const hs = HeroSystem.instance;
         const gm = GameManager.instance;
-        /** 品质筛选：0 = 全部，1..5 = 仅该品质（合成按材料品质 / 分解按装备品质） */
-        let qFilter = 0;
-        /** 网格选中下标（-1 = 未选）；底部汇总条与 CTA 随选中态重算 */
-        let sel = -1;
+        // 页签/品质筛选/网格选中都寄在实例字段：切页签或事后重开都回到原样（UX 0-7 状态保持）
+        this._forgeTab = tab;
         const opt = (): PopOpts => {
+            const tab = this._forgeTab;
+            /** 品质筛选：0 = 全部，1..6 = 仅该品质（合成按材料品质 / 分解按装备品质） */
+            const qFilter = this._forgeFilter[tab];
+            /** 网格选中下标（-1 = 未选）；底部汇总条与 CTA 随选中态重算 */
+            let sel = this._forgeSel[tab];
             const bag = gm.bag;
             const lowCount = bag.filter(x => x.tier <= 2).length;
             // 合成候选按品质由低到高归组，同品质内按部位顺序 → 便于分段铺 5 列网格
@@ -778,6 +790,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             const total = tab === 0 ? groups.length : bagList.length;
             if (sel >= total) {
                 sel = -1;
+                this._forgeSel[tab] = -1;
             }
             const g = tab === 0 && sel >= 0 ? groups[sel] : null;
             const it = tab === 1 && sel >= 0 ? bagList[sel] : null;
@@ -911,7 +924,11 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 },
                 tabs: ['合成', '分解'],
                 tab,
-                onTab: i => this._openForgeModal(i),
+                onTab: i => {
+                    // 切页签就地重绘：保留滚动位，另一个页签的筛选/选中各自记忆（UX 0-7）
+                    this._forgeTab = i;
+                    this._popRebuild(opt());
+                },
                 // 说明·页签区：品质筛选固定条（全部/★1-★5）
                 fixed: bar => {
                     const chips: Array<[string, number]> = [['全部', 0]];
@@ -924,8 +941,9 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                         const label = chips[i][0];
                         const q = chips[i][1];
                         bar.appendChild(this._popChip(label, qFilter === q, () => {
-                            qFilter = q;
-                            sel = -1;
+                            // 筛选与选中一起记忆：换品质后回到「未选」，底线是另一个筛选的旧选中不漏过来
+                            this._forgeFilter[tab] = q;
+                            this._forgeSel[tab] = -1;
                             this._popRebuild(opt());
                         }));
                     }
@@ -971,7 +989,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                             }
                         }
                         c.appendChild(this._popGrid(cells, 5, k => {
-                            sel = start + k;
+                            this._forgeSel[tab] = start + k;
                             this._popRebuild(opt());
                         }));
                     }
