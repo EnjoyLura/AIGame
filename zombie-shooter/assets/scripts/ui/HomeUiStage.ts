@@ -27,6 +27,7 @@ import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/Vehicle
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiHeroes } from './HomeUiHeroes';
+import type { PopOpts } from './HomeUiCore';
 
 const CHAPTER_THEMES: Array<{ veh: string; mobs: string[] }> = [
     { veh: '🚚', mobs: ['🐺', '🐗', '🦅'] },
@@ -520,203 +521,161 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     }
 
 
-    /** 关卡奖励详情弹窗：通关奖励预览（金币区间/掉落率）；耐久宝箱三档已上浮到战斗页主界面 */
+    /**
+     * 关卡奖励详情（UX 布局稿：L3·M）：结算奖励预览——金币区间 + 装备/核心/稀有掉率
+     * + 结算口径 KV；耐久宝箱仍在战斗页主界面领取。
+     */
     protected _openStageRewardModal(): void {
         const gm = GameManager.instance;
         const stageId = Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID);
         const info = stageInfo(stageId);
         const diffDef = stageDiffDef(this._stageDiffSel);
-        this._openModal(`🎁 ${info.name} · 通关奖励`, (box) => {
-            box.classList.add('rewardBox');
-
-            // 通关结算奖励预览：金币区间 + 装备/核心/稀有杂物掉落率（真数据公式）
-            const lootPrev = document.createElement('div');
-            lootPrev.className = 'lootPrev panel';
-            lootPrev.innerHTML = `<div class="lpHead">⚔️ 通关结算奖励预览 · ${diffDef.name}难度</div>` +
-                `<div class="lpRow"><span class="lpIc">🪙</span><span class="lpLab">金币收益区间</span><b class="lpVal lpGold"></b></div>` +
-                `<div class="lpRow"><span class="lpIc">🎁</span><span class="lpLab">装备掉落率</span><b class="lpVal lpEquip"></b></div>` +
-                `<div class="lpRow"><span class="lpIc">⚙️</span><span class="lpLab">英雄核心掉落率</span><b class="lpVal lpCore"></b></div>` +
-                `<div class="lpRow"><span class="lpIc">💎</span><span class="lpLab">稀有杂物掉落率</span><b class="lpVal lpRare"></b></div>` +
-                `<p class="lpNote">※ 掉率随关卡难度提升 · 装备强化等级 +1~+3 随机</p>`;
-            box.appendChild(lootPrev);
-
-            // 金币区间（结算公式折算 ±15% 浮动）+ 各档掉率（含关卡加成）
-            const waves = stageWaves(stageId);
-            let kills = 0;
-            for (const w of waves) {
-                kills += Math.round(w.count * (1 + w.eliteChance));
-            }
-            const goldMul = gm.metaGoldMul() * gm.depotGoldMul() * diffDef.rewardMul;
-            const mid = (kills * 2 + WAVES_PER_STAGE * 15) * goldMul;
-            const gold = lootPrev.querySelector('.lpGold');
-            if (gold) {
-                gold.textContent = `${Math.round(mid * 0.85).toLocaleString()} ~ ${Math.round(mid * 1.15).toLocaleString()}`;
-            }
-            const rates = lootRateText(stageId, diffDef.rewardMul);
-            const eq = lootPrev.querySelector('.lpEquip');
-            if (eq) {
-                eq.textContent = rates.equip;
-            }
-            const co = lootPrev.querySelector('.lpCore');
-            if (co) {
-                co.textContent = rates.core;
-            }
-            const ra = lootPrev.querySelector('.lpRare');
-            if (ra) {
-                ra.textContent = rates.rare;
-            }
-            const note = document.createElement('p');
-            note.className = 'giftNote';
-            note.textContent = '耐久结算宝箱在战斗页主界面领取 · 越少受伤，奖励越丰厚';
-            box.appendChild(note);
+        // 金币区间（结算公式折算 ±15% 浮动）+ 各档掉率（含关卡加成）
+        const waves = stageWaves(stageId);
+        let kills = 0;
+        for (const w of waves) {
+            kills += Math.round(w.count * (1 + w.eliteChance));
+        }
+        const goldMul = gm.metaGoldMul() * gm.depotGoldMul() * diffDef.rewardMul;
+        const mid = (kills * 2 + WAVES_PER_STAGE * 15) * goldMul;
+        const rates = lootRateText(stageId, diffDef.rewardMul);
+        this._openPop({
+            tier: 3,
+            size: 'M',
+            banner: `🎁 ${info.name} · 通关奖励`,
+            art: `${diffDef.name}难度`,
+            subtitle: `第 ${stageId} 关 · 掉率随关卡难度提升`,
+            build: c => {
+                c.appendChild(this._popSec('结算奖励预览'));
+                c.appendChild(this._popAttr({
+                    icon: '🪙',
+                    text: `金币收益区间 **${Math.round(mid * 0.85).toLocaleString()} ~ ${Math.round(mid * 1.15).toLocaleString()}**`
+                }));
+                c.appendChild(this._popAttr({ icon: '🎁', text: `装备掉落率 **${rates.equip}**` }));
+                c.appendChild(this._popAttr({ icon: '⚙️', text: `英雄核心掉落率 **${rates.core}**` }));
+                c.appendChild(this._popAttr({ icon: '💎', text: `稀有杂物掉落率 **${rates.rare}**` }));
+                c.appendChild(this._popSec('结算口径'));
+                c.appendChild(this._popKV('金币公式', '击杀 ×2 + 波次 ×15 × 加成'));
+                c.appendChild(this._popKV('难度加成', `×${diffDef.rewardMul.toFixed(2)}`));
+                c.appendChild(this._popKV('装备强化', '+1 ~ +3 随机', 'free'));
+            },
+            note: '耐久结算宝箱在战斗页主界面领取 · 越少受伤，奖励越丰厚'
         });
     }
 
 
+    /**
+     * 护送编队（UX 布局稿：L4 半屏抽屉）：阵容槽位条[固定] + 羁绊激活态 + 候补英雄上下阵
+     * + 保存 CTA。羁绊条件按星级门槛实时派生，改动即时回写战斗页 CTA 行。
+     */
     protected _openSquadModal(): void {
-        this._openSheet('👥 护送编队', (box) => {
-            const gm = GameManager.instance;
-            const render = () => {
-                box.querySelector('.sqWrap')?.remove();
-                const wrap = document.createElement('div');
-                wrap.className = 'sqWrap';
-                const sub = document.createElement('p');
-                sub.className = 'mSub';
-                const total = gm.lineup.reduce((s, id) => s + this._heroPower(id), 0);
-                sub.innerHTML = `最多上阵 ${GameManager.LINEUP_MAX} 名英雄护卫载具尾部 · 当前 <b class="goldT">${gm.lineup.length}/${GameManager.LINEUP_MAX}</b> · 总战力 <b class="goldT">${total.toLocaleString()}</b>`;
-                wrap.appendChild(sub);
-                // 英雄羁绊：激活金色高亮，未激活灰字注明条件（星级门槛实时派生）
-                const actives = activeBonds();
-                const bondLab = document.createElement('p');
-                bondLab.className = 'mSub';
-                bondLab.innerHTML = `英雄羁绊 · 已激活 <b class="goldT">${actives.length}/${BOND_DEFS.length}</b>`;
-                wrap.appendChild(bondLab);
-                for (const b of BOND_DEFS) {
-                    const on = actives.indexOf(b) >= 0;
-                    const row = document.createElement('div');
-                    row.className = 'bondRow' + (on ? ' on' : '');
-                    let cond: string;
-                    if (b.starSumNeed !== undefined) {
-                        let sum = 0;
-                        let allIn = gm.lineup.length >= GameManager.LINEUP_MAX;
-                        for (const id of b.members) {
-                            if (gm.lineup.indexOf(id) < 0) {
-                                allIn = false;
-                            }
-                            sum += RecruitSystem.instance.stars(id);
-                        }
-                        cond = allIn ? `星级合计 ${b.starSumNeed}★（当前 ${sum}★）` : '全员上阵';
-                    } else {
-                        const need = b.starNeed ?? 0;
-                        const names = b.members.map(id => HERO_DEFS.find(d => d.id === id)?.name ?? id);
-                        cond = `${names.join(' + ')} 双双 ${need}★`;
-                    }
-                    row.innerHTML =
-                        `<span class="bondIc">${b.ic}</span><span class="bondName">${b.name}</span>` +
-                        `<span class="bondDesc">${b.desc}</span><span class="bondState">${on ? '✅ 已激活' : cond}</span>`;
-                    wrap.appendChild(row);
+        const gm = GameManager.instance;
+        const opt = (): PopOpts => {
+            const total = gm.lineup.reduce((s, id) => s + this._heroPower(id), 0);
+            const actives = activeBonds();
+            const full = gm.lineup.length >= GameManager.LINEUP_MAX;
+            const toggle = (id: string): void => {
+                SoundFx.unlock();
+                if (gm.toggleLineupMember(id)) {
+                    SoundFx.play('ui');
+                    this._refreshStagePage();
                 }
-                const sq = document.createElement('div');
-                sq.className = 'sqRow';
-                for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
-                    const id = gm.lineup[i];
-                    const slot = document.createElement('div');
-                    slot.className = 'sqSlot' + (id ? '' : ' empty');
-                    if (id) {
-                        const def = HERO_DEFS.find(d => d.id === id);
-                        const pic = document.createElement('span');
-                        const hIdx = Math.max(0, HERO_DEFS.findIndex(d => d.id === id));
-                        const slotPhoto = this._heroPhoto(hIdx, 'slot');
-                        this._tex(slotPhoto.key, u => {
-                            pic.style.backgroundImage = u;
-                            pic.style.width = 'calc(44px * var(--pw,2.5))';
-                            pic.style.height = 'calc(44px * var(--pw,2.5))';
-                            pic.style.display = 'inline-block';
-                            pic.style.cssText += slotPhoto.css;
-                        });
-                        const nm = document.createElement('span');
-                        nm.textContent = def?.name ?? id;
-                        slot.appendChild(pic);
-                        slot.appendChild(nm);
-                        slot.title = '点击下阵';
-                        slot.onclick = (e) => {
-                            e.stopPropagation();
-                            if (gm.toggleLineupMember(id)) {
-                                SoundFx.play('ui');
-                                render();
-                                this._refreshStagePage();
-                            }
-                        };
-                    } else {
-                        slot.textContent = '+';
-                    }
-                    sq.appendChild(slot);
-                }
-                wrap.appendChild(sq);
-                const candLab = document.createElement('p');
-                candLab.className = 'mSub';
-                candLab.textContent = '候补英雄 · 点击上阵';
-                wrap.appendChild(candLab);
-                const cand = document.createElement('div');
-                cand.className = 'cand';
-                for (const def of HERO_DEFS) {
-                    const owned = gm.isHeroOwned(def.id);
-                    const inLineup = gm.isInLineup(def.id);
-                    const b = document.createElement('button');
-                    b.className = 'candB';
-                    if (!owned) {
-                        b.style.opacity = '.4';
-                    }
-                    const ic = document.createElement('b');
-                    const pic = document.createElement('span');
-                    const candIdx = HERO_DEFS.indexOf(def);
-                    const candPhoto = this._heroPhoto(candIdx, 'slot');
-                    this._tex(candPhoto.key, u => {
-                        pic.style.backgroundImage = u;
-                        pic.style.width = 'calc(40px * var(--pw,2.5))';
-                        pic.style.height = 'calc(40px * var(--pw,2.5))';
-                        pic.style.display = 'block';
-                        pic.style.backgroundRepeat = 'no-repeat';
-                        pic.style.cssText += candPhoto.css;
-                    });
-                    ic.appendChild(pic);
-                    const nm = document.createElement('span');
-                    nm.textContent = owned ? def.name : '🔒 未获得';
-                    b.appendChild(ic);
-                    b.appendChild(nm);
-                    b.onclick = (e) => {
-                        e.stopPropagation();
-                        if (!owned) {
-                            this._toast(`「${def.name}」尚未获得 · 可在商店解锁`);
-                            return;
-                        }
-                        SoundFx.unlock();
-                        if (gm.toggleLineupMember(def.id)) {
-                            SoundFx.play('ui');
-                            render();
-                            this._refreshStagePage();
-                        }
-                    };
-                    cand.appendChild(b);
-                    void inLineup;
-                }
-                wrap.appendChild(cand);
-                const save = document.createElement('button');
-                save.className = 'btn gold big';
-                save.style.marginTop = 'calc(14px * var(--hs,1))';
-                save.textContent = '保存编队';
-                save.onclick = (e) => {
-                    e.stopPropagation();
-                    gm.save();
-                    SoundFx.play('buy');
-                    this._closeTopMask();
-                    this._toast('编队已保存');
-                };
-                wrap.appendChild(save);
-                box.appendChild(wrap);
+                this._popRebuild(opt());
             };
-            render();
-        });
+            return {
+                tier: 4,
+                size: 'M',
+                banner: '👥 护送编队',
+                art: `总战力 ${total.toLocaleString()}`,
+                subtitle: `最多上阵 ${GameManager.LINEUP_MAX} 名英雄护卫载具尾部 · 当前 ${gm.lineup.length}/${GameManager.LINEUP_MAX}`,
+                build: c => {
+                    c.appendChild(this._popSec(`英雄羁绊 · 已激活 ${actives.length}/${BOND_DEFS.length}`));
+                    for (const b of BOND_DEFS) {
+                        const on = actives.indexOf(b) >= 0;
+                        let cond: string;
+                        if (b.starSumNeed !== undefined) {
+                            let sum = 0;
+                            let allIn = full;
+                            for (const id of b.members) {
+                                if (gm.lineup.indexOf(id) < 0) {
+                                    allIn = false;
+                                }
+                                sum += RecruitSystem.instance.stars(id);
+                            }
+                            cond = allIn ? `星级合计 ${b.starSumNeed}★（当前 ${sum}★）` : '全员上阵';
+                        } else {
+                            const need = b.starNeed ?? 0;
+                            const names = b.members.map(id => HERO_DEFS.find(d => d.id === id)?.name ?? id);
+                            cond = `${names.join(' + ')} 双双 ${need}★`;
+                        }
+                        c.appendChild(this._popRow({
+                            icon: b.ic,
+                            title: b.name,
+                            lines: [b.desc],
+                            status: on ? '✅ 已激活' : cond,
+                            statusKind: on ? 'soon' : undefined,
+                            on
+                        }));
+                    }
+                    c.appendChild(this._popSec('候补英雄 · 点选上下阵'));
+                    for (const def of HERO_DEFS) {
+                        const owned = gm.isHeroOwned(def.id);
+                        const inLineup = gm.isInLineup(def.id);
+                        c.appendChild(this._popRow({
+                            icon: '🎖',
+                            iconTex: this._heroPhoto(HERO_DEFS.indexOf(def), 'slot').key,
+                            title: owned ? def.name : `🔒 ${def.name}`,
+                            lines: [owned ? `战力 ${this._heroPower(def.id).toLocaleString()}` : '未获得 · 可在招募或商店解锁'],
+                            status: inLineup ? '上阵中' : undefined,
+                            on: inLineup,
+                            action: {
+                                label: inLineup ? '下阵' : '上阵',
+                                kind: inLineup ? 'grey' : 'green',
+                                disabled: !inLineup && full,
+                                onClick: () => {
+                                    if (!owned) {
+                                        this._toast(`「${def.name}」尚未获得 · 可在商店解锁`);
+                                        return;
+                                    }
+                                    toggle(def.id);
+                                }
+                            }
+                        }));
+                    }
+                },
+                slots: sb => {
+                    for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
+                        const id = gm.lineup[i];
+                        const cell = this._popSlot({
+                            icon: id ? '🎖' : '＋',
+                            on: !!id,
+                            onClick: id ? () => toggle(id) : undefined
+                        });
+                        if (id) {
+                            const photo = this._heroPhoto(Math.max(0, HERO_DEFS.findIndex(d => d.id === id)), 'slot');
+                            this._tex(photo.key, u => {
+                                cell.textContent = '';
+                                cell.style.backgroundImage = u;
+                                cell.style.cssText += photo.css;
+                            });
+                        }
+                        sb.appendChild(cell);
+                    }
+                },
+                ctas: [{
+                    label: '保 存 编 队',
+                    onClick: () => {
+                        gm.save();
+                        SoundFx.play('buy');
+                        this._closePop();
+                        this._toast('编队已保存');
+                    }
+                }],
+                note: '羁绊按星级门槛实时派生 · 编队改动会影响护送战力'
+            };
+        };
+        this._openPop(opt());
     }
+
 
 }

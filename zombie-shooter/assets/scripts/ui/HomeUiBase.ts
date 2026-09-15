@@ -27,6 +27,7 @@ import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/Vehicle
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiPlay } from './HomeUiPlay';
+import type { PopOpts, PopText } from './HomeUiCore';
 
 /**
  * 基地页：建筑养成（升级建筑 + 局外强化）+ 建筑详情/载具改装弹窗。
@@ -34,174 +35,164 @@ import { HomeUiPlay } from './HomeUiPlay';
 export abstract class HomeUiBase extends HomeUiPlay {
 
 
-    /** 弹窗：护送编队（对齐原型 sq-slot + cand 网格，真数据 lineup） */
-    // ================= 基地建筑详情浮窗 =================
 
-    /** 建筑详情抽屉（L2 sheet）：功能介绍 + 当前/下一级效果 + 升级动作（地图节点点击触发） */
+
+    /**
+     * 建筑详情（UX 布局稿：L3·M）：介绍 + 当前/下一级效果 + 升级费用与货币余量 + 受限说明。
+     * 升级后就地重绘同步等级与费用；载具工坊额外钻取到载具改装。
+     */
     protected _openBuildingInfoModal(id: string): void {
         const gm = GameManager.instance;
         const b = BUILDINGS.find(x => x.id === id);
         if (!b) {
             return;
         }
-        this._openSheet(`${b.ic} ${b.name}`, (box) => {
-            box.classList.add('binfoBox');
+        const opt = (): PopOpts => {
             const lv = gm.buildingLevel(b.id);
             const maxed = lv >= b.maxLevel;
             const unlocked = gm.isBuildingUnlocked(b.id);
             const hqBlocked = !maxed && unlocked && b.id !== 'hq' && lv + 1 > gm.hqLevel() + 1;
-
-            // 功能介绍
-            if (b.intro) {
-                const intro = document.createElement('p');
-                intro.className = 'biIntro';
-                intro.textContent = b.intro;
-                box.appendChild(intro);
-            }
-            // 等级进度
-            const lvRow = document.createElement('div');
-            lvRow.className = 'biLvRow';
-            lvRow.innerHTML = `<span>当前等级</span><b>LV.${lv} / ${b.maxLevel}</b>`;
-            box.appendChild(lvRow);
-            const bar = document.createElement('div');
-            bar.className = 'biBar';
-            const fill = document.createElement('i');
-            fill.style.width = `${Math.max(4, Math.round(lv / b.maxLevel * 100))}%`;
-            bar.appendChild(fill);
-            box.appendChild(bar);
-            // 当前效果 / 下一级
-            const curRow = document.createElement('div');
-            curRow.className = 'biEff';
-            curRow.innerHTML = `<em>当前效果</em><span>${lv > 0 ? b.desc(lv) : '尚未生效 · 升级后获得加成'}</span>`;
-            box.appendChild(curRow);
-            if (!maxed) {
-                const nextRow = document.createElement('div');
-                nextRow.className = 'biEff next';
-                nextRow.innerHTML = `<em>升到 LV.${lv + 1}</em><span>${b.desc(lv + 1)}</span>`;
-                box.appendChild(nextRow);
-                // 升级状态提示
-                const stRow = document.createElement('div');
-                stRow.className = 'biStatus';
-                const cost = gm.buildingCost(b.id);
-                if (!unlocked) {
-                    stRow.textContent = `🔒 需指挥中心 LV.${b.unlockHq} 解锁（当前 LV.${gm.hqLevel()}）`;
-                } else if (hqBlocked) {
-                    stRow.textContent = `🔒 受指挥中心上限约束（上限 LV.${gm.hqLevel() + 1}），先升级指挥中心`;
-                } else {
-                    stRow.textContent = `升级费用：🪙 ${cost.toLocaleString()}${gm.gold < cost ? '（金币不足）' : ''}`;
-                }
-                box.appendChild(stRow);
-            } else {
-                const stRow = document.createElement('div');
-                stRow.className = 'biStatus';
-                stRow.textContent = '✅ 已达满级';
-                box.appendChild(stRow);
-            }
-            // 升级动作（可升级时直达；载具工坊附改装入口）
-            if (b.id === 'workshop' && unlocked) {
-                const tuneBtn = document.createElement('button');
-                tuneBtn.className = 'btn blue big';
-                tuneBtn.style.marginBottom = 'calc(10px * var(--hs,1))';
-                tuneBtn.textContent = '🔧 载具改装';
-                tuneBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.play('ui');
-                    box.closest('.protoMask')?.remove();
-                    this._openTuningModal();
-                };
-                box.appendChild(tuneBtn);
-            }
-            const act = document.createElement('button');
-            act.className = 'btn gold big biOk';
-            if (!unlocked) {
-                act.textContent = `🔒 指挥中心 LV.${b.unlockHq} 解锁`;
-                act.disabled = true;
-            } else if (maxed) {
-                act.textContent = '已满级';
-                act.disabled = true;
-            } else if (hqBlocked) {
-                act.textContent = '🔒 先升级指挥中心';
-                act.disabled = true;
-            } else {
-                const cost = gm.buildingCost(b.id);
-                act.textContent = `🪙 ${cost.toLocaleString()} · 升 级`;
-                act.disabled = !gm.canUpgradeBuilding(b.id);
-                act.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    const nextLv = gm.buildingLevel(b.id) + 1;
-                    if (gm.upgradeBuilding(b.id)) {
-                        SoundFx.play('buy');
-                        this._toast(`${b.name} 升至 LV.${nextLv}`);
-                        this._refreshBase();
-                        this._refreshTop();
-                        // 就地重开抽屉同步等级与费用
-                        box.closest('.protoMask')?.remove();
-                        this._openBuildingInfoModal(b.id);
+            const cost = maxed ? 0 : gm.buildingCost(b.id);
+            const can = gm.canUpgradeBuilding(b.id);
+            return {
+                tier: 3,
+                size: 'M',
+                banner: `${b.ic} ${b.name}`,
+                art: `LV.${lv} / ${b.maxLevel}`,
+                subtitle: b.intro,
+                build: c => {
+                    c.appendChild(this._popSec('效果'));
+                    c.appendChild(this._popAttr({
+                        icon: '✅',
+                        text: lv > 0 ? `当前：**${b.desc(lv)}**` : '尚未生效 · 升级后获得加成'
+                    }));
+                    if (!maxed) {
+                        c.appendChild(this._popAttr({ icon: '⬆️', text: `升到 LV.${lv + 1}：**${b.desc(lv + 1)}**` }));
                     }
-                };
-            }
-            act.style.opacity = act.disabled ? '0.5' : '1';
-            box.appendChild(act);
-        });
-    }
-
-
-    /** 载具改装弹窗：四槽独立升级（装甲板/撞角/工具箱/弹药架），等级上限=载具工坊建筑等级 */
-    protected _openTuningModal(): void {
-        const vt = VehicleTuningSystem.instance;
-        this._openModal('🔧 载具改装', (box) => {
-            box.classList.add('tuneBox');
-            const render = () => {
-                // 就地重绘：只换内容区（.tuneList），不重建弹窗（编队弹窗同款模式）
-                box.querySelector('.tuneList')?.remove();
-                const list = document.createElement('div');
-                list.className = 'tuneList';
-                const sub = document.createElement('p');
-                sub.className = 'mSub';
-                sub.innerHTML = `改装上限 = 载具工坊等级（当前 <b class="goldT">LV.${vt.capOf()}</b>）· 🔧 改装图纸余量 <b class="goldT">${vt.blueprintCount}</b>`;
-                list.appendChild(sub);
-                for (const def of TUNE_SLOTS) {
-                    const lv = vt.level(def.id);
-                    const maxed = lv >= TUNE_MAX_LEVEL;
-                    const gate = vt.canUpgrade(def.id);
-                    const row = document.createElement('div');
-                    row.className = 'mRow';
-                    const cost = vt.nextCosts(def.id);
-                    row.innerHTML =
-                        `<span>${def.ic} ${def.name} <b class="goldT">LV.${lv}</b>${maxed ? '（满级）' : ''} · ${lv > 0 ? def.desc(lv) : '尚未改装'}</span>` +
-                        (maxed ? '' : `<span class="matNeed">升 LV.${lv + 1}：${def.desc(lv + 1).split('（')[0]} · 🔧 ×${cost.blueprint}（余 ${vt.blueprintCount}）· 🪙 ${cost.gold.toLocaleString()}</span>`);
-                    const btn = document.createElement('button');
-                    btn.className = 'btn gold sm';
-                    if (maxed) {
-                        btn.textContent = '已满级';
-                        btn.disabled = true;
-                    } else if (!gate.ok) {
-                        btn.textContent = '改 装';
-                        btn.disabled = true;
-                        btn.title = gate.reason;
-                    } else {
-                        btn.textContent = '改 装';
-                        btn.onclick = () => {
-                            if (vt.upgrade(def.id)) {
-                                SoundFx.play('buy');
-                                this._toast(`${def.name} 升至 LV.${lv + 1}`);
-                                render();
-                                this._refreshBase();
-                                this._refreshTop();
-                            } else {
-                                this._toast('材料不足');
+                    c.appendChild(this._popSec('升级'));
+                    c.appendChild(this._popKV('当前等级', `LV.${lv} / ${b.maxLevel}`));
+                    c.appendChild(this._popKV('指挥中心', `LV.${gm.hqLevel()} · 本建筑上限 LV.${gm.hqLevel() + 1}`));
+                    if (!maxed) {
+                        c.appendChild(this._popKV('升级费用', `🪙 ${cost.toLocaleString()}`, 'total'));
+                    }
+                    if (!unlocked) {
+                        c.appendChild(this._popWarn(`需指挥中心 LV.${b.unlockHq} 解锁（当前 LV.${gm.hqLevel()}）`));
+                    } else if (hqBlocked) {
+                        c.appendChild(this._popWarn('受指挥中心上限约束 · 先升级指挥中心'));
+                    } else if (maxed) {
+                        c.appendChild(this._popAttr({ icon: '🏁', text: '已达满级' }));
+                    } else if (!can) {
+                        c.appendChild(this._popWarn(`金币不足 · 还差 🪙 ${(cost - gm.gold).toLocaleString()}`));
+                    }
+                    if (b.id === 'workshop' && unlocked) {
+                        c.appendChild(this._popSec('关联功能'));
+                        c.appendChild(this._popRow({
+                            icon: '🔧',
+                            title: '载具改装',
+                            lines: ['装甲板 / 撞角 / 工具箱 / 弹药架 四槽独立升级'],
+                            action: {
+                                label: '进 入',
+                                kind: 'gold',
+                                onClick: () => this._openTuningModal(() => this._openBuildingInfoModal(b.id))
                             }
-                        };
+                        }));
                     }
-                    row.appendChild(btn);
-                    list.appendChild(row);
-                }
-                box.appendChild(list);
+                },
+                cost: maxed || !unlocked || hqBlocked ? undefined : [{ icon: '🪙', have: gm.gold, need: cost }],
+                ctas: [{
+                    label: !unlocked ? `🔒 指挥中心 LV.${b.unlockHq} 解锁`
+                        : maxed ? '已 满 级'
+                            : hqBlocked ? '🔒 先升级指挥中心'
+                                : `🪙 ${cost.toLocaleString()} · 升 级`,
+                    disabled: !can,
+                    onClick: () => {
+                        SoundFx.unlock();
+                        const nextLv = gm.buildingLevel(b.id) + 1;
+                        if (gm.upgradeBuilding(b.id)) {
+                            SoundFx.play('buy');
+                            this._toast(`${b.name} 升至 LV.${nextLv}`);
+                            this._refreshBase();
+                            this._refreshTop();
+                            this._popRebuild(opt());
+                        } else {
+                            this._toast('升级失败 · 检查金币与指挥中心等级');
+                        }
+                    }
+                }],
+                note: '升级效果即时生效 · 建筑上限受指挥中心等级约束'
             };
-            render();
-        });
+        };
+        this._openPop(opt());
     }
+
+
+    /**
+     * 载具改装（UX 布局稿：L3·M）：四槽独立升级行，改装上限 = 载具工坊等级。
+     * 由建筑详情钻取时带 onBack 回到建筑详情，就地重绘同步等级与图纸余量。
+     */
+    protected _openTuningModal(onBack?: () => void): void {
+        const vt = VehicleTuningSystem.instance;
+        const opt = (): PopOpts => {
+            const bp = vt.blueprintCount;
+            return {
+                tier: 3,
+                size: 'M',
+                banner: '🔧 载具改装',
+                art: `上限 LV.${vt.capOf()}`,
+                subtitle: `改装上限 = 载具工坊等级（当前 LV.${vt.capOf()}）· 图纸余量 ${bp}`,
+                onBack,
+                build: c => {
+                    c.appendChild(this._popSec('改装槽位'));
+                    for (const def of TUNE_SLOTS) {
+                        const lv = vt.level(def.id);
+                        const maxed = lv >= TUNE_MAX_LEVEL;
+                        const gate = vt.canUpgrade(def.id);
+                        const lines: PopText[] = [lv > 0 ? def.desc(lv) : '尚未改装'];
+                        if (!maxed) {
+                            const cost = vt.nextCosts(def.id);
+                            lines.push({ text: `升 LV.${lv + 1}：${def.desc(lv + 1).split('（')[0]}`, kind: 'd' });
+                            lines.push(`🔧 ×${cost.blueprint}（余 ${bp}）· 🪙 ${cost.gold.toLocaleString()}`);
+                        }
+                        c.appendChild(this._popRow({
+                            icon: def.ic,
+                            title: `${def.name} LV.${lv}`,
+                            lines,
+                            status: maxed ? '已满级' : !gate.ok ? '受限' : undefined,
+                            statusKind: !maxed && !gate.ok ? 'expire' : undefined,
+                            action: {
+                                label: '改 装',
+                                kind: 'gold',
+                                disabled: maxed || !gate.ok,
+                                onClick: () => {
+                                    if (vt.upgrade(def.id)) {
+                                        SoundFx.play('buy');
+                                        this._toast(`${def.name} 升至 LV.${lv + 1}`);
+                                        this._refreshBase();
+                                        this._refreshTop();
+                                        this._popRebuild(opt());
+                                    } else {
+                                        this._toast('图纸或金币不足');
+                                    }
+                                }
+                            }
+                        }));
+                    }
+                    if (TUNE_SLOTS.some(d => !vt.canUpgrade(d.id).ok && vt.level(d.id) < TUNE_MAX_LEVEL)) {
+                        const reason = TUNE_SLOTS
+                            .filter(d => vt.level(d.id) < TUNE_MAX_LEVEL)
+                            .map(d => vt.canUpgrade(d.id).reason)
+                            .find(r => !!r);
+                        if (reason) {
+                            c.appendChild(this._popWarn(reason));
+                        }
+                    }
+                },
+                note: '图纸由关卡掉落与商店获取 · 改装加成计入载具基础属性'
+            };
+        };
+        this._openPop(opt());
+    }
+
 
 
     // ================= 基地页 =================

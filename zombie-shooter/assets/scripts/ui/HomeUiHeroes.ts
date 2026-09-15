@@ -58,156 +58,120 @@ export abstract class HomeUiHeroes extends HomeUiMall {
 
 
     /**
-     * 天赋树弹窗：三分支并排 × 每支 5 节点竖排（节点间连线表示解锁先后）。
-     * 点数为进度派生（累计等级/通关/爬塔/招募），洗点免费无限次。
-     * 选中的节点在下方详情区就地更新，加点/洗点后重开本弹窗刷新整棵树。
+     * 天赋树（UX 布局稿：L3·M）：三分支各一行 5 节点进度格（✅满级 / ▶可加 / 🔒未解锁 / 等级）
+     * + 选中节点详情与加减点。点数为进度派生（累计等级/通关/爬塔/招募），洗点走二次确认。
      */
-    protected _openTalentModal(selId = 'fire_1'): void {
+    protected _openTalentModal(pickId = 'fire_1'): void {
         const ts = TalentSystem.instance;
-        this._openModal('🌟 天赋树', (box) => {
-            box.classList.add('talentBox');
-
-            // ---- 头部：可用点数 + 总进度 ----
-            const head = document.createElement('div');
-            head.className = 'talentHead';
-            head.innerHTML = `<div class="talentHeadTop"><b>可用天赋点 <i>${ts.available}</i></b>`
-                + `<span>已投 ${ts.spent} / 共 ${ts.total}</span></div>`;
-            const barWrap = document.createElement('div');
-            barWrap.className = 'talentBar';
-            const barIn = document.createElement('i');
-            barIn.style.width = `${ts.total > 0 ? Math.round(ts.spent / ts.total * 100) : 0}%`;
-            barWrap.appendChild(barIn);
-            head.appendChild(barWrap);
-            const src = document.createElement('div');
-            src.className = 'talentSrc';
-            src.textContent = '天赋点来源：累计等级每 5 级 +1 · 通关每关 +1 · 爬塔每 5 层 +1 · 招募每 10 抽 +1';
-            head.appendChild(src);
-            box.appendChild(head);
-
-            // ---- 三分支并排 ----
-            const row = document.createElement('div');
-            row.className = 'talentBranchRow';
-            for (const br of TALENT_BRANCHES) {
-                const col = document.createElement('div');
-                col.className = 'talentBranch';
-                const title = document.createElement('div');
-                title.className = 'tbTitle';
-                title.innerHTML = `<b>${TALENT_BRANCH_NAMES[br]}</b><i>${ts.spentIn(br)}/${branchPointTotal(br)} 点</i>`;
-                col.appendChild(title);
-                const nodes = document.createElement('div');
-                nodes.className = 'tbNodes';
-                for (const def of branchNodes(br)) {
-                    const lv = ts.level(def.id);
-                    const maxed = ts.isMaxed(def.id);
-                    const unlocked = ts.isUnlocked(def.id);
-                    const node = document.createElement('div');
-                    node.className = 'talentNode';
-                    if (maxed) {
-                        node.classList.add('maxed');
-                    } else if (!unlocked) {
-                        node.classList.add('lock');
-                    } else if (ts.canUpgrade(def.id)) {
-                        node.classList.add('can');
-                    }
-                    if (def.id === selId) {
-                        node.classList.add('sel');
-                    }
-                    node.innerHTML = `<span class="tnIc">${def.ic}</span>`
-                        + `<span class="tnLv">${def.maxLevel > 1 ? `${lv}/${def.maxLevel}` : (lv > 0 ? '已激活' : '未激活')}</span>`;
-                    node.onclick = (e) => {
-                        e.stopPropagation();
-                        SoundFx.play('ui');
-                        this._closeTopMask();
-                        this._openTalentModal(def.id);
-                    };
-                    nodes.appendChild(node);
-                }
-                col.appendChild(nodes);
-                row.appendChild(col);
-            }
-            box.appendChild(row);
-
-            // ---- 详情区（就地更新，不重开弹窗） ----
-            const def = talentNode(selId) || TALENT_NODES[0];
-            const lv = ts.level(def.id);
-            const maxed = ts.isMaxed(def.id);
-            const unlocked = ts.isUnlocked(def.id);
-            const detail = document.createElement('div');
-            detail.className = 'talentDetail panel';
-            const nameLine = document.createElement('div');
-            nameLine.className = 'tdName';
-            nameLine.innerHTML = `<b>${def.ic} ${def.name}</b>`
-                + `<i>Lv.${lv}/${def.maxLevel} · ${TALENT_BRANCH_NAMES[def.branch]}线第 ${def.idx + 1} 层</i>`;
-            detail.appendChild(nameLine);
-            const descLine = document.createElement('div');
-            descLine.className = 'tdDesc';
-            descLine.textContent = def.desc(lv);
-            detail.appendChild(descLine);
-            const hint = document.createElement('div');
-            hint.className = 'tdHint';
+        let selId = pickId;
+        const opt = (): PopOpts => {
+            const sel = talentNode(selId) || TALENT_NODES[0];
+            const lv = ts.level(sel.id);
+            const maxed = ts.isMaxed(sel.id);
+            const unlocked = ts.isUnlocked(sel.id);
+            let hint = '';
             if (maxed) {
-                hint.textContent = '✅ 已满级';
+                hint = '✅ 已满级';
             } else if (!unlocked) {
-                const prev = branchNodes(def.branch)[def.idx - 1];
-                hint.textContent = `🔒 需先将「${prev ? prev.name : '前置节点'}」点满`;
-            } else if (ts.available < def.pointCost) {
-                hint.textContent = `⚠️ 天赋点不足，还差 ${def.pointCost - ts.available} 点`;
-            } else {
-                hint.textContent = `消耗 ${def.pointCost} 点天赋点`;
+                const prev = branchNodes(sel.branch)[sel.idx - 1];
+                hint = `🔒 需先将「${prev ? prev.name : '前置节点'}」点满`;
+            } else if (ts.available < sel.pointCost) {
+                hint = `⚠️ 天赋点不足，还差 ${sel.pointCost - ts.available} 点`;
             }
-            detail.appendChild(hint);
-
-            const btns = document.createElement('div');
-            btns.className = 'tdBtns';
-            const up = document.createElement('button');
-            up.className = 'btn big gold';
-            up.textContent = maxed ? '✅ 已满级' : `🌟 加点（${def.pointCost} 点）`;
-            up.disabled = !ts.canUpgrade(def.id);
-            up.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                const lvNow = ts.upgrade(def.id);
-                if (lvNow === null) {
-                    SoundFx.play('ui');
-                    this._toast('加点失败');
-                    return;
-                }
-                SoundFx.play('coin');
-                this._toast(`${def.name} 升至 Lv.${lvNow}`);
-                this._refreshTop();
-                this._refreshTalentRed();
-                this._closeTopMask();
-                this._openTalentModal(def.id);
+            const can = ts.canUpgrade(sel.id);
+            return {
+                tier: 3,
+                size: 'M',
+                banner: '🌟 天赋树',
+                art: `可用 ${ts.available} 点`,
+                subtitle: '天赋点来源：累计等级每 5 级 +1 · 通关每关 +1 · 爬塔每 5 层 +1 · 招募每 10 抽 +1',
+                build: c => {
+                    c.appendChild(this._popSec('点数进度'));
+                    c.appendChild(this._popKV('可用 / 已投 / 总点', `${ts.available} / ${ts.spent} / ${ts.total}`, 'total'));
+                    c.appendChild(this._popKV('洗点', '免费无限次', 'free'));
+                    for (const br of TALENT_BRANCHES) {
+                        c.appendChild(this._popSec(`${TALENT_BRANCH_NAMES[br]} · 已投 ${ts.spentIn(br)}/${branchPointTotal(br)} 点`));
+                        const nodes = branchNodes(br);
+                        c.appendChild(this._popGrid(nodes.map(d => {
+                            const dlv = ts.level(d.id);
+                            const dmax = ts.isMaxed(d.id);
+                            const dOpen = ts.isUnlocked(d.id);
+                            return {
+                                icon: `${d.ic}${d.id === sel.id ? '👑' : ''}`,
+                                count: dmax ? '✅' : dOpen ? (ts.canUpgrade(d.id) ? '▶' : `${dlv}/${d.maxLevel}`) : '🔒',
+                                sel: d.id === sel.id,
+                                title: `${d.name} Lv.${dlv}/${d.maxLevel} · ${d.desc(dlv)}`
+                            };
+                        }), 5, i => {
+                            selId = nodes[i].id;
+                            this._popRebuild(opt());
+                        }));
+                    }
+                    c.appendChild(this._popSec(`节点详情 · ${sel.name}`));
+                    c.appendChild(this._popAttr({ icon: sel.ic, text: sel.desc(lv) }));
+                    c.appendChild(this._popKV('等级', `Lv.${lv} / ${sel.maxLevel}`));
+                    c.appendChild(this._popKV('位置', `${TALENT_BRANCH_NAMES[sel.branch]}线第 ${sel.idx + 1} 层`));
+                    c.appendChild(this._popKV('单点消耗', `${sel.pointCost} 点天赋点`, maxed ? undefined : 'free'));
+                    if (hint) {
+                        c.appendChild(this._popWarn(hint));
+                    }
+                },
+                ctas: [
+                    {
+                        label: maxed ? '已 满 级' : `🌟 加 点（${sel.pointCost} 点）`,
+                        kind: 'gold',
+                        disabled: !can,
+                        onClick: () => {
+                            SoundFx.unlock();
+                            const lvNow = ts.upgrade(sel.id);
+                            if (lvNow === null) {
+                                SoundFx.play('ui');
+                                this._toast('加点失败 · 检查前置节点与点数');
+                                return;
+                            }
+                            SoundFx.play('coin');
+                            this._toast(`${sel.name} 升至 Lv.${lvNow}`);
+                            this._refreshTop();
+                            this._refreshTalentRed();
+                            this._popRebuild(opt());
+                        }
+                    },
+                    {
+                        label: '🔄 洗 点',
+                        kind: 'grey',
+                        disabled: ts.spent <= 0,
+                        onClick: () => this._popConfirm({
+                            title: '洗点确认',
+                            icon: '🔄',
+                            desc: `退还已投入的 ${ts.spent} 点天赋点，全部节点回到未激活状态。`,
+                            ok: '确 认 洗 点',
+                            danger: true,
+                            cancel: '再 想 想',
+                            onOk: () => {
+                                const back = ts.reset();
+                                SoundFx.play('bigkill');
+                                this._toast(`洗点完成，退还 ${back} 点天赋点`);
+                                this._refreshTop();
+                                this._refreshTalentRed();
+                                this._popRebuild(opt());
+                            }
+                        })
+                    }
+                ],
+                onBack: () => {
+                    const hid = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length].id;
+                    if (GameManager.instance.isHeroOwned(hid)) {
+                        this._openHeroGrowModal(hid, 2);
+                    } else {
+                        this._closePop();
+                    }
+                },
+                note: '天赋为账号级养成 · 换英雄不改变已投点数'
             };
-            btns.appendChild(up);
-
-            const reset = document.createElement('button');
-            reset.className = 'btn big';
-            reset.textContent = '🔄 洗点';
-            reset.disabled = ts.spent <= 0;
-            // 二次确认：沿用设置页重置存档的两次点击模式，防误触
-            let confirm = false;
-            reset.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                if (!confirm) {
-                    confirm = true;
-                    reset.textContent = `⚠️ 再点一次确认洗点（退 ${ts.spent} 点）`;
-                    return;
-                }
-                const back = ts.reset();
-                SoundFx.play('bigkill');
-                this._toast(`洗点完成，退还 ${back} 点天赋点`);
-                this._refreshTop();
-                this._refreshTalentRed();
-                this._closeTopMask();
-                this._openTalentModal(def.id);
-            };
-            btns.appendChild(reset);
-            detail.appendChild(btns);
-            box.appendChild(detail);
-        });
+        };
+        this._openPop(opt());
     }
+
 
     /**
      * 英雄招募（UX 布局稿：L3·M 列表型）：固定保底进度条 + 概率表与碎片库存 + 单抽/十连 CTA，
@@ -1681,69 +1645,70 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     /** 技能养成弹窗（英雄页左功能列「技能」入口）：三线技能卡，就地升级后原位重建 */
 
 
-    /** 属性详情弹窗（战力右侧 ⓘ 入口）：攻击/战力/装备加成明细 */
+    /**
+     * 属性详情（UX 布局稿：L3·M）：战力数值拆解——攻击 / 战力 / 装备加成 + 口径说明。
+     */
     protected _openPowerDetailModal(heroId: string): void {
         const hs = HeroSystem.instance;
         const def = HERO_DEFS.find(d => d.id === heroId);
         if (!def) {
             return;
         }
-        this._openModal(`📊 属性详情 · ${def.name}`, (box) => {
-            box.classList.add('pwBox');
-            const mkRow = (lab: string, val: string, note: string) => {
-                const row = document.createElement('div');
-                row.className = 'mRow pwRow';
-                row.innerHTML = `<span>${lab}</span><b>${val}</b><i>${note}</i>`;
-                box.appendChild(row);
-            };
-            mkRow('⚔️ 攻击', String(Math.round(def.atk * hs.atkMulOf(def.id))), '基础攻击 × 全部加成');
-            mkRow('⚡ 战力', this._heroPower(def.id).toLocaleString(), '综合养成评价');
-            mkRow('🛡️ 装备加成', `+${Math.round((hs.equipMulOf(def.id).atk - 1) * 100)}%`, '装备+宝石+核心（不含星级）');
-            const note = document.createElement('p');
-            note.className = 'mSub';
-            note.textContent = '星级加成单独体现在升星面板；生命/防御为局内口径，不在此展示';
-            box.appendChild(note);
+        this._openPop({
+            tier: 3,
+            size: 'M',
+            banner: `📊 属性详情 · ${def.name}`,
+            art: `战力 ${this._heroPower(def.id).toLocaleString()}`,
+            subtitle: '基础攻击 × 全部局外加成',
+            build: c => {
+                c.appendChild(this._popSec('数值拆解'));
+                c.appendChild(this._popKV('⚔️ 攻击', String(Math.round(def.atk * hs.atkMulOf(def.id)))));
+                c.appendChild(this._popKV('⚡ 战力', this._heroPower(def.id).toLocaleString(), 'total'));
+                c.appendChild(this._popKV('🛡️ 装备加成', `+${Math.round((hs.equipMulOf(def.id).atk - 1) * 100)}%`));
+                c.appendChild(this._popAttr({ icon: 'ℹ️', text: '装备加成含 **装备 + 宝石 + 核心**，不含星级' }));
+            },
+            note: '星级加成单独体现在升星面板 · 生命/防御为局内口径，不在此展示'
         });
     }
 
 
-    /** 升星弹窗（英雄页左功能列「N阶」入口）：当前星级 + 碎片进度 + 升星操作，成功后原位重建 */
+    /**
+     * 升星（UX 布局稿：L3·M）：当前星级 + 碎片进度（固定消耗行）+ 升星 CTA，升级后就地重绘。
+     */
     protected _openStarModal(heroId: string): void {
         const rs = RecruitSystem.instance;
         const def = HERO_DEFS.find(d => d.id === heroId);
         if (!def) {
             return;
         }
-        this._openModal(`⭐ 升星 · ${def.name}`, (box) => {
-            box.classList.add('starBox');
-            const wrap = document.createElement('div');
-            const rebuild = () => {
-                wrap.innerHTML = '';
-                const st = rs.stars(def.id);
-                const cost = rs.starCost(def.id);
-                const have = rs.shards(def.id);
-                const line = document.createElement('div');
-                line.className = 'sbLine';
-                line.innerHTML = `<b class="sbStars">${'★'.repeat(st)}${'☆'.repeat(HERO_STAR_MAX - st)}</b>`
-                    + `<span class="sbLv">${st} / ${HERO_STAR_MAX} 阶</span>`;
-                wrap.appendChild(line);
-                const prog = document.createElement('div');
-                prog.className = 'sbProg';
-                if (st >= HERO_STAR_MAX) {
-                    prog.innerHTML = '<span class="sbDone">★ 已 满 星 ★ 该英雄已无升星空间</span>';
-                } else {
-                    prog.innerHTML = `<span class="sbNum">碎片 <b>${have}</b> / ${cost}</span>`
-                        + `<span class="sbAdd">（招募重复获得可转碎片）</span>`;
-                }
-                wrap.appendChild(prog);
-                const btn = document.createElement('button');
-                btn.className = 'btn gold sm sbBtn';
-                if (st >= HERO_STAR_MAX) {
-                    btn.textContent = '已满星';
-                    btn.disabled = true;
-                } else if (rs.canStarUp(def.id)) {
-                    btn.textContent = `⚡ 升 星（−${cost} 碎片）`;
-                    btn.onclick = () => {
+        const opt = (): PopOpts => {
+            const st = rs.stars(def.id);
+            const maxed = st >= HERO_STAR_MAX;
+            const cost = rs.starCost(def.id);
+            const have = rs.shards(def.id);
+            const can = rs.canStarUp(def.id);
+            return {
+                tier: 3,
+                size: 'M',
+                banner: `⭐ 升星 · ${def.name}`,
+                art: maxed ? 'MAX' : `${st} / ${HERO_STAR_MAX} 阶`,
+                subtitle: `${'★'.repeat(st)}${'☆'.repeat(HERO_STAR_MAX - st)}`,
+                build: c => {
+                    c.appendChild(this._popSec('升星进度'));
+                    c.appendChild(this._popKV('当前星级', `${st} / ${HERO_STAR_MAX} 阶`, maxed ? 'total' : undefined));
+                    if (!maxed) {
+                        c.appendChild(this._popKV('所需碎片', `${have} / ${cost}`, 'total'));
+                        c.appendChild(this._popAttr({ icon: '🔩', text: '招募重复获得可转为该英雄碎片' }));
+                        c.appendChild(this._popAttr({ icon: '⬆️', text: `升至 ★${st + 1} 提升英雄**星级加成**与羁绊门槛` }));
+                    } else {
+                        c.appendChild(this._popAttr({ icon: '🏁', text: '该英雄已无升星空间' }));
+                    }
+                },
+                cost: maxed ? undefined : [{ icon: '🔩', have, need: cost }],
+                ctas: [{
+                    label: maxed ? '已 满 星' : can ? `⭐ 升 星（−${cost} 碎片）` : `还差 ${cost - have} 片`,
+                    disabled: !can,
+                    onClick: () => {
                         SoundFx.unlock();
                         const next = rs.starUp(def.id);
                         if (next !== null) {
@@ -1751,20 +1716,16 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                             this._toast(`${def.name} 升至 ★${next}`);
                             this._refreshTop();
                             this._refreshHeroes();
-                            rebuild();
+                            this._popRebuild(opt());
                         } else {
                             SoundFx.play('ui');
                         }
-                    };
-                } else {
-                    btn.textContent = `还差 ${cost - have} 片`;
-                    btn.disabled = true;
-                }
-                wrap.appendChild(btn);
+                    }
+                }],
+                note: '碎片不足时可在招募重复抽到该英雄或使用通用碎片'
             };
-            rebuild();
-            box.appendChild(wrap);
-        });
+        };
+        this._openPop(opt());
     }
 
 
@@ -1882,8 +1843,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
 
 
     /**
-     * 技能详情浮窗（技能卡点击触发）：
-     * 升级效果对比 + 里程碑等级解锁 + 消耗物（金币+英雄核心）+ 升级按钮。
+     * 技能详情（UX 布局稿：L3·M）：当前/下一级效果 + 里程碑解锁 + 消耗（金币+英雄核心）+ 升级。
+     * 由英雄养成页的技能卡钻取，onBack 回养成页技能页签；升级后就地重绘。
      */
     protected _openAbilityModal(heroId: string, slot: AbilitySlot): void {
         const gm = GameManager.instance;
@@ -1893,82 +1854,79 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             return;
         }
         const titles: Record<AbilitySlot, string> = { basic: '🔫 基础射击', skill: '💫 技能', ultimate: '☄️ 大招' };
-        this._openModal(titles[slot], (box) => {
-            box.classList.add('abBox');
+        const an = slot === 'ultimate' ? def.ultimate.name : slot === 'skill' ? def.skill.name : '基础射击';
+        const opt = (): PopOpts => {
             const lv = hs.abilityLevel(heroId, slot);
             const maxed = hs.isAbilityMaxLevel(heroId, slot);
             const locked = lv <= 0;
-            const cap = gm.abilityLevelCap();
-
-            const nm = document.createElement('div');
-            nm.className = 'abName';
-            const an = slot === 'ultimate' ? def.ultimate.name : slot === 'skill' ? def.skill.name : '基础射击';
-            nm.innerHTML = `<b>${an}</b><span class="lvtag">Lv.${lv}${maxed ? ' · MAX' : ''}</span>`;
-            box.appendChild(nm);
-
-            // 升级效果对比（当前 → 下一级）
-            const effCur = document.createElement('div');
-            effCur.className = 'abEff';
-            effCur.innerHTML = `<em>当前（Lv.${Math.max(1, lv)}）</em><span>${this._abilityEffectText(def, slot, Math.max(1, lv))}</span>`;
-            box.appendChild(effCur);
-            if (!maxed) {
-                const effNext = document.createElement('div');
-                effNext.className = 'abEff next';
-                effNext.innerHTML = `<em>升到 Lv.${lv + 1}</em><span>${this._abilityEffectText(def, slot, lv + 1)}</span>`;
-                box.appendChild(effNext);
-            }
-
-            // 里程碑等级效果
-            const msSec = document.createElement('div');
-            msSec.className = 'abMs';
-            msSec.innerHTML = '<div class="abMsHead">🏆 里程碑解锁</div>';
-            for (const m of this._abilityMilestones(slot)) {
-                const reach = lv >= m.lv;
-                const row = document.createElement('div');
-                row.className = 'abMsRow' + (reach ? ' reach' : '');
-                row.innerHTML = `<span class="abMsLv">Lv.${m.lv}</span><span>${m.text}${reach ? ' · ✅' : ''}</span>`;
-                msSec.appendChild(row);
-            }
-            box.appendChild(msSec);
-
-            // 消耗 + 升级按钮
-            const costRow = document.createElement('div');
-            costRow.className = 'abCost';
-            const btn = document.createElement('button');
-            btn.className = 'btn gold';
-            if (locked) {
-                // 技能/大招不卖解锁：只能局内升级三选一随机刷出解锁卡
-                costRow.innerHTML = '<span>未解锁 · 出战时升级三选一随机刷出「解锁卡」后获得</span>';
-                btn.textContent = '局内解锁';
-                btn.disabled = true;
-            } else if (maxed) {
-                costRow.innerHTML = '<span>技能已达当前上限（研究所可提升上限）</span>';
-                btn.textContent = '已满级';
-                btn.disabled = true;
-            } else {
-                const cost = hs.abilityUpgradeCost(heroId, slot);
-                const core = hs.abilityUpgradeCore(heroId, slot);
-                const coreLeft = hs.miscCount('mat_core');
-                costRow.innerHTML = `<span>消耗：🪙 ${cost.toLocaleString()} · ⚙️ 英雄核心 ×${core}（余 ${coreLeft}）</span>`;
-                btn.textContent = '升 级';
-                btn.disabled = gm.gold < cost || coreLeft < core;
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    if (hs.upgradeAbility(heroId, slot)) {
-                        SoundFx.play('buy');
-                        this._toast(`${an} 升至 Lv.${lv + 1}`);
-                        this._refreshTop();
-                        this._closeTopMask();
-                        // 技能卡已并入英雄详情页，升级后同步英雄页内嵌技能卡再重开弹窗
-                        this._refreshHeroes();
-                        this._openAbilityModal(heroId, slot);
+            const cost = locked || maxed ? 0 : hs.abilityUpgradeCost(heroId, slot);
+            const core = locked || maxed ? 0 : hs.abilityUpgradeCore(heroId, slot);
+            const coreLeft = hs.miscCount('mat_core');
+            const can = !locked && !maxed && gm.gold >= cost && coreLeft >= core;
+            return {
+                tier: 3,
+                size: 'M',
+                banner: titles[slot],
+                art: maxed ? 'MAX' : locked ? '未解锁' : `Lv.${lv}`,
+                subtitle: `${def.name} · ${an} · 每级伤害 +${Math.round(ABILITY_LEVEL_DMG_BONUS * 100)}%`,
+                onBack: () => this._openHeroGrowModal(heroId, 0),
+                build: c => {
+                    c.appendChild(this._popSec('升级效果'));
+                    c.appendChild(this._popAttr({
+                        icon: '✅',
+                        text: `当前（Lv.${Math.max(1, lv)}）**${this._abilityEffectText(def, slot, Math.max(1, lv))}**`
+                    }));
+                    if (!maxed && !locked) {
+                        c.appendChild(this._popAttr({
+                            icon: '⬆️',
+                            text: `升到 Lv.${lv + 1} **${this._abilityEffectText(def, slot, lv + 1)}**`
+                        }));
                     }
-                };
-            }
-            costRow.appendChild(btn);
-            box.appendChild(costRow);
-        });
+                    c.appendChild(this._popSec('里程碑解锁'));
+                    for (const m of this._abilityMilestones(slot)) {
+                        const reach = lv >= m.lv;
+                        c.appendChild(this._popRow({
+                            icon: '🏆',
+                            title: `Lv.${m.lv}`,
+                            lines: [m.text],
+                            status: reach ? '✅ 已达成' : undefined,
+                            statusKind: reach ? 'soon' : undefined,
+                            on: reach
+                        }));
+                    }
+                    c.appendChild(this._popSec('升级条件'));
+                    c.appendChild(this._popKV('当前等级', `Lv.${lv} / ${gm.abilityLevelCap()}`, 'total'));
+                    if (locked) {
+                        c.appendChild(this._popWarn('出战时升级三选一随机刷出「解锁卡」后获得'));
+                    } else if (maxed) {
+                        c.appendChild(this._popAttr({ icon: '🏁', text: '技能已达当前上限 · 研究所可提升上限' }));
+                    }
+                },
+                cost: locked || maxed ? undefined : [
+                    { icon: '🪙', have: gm.gold, need: cost },
+                    { icon: '⚙️', have: coreLeft, need: core }
+                ],
+                ctas: [{
+                    label: locked ? '局 内 解 锁' : maxed ? '已 满 级' : '升 级',
+                    disabled: !can,
+                    onClick: () => {
+                        SoundFx.unlock();
+                        if (hs.upgradeAbility(heroId, slot)) {
+                            SoundFx.play('buy');
+                            this._toast(`${an} 升至 Lv.${lv + 1}`);
+                            this._refreshTop();
+                            this._refreshHeroes();
+                            this._popRebuild(opt());
+                        } else {
+                            this._toast('金币或英雄核心不足');
+                        }
+                    }
+                }],
+                note: '英雄核心由关卡掉落与商店获取 · 技能卡在英雄养成页可直达本层'
+            };
+        };
+        this._openPop(opt());
     }
+
 
 }

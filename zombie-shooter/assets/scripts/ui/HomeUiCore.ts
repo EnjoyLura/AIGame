@@ -184,6 +184,12 @@ export abstract class HomeUiCore extends Component {
     /** 远征弹窗固定条里的倒计时胶囊（每秒就地改文案，不重绘整层） */
     protected _expTimerEl: HTMLElement | null = null;
 
+    /** 体力补给弹窗的秒级恢复倒计时（弹窗关闭即清，防泄漏） */
+    protected _stamTimer = 0;
+
+    /** 体力补给弹窗固定条里的倒计时胶囊 */
+    protected _stamTimerEl: HTMLElement | null = null;
+
     /** 基地区红点兜底轮询：倒计时归零没有事件驱动，靠低频轮询补亮 */
     protected _expIdleTimer = 0;
 
@@ -1541,103 +1547,110 @@ export abstract class HomeUiCore extends Component {
 
 
     /**
-     * 体力获取弹窗：恢复倒计时 + 看广告领体力 + 钻石直购。
-     * 顶栏体力「+」与出战体力不足守卫的统一去处（广告入口在商城页另有一份）。
+     * 体力补给（UX 布局稿：L3·M）：固定条挂秒级恢复倒计时胶囊，内容区两条获取路径
+     * （看广告 / 钻石直购）行内动作，领取后就地重绘同步余量与置灰态。
      */
     protected _openStaminaModal(): void {
         const gm = GameManager.instance;
-        this._openModal('🍖 体力补给', (box) => {
-            box.classList.add('staminaBox');
-
-            // 状态区：当前/上限 + 恢复速率 + 下一几点倒计时（每秒刷新，弹窗关闭即停）
-            const state = document.createElement('div');
-            state.className = 'stState panel';
-            box.appendChild(state);
-            const renderState = () => {
-                const nextIn = gm.staminaNextIn();
-                const ss = nextIn % 60;
-                state.innerHTML = `<b>${gm.stamina()} / ${gm.staminaMax()}</b>` +
-                    `<span>每 ${BattleConfig.STAMINA_REGEN_MINUTES} 分钟恢复 1 点` +
-                    (nextIn > 0 ? ` · 下一几点 ${Math.floor(nextIn / 60)}:${ss < 10 ? '0' + ss : ss}` : ' · 体力已满') +
-                    `</span>`;
+        const opt = (): PopOpts => {
+            const cur = gm.stamina();
+            const max = gm.staminaMax();
+            const full = cur >= max;
+            const left = AdService.instance.remaining('stamina');
+            const diamonds = gm.res.get('diamond');
+            return {
+                tier: 3,
+                size: 'M',
+                banner: '🍖 体力补给',
+                art: `${cur} / ${max}`,
+                subtitle: `每 ${BattleConfig.STAMINA_REGEN_MINUTES} 分钟恢复 1 点 · 加油站每级提高上限`,
+                fixed: bar => {
+                    this._stamTimerEl = this._popInfo('');
+                    bar.appendChild(this._stamTimerEl);
+                    this._stamTick();
+                },
+                build: c => {
+                    c.appendChild(this._popSec('当前体力'));
+                    c.appendChild(this._popKV('体力', `${cur} / ${max}`, 'total'));
+                    c.appendChild(this._popKV('恢复速率', `每 ${BattleConfig.STAMINA_REGEN_MINUTES} 分钟 1 点`));
+                    c.appendChild(this._popSec('获取途径'));
+                    c.appendChild(this._popRow({
+                        icon: '📺',
+                        title: '看广告领体力',
+                        lines: [`+${MALL_AD_STAMINA} 体力 · 今日剩余 ${left}/3 次`],
+                        status: full ? '体力已满' : left <= 0 ? '今日已用完' : undefined,
+                        statusKind: full || left <= 0 ? 'expire' : undefined,
+                        action: {
+                            label: '观 看',
+                            kind: 'green',
+                            disabled: left <= 0 || full,
+                            onClick: () => {
+                                SoundFx.unlock();
+                                AdService.instance.claimReward('stamina', () => {
+                                    gm.res.add('stamina', MALL_AD_STAMINA);
+                                    SoundFx.play('coin');
+                                    this._toast(`体力 +${MALL_AD_STAMINA}`);
+                                    this._refreshTop();
+                                    this._popRebuild(opt());
+                                });
+                            }
+                        }
+                    }));
+                    c.appendChild(this._popRow({
+                        icon: '💎',
+                        title: '钻石购买',
+                        lines: [`+${STAMINA_BUY_N} 体力 · ${STAMINA_BUY_COST} 💎（可超出上限囤积）`],
+                        status: diamonds < STAMINA_BUY_COST ? '钻石不足' : undefined,
+                        statusKind: diamonds < STAMINA_BUY_COST ? 'expire' : undefined,
+                        action: {
+                            label: `💎 ${STAMINA_BUY_COST}`,
+                            kind: 'gold',
+                            disabled: diamonds < STAMINA_BUY_COST,
+                            onClick: () => {
+                                SoundFx.unlock();
+                                if (gm.buyStamina(STAMINA_BUY_N, STAMINA_BUY_COST)) {
+                                    SoundFx.play('buy');
+                                    this._toast(`体力 +${STAMINA_BUY_N}`);
+                                    this._refreshTop();
+                                    this._popRebuild(opt());
+                                } else {
+                                    this._toast('钻石不足');
+                                }
+                            }
+                        }
+                    }));
+                    c.appendChild(this._popAttr({ icon: '💎', text: `当前钻石 **${diamonds.toLocaleString()}**` }));
+                },
+                onClose: () => {
+                    clearInterval(this._stamTimer);
+                    this._stamTimer = 0;
+                    this._stamTimerEl = null;
+                },
+                note: '体力随时间自动恢复 · 商城页另有广告体力入口'
             };
-            renderState();
-            const timer = setInterval(() => {
-                if (!box.isConnected) {
-                    clearInterval(timer);
-                    return;
-                }
-                renderState();
-            }, 1000) as unknown as number;
-
-            // 获取条目区：广告 + 钻石两条路，领取/购买后就地重绘
-            const wrap = document.createElement('div');
-            box.appendChild(wrap);
-            const render = () => {
-                wrap.innerHTML = '';
-                const left = AdService.instance.remaining('stamina');
-                const full = gm.stamina() >= gm.staminaMax();
-
-                const adRow = document.createElement('div');
-                adRow.className = 'stRow panel';
-                adRow.innerHTML = `<span class="stIc">📺</span>` +
-                    `<div class="stInfo"><b>看广告领体力</b>` +
-                    `<span>+${MALL_AD_STAMINA} 体力 · 今日剩余 ${left}/3 次${full ? ' · 体力已满无法领取' : ''}</span></div>`;
-                const adBtn = document.createElement('button');
-                adBtn.className = 'btn blue sm';
-                adBtn.textContent = '▶ 观 看';
-                adBtn.disabled = left <= 0 || full;
-                adBtn.style.opacity = adBtn.disabled ? '0.45' : '1';
-                adBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    AdService.instance.claimReward('stamina', () => {
-                        gm.res.add('stamina', MALL_AD_STAMINA);
-                        SoundFx.play('coin');
-                        this._toast(`体力 +${MALL_AD_STAMINA}`);
-                        this._refreshTop();
-                        render();
-                        renderState();
-                    });
-                };
-                adRow.appendChild(adBtn);
-                wrap.appendChild(adRow);
-
-                const buyRow = document.createElement('div');
-                buyRow.className = 'stRow panel';
-                buyRow.innerHTML = `<span class="stIc">💎</span>` +
-                    `<div class="stInfo"><b>钻石购买</b>` +
-                    `<span>+${STAMINA_BUY_N} 体力 · ${STAMINA_BUY_COST} 💎（可超出上限囤积）</span></div>`;
-                const buyBtn = document.createElement('button');
-                buyBtn.className = 'btn gold sm';
-                buyBtn.textContent = '购 买';
-                buyBtn.disabled = gm.res.get('diamond') < STAMINA_BUY_COST;
-                buyBtn.style.opacity = buyBtn.disabled ? '0.45' : '1';
-                buyBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.unlock();
-                    if (gm.buyStamina(STAMINA_BUY_N, STAMINA_BUY_COST)) {
-                        SoundFx.play('buy');
-                        this._toast(`体力 +${STAMINA_BUY_N}`);
-                        this._refreshTop();
-                        render();
-                        renderState();
-                    } else {
-                        this._toast('钻石不足');
-                    }
-                };
-                buyRow.appendChild(buyBtn);
-                wrap.appendChild(buyRow);
-
-                const tip = document.createElement('p');
-                tip.className = 'mSub';
-                tip.style.textAlign = 'center';
-                tip.textContent = '体力随时间自动恢复 · 加油站每级提高体力上限';
-                wrap.appendChild(tip);
-            };
-            render();
-        });
+        };
+        this._openPop(opt());
+        clearInterval(this._stamTimer);
+        this._stamTimer = setInterval(() => this._stamTick(), 1000) as unknown as number;
     }
+
+
+    /** 体力恢复倒计时：每秒就地改固定条胶囊文案（胶囊断开即停表，重绘后仍续跑） */
+    private _stamTick(): void {
+        if (!this._stamTimerEl || !this._stamTimerEl.isConnected) {
+            clearInterval(this._stamTimer);
+            this._stamTimer = 0;
+            return;
+        }
+        const nextIn = GameManager.instance.staminaNextIn();
+        if (nextIn <= 0) {
+            this._stamTimerEl.textContent = '✅ 体力已满';
+            return;
+        }
+        const ss = nextIn % 60;
+        this._stamTimerEl.textContent = `⏳ 下一几点 ${Math.floor(nextIn / 60)}:${ss < 10 ? '0' + ss : ss}`;
+    }
+
 
     /**
      * 主城邮箱（UX 布局稿 1-A · L3·M）：横幅头 + 列表行（状态列/行内领取）+ 固定「一键领取」底栏 + 过期注脚。
@@ -1855,123 +1868,69 @@ export abstract class HomeUiCore extends Component {
     }
 
 
-    /** 个人主页浮窗（点头像弹出）：名片 + 战绩 + 养成 + 系统进度 + 账号信息 */
+    /**
+     * 个人主页（UX 布局稿：L3·L）：名片（头像 + 称号 + 队伍战力）+ 战绩 / 养成 / 系统 / 账号
+     * 四段 KV，全部读存档实时值。
+     */
     protected _openProfileModal(): void {
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
         const qs = QuestSystem.instance;
         const bs = BestiarySystem.instance;
         const ss = SigninSystem.instance;
-        this._openModal('🎖️ 个人主页', (box) => {
-            box.classList.add('pfBox');
-
-            // ---- 名片：大头像 + 称号 + 队伍战力 ----
-            const card = document.createElement('div');
-            card.className = 'pfCard panel frame';
-            const pic = document.createElement('div');
-            pic.className = 'pfPic';
-            this._tex('characters/commander', u => {
-                pic.style.backgroundImage = u;
-                pic.style.backgroundSize = '180% auto';
-                pic.style.backgroundPosition = 'center 12%';
-                pic.style.backgroundRepeat = 'no-repeat';
-            });
-            card.appendChild(pic);
-            const cardInfo = document.createElement('div');
-            cardInfo.className = 'pfCardInfo';
-            const nm = document.createElement('div');
-            nm.className = 'pfName';
-            nm.innerHTML = `<b>末日指挥官</b><span class="lvtag">LV.${gm.hqLevel()}</span>`;
-            const title = document.createElement('div');
-            title.className = 'pfTitle';
-            // 称号按通关进度晋升
-            const stage = gm.stageCleared;
-            title.textContent = stage >= FINAL_STAGE_ID ? '☠️ 尸潮终结者' : stage >= 8 ? '🛡️ 王牌护卫'
-                : stage >= 4 ? '🎯 资深猎手' : stage >= 1 ? '🎖️ 幸存者' : '🌱 拾荒新人';
-            cardInfo.appendChild(nm);
-            cardInfo.appendChild(title);
-            // 队伍战力：全队攻击乘区总和（英雄等级玩法下线，口径 = 武器×装备×局外强化）
-            let power = 0;
-            for (const id of gm.ownedHeroes) {
-                power += Math.round(hs.atkMulOf(id) * gm.metaAtkMul() * 100);
-            }
-            const powerRow = document.createElement('div');
-            powerRow.className = 'pfPower';
-            powerRow.innerHTML = `<span>⚔️ 队伍战力</span><b>${power.toLocaleString()}</b>`;
-            cardInfo.appendChild(powerRow);
-            card.appendChild(cardInfo);
-            box.appendChild(card);
-
-            // ---- 战绩统计 ----
-            const secStats = document.createElement('div');
-            secStats.className = 'pfSec';
-            secStats.innerHTML = '<div class="pfSecHead"><b>📊 战绩统计</b></div>';
-            const grid1 = document.createElement('div');
-            grid1.className = 'pfGrid';
-            const stat = (ic: string, label: string, val: string) => {
-                const c = document.createElement('div');
-                c.className = 'pfStat panel';
-                c.innerHTML = `<em>${ic}</em><b>${val}</b><span>${label}</span>`;
-                grid1.appendChild(c);
-            };
-            stat('🚚', '通关关卡', `${gm.stageCleared}/${FINAL_STAGE_ID}`);
-            stat('🌊', '最远波次', `第 ${gm.bestWave} 波`);
-            stat('💀', '累计击杀', gm.totalKills.toLocaleString());
-            stat('♾️', '无尽里程碑', `${Math.floor(gm.bestWave / 5)} 次`);
-            secStats.appendChild(grid1);
-            box.appendChild(secStats);
-
-            // ---- 养成收集 ----
-            const { done: besDone, total: besTotal } = bs.completion();
-            const skillTotal = Object.keys(gm.skillLevels).length;
-            const gemCount = hs.miscCount('gem_fire') + hs.miscCount('gem_wind') + hs.miscCount('gem_ice') + hs.miscCount('gem_thunder');
-            const secGrow = document.createElement('div');
-            secGrow.className = 'pfSec';
-            secGrow.innerHTML = '<div class="pfSecHead"><b>🎖️ 养成收集</b></div>';
-            const grid2 = document.createElement('div');
-            grid2.className = 'pfGrid';
-            const grow = (ic: string, label: string, val: string) => {
-                const c = document.createElement('div');
-                c.className = 'pfStat panel';
-                c.innerHTML = `<em>${ic}</em><b>${val}</b><span>${label}</span>`;
-                grid2.appendChild(c);
-            };
-            grow('🎖️', '已拥有英雄', `${gm.ownedHeroes.length}/${HERO_DEFS.length}`);
-            grow('📚', '已学技能', `${skillTotal} 门`);
-            grow('💎', '持有宝石', `${gemCount} 颗`);
-            grow('📖', '图鉴收录', `${besDone}/${besTotal}`);
-            secGrow.appendChild(grid2);
-            box.appendChild(secGrow);
-
-            // ---- 系统进度 ----
-            const pro = gm.prosperity();
-            const secSys = document.createElement('div');
-            secSys.className = 'pfSec';
-            secSys.innerHTML = '<div class="pfSecHead"><b>🏗️ 系统进度</b></div>';
-            const grid3 = document.createElement('div');
-            grid3.className = 'pfGrid';
-            grow('🏰', '基地繁荣度', `${pro.cur}/${pro.max}`);
-            grow('📅', '累计签到', `${ss.totalDays} 天`);
-            grow('✅', '成就达成', `${QUEST_DEFS.filter(q => qs.isClaimed(q)).length}/${QUEST_DEFS.length}`);
-            grow('📬', '邮箱附件', `${MailSystem.instance.hasClaimable() ? '有可领取' : '已清空'}`);
-            grow('🌟', '天赋加点', `${TalentSystem.instance.spent}/${TalentSystem.instance.total} 点`);
-            secSys.appendChild(grid3);
-            box.appendChild(secSys);
-
-            // ---- 账号信息 ----
-            const secAcc = document.createElement('div');
-            secAcc.className = 'pfSec';
-            secAcc.innerHTML = '<div class="pfSecHead"><b>ℹ️ 账号信息</b></div>';
-            const acc = document.createElement('div');
-            acc.className = 'pfAcc panel';
-            acc.innerHTML =
-                `<div class="pfAccRow"><span>游戏版本</span><b>${BUILD_STAMP}</b></div>` +
-                `<div class="pfAccRow"><span>平台</span><b>Web Mobile</b></div>` +
-                `<div class="pfAccRow"><span>称号晋升</span><b>${stage >= FINAL_STAGE_ID ? '已满称号' : `通关第 ${gm.stageCleared + 1} 关晋升`}</b></div>`;
-            secAcc.appendChild(acc);
-            box.appendChild(secAcc);
+        const stage = gm.stageCleared;
+        // 称号按通关进度晋升
+        const title = stage >= FINAL_STAGE_ID ? '☠️ 尸潮终结者' : stage >= 8 ? '🛡️ 王牌护卫'
+            : stage >= 4 ? '🎯 资深猎手' : stage >= 1 ? '🎖️ 幸存者' : '🌱 拾荒新人';
+        // 队伍战力：全队攻击乘区总和（口径 = 武器×装备×局外强化）
+        let power = 0;
+        for (const id of gm.ownedHeroes) {
+            power += Math.round(hs.atkMulOf(id) * gm.metaAtkMul() * 100);
+        }
+        const { done: besDone, total: besTotal } = bs.completion();
+        const skillTotal = Object.keys(gm.skillLevels).length;
+        const gemCount = hs.miscCount('gem_fire') + hs.miscCount('gem_wind') + hs.miscCount('gem_ice') + hs.miscCount('gem_thunder');
+        const pro = gm.prosperity();
+        this._openPop({
+            tier: 3,
+            size: 'L',
+            banner: '🎖️ 个人主页',
+            art: `LV.${gm.hqLevel()}`,
+            subtitle: `末日指挥官 · ${title}`,
+            build: c => {
+                c.appendChild(this._popRow({
+                    icon: '🎖',
+                    iconTex: 'characters/commander',
+                    title: '末日指挥官',
+                    lines: [`${title} · 基地 LV.${gm.hqLevel()}`],
+                    status: `⚔️ ${power.toLocaleString()}`,
+                    statusKind: 'soon'
+                }));
+                c.appendChild(this._popSec('📊 战绩统计'));
+                c.appendChild(this._popKV('通关关卡', `${stage}/${FINAL_STAGE_ID}`));
+                c.appendChild(this._popKV('最远波次', `第 ${gm.bestWave} 波`));
+                c.appendChild(this._popKV('累计击杀', gm.totalKills.toLocaleString()));
+                c.appendChild(this._popKV('无尽里程碑', `${Math.floor(gm.bestWave / 5)} 次`, 'free'));
+                c.appendChild(this._popSec('🎖️ 养成收集'));
+                c.appendChild(this._popKV('已拥有英雄', `${gm.ownedHeroes.length}/${HERO_DEFS.length}`));
+                c.appendChild(this._popKV('已学技能', `${skillTotal} 门`));
+                c.appendChild(this._popKV('持有宝石', `${gemCount} 颗`));
+                c.appendChild(this._popKV('图鉴收录', `${besDone}/${besTotal}`, 'free'));
+                c.appendChild(this._popSec('🏗️ 系统进度'));
+                c.appendChild(this._popKV('基地繁荣度', `${pro.cur}/${pro.max}`));
+                c.appendChild(this._popKV('累计签到', `${ss.totalDays} 天`));
+                c.appendChild(this._popKV('成就达成', `${QUEST_DEFS.filter(q => qs.isClaimed(q)).length}/${QUEST_DEFS.length}`));
+                c.appendChild(this._popKV('邮箱附件', MailSystem.instance.hasClaimable() ? '有可领取' : '已清空'));
+                c.appendChild(this._popKV('天赋加点', `${TalentSystem.instance.spent}/${TalentSystem.instance.total} 点`, 'free'));
+                c.appendChild(this._popSec('ℹ️ 账号信息'));
+                c.appendChild(this._popKV('游戏版本', BUILD_STAMP));
+                c.appendChild(this._popKV('平台', 'Web Mobile'));
+                c.appendChild(this._popKV('称号晋升', stage >= FINAL_STAGE_ID ? '已满称号' : `通关第 ${stage + 1} 关晋升`, 'free'));
+            },
+            note: '所有数值取自本机存档 · 换设备不同步'
         });
     }
+
 
 
     // ================= 设置 =================

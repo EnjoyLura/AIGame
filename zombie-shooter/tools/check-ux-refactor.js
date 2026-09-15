@@ -3,6 +3,8 @@ const fs = require('fs');
 const UI_FILES = ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts', 'HomeUiStyle.ts'];
 const readUi = (f) => fs.readFileSync('assets/scripts/ui/' + f, 'utf8');
 const src = UI_FILES.map(readUi).join('\n');
+// 仅拼接 TS 类文件（排除样式表）：用于断言"旧 DOM 结构已消失"这类会在 CSS 里留死样式的情况
+const clsSrc = UI_FILES.filter((f) => f !== 'HomeUiStyle.ts').map(readUi).join('\n');
 let fail = 0;
 const ok = (name, cond) => {
   console.log((cond ? 'PASS' : 'FAIL') + ' ' + name);
@@ -38,7 +40,7 @@ ok('技能养成已并入英雄养成 XL 页(4-B)', /protected _openHeroGrowModa
 ok('英雄页不再内联技能区块', !/skillHead/.test(src));
 ok('技能弹窗升级原位重建', /this\._refreshTop\(\);\s*\n\s*onUpgraded\?\.\(\)/.test(src));
 ok('技能升级成功走 _refreshHeroes', /hs\.upgradeAbility\(def\.id, c\.slot\)\)[\s\S]{0,300}this\._refreshHeroes\(\)/.test(src));
-ok('技能弹窗升级同步英雄页', /this\._refreshHeroes\(\);\s*\n\s*this\._openAbilityModal\(heroId, slot\)/.test(src));
+ok('技能详情升级就地重绘（不再关弹窗重开）', /hs\.upgradeAbility\(heroId, slot\)\)[\s\S]{0,340}?this\._popRebuild\(opt\(\)\);/.test(src));
 ok('技能页三方法已删', !/_(build|refresh)SkillPage|_pickSkillHero/.test(src));
 ok('技能页三字段已删', !/_skillPickEl|_skillListEl|_skillSelIdx/.test(src));
 ok('_chestsEl/_lootPrevEl 字段已删', !/_chestsEl|_lootPrevEl/.test(src));
@@ -68,7 +70,7 @@ ok('_refreshEntryReds 不再查基地 grid', !/const grid = this\._baseGridEl;\s
 ok('_refreshBase 跳过 pureEntry', /for \(const b of BUILDINGS\) \{\s*\n\s*if \(b\.pureEntry\) \{\s*\n\s*continue;\s*\n\s*\}/.test(src));
 ok('基地页挂 _baseMapEl 地图', /this\._baseMapEl = map/.test(src));
 ok('基地地图节点点击开详情抽屉', /node\.onclick[\s\S]{0,160}_openBuildingInfoModal\(b\.id\)/.test(src));
-ok('建筑详情走 _openSheet 抽屉', /_openBuildingInfoModal[\s\S]{0,400}this\._openSheet\(/.test(src));
+ok('建筑详情升级为 L3·M 弹层', /protected _openBuildingInfoModal\(id: string\): void \{[\s\S]{0,700}?tier: 3,\s*\n\s*size: 'M',/.test(src));
 ok('建筑升级在抽屉内接线', /gm\.upgradeBuilding\(b\.id\)[\s\S]{0,300}this\._refreshBase\(\)/.test(src));
 ok('META 局外强化卡挂 _baseMetaEl', /this\._baseMetaEl = meta/.test(src));
 ok('_baseRows 累加字段已删', !/_baseRows/.test(src));
@@ -87,7 +89,7 @@ ok('胶囊禁入区：viewport-fit=cover', /viewport-fit=cover/.test(require('fs
 ok('胶囊禁入区：_applySafeArea 探针填令牌', /_applySafeArea/.test(src) && /setProperty\('--sat'/.test(src) && /setProperty\('--sab'/.test(src));
 ok('胶囊禁入区：CSS 挂令牌（顶栏/CTA/底栏/悬浮栏/toast/弹窗）', (src.match(/var\(--sat,0px\)|var\(--sab,0px\)/g) || []).length >= 10);
 ok('底部导航关卡→战斗', /key: 'battle', icon: '🚚', name: '战斗'/.test(src));
-ok('编队走 _openSheet 抽屉', /_openSquadModal[\s\S]{0,400}this\._openSheet\(/.test(src));
+ok('编队升级为 L4 半屏抽屉弹层', /protected _openSquadModal\(\): void \{[\s\S]{0,700}?tier: 4,\s*\n\s*size: 'M',/.test(src) && /protected _openSquadModal\(\): void \{[\s\S]{0,8600}?this\._openPop\(opt\(\)\);/.test(src));
 ok('招募结果层升级为 L5 结果演出层（不再走旧 _openResult）', /protected _openRecruitResultModal\(results: RecruitResult\[\]\): void \{[\s\S]{0,400}?_openPop\(\{[\s\S]{0,120}?tier: 5/.test(src));
 ok('招募单抽/十连进商店 rcard', /doPull = \(count: 1 \| 10, free = false\)/.test(src));
 ok('英雄页功能钮双列(左:核心/强化/技能 右:升星/天赋)', /fcolR\.appendChild\(starBtn\)/.test(src) && /main\.appendChild\(fcol\);[\s\S]{0,200}main\.appendChild\(fcolR\);/.test(src) && !/fcol\.appendChild\(talBtn\)/.test(src));
@@ -169,6 +171,41 @@ ok('礼包结果走 L5 结果演出层 + 资源合并行', /banner: `🎉 \$\{de
 ok('两处 L5 结果层允许点遮罩关闭', /maskClose: true,/.test(src) && /onClose: \(\) => this\._refreshHeroes\(\)/.test(src));
 ok('DOM 集合不写 ...spread（ES5 downlevel 会编译成 concat 而静默失效）', !/\[\.\.\.[A-Za-z_$][\w$]*\.(children|childNodes)\]/.test(src) && !/\[\.\.\.[A-Za-z_$][\w$]*\.querySelectorAll\(/.test(src));
 ok('L5 卡片错峰揭示改走 querySelectorAll(.popCard)', /row\.querySelectorAll<HTMLElement>\('\.popCard'\)\.forEach/.test(src));
+
+
+// 11. 关卡奖励详情 / 护送编队迁移
+ok('关卡奖励详情 L3·M：金币区间 + 三档掉率', /banner: `🎁 \$\{info\.name\} · 通关奖励`/.test(src) && /金币收益区间 \*\*\$\{Math\.round\(mid \* 0\.85\)\.toLocaleString\(\)\} ~ \$\{Math\.round\(mid \* 1\.15\)\.toLocaleString\(\)\}\*\*/.test(src) && /c\.appendChild\(this\._popAttr\(\{ icon: '🎁', text: `装备掉落率 \*\*\$\{rates\.equip\}\*\*` \}\)\);/.test(src));
+ok('关卡奖励详情保留结算公式与难度加成', /const goldMul = gm\.metaGoldMul\(\) \* gm\.depotGoldMul\(\) \* diffDef\.rewardMul;/.test(src) && /c\.appendChild\(this\._popKV\('难度加成', `×\$\{diffDef\.rewardMul\.toFixed\(2\)\}`\)\);/.test(src));
+ok('关卡奖励详情不再自建旧面板结构', !/lootPrev/.test(readUi('HomeUiStage.ts')) && !/lpGold/.test(readUi('HomeUiStage.ts')));
+ok('编队 L4·M：阵容槽位条固定在弹层底部', /slots: sb => \{/.test(src) && /const cell = this\._popSlot\(\{/.test(src) && /cell\.style\.cssText \+= photo\.css;/.test(src));
+ok('编队羁绊按星级门槛实时派生条件文案', /cond = allIn \? `星级合计 \$\{b\.starSumNeed\}★（当前 \$\{sum\}★）` : '全员上阵';/.test(src) && /cond = `\$\{names\.join\(' \+ '\)\} 双双 \$\{need\}★`;/.test(src));
+ok('编队候补行内上下阵 + 满编置灰', /label: inLineup \? '下阵' : '上阵',/.test(src) && /disabled: !inLineup && full,/.test(src));
+ok('编队改动就地重绘并回写战斗页 CTA 行', /const toggle = \(id: string\): void => \{[\s\S]{0,240}?this\._refreshStagePage\(\);[\s\S]{0,80}?this\._popRebuild\(opt\(\)\);/.test(src));
+ok('编队保存走 gm.save + 关闭弹层', /gm\.save\(\);\s*\n\s*SoundFx\.play\('buy'\);\s*\n\s*this\._closePop\(\);/.test(src));
+ok('HomeUiStage 旧弹窗入口清零', !/_openStageRewardModal[\s\S]{0,600}this\._openModal\(/.test(src) && !/_openSquadModal[\s\S]{0,600}this\._openSheet\(/.test(src));
+
+
+// 12. 建筑详情 / 载具改装迁移
+ok('建筑详情 L3·M：效果 + 升级 KV + 受限告警', /banner: `\$\{b\.ic\} \$\{b\.name\}`/.test(src) && /text: `升到 LV\.\$\{lv \+ 1\}：\*\*\$\{b\.desc\(lv \+ 1\)\}\*\*`/.test(src) && /c\.appendChild\(this\._popWarn\(`需指挥中心 LV\.\$\{b\.unlockHq\} 解锁（当前 LV\.\$\{gm\.hqLevel\(\)\}）`\)\);/.test(src));
+ok('建筑详情升级就地重绘（不再拆弹窗重开）', /_openBuildingInfoModal\(id: string\): void \{[\s\S]{0,4200}?this\._popRebuild\(opt\(\)\);/.test(src) && !/biLvRow/.test(clsSrc));
+ok('建筑详情受指挥中心上限约束走告警行', /c\.appendChild\(this\._popWarn\('受指挥中心上限约束 · 先升级指挥中心'\)\);/.test(src));
+ok('载具工坊钻取改装 + onBack 回建筑详情', /_openTuningModal\(\(\) => this\._openBuildingInfoModal\(b\.id\)\)/.test(src) && /protected _openTuningModal\(onBack\?: \(\) => void\): void \{/.test(src) && /^\s+onBack,$/m.test(src));
+ok('载具改装 L3·M：四槽行内升级 + 上限行', /banner: '🔧 载具改装'/.test(src) && /art: `上限 LV\.\$\{vt\.capOf\(\)\}`/.test(src) && /for \(const def of TUNE_SLOTS\)/.test(src));
+ok('载具改装受限槽位标红 + 告警原因行', /statusKind: !maxed && !gate\.ok \? 'expire' : undefined,/.test(src) && /c\.appendChild\(this\._popWarn\(reason\)\);/.test(src));
+ok('HomeUiBase 旧弹窗入口清零', !/tuneBox/.test(clsSrc) && !/binfoBox/.test(clsSrc) && !/sq-slot \+ cand/.test(clsSrc));
+
+
+// 13. 天赋 / 升星 / 属性详情 / 技能 / 体力 / 主页迁移 + 旧弹窗入口总清零
+ok('天赋树 L3·M：三分支节点进度格 + 选中节点详情', /banner: '🌟 天赋树'/.test(src) && /c\.appendChild\(this\._popGrid\(nodes\.map\(d => \{/.test(src) && /count: dmax \? '✅' : dOpen \? \(ts\.canUpgrade\(d\.id\) \? '▶' : `\$\{dlv\}\/\$\{d\.maxLevel\}`\) : '🔒',/.test(src));
+ok('天赋洗点走 S 型危险确认 + 加点就地重绘', /this\._popConfirm\(\{\s*\n\s*title: '洗点确认',/.test(src) && /danger: true,/.test(src) && /_openTalentModal\(pickId = 'fire_1'\): void \{[\s\S]{0,5200}?this\._popRebuild\(opt\(\)\);/.test(src));
+ok('天赋树 onBack 回英雄养成页天赋页签', /onBack: \(\) => \{\s*\n\s*const hid = HERO_DEFS\[this\._heroSelIdx % HERO_DEFS\.length\]\.id;/.test(src) && /this\._openHeroGrowModal\(hid, 2\);/.test(src));
+ok('升星 L3·M：星级字幕 + 碎片消耗行 + 升星 CTA', /banner: `⭐ 升星 · \$\{def\.name\}`/.test(src) && /subtitle: `\$\{'★'\.repeat\(st\)\}\$\{'☆'\.repeat\(HERO_STAR_MAX - st\)\}`,/.test(src) && /cost: maxed \? undefined : \[\{ icon: '🔩', have, need: cost \}\]/.test(src));
+ok('属性详情 L3·M：攻击/战力/装备加成拆解', /banner: `📊 属性详情 · \$\{def\.name\}`/.test(src) && /c\.appendChild\(this\._popKV\('🛡️ 装备加成', `\+\$\{Math\.round\(\(hs\.equipMulOf\(def\.id\)\.atk - 1\) \* 100\)\}%`\)\);/.test(src));
+ok('技能详情 L3·M：当前/下级效果 + 里程碑 + 双消耗', /banner: titles\[slot\]/.test(src) && /c\.appendChild\(this\._popSec\('里程碑解锁'\)\);/.test(src) && /\{ icon: '⚙️', have: coreLeft, need: core \}/.test(src) && /onBack: \(\) => this\._openHeroGrowModal\(heroId, 0\),/.test(src));
+ok('体力补给 L3·M：固定条秒级倒计时胶囊 + 两条获取路径行内动作', /banner: '🍖 体力补给'/.test(src) && /this\._stamTimerEl = this\._popInfo\(''\);/.test(src) && /label: '观 看',\s*\n\s*kind: 'green',/.test(src) && /label: `💎 \$\{STAMINA_BUY_COST\}`,/.test(src));
+ok('体力倒计时停表判定挂在胶囊连通性上（重绘后仍续跑）', /private _stamTick\(\): void \{\s*\n\s*if \(!this\._stamTimerEl \|\| !this\._stamTimerEl\.isConnected\) \{\s*\n\s*clearInterval\(this\._stamTimer\);/.test(src) && /onClose: \(\) => \{\s*\n\s*clearInterval\(this\._stamTimer\);/.test(src));
+ok('个人主页 L3·L：名片 + 战绩/养成/系统/账号四段', /banner: '🎖️ 个人主页'/.test(src) && /iconTex: 'characters\/commander',/.test(src) && /c\.appendChild\(this\._popSec\('📊 战绩统计'\)\);/.test(src) && /c\.appendChild\(this\._popSec\('🎖️ 养成收集'\)\);/.test(src) && /c\.appendChild\(this\._popSec\('🏗️ 系统进度'\)\);/.test(src) && /c\.appendChild\(this\._popSec\('ℹ️ 账号信息'\)\);/.test(src));
+ok('全部二级界面已迁新弹层（旧 _openModal/_openSheet/_openResult 调用点清零）', !/this\._openModal\(/.test(clsSrc) && !/this\._openSheet\(/.test(clsSrc) && !/this\._openResult\(/.test(clsSrc));
 
 
 process.exit(fail ? 1 : 0);
