@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《末日航线》五大主页面 UX 布局交互稿 v1.0</title>
+<style>
+:root{
+  --bg:#101318; --bg2:#161a22; --panel:#1c212c; --line:#2c3342; --line2:#3a4356;
+  --tx:#dbe2ef; --sub:#8d97ab; --dim:#5c6678;
+  --acc:#f0b34e; --acc2:#e5534b; --info:#5aa7e8; --ok:#58c48c; --lock:#69738a;
+  --wbox:#232937; --wbox2:#272e3d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--info)}
+h1,h2,h3{line-height:1.3}
+.wrap{max-width:1440px;margin:0 auto;padding:0 28px 120px}
+
+/* ============ 文档头 ============ */
+.docHead{padding:44px 0 10px}
+.docHead h1{font-size:26px;letter-spacing:.5px}
+.docHead h1 em{font-style:normal;color:var(--acc)}
+.docHead .meta{color:var(--sub);margin-top:8px;font-size:13px}
+.docHead .meta b{color:var(--tx);font-weight:600}
+.badges{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.badge{border:1px solid var(--line2);border-radius:99px;padding:3px 12px;font-size:12px;color:var(--sub)}
+.badge b{color:var(--acc);font-weight:600}
+
+/* ============ 顶部页签 ============ */
+.pageTabs{position:sticky;top:0;z-index:60;background:linear-gradient(var(--bg) 82%,transparent);padding:14px 0 10px;display:flex;gap:8px;flex-wrap:wrap}
+.pageTabs button{background:var(--panel);border:1px solid var(--line2);color:var(--sub);border-radius:9px;padding:8px 16px;font-size:13px;cursor:pointer;transition:.15s}
+.pageTabs button:hover{color:var(--tx);border-color:var(--acc)}
+.pageTabs button.on{background:var(--acc);border-color:var(--acc);color:#201a08;font-weight:700}
+.pageTabs .sp{flex:1}
+.pageTabs .tgl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);cursor:pointer;border:1px dashed var(--line2);border-radius:9px;padding:8px 12px;user-select:none}
+.pageTabs .tgl.on{color:var(--acc);border-color:var(--acc)}
+
+/* ============ 通用区块 ============ */
+section{margin-top:46px}
+.secHead{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
+.secHead .no{font-size:13px;color:var(--acc);font-weight:700;letter-spacing:2px}
+.secHead h2{font-size:20px}
+.secHead small{color:var(--sub);font-size:12px}
+
+/* ============ 规范卡 ============ */
+.specGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+.specCard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.specCard h3{font-size:15px;margin-bottom:8px;color:var(--acc)}
+.specCard p,.specCard li{font-size:13px;color:var(--sub)}
+.specCard ul{padding-left:18px;display:grid;gap:4px}
+.specCard b{color:var(--tx);font-weight:600}
+.specCard .k{color:var(--info);font-weight:600}
+.specCard table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+.specCard td{border-top:1px dashed var(--line);padding:5px 4px;color:var(--sub);vertical-align:top}
+.specCard td:first-child{color:var(--tx);white-space:nowrap;font-weight:600}
+
+/* 全局框架分层图（横条带） */
+.zoneMap{margin-top:4px}
+.zoneMap .zm{position:relative}
+.zband{border:1px dashed var(--line2);border-radius:10px;margin:0 auto 6px;max-width:560px;position:relative;display:flex;align-items:center;justify-content:center;font-size:12.5px;color:var(--sub);text-align:center;padding:6px 10px}
+.zband b{color:var(--tx)}
+.zband .r{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--dim)}
+.zb-capsule{height:52px;background:repeating-linear-gradient(45deg,transparent 0 10px,rgba(229,83,75,.06) 10px 20px)}
+.zb-capsule .cap{position:absolute;right:26px;top:8px;width:118px;height:34px;border:1px solid var(--acc2);border-radius:99px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--acc2);font-size:11px}
+.zb-hud{height:74px;background:rgba(90,167,232,.05)}
+.zb-notice{height:32px;background:rgba(240,179,78,.05)}
+.zb-content{height:520px;background:rgba(88,196,140,.04)}
+.zb-content .inner{position:absolute;inset:10px;display:flex;gap:12px}
+.zb-content .rail{width:56px;border:1px dashed var(--line2);border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:8px;font-size:11px;color:var(--sub)}
+.zb-content .rail i{width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center}
+.zb-content .mid{flex:1;border:1px dashed var(--line2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:12px}
+.zb-tabbar{height:96px;background:rgba(240,179,78,.06)}
+.zb-safe{height:38px;border-style:dotted;color:var(--dim)}
+
+/* ============ 主审阅区：手机 + 面板 ============ */
+.reviewGrid{display:grid;grid-template-columns:minmax(430px,560px) minmax(360px,1fr);gap:26px;align-items:start}
+@media(max-width:1000px){.reviewGrid{grid-template-columns:1fr}}
+.stageCol{position:sticky;top:66px}
+.phoneShell{display:flex;flex-direction:column;align-items:center;gap:10px}
+.phoneScale{transform-origin:top center}
+.phone{width:540px;height:960px;background:#0d0f14;border:10px solid #262b36;border-radius:44px;position:relative;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.scr{position:absolute;inset:0;display:none}
+.scr.on{display:block}
+.px{position:absolute}
+
+/* ---- 线框基础件 ---- */
+.wpanel{background:var(--wbox);border:1px solid var(--line2);border-radius:10px}
+.wdash{border:1px dashed var(--line2);border-radius:10px;background:rgba(255,255,255,.015)}
+.wtxt{color:var(--tx);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wsub{color:var(--sub);font-size:11px}
+.wdim{color:var(--dim);font-size:11px}
+.goldT{color:var(--acc)}
+.red{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--acc2);border:2px solid #0d0f14}
+.lock{color:var(--lock)}
+
+/* 状态栏 + 胶囊 */
+.wstatus{position:absolute;top:0;left:0;right:0;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;color:var(--dim);font-size:11px}
+.wcapsule{position:absolute;top:30px;right:20px;width:120px;height:38px;border:1px solid rgba(255,255,255,.28);border-radius:99px;display:flex;align-items:center;justify-content:space-evenly;color:rgba(255,255,255,.55);font-size:14px;background:rgba(0,0,0,.25)}
+.wcapsule::before{content:"•••";letter-spacing:2px}
+.wcapsule::after{content:"◎";font-size:15px}
+.capsuleZone{position:absolute;top:24px;right:14px;width:136px;height:52px;border:1px dashed rgba(229,83,75,.75);border-radius:12px;pointer-events:none}
+
+/* HUD */
+.whud{position:absolute;top:78px;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 14px;gap:8px}
+.wavatar{width:60px;height:60px;border-radius:14px;border:1px solid var(--line2);background:var(--wbox2);position:relative;flex:none;display:flex;align-items:center;justify-content:center;font-size:24px}
+.wavatar .lv{position:absolute;left:-6px;top:-8px;background:var(--acc);color:#201a08;font-size:10px;font-weight:700;border-radius:7px;padding:0 6px;line-height:16px}
+.winfo{width:96px;flex:none}
+.winfo .nm{font-size:11px;display:flex;gap:4px;align-items:center;white-space:nowrap}
+.winfo .nm i{font-style:normal;background:var(--wbox2);border:1px solid var(--line2);color:var(--sub);border-radius:5px;font-size:8.5px;padding:0 3px}
+.wexp{height:7px;border-radius:4px;background:#12151d;border:1px solid var(--line);margin-top:5px;overflow:hidden}
+.wexp i{display:block;height:100%;width:62%;background:var(--info)}
+.winfo .wnote{font-size:8.5px;color:var(--dim);margin-top:4px;white-space:nowrap}
+.wres{flex:1;display:flex;gap:6px;justify-content:flex-end;min-width:0}
+.wchip{height:32px;border-radius:99px;background:#12151d;border:1px solid var(--line2);display:flex;align-items:center;gap:4px;padding:0 5px 0 8px;font-size:10.5px;color:var(--tx);position:relative;white-space:nowrap}
+.wchip b{font-weight:600;font-size:10.5px;white-space:nowrap}
+.wchip .plus{width:16px;height:16px;border-radius:50%;background:var(--acc);color:#201a08;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;flex:none}
+.wchip .cd{font-size:8px;color:var(--dim);display:block;line-height:1}
+.whud .util{display:flex;gap:6px;flex:none}
+.whud .util .ub{width:32px;height:40px;border-radius:9px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;line-height:1;position:relative}
+.whud .util .ub small{font-size:7.5px;color:var(--sub);transform:scale(.85);margin-top:1px}
+
+/* 公告条 */
+.wnotice{position:absolute;top:166px;left:16px;right:16px;height:28px;border-radius:8px;background:rgba(240,179,78,.08);border:1px solid rgba(240,179,78,.35);display:flex;align-items:center;gap:7px;padding:0 10px;font-size:11px;color:var(--acc);white-space:nowrap;overflow:hidden}
+.wnotice .mic{font-size:13px}
+
+/* 左右悬浮栏（仅战斗页挂载：左栏 3 枚+折叠箭头，底 ~387；右栏页面专属快捷） */
+.wrail{position:absolute;top:210px;width:52px;display:flex;flex-direction:column;gap:9px;align-items:center}
+.wrail.L{left:10px}
+.wrail.R{right:10px}
+.wrail .ri{width:46px;height:46px;border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:17px;position:relative;line-height:1}
+.wrail .ri small{font-size:8px;color:var(--sub);margin-top:1px;transform:scale(.9)}
+.wrail .more{width:46px;height:18px;border-radius:9px;border:1px dashed var(--line2);color:var(--dim);font-size:9px;display:flex;align-items:center;justify-content:center}
+
+/* TabBar */
+.wtabbar{position:absolute;left:0;right:0;bottom:0;height:120px;background:#171b24;border-top:1px solid var(--line2)}
+.wtabs{position:absolute;top:0;left:0;right:0;height:76px;display:flex}
+.wtab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--dim);font-size:11px;position:relative}
+.wtab .ti{width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:17px;background:var(--wbox)}
+.wtab.on{color:var(--acc)}
+.wtab.on .ti{border-color:var(--acc);box-shadow:inset 0 0 0 1px rgba(240,179,78,.4)}
+.wtab.main .ti{width:52px;height:52px;font-size:24px;border-radius:15px;border:2px solid var(--acc);background:#241d0d;margin-top:-26px;box-shadow:0 6px 16px rgba(0,0,0,.5)}
+.wtab.main .lbl{color:var(--acc);font-weight:700;margin-top:-4px}
+.whomebar{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:130px;height:5px;border-radius:3px;background:rgba(255,255,255,.35)}
+
+/* ---- 标注点 ---- */
+.dot{position:absolute;z-index:40;width:24px;height:24px;border-radius:50%;background:var(--info);color:#04121f;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 0 3px rgba(90,167,232,.25);transform:translate(-50%,-50%);transition:.15s;user-select:none}
+.dot:hover{transform:translate(-50%,-50%) scale(1.2)}
+.dot.pulse{animation:dpulse 1s ease 2}
+@keyframes dpulse{0%{box-shadow:0 0 0 3px rgba(90,167,232,.25)}50%{box-shadow:0 0 0 14px rgba(90,167,232,0)}100%{box-shadow:0 0 0 3px rgba(90,167,232,.25)}}
+body.hideAnno .dot{display:none}
+
+/* ---- 战斗页内容 ---- */
+.btTitle{left:70px;right:70px;top:196px;height:40px;display:flex;align-items:center;justify-content:center;gap:10px}
+.btTitle h4{font-size:18px;letter-spacing:1px}
+.btTitle .prog{font-size:11px;color:var(--sub);border:1px solid var(--line2);border-radius:99px;padding:1px 9px}
+.diffSeg{left:66px;right:122px;top:244px;height:38px;display:flex;border:1px solid var(--line2);border-radius:99px;overflow:hidden}
+.diffSeg span{flex:1;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--sub);border-right:1px solid var(--line2)}
+.diffSeg span:last-child{border-right:0}
+.diffSeg .on{background:rgba(240,179,78,.16);color:var(--acc);font-weight:700}
+.endlessChip{right:66px;top:244px;width:44px;height:38px;border-radius:10px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--lock)}
+.sceneCard{left:66px;right:66px;top:296px;height:296px;border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#232a3a 0%,#1c2230 55%,#171c27 100%);border:1px solid var(--line2)}
+.sceneCard .road{position:absolute;left:0;right:0;bottom:44px;height:64px;background:repeating-linear-gradient(90deg,#202635 0 46px,#2a3245 46px 92px);border-top:1px solid var(--line)}
+.sceneCard .road i{position:absolute;left:0;right:0;top:50%;height:2px;background:repeating-linear-gradient(90deg,transparent 0 22px,#8d97ab 22px 44px)}
+.sceneCard .veh{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);font-size:46px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
+.sceneCard .mob{position:absolute;font-size:22px;opacity:.9}
+.sceneCard .arr{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:64px;border-radius:9px;background:rgba(0,0,0,.35);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--tx)}
+.sceneCard .arr.l{left:8px}.sceneCard .arr.r{right:8px}
+.sceneCard .chipTL{position:absolute;left:12px;top:10px;font-size:10.5px;color:var(--sub);background:rgba(0,0,0,.45);border:1px solid var(--line2);border-radius:8px;padding:2px 8px}
+.sceneCard .chipTR{position:absolute;right:12px;top:10px;font-size:10.5px;color:var(--ok);background:rgba(0,0,0,.45);border:1px solid var(--line2);border-radius:8px;padding:2px 8px}
+.sceneCard .chiptitle{position:absolute;left:0;right:0;top:12px;text-align:center;font-size:13px;color:var(--tx)}
+.sceneCard .waveDots{position:absolute;left:0;right:0;bottom:16px;display:flex;justify-content:center;gap:8px}
+.sceneCard .waveDots i{width:9px;height:9px;border-radius:50%;background:var(--dim)}
+.sceneCard .waveDots i.done{background:var(--ok)}
+.sceneCard .waveDots i.boss{width:14px;height:14px;border-radius:4px;background:var(--acc2)}
+.sceneCard .swipeHint{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-size:9.5px;color:var(--dim)}
+.stageMeta{left:40px;right:40px;top:600px;height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:11px;color:var(--sub)}
+.chestRow{left:40px;right:40px;top:640px;height:88px;display:flex;gap:10px}
+.chest{flex:1;border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;font-size:10.5px;color:var(--sub);text-align:center}
+.chest .ci{font-size:22px}
+.chest.ready{border-color:var(--acc);box-shadow:0 0 0 1px rgba(240,179,78,.35)}
+.chest.done{opacity:.55}
+.chest.done .ci::after{content:"✓";position:absolute;color:var(--ok)}
+.ctaRow{left:40px;right:40px;top:744px;height:88px;display:flex;gap:12px}
+.squadBtn{width:150px;border-radius:12px;border:1px solid var(--info);background:rgba(90,167,232,.1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--info);font-size:12px}
+.squadBtn .mini{display:flex;gap:4px}
+.squadBtn .mini i{width:16px;height:16px;border-radius:5px;background:var(--wbox2);border:1px solid var(--line2)}
+.goBtn{flex:1;border-radius:12px;border:2px solid var(--acc);background:rgba(240,179,78,.14);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.goBtn b{font-size:19px;color:var(--acc);letter-spacing:6px;font-weight:800}
+.goBtn span{font-size:10.5px;color:var(--sub)}
+
+/* ---- 英雄页内容 ---- */
+.pickStrip{left:14px;right:14px;top:196px;height:66px;display:flex;gap:8px;align-items:center}
+.pk{width:62px;height:62px;border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;color:var(--sub);position:relative;flex:none}
+.pk .pi{font-size:22px}
+.pk.on{border-color:var(--acc);box-shadow:0 0 0 1px rgba(240,179,78,.4)}
+.pk.add{border-style:dashed;color:var(--acc)}
+.fcol{left:14px;top:400px;width:52px;display:flex;flex-direction:column;gap:5px}
+.fbtn{width:52px;height:46px;border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:16px;color:var(--sub);position:relative;line-height:1}
+.fbtn small{font-size:8.5px;transform:scale(.9);margin-top:1px}
+.heroStage{left:80px;right:138px;top:272px;height:234px;border-radius:14px;border:1px dashed var(--line2);background:radial-gradient(circle at 50% 62%,rgba(240,179,78,.07),transparent 62%)}
+.heroStage .nameplate{position:absolute;left:0;right:0;top:6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.heroStage .nameplate .hn{font-size:13px;display:flex;gap:6px;align-items:center}
+.heroStage .nameplate .stars{color:var(--acc);font-size:11px;letter-spacing:1px}
+.heroStage .nameplate .tags{display:flex;gap:5px}
+.heroStage .nameplate .tags i{font-style:normal;font-size:9px;border:1px solid var(--line2);border-radius:5px;padding:0 5px;color:var(--sub)}
+.heroStage .fig{position:absolute;left:50%;top:52px;transform:translateX(-50%);width:100px;height:126px;border:1px dashed var(--line2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:44px}
+.heroStage .power{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.45);border:1px solid var(--acc);border-radius:99px;padding:2px 12px;font-size:12px;color:var(--acc);font-weight:700}
+.eqGrid{right:14px;top:272px;width:116px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.eq{height:72px;border-radius:10px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;position:relative;font-size:10px;color:var(--sub)}
+.eq .ei{font-size:19px}
+.eq .tier{position:absolute;left:3px;top:3px;font-size:8px;background:#12151d;border:1px solid var(--line2);border-radius:4px;padding:0 3px;color:var(--sub)}
+.eq .slv{font-size:9px;color:var(--info)}
+.eq.empty{border-style:dashed;opacity:.6}
+.statChips{left:16px;right:16px;top:556px;height:30px;display:flex;gap:8px}
+.statChips span{flex:1;border-radius:8px;background:var(--wbox);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;gap:5px;font-size:11px;color:var(--sub)}
+.statChips b{color:var(--tx);font-size:11.5px}
+.starBar{left:16px;right:16px;top:592px;height:34px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:10px;background:var(--wbox);border:1px solid var(--line2)}
+.starBar .st{color:var(--acc);font-size:13px;letter-spacing:1px}
+.starBar .prog{flex:1;height:8px;border-radius:4px;background:#12151d;border:1px solid var(--line);overflow:hidden}
+.starBar .prog i{display:block;height:100%;width:30%;background:var(--acc)}
+.starBar .up{border:1px solid var(--acc);color:var(--acc);border-radius:8px;font-size:10.5px;padding:3px 10px}
+.skillRow{left:16px;right:16px;top:632px;height:54px;display:flex;gap:8px}
+.skillCard{flex:1;border-radius:10px;background:var(--wbox);border:1px solid var(--line2);display:flex;align-items:center;gap:8px;padding:0 9px;font-size:10.5px;color:var(--sub)}
+.skillCard .sic{width:30px;height:30px;border-radius:50%;border:2px solid var(--ok);display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.skillCard b{color:var(--tx);font-size:11px;display:block}
+.bagBlock{left:0;right:0;top:694px;bottom:120px;background:#141822;border-top:1px solid var(--line2)}
+.bagTabs{position:absolute;left:0;right:0;top:0;height:40px;display:flex;align-items:center;padding:0 10px;gap:6px;border-bottom:1px solid var(--line)}
+.bagTabs .bt{padding:4px 14px;border-radius:99px;font-size:12px;color:var(--sub);border:1px solid transparent}
+.bagTabs .bt.on{background:rgba(240,179,78,.14);color:var(--acc);border-color:var(--acc);font-weight:700}
+.bagTabs .ops{margin-left:auto;display:flex;gap:6px}
+.bagTabs .op{font-size:10.5px;border:1px solid var(--info);color:var(--info);border-radius:8px;padding:2px 8px}
+.bagGrid{position:absolute;left:10px;right:10px;top:48px;bottom:8px;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:1fr;gap:7px}
+.bcell{border-radius:9px;background:var(--wbox);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:19px;position:relative}
+.bcell em{position:absolute;right:3px;bottom:1px;font-style:normal;font-size:8.5px;color:var(--sub)}
+.bcell .cnt{position:absolute;right:2px;top:2px;font-size:8.5px;color:var(--tx);background:rgba(0,0,0,.5);border-radius:5px;padding:0 3px}
+
+/* ---- 商店页内容 ---- */
+.shopBanner{left:14px;right:14px;top:196px;height:118px;border-radius:13px;border:1px solid var(--acc);background:rgba(240,179,78,.08);display:flex;align-items:center;padding:0 16px;gap:12px;overflow:hidden}
+.shopBanner .bt1 b{font-size:15px;color:var(--acc);display:block}
+.shopBanner .bt1 span{font-size:10.5px;color:var(--sub)}
+.shopBanner .gi{margin-left:auto;font-size:44px}
+.shopBanner .dots{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:5px}
+.shopBanner .dots i{width:6px;height:6px;border-radius:50%;background:var(--dim)}
+.shopBanner .dots i.on{background:var(--acc)}
+.rcard{left:14px;right:14px;top:324px;height:158px;border-radius:13px;background:var(--wbox);border:1px solid var(--line2);padding:10px 14px}
+.rcard .rt{display:flex;align-items:baseline;gap:8px}
+.rcard .rt b{font-size:15px}
+.rcard .rt span{font-size:10px;color:var(--sub)}
+.rcard .gbar{height:9px;border-radius:5px;background:#12151d;border:1px solid var(--line);margin-top:7px;overflow:hidden}
+.rcard .gbar i{display:block;height:100%;width:70%;background:var(--acc)}
+.rcard .gnote{font-size:9.5px;color:var(--sub);margin-top:3px}
+.rcard .rbtns{position:absolute;left:14px;right:14px;bottom:10px;display:flex;gap:8px}
+.rbtns .rb{flex:1;height:40px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11.5px;gap:0}
+.rbtns .rb small{font-size:9px;opacity:.75}
+.rbtns .rb.b1{border:1px solid var(--info);color:var(--info);background:rgba(90,167,232,.08)}
+.rbtns .rb.b2{border:2px solid var(--acc);color:var(--acc);background:rgba(240,179,78,.12);font-weight:700}
+.rbtns .rb.b3{border:1px dashed var(--ok);color:var(--ok)}
+.dailyRow{left:16px;right:16px;top:492px;height:66px;display:flex;gap:10px}
+.dcard{flex:1;border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;align-items:center;gap:9px;padding:0 12px;position:relative}
+.dcard .di{font-size:24px}
+.dcard b{font-size:12px;display:block;color:var(--tx)}
+.dcard span{font-size:9.5px;color:var(--sub)}
+.shopTabsBar{left:0;right:0;top:568px;height:42px;background:#141822;border-top:1px solid var(--line2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 10px;gap:4px}
+.shopTabsBar .st{flex:1;text-align:center;font-size:12.5px;color:var(--sub);padding:6px 0;border-radius:9px}
+.shopTabsBar .st.on{background:rgba(240,179,78,.14);color:var(--acc);font-weight:700}
+.goodsGrid{left:12px;right:12px;top:620px;bottom:140px;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:9px}
+.good{border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;position:relative;font-size:11px;color:var(--tx)}
+.good .gi2{font-size:22px}
+.good .gt{font-size:9px;color:var(--sub)}
+.good .gb{margin-top:2px;font-size:10px;color:var(--acc);border:1px solid var(--acc);border-radius:7px;padding:1px 9px}
+
+/* ---- 玩法页内容 ---- */
+.dutyCards{left:14px;right:14px;top:196px;height:96px;display:flex;gap:10px}
+.dutyC{flex:1;border-radius:12px;background:var(--wbox);border:1px solid var(--line2);padding:9px 12px;position:relative}
+.dutyC b{font-size:12.5px;display:flex;gap:6px;align-items:center}
+.dutyC .dsub{font-size:9.5px;color:var(--sub);margin-top:2px}
+.dutyC .dbar{height:7px;border-radius:4px;background:#12151d;border:1px solid var(--line);margin-top:6px;overflow:hidden}
+.dutyC .dbar i{display:block;height:100%;background:var(--ok)}
+.dutyC .go{position:absolute;right:10px;bottom:8px;font-size:10px;color:var(--acc);border:1px solid var(--acc);border-radius:7px;padding:1px 8px}
+.modeList{left:14px;right:14px;top:302px;display:flex;flex-direction:column;gap:9px}
+.modeRow{height:72px;border-radius:12px;background:var(--wbox);border:1px solid var(--line2);display:flex;align-items:center;gap:12px;padding:0 12px;position:relative}
+.modeRow .mi{width:44px;height:44px;border-radius:11px;border:1px solid var(--line2);background:var(--wbox2);display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
+.modeRow .mm{flex:1;min-width:0}
+.modeRow .mm b{font-size:13px;display:flex;gap:7px;align-items:center}
+.modeRow .mm b em{font-style:normal;font-size:9px;border:1px solid var(--line2);color:var(--sub);border-radius:5px;padding:0 4px}
+.modeRow .mm span{font-size:10px;color:var(--sub);display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.modeRow .ma{font-size:11px;color:var(--info);border:1px solid var(--info);border-radius:8px;padding:3px 12px;flex:none}
+.modeRow .ma.hot{color:var(--acc);border-color:var(--acc);background:rgba(240,179,78,.1);font-weight:700}
+.modeRow .mm .mini4{display:flex;gap:4px;margin-top:3px}
+.modeRow .mini4 i{width:13px;height:13px;border-radius:4px;border:1px solid var(--line2);font-size:8px;display:flex;align-items:center;justify-content:center;color:var(--sub);font-style:normal;flex:none}
+.modeRow.big{height:84px;border-color:rgba(240,179,78,.5)}
+.modeRow.locked{opacity:.55}
+.reserveBanner{left:14px;right:14px;top:724px;height:64px;border:1px dashed var(--line2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:11px}
+
+/* ---- 基地页内容 ---- */
+.baseStrip{left:14px;right:14px;top:196px;height:52px;border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;align-items:center;gap:10px;padding:0 12px}
+.baseStrip .bi{font-size:22px}
+.baseStrip .bt b{font-size:12.5px;display:block}
+.baseStrip .bt span{font-size:9.5px;color:var(--sub)}
+.baseStrip .pbar{flex:1;max-width:130px;height:9px;border-radius:5px;background:#12151d;border:1px solid var(--line);overflow:hidden}
+.baseStrip .pbar i{display:block;height:100%;width:62%;background:var(--acc)}
+.baseMap{left:14px;right:14px;top:258px;height:470px;border-radius:14px;border:1px solid var(--line2);background:
+ linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px) 0 0/28px 28px,
+ linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px) 0 0/28px 28px, #171b25}
+.bnode{position:absolute;width:92px;height:92px;border-radius:13px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;font-size:10px;color:var(--sub);position:absolute;text-align:center}
+.bnode .bni{font-size:24px}
+.bnode .bnl{position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#12151d;border:1px solid var(--line2);border-radius:6px;font-size:8.5px;color:var(--sub);padding:0 5px;line-height:14px;white-space:nowrap}
+.bnode .redn{position:absolute;right:-4px;top:-4px}
+.bnode.hq{width:112px;height:112px;border:2px solid var(--acc);background:rgba(240,179,78,.07)}
+.bnode.lockedN{opacity:.45;border-style:dashed}
+.bnode .rdot2{position:absolute;right:-4px;top:-4px;width:12px;height:12px;border-radius:50%;background:var(--acc2);border:2px solid #171b25}
+.boostRow{left:16px;right:16px;top:738px;height:82px;display:flex;gap:9px}
+.boostT{flex:1;border-radius:11px;background:var(--wbox);border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10.5px;color:var(--sub);position:relative}
+.boostT b{color:var(--tx);font-size:11.5px}
+.boostT .up2{position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;background:var(--acc);color:#201a08;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+
+/* ---- 弹层演示 ---- */
+.demoMask{position:absolute;inset:0;background:rgba(0,0,0,.62);z-index:70;display:none}
+.demoMask.on{display:block}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:430px;background:#1d2230;border-top:2px solid var(--acc);border-radius:22px 22px 0 0;z-index:71;display:none;padding:16px 18px}
+.sheet.on{display:block}
+.sheet .grab{width:56px;height:5px;border-radius:3px;background:var(--line2);margin:0 auto 12px}
+.sheet h4{font-size:16px;display:flex;align-items:center;gap:8px}
+.sheet .x{position:absolute;right:14px;top:14px;width:40px;height:40px;border-radius:10px;border:1px solid var(--line2);color:var(--sub);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sheet .secT{font-size:11px;color:var(--dim);margin:12px 0 6px;letter-spacing:1px}
+.sheet .row{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);border-bottom:1px dashed var(--line);padding:7px 2px}
+.sheet .row b{color:var(--tx)}
+.sheet .bigBtn{margin-top:14px;height:52px;border-radius:12px;background:rgba(240,179,78,.15);border:2px solid var(--acc);color:var(--acc);font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.cmodal{position:absolute;left:44px;right:44px;top:250px;background:#1d2230;border:1px solid var(--line2);border-radius:18px;z-index:71;display:none;padding:16px}
+.cmodal.on{display:block}
+.cmodal h4{font-size:15px}
+.cmodal .x{position:absolute;right:12px;top:12px;width:36px;height:36px;border:1px solid var(--line2);border-radius:9px;color:var(--sub);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.cmodal .mrow{display:flex;align-items:center;gap:10px;background:var(--wbox);border:1px solid var(--line2);border-radius:10px;padding:9px 11px;margin-top:10px}
+.cmodal .mrow b{font-size:12px;display:block}
+.cmodal .mrow span{font-size:9.5px;color:var(--sub)}
+.cmodal .mgo{margin-left:auto;font-size:11px;border:1px solid var(--acc);color:var(--acc);border-radius:8px;padding:3px 10px;cursor:pointer}
+.gacha{position:absolute;inset:0;background:#12151d;z-index:72;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.gacha.on{display:flex}
+.gacha h3{color:var(--acc);letter-spacing:8px;font-size:18px}
+.gacha .cards{display:flex;gap:10px}
+.gacha .gc{width:96px;height:132px;border-radius:12px;border:2px solid var(--acc);background:rgba(240,179,78,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--sub)}
+.gacha .gc .gci{font-size:34px}
+.gacha .gc .nw{background:var(--acc2);color:#fff;font-size:8.5px;border-radius:5px;padding:0 5px}
+.gacha .again{border:2px solid var(--acc);color:var(--acc);border-radius:12px;padding:9px 26px;font-weight:700;cursor:pointer}
+.toastEl{position:absolute;top:200px;left:50%;transform:translateX(-50%);background:rgba(10,12,17,.92);border:1px solid var(--line2);color:var(--tx);font-size:12px;border-radius:99px;padding:8px 18px;z-index:75;display:none;white-space:nowrap}
+.toastEl.on{display:block}
+.demoBar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.demoBar button{background:var(--panel);border:1px solid var(--line2);color:var(--sub);font-size:12px;border-radius:8px;padding:6px 12px;cursor:pointer}
+.demoBar button:hover{color:var(--tx);border-color:var(--acc)}
+.phoneName{font-size:13px;color:var(--sub);display:flex;gap:10px;align-items:center}
+.phoneName b{color:var(--tx);font-size:14px}
+.phoneName .ref{color:var(--dim);font-size:11px}
+
+/* ============ 右侧面板 ============ */
+.sidePanel{min-width:0}
+.pHead{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.pHead h3{font-size:17px;margin-bottom:6px}
+.pHead p{font-size:12.5px;color:var(--sub)}
+.pHead .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pHead .chips i{font-style:normal;font-size:11px;border:1px solid var(--line2);border-radius:99px;padding:2px 10px;color:var(--sub)}
+.pHead .chips i.hot{color:var(--acc);border-color:rgba(240,179,78,.5)}
+.calloutList{display:grid;gap:8px}
+.coItem{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px 13px;cursor:pointer;transition:.15s}
+.coItem:hover{border-color:var(--line2)}
+.coItem.flash{border-color:var(--info);background:rgba(90,167,232,.07)}
+.coItem .cot{display:flex;gap:9px;align-items:baseline}
+.coItem .cot .n{flex:none;width:21px;height:21px;border-radius:50%;background:var(--info);color:#04121f;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.coItem .cot b{font-size:13.5px}
+.coItem .cot .spec{margin-left:auto;font-size:11px;color:var(--dim);white-space:nowrap}
+.coItem p{font-size:12px;color:var(--sub);margin-top:3px;padding-left:30px}
+.coItem p b{color:var(--tx)}
+
+/* ============ 诊断表 & 落地 ============ */
+.diagTable{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13px}
+.diagTable th{background:#1f2532;color:var(--sub);font-weight:600;text-align:left;padding:10px 14px;font-size:12.5px}
+.diagTable td{border-top:1px solid var(--line);padding:10px 14px;color:var(--sub);vertical-align:top}
+.diagTable td b{color:var(--tx)}
+.diagTable td .code{font-family:Consolas,monospace;font-size:11.5px;color:var(--info);white-space:nowrap}
+.implList{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.implItem{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;font-size:13px;color:var(--sub)}
+.implItem b{color:var(--tx);display:block;margin-bottom:3px}
+.implItem .pri{font-size:10.5px;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:2px}
+.pri.p0{background:rgba(229,83,75,.16);color:#ff8d86;border:1px solid rgba(229,83,75,.5)}
+.pri.p1{background:rgba(240,179,78,.13);color:var(--acc);border:1px solid rgba(240,179,78,.45)}
+.pri.p2{background:rgba(90,167,232,.12);color:var(--info);border:1px solid rgba(90,167,232,.4)}
+footer{margin-top:70px;border-top:1px solid var(--line);padding-top:18px;color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= 文档头 ================= -->
+<header class="docHead">
+  <h1>《末日航线》<em>五大主页面 UX 布局交互稿</em></h1>
+  <div class="meta">版本 <b>v1.0</b> ｜ 只做<b>布局与交互</b>重构（不含美术样式/资源） ｜ 对标《向僵尸开炮》五大主页 ｜ 平台：微信小游戏（竖屏锁定）</div>
+  <div class="badges">
+    <span class="badge">设计画布 <b>1080 × 1920</b>（fit-width 适配）</span>
+    <span class="badge">线框图中尺寸均为 <b>1080 设计稿口径 ÷2</b> 显示</span>
+    <span class="badge">最小热区 <b>120×120</b></span>
+    <span class="badge">主 CTA 落位<b>拇指热区（下 1/3）</b></span>
+    <span class="badge">页签切换<b>即时响应、保留滚动位</b></span>
+  </div>
+</header>
+
+<!-- ================= 页签 ================= -->
+<nav class="pageTabs" id="pageTabs">
+  <button data-go="sec-global" class="on">0 · 全局框架规范</button>
+  <button data-page="battle">① 战斗 · 关卡出征</button>
+  <button data-page="heroes">② 英雄 · 养成档案</button>
+  <button data-page="mall">③ 商店 · 补给招募</button>
+  <button data-page="play">④ 玩法 · 日常大厅</button>
+  <button data-page="base">⑤ 基地 · 建筑养成</button>
+  <button data-go="sec-diag">附 · 现状诊断与落地</button>
+  <span class="sp"></span>
+  <span class="tgl on" id="annoTgl">● 标注开关：开</span>
+</nav>
+
+<!-- ================= 0 全局规范 ================= -->
+<section id="sec-global">
+  <div class="secHead"><span class="no">00</span><h2>全局框架规范（五页共用）</h2><small>微信小游戏安全区 / 胶囊避让 / 分层结构</small></div>
+  <div class="specGrid">
+    <div class="specCard">
+      <h3>画布与安全区</h3>
+      <ul>
+        <li>设计画布 <b>1080×1920</b>，fit-width 缩放；锁竖屏。</li>
+        <li>顶部状态栏避让：<b>0~56</b> 不放任何 UI。</li>
+        <li>底部 Home 指示条安全区：<b>1830~1920（高 90）</b>，TabBar 内容抬高到其上方。</li>
+        <li>页面左右安全边距 <b>32</b>；悬浮栏贴边但距边 ≥ 20。</li>
+      </ul>
+    </div>
+    <div class="specCard">
+      <h3>微信胶囊避让（红线）</h3>
+      <ul>
+        <li>胶囊位于右上：<b>约 250×92 @ (右 42, 上 56)</b>，不可遮挡、不可移动。</li>
+        <li><span class="k">胶囊外扩 20px 为禁入区</span>；顶栏右上不放任何图标。</li>
+        <li>邮箱/设置等全局按钮下沉到<b>右侧悬浮栏</b>，与胶囊垂直错开（y ≥ 420）。</li>
+        <li>全屏弹层（结算/抽卡结果）的关闭按钮置于弹层自身右上，仍需避开胶囊带（y ≥ 170）。</li>
+      </ul>
+    </div>
+    <div class="specCard">
+      <h3>热区与间距</h3>
+      <table>
+        <tr><td>最小可点热区</td><td><b>120×120</b>（≈42pt），视觉可小于热区、热区不可小于视觉</td></tr>
+        <tr><td>主 CTA</td><td>高 <b>≥ 176</b>，宽占内容区 55% 以上，位于 TabBar 上方</td></tr>
+        <tr><td>相邻可点间距</td><td><b>≥ 24</b>，防误触</td></tr>
+        <tr><td>悬浮栏图标</td><td>96×96，间距 20，整列可折叠</td></tr>
+      </table>
+    </div>
+    <div class="specCard">
+      <h3>底部导航（五页签）</h3>
+      <ul>
+        <li>结构 <b>商店 ｜ 英雄 ｜ 战斗(中央主钮) ｜ 玩法 ｜ 基地</b>，总高 <b>240</b>（含安全区 90）。</li>
+        <li>中央「战斗」主钮<b>上凸放大</b>（图标 256、外凸 80），常态即游戏目标锚点。</li>
+        <li>普通页签图标 192、文字 44；选中态金框+文字高亮，无页面转场动效（≤120ms 淡入）。</li>
+        <li>红点统一挂页签图标右上（-6,-6），规则见下。</li>
+      </ul>
+    </div>
+    <div class="specCard">
+      <h3>红点体系（全局统一）</h3>
+      <table>
+        <tr><td>圆点红点</td><td>有新内容/可领取（签到、任务、邮件、公告）</td></tr>
+        <tr><td>数字红点</td><td>可领数量 ≥ 2（邮箱附件数、副本次数）</td></tr>
+        <tr><td>熄灭时机</td><td>领取/读毕<b>立即熄灭</b>；公告已读不再自动弹出</td></tr>
+        <tr><td>禁止事项</td><td>红点不用于付费引导（首充类用角标文案替代）</td></tr>
+      </table>
+    </div>
+    <div class="specCard">
+      <h3>弹层体系（L1→L6）</h3>
+      <table>
+        <tr><td>L1 页面</td><td>五页签内容，各自独立滚动</td></tr>
+        <tr><td>L2 半屏抽屉</td><td>建筑详情/装备槽/物品详情/编队/副本列表，高 ≤ 70%屏，上缘横条提示可下滑关闭</td></tr>
+        <tr><td>L3 中心模态</td><td>体力/礼包/公告/邮箱/设置，宽 <b>920</b>，右上 X 热区 120×120</td></tr>
+        <tr><td>L4 全屏结果</td><td>抽卡揭示/战斗结算，独占全屏</td></tr>
+        <tr><td>L5 Toast</td><td>顶部 1/4 处，1.8s 自动消失，同屏仅一条</td></tr>
+        <tr><td>L6 激励广告</td><td>全屏播放层，倒计时角标</td></tr>
+      </table>
+    </div>
+    <div class="specCard">
+      <h3>手势与反馈</h3>
+      <ul>
+        <li>战斗页场景卡：<b>左右横滑</b>切关（与边缘箭头等效）；英雄页选择条横滑换人。</li>
+        <li>半屏抽屉：<b>下滑关闭</b>；中心模态：X 关闭；<b>遮罩点击不关闭</b>（防误触消耗货币）。</li>
+        <li>所有货币变动：资源胶囊数字滚动 + Toast；不足时按钮<b>保持可点</b>，点按弹出获取途径（闭环不置灰死路）。</li>
+        <li>体力不足点主 CTA：置灰态仍可点 → 直达体力补给模态（倒计时+广告+钻石三路）。</li>
+      </ul>
+    </div>
+    <div class="specCard zoneMap">
+      <h3>全局框架分层图</h3>
+      <div class="zm">
+        <div class="zband zb-capsule" style="justify-content:flex-start;padding-left:14px;font-size:11.5px"><span>状态栏 + <b>胶囊禁入区</b>（右上禁放 UI）</span><div class="cap">••• ｜ ◎</div><span class="r" style="right:150px">y 0~160</span></div>
+        <div class="zband zb-hud">顶部 HUD：头像｜名牌/经验条｜<b>三资源胶囊</b>｜邮箱/设置（全局）<span class="r">y 170~330</span></div>
+        <div class="zband zb-notice">公告走马灯条（按需显示，空队列整条收起）<span class="r">y 340~400</span></div>
+        <div class="zband zb-content" style="height:560px">页面内容区<span class="r">y 410~1680</span>
+          <div class="inner">
+            <div class="rail">左·运营栏（仅战斗页）<i>📅</i><i>📋</i><i>🎁</i><i>📣</i>签到/任务/礼包/公告</div>
+            <div class="mid">各页主内容（战斗页两侧挂运营/快捷栏；<b>其余四页通栏铺满</b>，见下方五页设计稿）</div>
+            <div class="rail">右·快捷栏（仅战斗页）<i>♾️</i><i>🗼</i><i>…</i>无尽/试炼/页签专属</div>
+          </div>
+        </div>
+        <div class="zband zb-tabbar">底部导航：商店 ｜ 英雄 ｜ <b>战斗(主钮)</b> ｜ 玩法 ｜ 基地<span class="r">y 1680~1830</span></div>
+        <div class="zband zb-safe">Home 指示条安全区（不放 UI）<span class="r">y 1830~1920</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1 五页审阅区 ================= -->
+<section id="sec-pages">
+  <div class="secHead"><span class="no">01</span><h2>五大主页面设计稿</h2><small>点击标注点 ⇄ 右侧说明联动 ｜ 顶部页签切换页面 ｜ 手机下方按钮可演示弹层层级</small></div>
+
+  <div class="reviewGrid">
+    <!-- ============ 手机 ============ -->
+    <div class="stageCol">
+      <div class="phoneShell">
+        <div class="phoneName"><b id="phName">① 战斗 · 关卡出征</b><span class="ref" id="phRef">对标：向僵尸开炮·战斗页</span></div>
+        <div class="phoneScale" id="phoneScale">
+        <div class="phone" id="phone">
+
+          <!-- 公共壳 -->
+          <div class="wstatus"><span>12:30</span><span>📶 🔋</span></div>
+          <div class="wcapsule"></div>
+          <div class="capsuleZone"></div>
+          <div class="whud">
+            <div class="wavatar">🎖️<span class="lv">LV.12</span></div>
+            <div class="winfo">
+              <div class="nm">末日指挥官 <i>拾荒新人</i></div>
+              <div class="wexp"><i></i></div>
+              <div class="wnote">波次38 · 通关 2/5 章</div>
+            </div>
+            <div class="wres">
+              <div class="wchip">🪙<b>8.2万</b><span class="plus">+</span></div>
+              <div class="wchip">💎<b>1,680</b><span class="plus">+</span></div>
+              <div class="wchip"><span>🍖<b>24/30</b><span class="cd">08:32回1点</span></span><span class="plus">+</span></div>
+            </div>
+            <div class="util">
+              <div class="ub">📬<small>邮箱</small><span class="red" style="right:-4px;top:-4px"></span></div>
+              <div class="ub">⚙️<small>设置</small></div>
+            </div>
+          </div>
+          <div class="wnotice"><span class="mic">📣</span><span>公告｜远征版本上线，派遣英雄离线护送拿钻石 → 点击查看</span><span class="red" style="right:-3px;top:-3px"></span></div>
+
+          <!-- 左运营栏（仅战斗页） -->
+          <div class="wrail L">
+            <div class="ri">📅<small>签到</small><span class="red" style="right:-4px;top:-4px"></span></div>
+            <div class="ri">📋<small>任务</small><span class="red" style="right:-4px;top:-4px"></span></div>
+            <div class="ri">🎁<small>礼包</small></div>
+            <div class="more">▲</div>
+          </div>
+          <!-- 右快捷栏（仅战斗页 · 页面专属快捷） -->
+          <div class="wrail R" id="railR"></div>
+
+          <!-- ======== 页面1：战斗 ======== -->
+          <div class="scr on" id="scr-battle">
+            <div class="px wpanel btTitle"><h4>第3章 · 断桥残垣</h4><span class="prog">章节 3/5</span></div>
+            <div class="px diffSeg"><span class="on"> 普通</span><span>精英 🔒</span><span>噩梦 🔒</span></div>
+            <div class="px wdash endlessChip">♾️</div>
+            <div class="px sceneCard">
+              <div class="road"><i></i></div>
+              <div class="veh">🚚</div>
+              <span class="mob" style="left:96px;top:150px">🐺</span>
+              <span class="mob" style="right:110px;top:120px">🐗</span>
+              <span class="mob" style="right:170px;top:190px">🦅</span>
+              <div class="chiptitle" style="display:none">护送行动 · 让希望抵达下一站</div>
+              <div class="chipTL">推荐战力 12,400</div>
+              <div class="chipTR">▶ 待挑战</div>
+              <div class="arr l">‹</div><div class="arr r">›</div>
+              <div class="waveDots"><i class="done"></i><i class="done"></i><i class="done"></i><i></i><i></i><i class="boss"></i></div>
+              <div class="swipeHint">← 左右滑动切换关卡 →</div>
+            </div>
+            <div class="px wpanel stageMeta"><span>最佳耐久 82%</span><span>怪物强度 ×1.6 · 5 波 + BOSS</span><span>🎁 掉落预览 ›</span></div>
+            <div class="px chestRow">
+              <div class="chest done"><span class="ci">📦</span>耐久≥50%<small class="wdim">已领取</small></div>
+              <div class="chest ready"><span class="ci">📦</span>耐久≥75%<small class="goldT">可领取</small><span class="red" style="right:-4px;top:-4px"></span></div>
+              <div class="chest"><span class="ci">👑</span>满耐久通关<small class="wdim">完美护送解锁</small></div>
+            </div>
+            <div class="px ctaRow">
+              <div class="squadBtn"><div class="mini"><i></i><i></i><i></i><i></i></div>护送编队 3/4</div>
+              <div class="goBtn"><b>开始护送</b><span>消耗体力 🍖 5</span></div>
+            </div>
+          </div>
+
+          <!-- ======== 页面2：英雄 ======== -->
+          <div class="scr" id="scr-heroes">
+            <div class="px pickStrip">
+              <div class="pk on"><span class="pi">🔫</span>步枪手</div>
+              <div class="pk"><span class="pi">🎯</span>狙击手</div>
+              <div class="pk"><span class="pi">🔆</span>激光手</div>
+              <div class="pk lock"><span class="pi">☢️</span>辐射手</div>
+              <div class="pk add"><span class="pi">＋</span>招募</div>
+            </div>
+            <div class="px fcol">
+              <div class="fbtn">🧬<small>核心</small></div>
+              <div class="fbtn">🔧<small>强化</small></div>
+              <div class="fbtn">🌟<small>天赋</small><span class="red" style="right:-4px;top:-4px"></span></div>
+            </div>
+            <div class="px heroStage">
+              <div class="nameplate">
+                <div class="hn">步枪手 · 凯 <span class="stars">★★★☆☆☆</span></div>
+                <div class="tags"><i>人类·步枪</i><i>持续输出</i><i class="goldT">已上阵 3/4</i></div>
+              </div>
+              <div class="fig">🔫</div>
+              <div class="power">⚡ 8,436</div>
+            </div>
+            <div class="px eqGrid">
+              <div class="eq"><span class="tier">1阶</span><span class="ei">🪖</span><span class="slv">+8</span>头盔</div>
+              <div class="eq"><span class="tier">1阶</span><span class="ei">🔭</span><span class="slv">+7</span>瞄具</div>
+              <div class="eq"><span class="tier">1阶</span><span class="ei">🛡️</span><span class="slv">+8</span>胸甲</div>
+              <div class="eq"><span class="tier">1阶</span><span class="ei">🦵</span><span class="slv">+7</span>护腿</div>
+              <div class="eq empty"><span class="ei">🧤</span>手套</div>
+              <div class="eq empty"><span class="ei">🥾</span>战靴</div>
+            </div>
+            <div class="px statChips">
+              <span>⚔️ 攻击 <b>1,208</b></span>
+              <span>🛡️ 装备加成 <b class="goldT">+45%</b></span>
+              <span>💠 核心加成 <b>+18%</b></span>
+            </div>
+            <div class="px starBar"><span class="st">★★★☆☆☆</span><div class="prog"><i></i></div><span class="wsub">碎片 12/40</span><span class="up">升星</span></div>
+            <div class="px skillRow">
+              <div class="skillCard"><span class="sic">🔸</span><span><b>穿透齐射</b>技能 · Lv.2</span></div>
+              <div class="skillCard"><span class="sic">💥</span><span><b>榴弹炮击</b>大招 · Lv.1</span></div>
+              <div class="skillCard"><span class="sic" style="border-color:var(--lock)">🔒</span><span><b>第 2 技能</b>升星解锁</span></div>
+            </div>
+            <div class="px bagBlock">
+              <div class="bagTabs">
+                <span class="bt on">🛡️ 装备</span><span class="bt">💎 宝石</span><span class="bt">⚙️ 材料</span><span class="bt">🧪 道具</span>
+                <span class="ops"><span class="op">⚒️ 工坊</span><span class="op">一键分解</span></span>
+              </div>
+              <div class="bagGrid">
+                <div class="bcell">🪖<em>+3</em></div><div class="bcell">🔭<em>+2</em></div><div class="bcell">🛡️<em>+5</em></div><div class="bcell">🦵<em>+1</em></div><div class="bcell">🧤<em>+4</em></div>
+                <div class="bcell">🥾<em>+2</em></div><div class="bcell">💪<em>+1</em></div><div class="bcell">📦<span class="cnt">×3</span></div><div class="bcell">📦<span class="cnt">×2</span></div><div class="bcell" style="border-style:dashed;opacity:.4">＋</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ======== 页面3：商店 ======== -->
+          <div class="scr" id="scr-mall">
+            <div class="px shopBanner">
+              <div class="bt1"><b>末日启程 · 超值礼包</b><span>每日免费补给 + 钻石礼包 · 限时特惠</span></div>
+              <div class="gi">🎁</div>
+              <div class="dots"><i class="on"></i><i></i><i></i></div>
+              <span class="red" style="right:-4px;top:-4px"></span>
+            </div>
+            <div class="px rcard">
+              <div class="rt"><b>🎖️ 英雄招募</b><span>距保底还差 34 抽必得英雄</span></div>
+              <div class="gbar"><i></i></div>
+              <div class="gnote">十连必出稀有以上 · 重复英雄自动转碎片升星</div>
+              <div class="rbtns">
+                <div class="rb b3">▶ 广告免费<small>今日 1/1</small></div>
+                <div class="rb b1">单 抽<small>💎 120</small></div>
+                <div class="rb b2">十 连<small>💎 1,200</small></div>
+              </div>
+            </div>
+            <div class="px dailyRow">
+              <div class="dcard"><span class="di">🆓</span><span><b>每日免费补给</b><span>今日未领取</span></span><span class="red" style="right:-4px;top:-4px"></span></div>
+              <div class="dcard"><span class="di">📦</span><span><b>材料货柜</b><span>今日限购 2/5 · ⏰ 08:12 刷新</span></span></div>
+            </div>
+            <div class="px shopTabsBar">
+              <span class="st on">英雄</span><span class="st">装备</span><span class="st">宝石</span><span class="st">材料</span><span class="st" style="color:var(--dim)">充值（预留）</span>
+            </div>
+            <div class="px goodsGrid">
+              <div class="good"><span class="gi2">🎖️</span>步枪手·凯<span class="gt">持续输出 · 步枪</span><span class="gb">🪙 2,000</span></div>
+              <div class="good"><span class="gi2">🎯</span>狙击手·苍鹭<span class="gt">单体爆发 · 狙击</span><span class="gb">🪙 2,000</span></div>
+              <div class="good"><span class="gi2">🔆</span>激光手·棱镜<span class="gt">跟踪持续 · 激光</span><span class="gb">🪙 2,800</span></div>
+              <div class="good"><span class="gi2">☢️</span>辐射手·芮<span class="gt">群体穿透 · 辐射</span><span class="gb">🪙 2,800</span></div>
+            </div>
+          </div>
+
+          <!-- ======== 页面4：玩法 ======== -->
+          <div class="scr" id="scr-play">
+            <div class="px dutyCards">
+              <div class="dutyC">
+                <b>📅 每日签到</b><div class="dsub">累计 12 天 · 当前第 3/7 天</div>
+                <div class="dbar"><i style="width:43%"></i></div>
+                <span class="go">去签到</span><span class="red" style="right:-4px;top:-4px"></span>
+              </div>
+              <div class="dutyC">
+                <b>📋 任务 · 成就</b><div class="dsub">今日活跃 60/100 · 2 项可领</div>
+                <div class="dbar"><i style="width:60%"></i></div>
+                <span class="go">去领取</span><span class="red" style="right:-4px;top:-4px"></span>
+              </div>
+            </div>
+            <div class="px modeList">
+              <div class="modeRow big">
+                <span class="mi">🗼</span>
+                <span class="mm"><b>试炼之塔 <em>爬塔挑战</em></b><span>已通关 11 层 · 可挑战第 12 层 · 每 5 层大奖</span></span>
+                <span class="ma hot">▶ 挑战</span><span class="red" style="right:-4px;top:-4px"></span>
+              </div>
+              <div class="modeRow">
+                <span class="mi">🏰</span>
+                <span class="mm"><b>资源副本 <em>材料产线</em></b><span>今日剩余 8/12 · 消耗体力 5/次</span>
+                  <span class="mini4"><i>🪙</i><i>💠</i><i>🧱</i><i>🔩</i></span></span>
+                <span class="ma">进入</span>
+              </div>
+              <div class="modeRow">
+                <span class="mi">🚀</span>
+                <span class="mm"><b>远征派遣 <em>离线收益</em></b><span>⏳ 侦察公路 12:31 后归来 · 今日剩余 2/3 次</span></span>
+                <span class="ma">管理</span>
+              </div>
+              <div class="modeRow">
+                <span class="mi">📖</span>
+                <span class="mm"><b>情报室 · 图鉴 <em>收集</em></b><span>已收录 3/8 种变异体 · 击杀自动解锁</span></span>
+                <span class="ma">查看</span>
+              </div>
+              <div class="modeRow">
+                <span class="mi">🏆</span>
+                <span class="mm"><b>荣誉墙 · 排行 <em>竞技</em></b><span>我的积分 12,480 · 大区第 42 名</span></span>
+                <span class="ma">查看</span>
+              </div>
+            </div>
+            <div class="px reserveBanner">活动预告位（运营活动 banner 轮播 · 预留）</div>
+          </div>
+
+          <!-- ======== 页面5：基地 ======== -->
+          <div class="scr" id="scr-base">
+            <div class="px baseStrip">
+              <span class="bi">🏰</span>
+              <span class="bt"><b>方舟基地 LV.6</b><span>繁荣度 1,240 / 2,000</span></span>
+              <div class="pbar"><i></i></div>
+            </div>
+            <div class="px baseMap">
+              <div class="bnode hq" style="left:50%;top:44%;transform:translate(-50%,-50%)"><span class="bnl">LV.6</span><span class="bni">🏛️</span>指挥中心<span class="rdot2"></span></div>
+              <div class="bnode" style="left:24%;top:9%"><span class="bnl">LV.4</span><span class="bni">🏕️</span>训练营</div>
+              <div class="bnode" style="left:8%;top:44%"><span class="bnl">LV.2</span><span class="bni">⚒️</span>军械库</div>
+              <div class="bnode" style="left:70%;top:9%"><span class="bnl">LV.1</span><span class="bni">🔬</span>研究所</div>
+              <div class="bnode" style="left:76%;top:44%"><span class="bnl">LV.5</span><span class="bni">🚛</span>载具工坊<span class="rdot2"></span></div>
+              <div class="bnode" style="left:14%;top:72%"><span class="bnl">LV.3</span><span class="bni">📦</span>补给仓库</div>
+              <div class="bnode" style="left:42%;top:74%"><span class="bnl">LV.3</span><span class="bni">⛽</span>加油站</div>
+              <div class="bnode lockedN" style="left:70%;top:72%"><span class="bnl">🔒 指挥中心 LV.6</span><span class="bni">📡</span>雷达站</div>
+            </div>
+            <div class="px boostRow">
+              <div class="boostT"><span class="up2">＋</span>⚔️<b>火力 LV.12</b><span>全队攻击 +96%</span></div>
+              <div class="boostT"><span class="up2">＋</span>🛡️<b>装甲 LV.8</b><span>载具耐久 +80%</span></div>
+              <div class="boostT"><span class="up2">＋</span>🪙<b>赏金 LV.5</b><span>金币获取 +50%</span></div>
+              <div class="boostT"><span class="up2">＋</span>🎯<b>演练 LV.3</b><span>经验获取 +24%</span></div>
+            </div>
+          </div>
+
+          <!-- TabBar -->
+          <div class="wtabbar">
+            <div class="wtabs">
+              <div class="wtab" data-page="mall"><span class="ti">🛒</span><span class="lbl">商店</span><span class="red" style="right:22px;top:4px"></span></div>
+              <div class="wtab" data-page="heroes"><span class="ti">🎖️</span><span class="lbl">英雄</span></div>
+              <div class="wtab main on" data-page="battle"><span class="ti">🚚</span><span class="lbl">战斗</span></div>
+              <div class="wtab" data-page="play"><span class="ti">🎮</span><span class="lbl">玩法</span><span class="red" style="right:22px;top:4px"></span></div>
+              <div class="wtab" data-page="base"><span class="ti">🏰</span><span class="lbl">基地</span></div>
+            </div>
+            <div class="whomebar"></div>
+          </div>
+
+          <!-- 标注点（JS 注入） -->
+          <div id="dotLayer" style="position:absolute;inset:0;z-index:40;pointer-events:none"></div>
+
+          <!-- 弹层演示 -->
+          <div class="demoMask" id="demoMask"></div>
+          <div class="sheet" id="demoSheet">
+            <div class="grab"></div>
+            <h4>🏛️ 指挥中心 <span class="wsub">LV.6 / 10</span><span class="x" data-close>✕</span></h4>
+            <div class="secT">建筑详情（半屏抽屉 L2 · 高 ≤ 70% 屏 · 下滑关闭）</div>
+            <div class="row"><span>功能</span><b>提升全建筑等级上限与基地繁荣度</b></div>
+            <div class="row"><span>当前效果</span><b>全局成长上限 LV.7</b></div>
+            <div class="row"><span>升到 LV.7</span><b>全局成长上限 LV.8 · 繁荣度 +200</b></div>
+            <div class="row"><span>升级费用</span><b class="goldT">🪙 4,120（当前 8.2万 ✓）</b></div>
+            <div class="bigBtn">🪙 4,120 · 升 级</div>
+          </div>
+          <div class="cmodal" id="demoModal">
+            <h4>🍖 体力补给</h4><span class="x" data-close>✕</span>
+            <div class="mrow">📺<span><b>看广告领体力</b><span>+10 体力 · 今日剩余 2/3 次</span></span><span class="mgo">观看</span></div>
+            <div class="mrow">💎<span><b>钻石购买</b><span>+20 体力 · 💎 20（可超上限囤积）</span></span><span class="mgo">购买</span></div>
+            <p class="wdim" style="margin-top:10px;text-align:center">每 10 分钟恢复 1 点 · 下一几点 08:32 · 加油站提升体力上限</p>
+          </div>
+          <div class="gacha" id="demoGacha">
+            <h3>招募大成功</h3>
+            <div class="cards">
+              <div class="gc"><span class="gci">🎖️</span><b style="color:var(--tx)">步枪手·凯</b><span class="nw">NEW!</span></div>
+              <div class="gc"><span class="gci">🔩</span>传说碎片 ×10</div>
+              <div class="gc"><span class="gci">🔷</span>稀有碎片 ×5</div>
+            </div>
+            <div class="again" data-close>再来一次（💎 1,200）</div>
+            <span class="wdim">全屏结果层 L4 · 点按继续</span>
+          </div>
+          <div class="toastEl" id="demoToast">🪙 金币 +3,000</div>
+
+        </div><!-- /phone -->
+        </div><!-- /phoneScale -->
+        <div class="demoBar">
+          <button data-demo="sheet">演示·半屏抽屉 L2</button>
+          <button data-demo="modal">演示·中心模态 L3</button>
+          <button data-demo="gacha">演示·全屏结果 L4</button>
+          <button data-demo="toast">演示·Toast L5</button>
+          <button data-demo="close">关闭全部弹层</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 右侧说明面板 ============ -->
+    <div class="sidePanel">
+      <div class="pHead" id="pHead"></div>
+      <div class="calloutList" id="coList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 附：诊断与落地 ================= -->
+<section id="sec-diag">
+  <div class="secHead"><span class="no">A</span><h2>现状诊断</h2><small>基于 assets/scripts/ui/ 现有实现的布局问题清单</small></div>
+  <table class="diagTable">
+    <tr><th style="width:32%">问题</th><th style="width:30%">现状代码</th><th>本稿对策</th></tr>
+    <tr><td><b>顶栏右上角按钮与微信胶囊冲突</b>：邮箱/设置齿轮紧贴右上，正落在胶囊禁入区</td><td><span class="code">HomeUiCore.ts · _buildTopbar</span></td><td>右上禁入；邮箱/设置下沉<b>右侧悬浮栏</b>，资源胶囊收紧至头像—名牌行内</td></tr>
+    <tr><td><b>战斗页纵向堆叠 6 层整行横条</b>：章节页签→场景→信息三格→难度行→奖励按钮→编队/出战/无尽，主 CTA 被挤出拇指区、层级扁平</td><td><span class="code">HomeUiStage.ts · _buildStagePage</span></td><td>章节页签改<b>大标题+横滑切关</b>；信息三格并入场景卡 chips；无尽改右栏入口；三宝箱上移为奖励预览；<b>编队+主CTA 收进底部 CTA 行</b></td></tr>
+    <tr><td><b>英雄页单页 8 区块无层级</b>：选择条/头牌/六槽/立绘/三维/升星/技能/背包全部纵向长滚动，技能与背包沉底不可见</td><td><span class="code">HomeUiHeroes.ts · _refreshHeroes</span></td><td>压缩为「选择条→立绘+装备网格→属性/升星→技能卡→<b>钉底背包</b>」五层；背包页签固定 TabBar 上方（对标角色页）</td></tr>
+    <tr><td><b>高频功能藏二级弹窗</b>：招募/天赋只有小图标入口，编队在关卡页按钮堆里</td><td><span class="code">HomeUiHeroes.ts · hpick recruitEntry</span></td><td>招募升级为<b>商店页主卡</b>（单抽/十连/免费三按钮直出）；天赋入英雄页左功能列（红点）；编队常驻战斗页 CTA 行</td></tr>
+    <tr><td><b>玩法页与基地页卡片同质</b>：复用 bcard 网格，玩法页 5 张空卡信息密度低，日常任务/签到只是两个按钮</td><td><span class="code">HomeUiPlay.ts · _buildPlayPage</span></td><td>玩法页改<b>状态横条卡</b>（进度/倒计时/红点直读）；签到/任务升级为带进度条的双状态卡置顶</td></tr>
+    <tr><td><b>基地页无空间隐喻</b>：8 栋建筑+4 项全局强化混排双列网格，养成主线不清、升级可点性弱</td><td><span class="code">HomeUiBase.ts · _refreshBase</span></td><td>基地改<b>建筑地图</b>（解锁彩框/未解锁灰锁/红点即升级可点）；全局强化独立成<b>底部强化条</b>；详情走半屏抽屉</td></tr>
+    <tr><td><b>弹窗层级单一</b>：全部中心模态，且频繁「整弹重开」切换态，无半屏抽屉分级</td><td><span class="code">HomeUiCore.ts · _openModal</span></td><td>建立 L2 抽屉/L3 模态/L4 全屏结果分级；列表选择类走抽屉，揭示类走全屏</td></tr>
+    <tr><td><b>缺少显式安全区/热区规范</b>：尺寸随 --hs 整体缩放，无最小热区与胶囊避让约束</td><td><span class="code">HomeUiStyle.ts（--hs/--pw）</span></td><td>本稿 00 节规范：胶囊禁入区、120 热区、CTA 高度、安全区常量化进样式令牌</td></tr>
+  </table>
+
+  <div class="secHead" style="margin-top:34px"><span class="no">B</span><h2>落地改造清单</h2><small>按优先级排序 · 对应文件级改造点</small></div>
+  <div class="implList">
+    <div class="implItem"><b>壳层：安全区令牌 + 胶囊避让<span class="pri p0">P0</span></b>HomeUiStyle 注入 --safe-top/--safe-bottom/--capsule 常量；顶栏重排（头像/名牌/资源胶囊一行三枚）；邮箱/设置收进顶部 HUD 右侧（五页全局可达）；公告条位置固定 y 340。</div>
+    <div class="implItem"><b>悬浮栏收归战斗页<span class="pri p0">P0</span></b>左运营栏（签到/任务/礼包）与右快捷栏改为<b>仅战斗页挂载</b>，切页显隐；其余四页内容区通栏铺满，回收左右各 132 设计 px 宽度。</div>
+    <div class="implItem"><b>底部导航：中央主钮化<span class="pri p0">P0</span></b>_buildNav 增加 main 凸起样式与红点位规范；切页保留各页 scrollTop；页签热区 ≥ 200×200。</div>
+    <div class="implItem"><b>战斗页重排<span class="pri p0">P0</span></b>HomeUiStage 删除章节页签行/信息三格/奖励入口长条，新增：大标题区、难度分段器（含无尽 chip）、场景卡（chipTL/chipTR/波次点/横滑手势）、三宝箱行、CTA 行（编队+开始护送）；奖励详情收进宝箱点击。</div>
+    <div class="implItem"><b>英雄页五层化 + 钉底背包<span class="pri p1">P1</span></b>HomeUiHeroes 区块重排为 选择条/展示区/属性升星/技能卡/背包；背包页签 fixed 于 TabBar 上方；左功能列（核心/强化/天赋）；招募入口改跳商店页锚点。</div>
+    <div class="implItem"><b>招募升级为商店主卡<span class="pri p1">P1</span></b>_openRecruitModal 内容拆为商店页 rcard 直出（保底进度条+三按钮）；抽卡结果迁 L4 全屏层。</div>
+    <div class="implItem"><b>弹层体系分级<span class="pri p1">P1</span></b>新增 openSheet()（底部抽屉）与 openResult()（全屏结果）；建筑详情/装备槽/物品详情/编队改抽屉；遮罩点击统一不关闭。</div>
+    <div class="implItem"><b>玩法页状态卡化<span class="pri p2">P2</span></b>签到/任务双状态卡（进度条+红点）；五大玩法改横条卡：图标+名称+实时进度副标+右侧动作钮；预留活动预告位。</div>
+    <div class="implItem"><b>基地页地图化<span class="pri p2">P2</span></b>8 栋建筑改为地图节点（坐标表驱动）；红点=可升级；点击开半屏抽屉（沿用 _openBuildingInfoModal 数据）；全局强化四枚独立强化条。</div>
+  </div>
+</section>
+
+<footer>
+  《末日航线》UX 布局交互稿 v1.0 ｜ 线框仅表达布局与交互，不含最终美术样式 ｜ 所有尺寸以 1080×1920 设计稿口径标注（图中显示为 ÷2）<br>
+  审阅方式：顶部页签切换五页 → 点标注点看右侧规格说明 → 手机下方按钮预演弹层层级。确认布局后可按「落地改造清单」进入实现排期。
+</footer>
+</div>
+
+<script>
+/* ================= 页面数据 ================= */
+const PAGES = {
+  battle: {
+    name: '① 战斗 · 关卡出征', ref: '对标：向僵尸开炮·战斗页',
+    intro: '主目标页：进游戏第一眼即知「下一关打什么、能拿什么、一键出发」。章节页签/信息三格/难度行/奖励按钮全部收编，主 CTA 独占拇指热区。',
+    chips: ['大标题+横滑切关','难度分段器','场景预览卡','三宝箱奖励预览','编队+主CTA同行','无尽模式入右栏'],
+    cos: [
+      {x:270,y:216,t:'关卡标题区',s:'大标题+章节进度',d:'「第X章·关名」大字居中（56px/1080口径），右侧章节进度胶囊。章节切换不再用整排页签——<b>大标题+场景横滑</b>替代，释放顶部空间。'},
+      {x:270,y:263,t:'难度分段器',s:'三档胶囊·宽约 840',d:'普通/精英/噩梦三档（对齐 STAGE_DIFFS），未解锁档🔒置灰但<b>可点看解锁条件</b>；选中档金框。通关进度用 ✓ 角标标在档位上。'},
+      {x:498,y:263,t:'无尽模式入口',s:'独立 chip · 右缘',d:'全通关解锁的 ♾️ 无尽模式常驻难度行右端，解锁前灰态点击提示解锁条件，不占主流程空间。'},
+      {x:270,y:444,t:'护送场景预览卡',s:'1000×592 场景卡',d:'章节主题底图（货车/船/飞机）+ 载具与怪物剪影动画。卡内四要素：<b>推荐战力 chip（左上）/ 关卡状态 chip（右上）/ 波次进度点（底部）/ 切关箭头（两缘）</b>。'},
+      {x:60,y:444,t:'切关手势与箭头',s:'热区 240×320',d:'左右箭头热区放大至 240×320；同时支持整卡横滑切关，滑动方向与箭头语义一致；到边界时箭头隐藏+卡回弹。'},
+      {x:270,y:615,t:'关卡信息条',s:'单行 60 高',d:'最佳耐久记录 · 怪物强度倍率 · 掉落预览入口。原「当前关卡/推荐战力/关卡状态」三格全部并入场景卡 chips，此条只留<b>补充决策信息</b>。'},
+      {x:270,y:684,t:'耐久宝箱三档',s:'三等分 · 高 176',d:'耐久≥50% / ≥75% / 满耐久通关（对齐结算宝箱）。状态：<b>灰待达成 → 金框可领（红点）→ ✓ 已领取</b>；点击任意宝箱开奖励详情弹窗（金币区间+掉率）。'},
+      {x:115,y:788,t:'护送编队按钮',s:'300×176',d:'常驻 CTA 行左位：4 格头像缩略直读当前阵容（对齐 LINEUP_MAX=4），点击开<b>编队半屏抽屉</b>（阵容+羁绊+候补）。'},
+      {x:355,y:788,t:'主 CTA · 开始护送',s:'宽 ≥ 660 · 高 176',d:'<b>屏幕下 1/3 拇指热区</b>，金框最大视觉权重；副文案直读体力消耗 🍖5。体力不足时按钮降透明但保持可点 → 点按直达体力补给模态（闭环）。'},
+      {x:36,y:255,t:'左栏 · 运营活动',s:'图标 96 · 仅战斗页',d:'签到/任务/礼包三枚竖排悬浮（<b>仅战斗页挂载</b>，其余页面通栏让位内容），红点=可领；公告走公告条；点「▲」整列折叠收进边缘。'},
+      {x:504,y:255,t:'右栏 · 战斗快捷',s:'页签专属',d:'邮箱/设置已上移顶部 HUD 右侧（五页全局可达，位于胶囊正下方不冲突）；本栏只放战斗页专属快捷：无尽/试炼之塔。'},
+    ]
+  },
+  heroes: {
+    name: '② 英雄 · 养成档案', ref: '对标：向僵尸开炮·角色页',
+    intro: '养成中台：选人即读全貌（立绘/装备/属性/技能/升星），背包页签钉底常驻。原 8 区块长滚动压缩为五层，一屏内完成「看—穿—升」主循环。',
+    chips: ['横滑选人条','立绘+战力牌','右侧 2×3 装备网格','左功能列(核心/强化/天赋)','技能三卡','钉底背包页签'],
+    cos: [
+      {x:270,y:229,t:'英雄选择条',s:'卡片 124×148 · 横滑',d:'已获英雄彩色卡+选中金框；未获得灰锁卡（点击提示获取途径）；末尾「＋招募」虚线卡跳转商店招募区。换人即整页刷新，无转场。'},      {x:40,y:452,t:'左功能列',s:'104×104 ×3',d:'🧬英雄核心 / 🔧武器强化 / 🌟天赋树 三枚竖排（对标角色页「时装/枪械」位）。天赋红点=有未分配点数；核心/强化按当前选中英雄生效。'},
+      {x:245,y:389,t:'英雄展示区',s:'虚线舞台卡',d:'名牌（名+星级+定位标签）置顶，中央立绘，底部<b>战力徽章</b>（⚡ 数字，对标角色页 256 战力牌）。未获英雄灰态立绘+解锁按钮替代。'},
+      {x:468,y:388,t:'装备槽 2×3 网格',s:'每槽 192×168',d:'六槽（头盔/瞄具/胸甲/护腿/手套/战靴）右侧网格化（对标角色页）：左上阶数角标、品质色框、强化等级；空槽虚线。点击开<b>装备槽抽屉</b>（背包同部位列表+卸下）。'},
+      {x:270,y:571,t:'属性条',s:'三等分 chip',d:'攻击 / 装备加成 / 核心加成 三枚横排；战力已上立绘牌不重复。数值口径与现有 atkMulOf 一致。'},
+      {x:270,y:609,t:'升星进度条',s:'单行 68 高',d:'★进度+碎片 x/y+「升星」小按钮一行完成；满星态显示「已满星」并熄灭红点。'},
+      {x:270,y:659,t:'技能养成三卡',s:'三等分 · 高 108',d:'普攻/技能/大招三卡（图标+名+等级），点击开升级详情抽屉。未解锁技能灰锁并注明解锁条件（升星）。'},
+      {x:270,y:766,t:'钉底背包',s:'页签行高 80 · 固定',d:'装备/宝石/材料/道具四页签<b>固定于 TabBar 上方</b>（对标角色页「宝石/装备/材料/芯片」钉底页签）；右侧常驻 ⚒️工坊 + 一键分解。网格 5 列内滚动，切页签即时切换。'},
+    ]
+  },
+  mall: {
+    name: '③ 商店 · 补给招募', ref: '对标：向僵尸开炮·商城页',
+    intro: '商业化与招募主阵地：banner 轮播（礼包）→ 招募大卡（抽卡主推）→ 每日限购 → 商品页签网格。把招募从英雄页弹窗升级为商店主卡，是本稿最大的动线变化。',
+    chips: ['礼包 banner 轮播','招募大卡(单抽/十连/免费)','每日限购行','钉底商品页签','双列商品网格'],
+    cos: [
+      {x:270,y:255,t:'礼包 Banner 轮播',s:'1000×236 · 1~3 帧',d:'运营主位：限时礼包/活动轮播，自动播+圆点指示；免费补给未领挂红点；点击进礼包中心模态。'},
+      {x:270,y:403,t:'英雄招募大卡',s:'1000×316',d:'对标「宝箱抽卡」卡：保底进度条（剩余 X 抽必得英雄）+ <b>三按钮直出：广告免费抽 / 单抽 / 十连</b>。点按钮 → L4 全屏揭示层。货币不足不置灰，点按提示差额。'},
+      {x:140,y:525,t:'每日免费补给',s:'横条卡',d:'未领取红点直读；点击即领+翻牌展示。'},
+      {x:400,y:525,t:'材料货柜',s:'横条卡',d:'每日限购 x/y + 刷新倒计时；售罄置灰但仍展示明日再来。'},
+      {x:270,y:589,t:'商品页签（钉底）',s:'页签行固定',d:'英雄/装备/宝石/材料四页签固定于 TabBar 上方（对标商城页钉底页签），预留「充值」位；切换即时重绘网格。'},
+      {x:270,y:770,t:'商品网格',s:'双列 · 内滚动',d:'商品卡：图标/名称/词条副标/价格按钮； HOT 角标=高品；已拥有/售罄置灰。购买成功 Toast+资源滚动。'},
+    ]
+  },
+  play: {
+    name: '④ 玩法 · 日常大厅', ref: '对标：向僵尸开炮·核心页的「状态直读」思路',
+    intro: '日常运营+玩法聚合：签到/任务升级为带进度的状态卡置顶，五大玩法改「图标+实时进度+动作钮」横条卡，红点与倒计时直读，消除原空卡网格。',
+    chips: ['签到/任务状态卡','五大玩法横条卡','红点+倒计时直读','活动预告位预留'],
+    cos: [
+      {x:145,y:244,t:'每日签到状态卡',s:'双列 · 高 192',d:'直读：累计天数+当前第 x/7 天进度条+「去签到」钮+红点。点击开签到日历模态（沿用现有七日签到）。'},
+      {x:395,y:244,t:'任务·成就状态卡',s:'双列 · 高 192',d:'直读：活跃度进度条 60/100 + 可领数量红点。点击开任务中心模态（活跃宝箱置顶逻辑保留）。'},
+      {x:270,y:338,t:'试炼之塔（主推位）',s:'大号横条卡 · 高 168',d:'日常主挑战放首位放大：当前层/已通关数/里程碑提示+「▶挑战」金钮+红点。点击开塔层选择模态。'},
+      {x:270,y:424,t:'资源副本',s:'横条卡 · 高 144',d:'直读今日剩余次数+体力消耗；四副本（金币/宝石/强化石/合金）以 4 mini 格速览。点击开副本模态。'},
+      {x:270,y:500,t:'远征派遣',s:'横条卡 · 高 144',d:'进行中显示<b>归来倒计时</b>；可领取时整卡金框+红点（最强提醒）。点击开远征模态。'},
+      {x:270,y:576,t:'图鉴 + 排行',s:'横条卡 ×2',d:'情报室（收录进度 x/8）与荣誉墙（我的积分+名次）低频功能降级为普通行卡。'},
+      {x:270,y:756,t:'活动预告位',s:'虚线占位',d:'预留运营活动 banner 轮播位，无活动时整块隐藏不占位。产线玩法都吃体力，体力补给统一走顶部 HUD 体力胶囊「＋」（五页全局可达）。'},
+    ]
+  },
+  base: {
+    name: '⑤ 基地 · 建筑养成', ref: '对标：向僵尸开炮·基地页（建筑地图）',
+    intro: '基地从双列卡片网格改为建筑地图：解锁建筑亮色节点、未解锁灰锁节点、可升级红点直读；点击建筑开半屏抽屉完成「看详情—升级」闭环；全局强化独立底部强化条。',
+    chips: ['基地信息条','建筑地图(8节点)','锁定态直读','半屏抽屉升级','全局强化条'],
+    cos: [
+      {x:270,y:222,t:'基地信息条',s:'单行 104 高',d:'基地等级（=指挥中心等级）+ 繁荣度进度条（cur/max）。繁荣度满级提示升级指挥中心。'},
+      {x:270,y:493,t:'建筑地图',s:'912×940 舞台',d:'8 栋养成建筑按定位散布：指挥中心居中放大（金框主建筑）；已解锁建筑=彩框+等级牌+<b>红点=可升级</b>；未解锁=灰化虚线+🔒解锁条件（受指挥中心等级约束）。'},
+      {x:270,y:438,t:'建筑节点',s:'节点 184×184',d:'节点构成：等级牌（顶部）/ 图标 / 名称。载具工坊节点旁常驻载具标识，点击进改装抽屉。'},
+      {x:270,y:640,t:'建筑详情 = 半屏抽屉',s:'L2 · 高 ≤70%屏',d:'点击节点弹出（见演示按钮）：功能介绍/当前效果/下一级效果/升级费用与货币余量/受限说明（🔒先升级指挥中心）。升级成功就地刷新。'},
+      {x:270,y:779,t:'全局强化条',s:'四等分 · 高 164',d:'火力/装甲/赏金/演练（META_UPGRADES）四枚独立瓦片：等级+当前效果+「＋」直升按钮；红点=金币可升。与建筑养成彻底分区，不再混排网格。'},
+    ]
+  }
+};
+
+/* ================= 状态 ================= */
+let curPage = 'battle';
+const $ = s => document.querySelector(s);
+const scrMap = { battle:'#scr-battle', heroes:'#scr-heroes', mall:'#scr-mall', play:'#scr-play', base:'#scr-base' };
+
+/* 左右栏仅战斗页挂载；右栏页面专属差异（演示用） */
+const railExtras = {
+  battle: [['♾️','无尽'],['🗼','试炼']],
+  heroes: [],
+  mall: [],
+  play: [],
+  base: []
+};
+
+function buildRail(extra){
+  const rail = $('#railR');
+  rail.querySelectorAll('.extra').forEach(e=>e.remove());
+  const frag = [];
+  for(const [ic,nm] of extra){
+    frag.push(`<div class="ri extra">${ic}<small>${nm}</small></div>`);
+  }
+  rail.querySelector('.more')?.remove();
+  if(extra.length){ rail.insertAdjacentHTML('beforeend', frag.join('') + '<div class="more">▲</div>'); }
+}
+
+function renderPage(key){
+  curPage = key;
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.wtab').forEach(t=>t.classList.toggle('on', t.dataset.page===key));
+  $(scrMap[key]).classList.add('on');
+  const onBattle = key === 'battle';
+  document.querySelector('.wrail.L').style.display = onBattle ? 'flex' : 'none';
+  $('#railR').style.display = onBattle ? 'flex' : 'none';
+  buildRail(railExtras[key]);
+  const p = PAGES[key];
+  $('#phName').textContent = p.name;
+  $('#phRef').textContent = p.ref;
+  $('#pHead').innerHTML = `<h3>${p.name}</h3><p>${p.intro}</p><div class="chips">${p.chips.map(c=>`<i class="hot">${c}</i>`).join('')}</div>`;
+  const list = $('#coList');
+  list.innerHTML = p.cos.map((c,i)=>`
+    <div class="coItem" data-i="${i}">
+      <div class="cot"><span class="n">${i+1}</span><b>${c.t}</b><span class="spec">${c.s}</span></div>
+      <p>${c.d}</p>
+    </div>`).join('');
+  renderDots(p);
+  document.querySelectorAll('#pageTabs button[data-page]').forEach(b=>b.classList.toggle('on', b.dataset.page===key));
+}
+
+function renderDots(p){
+  const layer = $('#dotLayer');
+  layer.innerHTML = '';
+  p.cos.forEach((c,i)=>{
+    const d = document.createElement('div');
+    d.className = 'dot'; d.textContent = i+1;
+    d.style.left = c.x+'px'; d.style.top = c.y+'px';
+    d.style.pointerEvents = 'auto';
+    d.dataset.i = i;
+    d.onclick = ()=>{
+      const item = document.querySelector(`#coList .coItem[data-i="${i}"]`);
+      if(item){ item.classList.add('flash'); item.scrollIntoView({block:'nearest',behavior:'smooth'}); setTimeout(()=>item.classList.remove('flash'),1600); }
+    };
+    layer.appendChild(d);
+  });
+}
+
+document.addEventListener('click', e=>{
+  const item = e.target.closest('.coItem');
+  if(item){
+    const i = item.dataset.i;
+    const dot = document.querySelector(`#dotLayer .dot[data-i="${i}"]`);
+    if(dot){ dot.classList.remove('pulse'); void dot.offsetWidth; dot.classList.add('pulse'); }
+  }
+});
+
+/* 页签切换 */
+document.querySelectorAll('#pageTabs button').forEach(b=>{
+  b.onclick = ()=>{
+    if(b.dataset.page){ renderPage(b.dataset.page); document.getElementById('sec-pages').scrollIntoView({behavior:'smooth'}); }
+    else if(b.dataset.go){ document.getElementById(b.dataset.go).scrollIntoView({behavior:'smooth'}); }
+    document.querySelectorAll('#pageTabs button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  };
+});
+/* TabBar 内页签切换 */
+document.querySelectorAll('.wtab').forEach(t=>{
+  t.onclick = ()=>{ if(t.dataset.page) renderPage(t.dataset.page); };
+});
+
+/* 标注开关 */
+$('#annoTgl').onclick = ()=>{
+  document.body.classList.toggle('hideAnno');
+  const on = !document.body.classList.contains('hideAnno');
+  $('#annoTgl').classList.toggle('on', on);
+  $('#annoTgl').textContent = on ? '● 标注开关：开' : '○ 标注开关：关';
+};
+
+/* 弹层演示 */
+const demoMap = { sheet:'#demoSheet', modal:'#demoModal', gacha:'#demoGacha' };
+function closeDemos(){
+  $('#demoMask').classList.remove('on');
+  Object.values(demoMap).forEach(s=>$(s).classList.remove('on'));
+  $('#demoToast').classList.remove('on');
+}
+document.querySelectorAll('.demoBar button').forEach(b=>{
+  b.onclick = ()=>{
+    const k = b.dataset.demo;
+    if(k==='close'){ closeDemos(); return; }
+    if(k==='toast'){ const t=$('#demoToast'); t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),1800); return; }
+    closeDemos();
+    $('#demoMask').classList.add('on');
+    $(demoMap[k]).classList.add('on');
+  };
+});
+document.querySelectorAll('[data-close]').forEach(x=>x.onclick=e=>{ e.stopPropagation(); closeDemos(); });
+
+/* 手机等比缩放适配 */
+function fitPhone(){
+  const el = $('#phoneScale');
+  const availW = el.parentElement.clientWidth || 540;
+  const availH = Math.max(560, window.innerHeight - 210);
+  const s = Math.min(1, availW/560, availH/980);
+  el.style.transform = `scale(${s})`;
+  el.style.height = (980*s)+'px';
+  el.style.width = (560*s)+'px';
+}
+window.addEventListener('resize', fitPhone);
+
+renderPage('battle');
+fitPhone();
+/* 支持 #heroes/#mall/#play/#base 直达定位（审阅与截图用） */
+const hashPage = (location.hash || '').replace('#','');
+if (PAGES[hashPage]) {
+  renderPage(hashPage);
+  if (location.search.indexOf('notop') < 0) {
+    document.documentElement.style.scrollBehavior = 'auto';
+    document.getElementById('sec-pages').scrollIntoView();
+  }
+}
+</script>
+</body>
+</html>

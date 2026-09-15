@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《末日航线》二级界面与二级弹窗 UX 布局交互稿 v1.0</title>
+<style>
+:root{
+  --bg:#101318; --bg2:#161a22; --panel:#1c212c; --line:#2c3342; --line2:#3a4356;
+  --tx:#dbe2ef; --sub:#8d97ab; --dim:#5c6678;
+  --acc:#f0b34e; --acc2:#e5534b; --info:#5aa7e8; --ok:#58c48c; --lock:#69738a;
+  --wbox:#232937; --wbox2:#272e3d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--tx);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;font-size:14px;line-height:1.6}
+a{color:var(--info)}
+h1,h2,h3,h4{line-height:1.3}
+.wrap{max-width:1440px;margin:0 auto;padding:0 28px 120px}
+
+/* ============ 文档头 ============ */
+.docHead{padding:44px 0 10px}
+.docHead h1{font-size:26px;letter-spacing:.5px}
+.docHead h1 em{font-style:normal;color:var(--acc)}
+.docHead .meta{color:var(--sub);margin-top:8px;font-size:13px}
+.docHead .meta b{color:var(--tx);font-weight:600}
+.badges{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.badge{border:1px solid var(--line2);border-radius:99px;padding:3px 12px;font-size:12px;color:var(--sub)}
+.badge b{color:var(--acc);font-weight:600}
+
+/* ============ 顶部页签 ============ */
+.pageTabs{position:sticky;top:0;z-index:60;background:linear-gradient(var(--bg) 82%,transparent);padding:14px 0 10px;display:flex;gap:8px;flex-wrap:wrap}
+.pageTabs button{background:var(--panel);border:1px solid var(--line2);color:var(--sub);border-radius:9px;padding:8px 16px;font-size:13px;cursor:pointer;transition:.15s}
+.pageTabs button:hover{color:var(--tx);border-color:var(--acc)}
+.pageTabs button.on{background:var(--acc);border-color:var(--acc);color:#201a08;font-weight:700}
+.pageTabs .sp{flex:1}
+.pageTabs .tgl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);cursor:pointer;border:1px dashed var(--line2);border-radius:9px;padding:8px 12px;user-select:none}
+.pageTabs .tgl.on{color:var(--acc);border-color:var(--acc)}
+
+/* ============ 区块 ============ */
+section{margin-top:46px}
+.secHead{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
+.secHead .no{font-size:13px;color:var(--acc);font-weight:700;letter-spacing:2px}
+.secHead h2{font-size:20px}
+.secHead small{color:var(--sub);font-size:12px}
+.sub{color:var(--sub)}
+
+/* ============ 规范卡 ============ */
+.specGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+.specCard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.specCard h3{font-size:15px;margin-bottom:8px;color:var(--acc)}
+.specCard p,.specCard li{font-size:13px;color:var(--sub)}
+.specCard ul{padding-left:18px;display:grid;gap:4px}
+.specCard b{color:var(--tx);font-weight:600}
+.specCard .k{color:var(--info);font-weight:600}
+.specCard table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+.specCard td{border-top:1px dashed var(--line);padding:5px 4px;color:var(--sub);vertical-align:top}
+.specCard td:first-child{color:var(--tx);white-space:nowrap;font-weight:600}
+
+/* 层级阶梯图 */
+.layerLadder{display:flex;flex-direction:column;gap:6px}
+.lstep{display:flex;align-items:center;gap:10px;border:1px solid var(--line2);border-radius:10px;padding:8px 12px;font-size:12.5px;color:var(--sub);position:relative;overflow:hidden}
+.lstep b{color:var(--tx)}
+.lstep .lv{flex:none;width:34px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.lstep .zone{margin-left:auto;font-size:11px;color:var(--dim);white-space:nowrap}
+.lstep.L1{background:rgba(90,167,232,.05)} .lstep.L1 .lv{background:rgba(90,167,232,.2);color:#9ccbf3}
+.lstep.L2{background:rgba(88,196,140,.05)} .lstep.L2 .lv{background:rgba(88,196,140,.2);color:#9be0bd}
+.lstep.L3{background:rgba(240,179,78,.06)} .lstep.L3 .lv{background:rgba(240,179,78,.22);color:#ffd98f}
+.lstep.L4{background:rgba(229,83,75,.06)} .lstep.L4 .lv{background:rgba(229,83,75,.22);color:#ff9c95}
+.lstep.L5{background:rgba(150,120,220,.07)} .lstep.L5 .lv{background:rgba(150,120,220,.24);color:#c3aef4}
+
+/* 解剖图（示意图） */
+.anatomy{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:6px}
+.anaBox{width:250px;border:1px solid var(--line2);border-radius:14px;background:var(--wbox);padding:8px;display:flex;flex-direction:column;gap:6px;position:relative}
+.anaPart{border:1px dashed var(--line2);border-radius:8px;padding:7px 9px;font-size:11.5px;color:var(--sub);background:rgba(255,255,255,.02);position:relative}
+.anaPart b{color:var(--tx);font-size:11.5px}
+.anaPart .h{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--dim)}
+.anaPart.fix{background:rgba(90,167,232,.07)}
+.anaPart.scroll{background:rgba(240,179,78,.06);min-height:120px}
+.anaPart.cta{background:rgba(88,196,140,.07)}
+.anaTag{position:absolute;left:-9px;top:-9px;width:20px;height:20px;border-radius:50%;background:var(--info);color:#04121f;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.anaCap{text-align:center;font-size:12px;color:var(--sub);margin-top:8px}
+
+/* 尺寸档对比 */
+.sizeRow{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:8px}
+.sizeCard{flex:1;min-width:150px;border:1px solid var(--line2);border-radius:12px;padding:10px;background:var(--wbox)}
+.sizeCard .box{border:1px dashed var(--acc);border-radius:8px;background:rgba(240,179,78,.06);margin-bottom:8px}
+.sizeCard b{font-size:12.5px;color:var(--tx)}
+.sizeCard span{display:block;font-size:11px;color:var(--sub)}
+
+/* ============ 手机画廊 ============ */
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px}
+.ph{display:flex;flex-direction:column;gap:9px}
+.phHead{display:flex;align-items:baseline;gap:8px}
+.phHead b{font-size:14px}
+.phHead .ref{font-size:11px;color:var(--dim)}
+.phShell{width:300px;height:534px;background:#0d0f14;border:8px solid #262b36;border-radius:30px;position:relative;overflow:hidden;box-shadow:0 18px 44px rgba(0,0,0,.5);margin:0 auto}
+.phScr{position:absolute;inset:0;overflow:hidden}
+.phCap{font-size:11.5px;color:var(--sub);text-align:center}
+/* 状态栏 + 胶囊（所有机型共通） */
+.pStatus{position:absolute;top:0;left:0;right:0;height:18px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:var(--dim);font-size:8px;z-index:5}
+.pCaps{position:absolute;top:16px;right:12px;width:78px;height:25px;border:1px solid rgba(255,255,255,.25);border-radius:99px;background:rgba(0,0,0,.3);z-index:5}
+.pCaps::before{content:"••• ｜ ◎";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,.5)}
+.capsZone{position:absolute;top:12px;right:8px;width:90px;height:34px;border:1px dashed rgba(229,83,75,.7);border-radius:10px;z-index:6;pointer-events:none}
+body.noCaps .capsZone{display:none}
+
+/* 背景页（L1 缩略） */
+.pBg{position:absolute;inset:0;background:#141822;z-index:1}
+.pBg .hud{position:absolute;top:18px;left:0;right:0;height:44px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:5px;padding:0 8px}
+.pBg .hud .av{width:26px;height:26px;border-radius:7px;background:var(--wbox2);border:1px solid var(--line2);flex:none}
+.pBg .hud .nm{width:40px;height:7px;border-radius:3px;background:var(--wbox2)}
+.pBg .hud .ch{flex:1}
+.pBg .hud .chp{width:46px;height:15px;border-radius:99px;background:var(--wbox2);border:1px solid var(--line2);flex:none}
+.pBg .bd{position:absolute;top:62px;left:8px;right:8px;bottom:44px;border:1px dashed var(--line2);border-radius:8px;padding:7px;display:flex;flex-direction:column;gap:6px}
+.pBg .bd .blk{flex:1;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.02)}
+.pBg .bd .blkTall{flex:1.6}
+.pBg .bd .grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;flex:1.4}
+.pBg .bd .grid5 i{border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,.02)}
+.pBg .tabsR{position:absolute;left:0;right:0;bottom:0;height:44px;border-top:1px solid var(--line2);display:flex}
+.pBg .tabsR div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:7.5px;color:var(--dim)}
+.pBg .tabsR div i{width:14px;height:14px;border-radius:5px;border:1px solid var(--line2);display:block}
+.pBg .tabsR div.on{color:var(--acc)} .pBg .tabsR div.on i{border-color:var(--acc)}
+
+/* 遮罩 */
+.pMask{position:absolute;inset:0;background:rgba(0,0,0,.66);z-index:10}
+body.noMask .pMask{background:rgba(0,0,0,.18)}
+
+/* ====== 弹窗骨架 ====== */
+.wpop{position:absolute;z-index:20;background:var(--wbox);border:1px solid var(--line2);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.55)}
+.wpop.S{left:50%;top:50%;transform:translate(-50%,-50%);width:200px}
+.wpop.M{left:16px;right:16px;top:96px;bottom:96px}
+.wpop.L{left:12px;right:12px;top:78px;bottom:74px}
+.wpop.XL{left:0;right:0;top:0;bottom:0;border-radius:0;border:0}
+/* 标题条 */
+.pTop{flex:none;height:34px;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid var(--line);background:#252c3b;font-size:12.5px;font-weight:700}
+.pTop .x{position:absolute;right:5px;top:4px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--sub);background:#1b2130}
+.pTop .back{position:absolute;left:5px;top:4px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--sub);background:#1b2130}
+/* 头图横幅（列表型：标题+插画位） */
+.pBanner{flex:none;height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;background:linear-gradient(90deg,rgba(240,179,78,.22),rgba(240,179,78,.06));border-bottom:1px solid var(--line2)}
+.pBanner b{font-size:13px;color:#ffd98f;letter-spacing:1px}
+.pBanner .art{margin-left:auto;width:64px;height:30px;border:1px dashed var(--line2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--dim)}
+/* 副标题/说明行 */
+.pMeta{flex:none;padding:7px 11px;font-size:10.5px;color:var(--sub);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px}
+.pMeta .q{width:14px;height:14px;border-radius:50%;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--dim);flex:none}
+/* 固定区 / 滚动区 / CTA 区 */
+.pFix{flex:none;padding:8px 10px;border-bottom:1px solid var(--line)}
+.pScroll{flex:1;min-height:0;overflow:hidden;padding:8px 10px;display:flex;flex-direction:column;gap:7px;position:relative}
+.pScroll.hint{background:repeating-linear-gradient(180deg,transparent 0 30px,rgba(255,255,255,.012) 30px 31px)}
+/* 底部渐隐：贴住滚动区底并随内容粘住，让"被切一半的行"读作"可继续滚"而不是画错 */
+.pScroll .fadeEnd{position:sticky;bottom:-1px;z-index:3;flex:none;height:18px;margin-top:-6px;
+  background:linear-gradient(180deg,rgba(35,41,55,0),rgba(35,41,55,.96));pointer-events:none}
+.pCTA{flex:none;border-top:1px solid var(--line2);padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:5px;background:#222937}
+.pCTA .note{font-size:9px;color:var(--dim)}
+.btnBig{width:150px;height:30px;border-radius:8px;border:2px solid var(--acc);background:rgba(240,179,78,.14);color:var(--acc);font-size:12.5px;font-weight:800;letter-spacing:3px;display:flex;align-items:center;justify-content:center;position:relative}
+.btnBig.disabled{opacity:.45;border-color:var(--line2);color:var(--sub);background:transparent}
+.btnBig .dotR{position:absolute;right:-5px;top:-5px;width:11px;height:11px;border-radius:50%;background:var(--acc2);border:2px solid #222937}
+.btnRow{display:flex;gap:7px;width:100%}
+.btnRow .b{flex:1;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700}
+.btnRow .b1{border:1px solid var(--ok);color:var(--ok);background:rgba(88,196,140,.1)}
+.btnRow .b2{border:2px solid var(--acc);color:var(--acc);background:rgba(240,179,78,.14)}
+.btnRow .bG{border:1px solid var(--line2);color:var(--sub)}
+.btnRow .bD{border:1px solid var(--acc2);color:#ff9c95;background:rgba(229,83,75,.1)}
+
+/* ====== 列表行 ====== */
+.lrow{flex:none;display:flex;align-items:center;gap:8px;border-radius:9px;background:var(--wbox2);border:1px solid var(--line2);padding:7px 9px;position:relative}
+.lrow .li{width:34px;height:34px;border-radius:8px;border:1px solid var(--line2);background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none;position:relative}
+.lrow .lm{flex:1;min-width:0}
+.lrow .lm b{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lrow .lm .ln{font-size:9px;color:var(--dim);margin-top:1px;display:flex;gap:6px;align-items:center}
+.lrow .lm .ln .d{border:1px solid var(--line2);border-radius:4px;padding:0 4px;font-size:8.5px;color:var(--sub)}
+.lrow .lm .ln .exp{color:var(--acc2);font-weight:700}
+.lrow .lm .ln .soon{color:var(--acc)}
+.lrow .act{flex:none;font-size:10px;border:1px solid var(--ok);color:var(--ok);border-radius:7px;padding:3px 8px;background:rgba(88,196,140,.08)}
+.lrow .act.gold{border-color:var(--acc);color:var(--acc);background:rgba(240,179,78,.1)}
+.lrow .act.grey{border-color:var(--line2);color:var(--dim);background:none}
+.lrow .redn{position:absolute;right:-4px;top:-4px;width:11px;height:11px;border-radius:50%;background:var(--acc2);border:2px solid #222937}
+.lrow.expired{opacity:.5}
+.lrow.sel{border-color:var(--acc);box-shadow:inset 0 0 0 1px rgba(240,179,78,.35)}
+.lrow .prog{margin-top:3px;height:5px;border-radius:3px;background:#12151d;border:1px solid var(--line);overflow:hidden}
+.lrow .prog i{display:block;height:100%;width:65%;background:var(--ok)}
+.lrow .gk{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.lrow .gk b{font-size:10.5px;color:var(--acc)}
+.lrow .gk span{font-size:8.5px;color:var(--dim)}
+
+/* ====== 详情型（品质头 + Tab） ====== */
+.qHead{flex:none;padding:9px 11px;display:flex;gap:10px;align-items:center;background:linear-gradient(120deg,#2f5a34,#24462a);border-bottom:1px solid var(--line2);position:relative}
+.qHead.q1{background:linear-gradient(120deg,#33532f,#26401f)}
+.qHead.q2{background:linear-gradient(120deg,#2f4a63,#22354a)}
+.qHead.q3{background:linear-gradient(120deg,#4a3a63,#33274a)}
+.qHead .qi{width:44px;height:44px;border-radius:9px;border:2px solid rgba(255,255,255,.55);background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none;position:relative}
+.qHead .qi .tier{position:absolute;left:-5px;top:-5px;font-size:8px;background:#12151d;border:1px solid var(--line2);border-radius:4px;padding:0 3px;color:#ffd98f}
+.qHead .qm{flex:1;min-width:0}
+.qHead .qm b{display:block;font-size:13px;color:#fff}
+.qHead .qm .qs{font-size:10px;color:rgba(255,255,255,.8);display:flex;gap:10px;margin-top:2px}
+.tagQuality{font-size:9px;border-radius:4px;padding:0 5px;background:rgba(255,255,255,.18);color:#fff;font-weight:700}
+.wtabs{flex:none;display:flex;border-bottom:1px solid var(--line2);background:#1e2532}
+.wtabs div{flex:1;text-align:center;font-size:11.5px;padding:7px 0;color:var(--sub);position:relative}
+.wtabs div.on{color:#ffd98f;font-weight:700}
+.wtabs div.on::after{content:"";position:absolute;left:14%;right:14%;bottom:-1px;height:2px;background:var(--acc);border-radius:2px}
+.wtabs.four div{font-size:11px}
+/* 属性行（宝石/词条）：图标 + 文案 + 行内动作 */
+.attrRow{flex:none;display:flex;align-items:center;gap:8px;border-radius:9px;background:var(--wbox2);border:1px solid var(--line2);padding:7px 8px}
+.attrRow .ai{width:30px;height:30px;border-radius:7px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;background:#1b2130}
+.attrRow .at{flex:1;min-width:0;font-size:10.5px;line-height:1.35;color:var(--tx)}
+.attrRow .at em{font-style:normal;color:var(--acc);font-weight:700}
+.attrRow .ab{flex:none;width:26px;height:24px;border-radius:6px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--sub);background:#1b2130}
+.attrRow .abAct{flex:none;font-size:10px;border:1px solid var(--acc);color:var(--acc);border-radius:6px;padding:3px 9px;background:rgba(240,179,78,.1);font-weight:700}
+.attrRow.empty{border-style:dashed;opacity:.62}
+.attrRow.empty .at{color:var(--dim)}
+/* 分组标题（属性区） */
+.gTitle{flex:none;font-size:9.5px;color:var(--dim);letter-spacing:1px;border-left:2px solid var(--line2);padding-left:6px}
+.kvRow{flex:none;display:flex;justify-content:space-between;font-size:10.5px;color:var(--sub);padding:4px 2px;border-bottom:1px dashed var(--line)}
+.kvRow b{color:var(--tx)}
+.kvRow.total{border-bottom:0;font-size:11.5px}
+.kvRow.total b{color:var(--acc);font-size:12.5px}
+
+/* ====== 确认型小弹窗内容 ====== */
+.igrid{display:grid;gap:5px}
+.igrid.c5{grid-template-columns:repeat(5,1fr)}
+.igrid.c4{grid-template-columns:repeat(4,1fr)}
+.igrid.c3{grid-template-columns:repeat(3,1fr)}
+.igrid i{aspect-ratio:1;border-radius:7px;border:1px solid var(--line2);background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:13px;position:relative}
+.igrid i em{position:absolute;right:2px;bottom:1px;font-style:normal;font-size:7.5px;color:var(--sub)}
+.igrid i .cnt{position:absolute;left:2px;bottom:1px;font-size:7.5px;color:var(--tx);background:rgba(0,0,0,.5);border-radius:4px;padding:0 2px}
+.cmpBox{border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+.cmpBox .ch{height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--sub);background:#1e2532;border-bottom:1px solid var(--line)}
+.cmpLine{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;font-size:12px}
+.cmpLine .v{font-weight:700}
+.cmpLine .v.old{color:var(--sub)}
+.cmpLine .v.new{color:var(--acc)}
+.cmpLine .arrow{color:var(--ok);font-size:14px}
+.cmpBody{padding:7px 10px;display:flex;flex-direction:column;gap:5px;background:#1b2130}
+/* 消耗行 */
+.costRow{display:flex;gap:10px;justify-content:center;align-items:flex-start}
+.cost{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:9px;color:var(--sub);position:relative}
+.cost .ci{width:32px;height:32px;border-radius:8px;border:1px solid var(--line2);background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px;position:relative}
+.cost .cv{font-size:10px;color:var(--tx)}
+.cost .cv.lack{color:var(--acc2);font-weight:700}
+.cost .cv.ok{color:var(--ok)}
+/* ====== 全屏二级页 ====== */
+.xShow{position:absolute;left:0;right:0;top:56px;height:136px;display:flex;flex-direction:column;align-items:center;gap:5px;z-index:3}
+.xShow .pedestal{width:74px;height:74px;border-radius:12px;border:2px solid rgba(120,190,240,.6);background:#1b2431;display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;box-shadow:0 0 0 8px rgba(90,167,232,.1),0 0 30px rgba(90,167,232,.25)}
+.xShow .pedestal .tier{position:absolute;left:-6px;top:-6px;font-size:9px;background:#12151d;border:1px solid var(--line2);border-radius:4px;padding:0 4px;color:#ffd98f}
+.xShow .pname{font-size:15px;font-weight:800;color:var(--acc);letter-spacing:2px;background:rgba(0,0,0,.45);border-radius:6px;padding:2px 16px;border:1px solid rgba(240,179,78,.3)}
+.xShow .sub2{font-size:9.5px;color:var(--sub)}
+.xMid{position:absolute;left:10px;right:10px;top:200px;bottom:150px;display:flex;flex-direction:column;gap:6px;z-index:3;overflow:hidden}
+.xBottom{position:absolute;left:0;right:0;bottom:0;height:150px;z-index:4;background:#151a24;border-top:1px solid var(--line2);display:flex;flex-direction:column}
+.xCost{flex:none;padding:6px 10px;display:flex;gap:12px;justify-content:center;align-items:center;border-bottom:1px solid var(--line)}
+.xCta{flex:none;display:flex;gap:8px;padding:0 10px 6px}
+.xCta .c1{flex:1;height:30px;border-radius:8px;border:2px solid var(--ok);color:#bff0d5;background:rgba(88,196,140,.12);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.xCta .c2{flex:1;height:30px;border-radius:8px;border:2px solid var(--acc);color:#ffe1a6;background:rgba(240,179,78,.14);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.xCta .c2.disabled{border-color:var(--line2);color:var(--sub);background:none}
+.xSlotStrip{flex:none;height:52px;display:flex;gap:4px;padding:5px 8px;border-bottom:1px solid var(--line2);overflow:hidden}
+.slotCell{flex:1;border-radius:7px;border:1px solid var(--line2);background:#1b2130;display:flex;align-items:flex-end;justify-content:center;font-size:15px;position:relative;padding-bottom:2px}
+.slotCell .tier{position:absolute;left:1px;top:1px;font-size:7px;background:#12151d;border-radius:3px;padding:0 2px;color:var(--sub)}
+.slotCell.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px rgba(240,179,78,.5)}
+.slotCell .redn{position:absolute;right:-2px;top:-2px;width:9px;height:9px;border-radius:50%;background:var(--acc2);border:1px solid #151a24}
+.xActs{flex:1;display:flex;align-items:center;gap:8px;padding:0 10px 4px}
+.xActs .back{width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none}
+.xActs .ptabs{margin-left:auto;display:flex;gap:8px}
+.xActs .pt{width:44px;height:34px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8px;color:var(--sub);border:1px solid transparent}
+.xActs .pt i{font-size:14px;font-style:normal}
+.xActs .pt.on{color:var(--acc);border-color:var(--acc);background:rgba(240,179,78,.1)}
+.xActs .pt .redn{position:absolute}
+/* 结果层 */
+.resLayer{position:absolute;inset:0;z-index:20;background:#12151d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.resLayer h4{font-size:15px;color:var(--acc);letter-spacing:5px}
+.cardRow{display:flex;gap:8px}
+.gcard{width:66px;height:92px;border-radius:10px;border:2px solid var(--acc);background:rgba(240,179,78,.08);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9px;color:var(--sub);position:relative}
+.gcard .gi{font-size:24px}
+.gcard .nw{background:var(--acc2);color:#fff;font-size:7.5px;border-radius:4px;padding:0 4px}
+.gcard .dup{background:var(--line2);color:var(--tx);font-size:7.5px;border-radius:4px;padding:0 4px}
+/* 标注点 */
+.dot{position:absolute;z-index:40;width:18px;height:18px;border-radius:50%;background:var(--info);color:#04121f;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(90,167,232,.22);user-select:none}
+body.hideAnno .dot{display:none}
+/* 标注列表 */
+.calloutGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:20px}
+.coItem{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 14px}
+.coItem .cot{display:flex;gap:9px;align-items:baseline}
+.coItem .cot .n{flex:none;width:20px;height:20px;border-radius:50%;background:var(--info);color:#04121f;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.coItem .cot b{font-size:13.5px}
+.coItem p{font-size:12px;color:var(--sub);margin-top:3px;padding-left:29px}
+.coItem p b{color:var(--tx)}
+.coItem .flow{margin-top:6px;padding-left:29px;font-size:11.5px;color:var(--dim);font-family:Consolas,monospace}
+/* 表格 */
+.diagTable{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13px}
+.diagTable th{background:#1f2532;color:var(--sub);font-weight:600;text-align:left;padding:10px 14px;font-size:12.5px}
+.diagTable td{border-top:1px solid var(--line);padding:9px 14px;color:var(--sub);vertical-align:top}
+.diagTable td b{color:var(--tx)}
+.diagTable td .code{font-family:Consolas,monospace;font-size:11.5px;color:var(--info);white-space:nowrap}
+.tag{display:inline-block;font-size:10.5px;border-radius:99px;padding:1px 8px;border:1px solid var(--line2);color:var(--sub);white-space:nowrap}
+.tag.l1{color:#9ccbf3;border-color:rgba(90,167,232,.45)}
+.tag.l2{color:#9be0bd;border-color:rgba(88,196,140,.45)}
+.tag.l3{color:#ffd98f;border-color:rgba(240,179,78,.45)}
+.tag.l4{color:#ff9c95;border-color:rgba(229,83,75,.45)}
+.tag.l5{color:#c3aef4;border-color:rgba(150,120,220,.45)}
+/* 落地清单 */
+.implList{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.implItem{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;font-size:13px;color:var(--sub)}
+.implItem b{color:var(--tx);display:block;margin-bottom:3px}
+.implItem .pri{font-size:10.5px;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:2px}
+.pri.p0{background:rgba(229,83,75,.16);color:#ff8d86;border:1px solid rgba(229,83,75,.5)}
+.pri.p1{background:rgba(240,179,78,.13);color:var(--acc);border:1px solid rgba(240,179,78,.45)}
+.pri.p2{background:rgba(90,167,232,.12);color:var(--info);border:1px solid rgba(90,167,232,.4)}
+footer{margin-top:70px;border-top:1px solid var(--line);padding-top:18px;color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= 文档头 ================= -->
+<header class="docHead">
+  <h1>《末日航线》<em>二级界面与二级弹窗 UX 布局交互稿</em></h1>
+  <div class="meta">版本 <b>v1.0</b> ｜ 只做<b>布局与交互</b>重构（<b>不含美术样式与资源</b>） ｜ 对标《向僵尸开炮》二级页/弹窗五图 ｜ 平台：微信小游戏（竖屏锁定）</div>
+  <div class="badges">
+    <span class="badge">设计画布 <b>1080 × 1920</b>（本稿按 <b>1/3.6</b> 缩样展示）</span>
+    <span class="badge">弹层分五级 <b>L1 页面 → L5 结果</b></span>
+    <span class="badge">弹窗尺寸四档 <b>S / M / L / XL</b></span>
+    <span class="badge">主 CTA 固定<b>弹窗底部</b>，滚动区不吞 CTA</span>
+    <span class="badge">关闭位固定<b>右上</b>，返回位固定<b>左上</b></span>
+  </div>
+</header>
+
+<!-- ================= 页签 ================= -->
+<nav class="pageTabs" id="pageTabs">
+  <button data-go="sec-global" class="on">0 · 弹层全局规范</button>
+  <button data-go="sec-list">① 列表型弹窗</button>
+  <button data-go="sec-detail">② 详情型弹窗（Tab）</button>
+  <button data-go="sec-confirm">③ 确认型小弹窗</button>
+  <button data-go="sec-full">④ 全屏二级页</button>
+  <button data-go="sec-result">⑤ 结果演出层</button>
+  <button data-go="sec-map">⑥ 弹窗清单与映射</button>
+  <button data-go="sec-plan">附 · 落地优先级</button>
+  <span class="sp"></span>
+  <span class="tgl on" id="maskTgl">● 遮罩：真实</span>
+  <span class="tgl on" id="capsTgl">● 胶囊禁入区：显示</span>
+  <span class="tgl on" id="annoTgl">● 标注：开</span>
+</nav>
+
+<!-- ================= 0 全局规范 ================= -->
+<section id="sec-global">
+  <div class="secHead"><span class="no">00</span><h2>弹层全局规范</h2><small>层级 / 尺寸档 / 统一解剖 / 关闭返回链 / 红点与安全区</small></div>
+
+  <div class="specGrid">
+    <div class="specCard">
+      <h3>五级弹层（本项目唯一分层口径）</h3>
+      <div class="layerLadder">
+        <div class="lstep L1"><span class="lv">L1</span><span><b>主页面</b>：战斗 / 英雄 / 商店 / 玩法 / 基地</span><span class="zone">z 8500</span></div>
+        <div class="lstep L2"><span class="lv">L2</span><span><b>全屏二级页</b>：装备强化、英雄养成、工坊、副本、派遣、改装</span><span class="zone">z 8600</span></div>
+        <div class="lstep L3"><span class="lv">L3</span><span><b>二级弹窗</b>：邮箱、公告、任务、详情、图鉴、设置</span><span class="zone">z 8700</span></div>
+        <div class="lstep L4"><span class="lv">L4</span><span><b>半屏抽屉</b>：编队、批量操作、快速选择</span><span class="zone">z 8800</span></div>
+        <div class="lstep L5"><span class="lv">L5</span><span><b>结果演出层</b>：招募揭晓、战斗结算、升级三选一</span><span class="zone">z 8900</span></div>
+      </div>
+      <ul style="margin-top:8px">
+        <li>同一时刻<b>只允许一层弹窗</b>：新开先关旧（就地替换），不做无限套娃。</li>
+        <li>L2/L3/L4 互斥；<b>弹窗里再开弹窗</b>统一走「替换 + 左上返回」，返回链最多 2 跳。</li>
+        <li>L5 独占：进入时<b>屏蔽返回</b>，必须走自身 CTA 离开。</li>
+      </ul>
+    </div>
+
+    <div class="specCard">
+      <h3>弹窗尺寸四档</h3>
+      <div class="sizeRow">
+        <div class="sizeCard"><div class="box" style="height:58px"></div><b>S · 确认型</b><span>宽 200（1080 稿 720）<br>高自适应 1~3 行<br>单/双 CTA</span></div>
+        <div class="sizeCard"><div class="box" style="height:104px"></div><b>M · 列表型</b><span>左右各留 16<br>上下各留 96<br>3~6 行可视</span></div>
+        <div class="sizeCard"><div class="box" style="height:126px"></div><b>L · 详情型</b><span>左右各留 12<br>上 78 / 下 74<br>Tab + 长列表</span></div>
+        <div class="sizeCard"><div class="box" style="height:150px"></div><b>XL · 全屏页</b><span>满屏无圆角<br>自带返回与底部栏</span></div>
+      </div>
+      <p style="margin-top:8px">档位只由<b>内容形态</b>决定，不由业务决定：能滚的列表/详情走 M/L，一步确认走 S，有独立背景与展示台的走 XL。</p>
+    </div>
+
+    <div class="specCard">
+      <h3>弹窗统一解剖（五段式）</h3>
+      <div class="anatomy">
+        <div class="anaBox">
+          <div class="anaPart fix" style="position:relative"><span class="anaTag">1</span><b>头部区</b>（固定）<span class="h">高 34~44</span>
+            <div style="font-size:10.5px;color:var(--dim);margin-top:3px">标题 / 品质头 / 横幅；右上角关闭 ✕</div>
+          </div>
+          <div class="anaPart fix" style="position:relative"><span class="anaTag">2</span><b>说明与页签区</b>（固定）<span class="h">高 20~30</span>
+            <div style="font-size:10.5px;color:var(--dim);margin-top:3px">副标题、? 帮助、2~4 枚页签</div>
+          </div>
+          <div class="anaPart scroll" style="position:relative"><span class="anaTag">3</span><b>内容滚动区</b>（唯一滚动体）<span class="h">flex:1</span>
+            <div style="font-size:10.5px;color:var(--dim);margin-top:3px">列表行 / 属性行 / 网格；底部渐隐提示可滚</div>
+          </div>
+          <div class="anaPart cta" style="position:relative"><span class="anaTag">4</span><b>主 CTA 区</b>（固定）<span class="h">高 46~56</span>
+            <div style="font-size:10.5px;color:var(--dim);margin-top:3px">单按钮居中 / 双按钮并排；上方 1px 分隔线</div>
+          </div>
+          <div class="anaCap">弹窗五段式：<b>2 固定 + 1 滚动 + 1 CTA</b>（+ 顶部安全余量）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="specCard">
+      <h3>滚动与固定区规则（避免"CTA 被滚走"）</h3>
+      <ul>
+        <li>弹窗内<b>只有内容区滚动</b>；头部与 CTA 恒固定（<span class="k">flex:none + 内容 flex:1 + overflow:auto</span>）。</li>
+        <li>窗口高度一律用<b>上下边距 + 自适应</b>，不写死高度；内容不足时弹窗<b>收缩</b>而不是留白。</li>
+        <li>滚动区底部加 <b>16px 渐隐</b>，明确"下面还有"。</li>
+        <li>切页签<b>保留滚动位置</b>；重新打开同一弹窗<b>回到顶部</b>。</li>
+        <li>列表 <b>≥ 8 行</b>必须给滚动条或渐隐；<b>行内不做横向滑动</b>（避免与页面横滑冲突）。</li>
+      </ul>
+    </div>
+
+    <div class="specCard">
+      <h3>关闭与返回链（全项目统一）</h3>
+      <table>
+        <tr><td>关闭 ✕</td><td>固定<b>右上角</b>，尺寸 ≥ 24（1080 稿 88），<b>任何弹窗不得省略</b></td></tr>
+        <tr><td>返回 ◀</td><td>L2 全屏页固定<b>左上角</b>；从 L3 详情钻取进来时，左上显示返回、右上不再重复 ✕</td></tr>
+        <tr><td>遮罩点击</td><td>L3/L4 可关闭；<b>L5 结果层不可</b>（防误触丢掉奖励）</td></tr>
+        <tr><td>系统返回</td><td>等价于当前层的关闭/返回；L5 忽略</td></tr>
+        <tr><td>关闭后落点</td><td>回到<b>打开它的那一层原状态</b>（滚动位与页签保持）</td></tr>
+      </table>
+    </div>
+
+    <div class="specCard">
+      <h3>红点 / 角标 / 状态</h3>
+      <ul>
+        <li>红点挂<b>元素右上角外缘</b>（-4px 溢出），直径 ≥ 11（1080 稿 40）。</li>
+        <li><b>数量角标</b>只在"可领取数量"与"材料差额"上出现，形状为胶囊、底色深、字色亮。</li>
+        <li>可领取/未读统一<b>红色</b>；可升级统一<b>金色</b>；已过期/已领完统一<b>置灰 + 降透明</b>。</li>
+        <li>禁用态按钮保持形状不变，只降对比并去掉描边高光，<b>不改文案</b>（避免布局跳动）。</li>
+      </ul>
+    </div>
+
+    <div class="specCard">
+      <h3>安全区与微信胶囊（红线）</h3>
+      <ul>
+        <li>胶囊禁入区 ≈ 右上 <b>90×34</b> 外扩 20，<b>弹窗关闭按钮与底部 CTA 均不得落进去</b>。</li>
+        <li>L2 全屏页顶部留 <b>60</b>（状态栏+胶囊带）；L3 居中弹窗顶部起点 <b>≥ 78</b>。</li>
+        <li>底部 CTA 区抬高 <b>+ Home 条高度</b>；L2 底部操作栏同理。</li>
+      </ul>
+    </div>
+
+    <div class="specCard">
+      <h3>热区与点击流</h3>
+      <ul>
+        <li>最小热区 <b>88×88</b>（1080 稿）；列表行整行可点，行内动作钮独立热区且<b>不冒泡</b>。</li>
+        <li>弹窗打开<b>不做入场动画</b>的层级变化（布局稿要求：位移不超过自身高度 8%）。</li>
+        <li>所有"一键 X"按钮语义 = <b>批量执行可执行项 + 结果 toast</b>，无二次确认。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1 列表型弹窗 ================= -->
+<section id="sec-list">
+  <div class="secHead"><span class="no">01</span><h2>列表型弹窗（M 档 · 对照图 1「先锋官邮箱」）</h2><small>横幅头 + 可滚列表 + 底部固定「一键领取」+ 过期倒计时列</small></div>
+
+  <div class="gallery">
+
+    <!-- 1-A 邮箱 -->
+    <figure class="ph">
+      <div class="phHead"><b>1-A 邮箱</b><span class="ref">对标图 1 · 本项目 📬 邮箱</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.6"></div><div class="blk blkTall"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div class="on"><i></i>商店</div><div><i></i>英雄</div><div><i></i>战斗</div><div><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop M">
+          <div class="pBanner"><b>📬 指挥官邮箱</b><div class="art">插画位</div></div>
+          <div class="pScroll">
+            <div class="lrow"><div class="li">✉️</div><div class="lm"><b>溢出的体力补发</b><div class="ln"><span class="d">2026-9-15</span><span class="exp">2 天后过期</span></div></div><span class="redn"></span></div>
+            <div class="lrow"><div class="li">🎁</div><div class="lm"><b>关卡首通奖励</b><div class="ln"><span class="d">2026-9-14</span><span class="soon">19:54:54 后过期</span></div></div></div>
+            <div class="lrow"><div class="li">📦</div><div class="lm"><b>维护补偿 · 钻石 ×200</b><div class="ln"><span class="d">2026-9-13</span><span class="exp">已过期</span></div></div><span class="redn"></span></div>
+            <div class="lrow expired"><div class="li">🗞️</div><div class="lm"><b>系统公告：载具改装上线</b><div class="ln"><span class="d">2026-9-10</span><span>无附件</span></div></div></div>
+            <div class="lrow"><div class="li">💌</div><div class="lm"><b>远征归来 · 结算奖励</b><div class="ln"><span class="d">2026-9-9</span><span class="exp">1 天后过期</span></div></div></div>
+            <div class="fadeEnd"></div>
+          </div>
+          <div class="pCTA">
+            <div class="btnBig">一键领取<span class="dotR"></span></div>
+            <div class="note">过期邮件自动删除 · 附件未领也会一并删除</div>
+          </div>
+          <span class="dot" style="left:150px;top:20px">1</span>
+          <span class="dot" style="left:36px;top:118px">2</span>
+          <span class="dot" style="left:150px;top:440px">3</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">横幅头 + 6 行可滚列表 + 固定 CTA；行尾「过期/无附件」为状态列</figcaption>
+    </figure>
+
+    <!-- 1-B 公告 -->
+    <figure class="ph">
+      <div class="phHead"><b>1-B 公告</b><span class="ref">图 1 同一母版 · 本项目 📣 游戏公告</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.6"></div><div class="blk blkTall"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div class="on"><i></i>商店</div><div><i></i>英雄</div><div><i></i>战斗</div><div><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop L" style="top:70px;bottom:60px">
+          <div class="pTop">📣 游戏公告<span class="x">✕</span></div>
+          <div class="wtabs"><div class="on">全部</div><div>更新</div><div>活动</div><div>公告</div></div>
+          <div class="pScroll">
+            <div class="lrow sel"><div class="li">🆕</div><div class="lm"><b>载具改装系统上线</b><div class="ln"><span class="d">2026-09-12</span><span>更新</span></div></div></div>
+            <div class="attrRow" style="align-items:flex-start"><div class="at">基地「🚛 载具工坊」新增「🔧 改装」入口，消耗改装图纸与金币强化四个部位：装甲板 / 撞角 / 工具箱 / 弹药架……<br><em>展开阅读全文 ▾</em></div></div>
+            <div class="lrow"><div class="li">👑</div><div class="lm"><b>BOSS 降临 · 精英词缀来袭</b><div class="ln"><span class="d">2026-09-10</span><span>更新</span></div></div><span class="redn"></span></div>
+            <div class="lrow"><div class="li">🚢</div><div class="lm"><b>《末日航线》正式启航</b><div class="ln"><span class="d">2026-09-05</span><span>公告</span></div></div></div>
+            <div class="fadeEnd"></div>
+          </div>
+          <div class="pCTA"><div class="btnBig disabled">全部标记已读</div><div class="note">进主城自动弹出未读 · 阅读即已读</div></div>
+          <span class="dot" style="left:150px;top:86px">1</span>
+          <span class="dot" style="left:60px;top:124px">2</span>
+          <span class="dot" style="left:150px;top:392px">3</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">同母版换内容：顶部 4 枚分类页签 + 选中项就地展开正文</figcaption>
+    </figure>
+
+    <!-- 1-C 任务 -->
+    <figure class="ph">
+      <div class="phHead"><b>1-C 任务 · 成就</b><span class="ref">图 1 母版 + 行内动作变体</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.6"></div><div class="blk blkTall"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div><i></i>商店</div><div><i></i>英雄</div><div><i></i>战斗</div><div class="on"><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop M" style="top:104px;bottom:88px">
+          <div class="pTop">📋 任务 · 成就<span class="x">✕</span></div>
+          <div class="wtabs"><div class="on">每日</div><div>成就</div><div>活跃宝箱</div></div>
+          <div class="pScroll">
+            <div class="lrow"><div class="li">🎯</div><div class="lm"><b>完成 3 场战斗</b><div class="prog"><i></i></div><div class="ln"><span>2/3</span><span>🪙 500</span></div></div><span class="act grey">进行中</span></div>
+            <div class="lrow"><div class="li">🚚</div><div class="lm"><b>护送车辆存活至第 5 波</b><div class="prog"><i style="width:100%;background:var(--acc)"></i></div><div class="ln"><span>已完成</span><span>💎 20</span></div></div><span class="act">领取</span><span class="redn"></span></div>
+            <div class="lrow"><div class="li">⚒️</div><div class="lm"><b>合成 1 件装备</b><div class="prog"><i style="width:100%;background:var(--acc)"></i></div><div class="ln"><span>已完成</span><span>🎫 2</span></div></div><span class="act">领取</span><span class="redn"></span></div>
+            <div class="lrow expired"><div class="li">📅</div><div class="lm"><b>每日登录</b><div class="ln"><span>已领取</span></div></div><span class="act grey">已领</span></div>
+            <div class="fadeEnd"></div>
+          </div>
+          <div class="pCTA"><div class="btnBig">一键领取（2）<span class="dotR"></span></div><div class="note">活跃 65/100 · 距下个宝箱还差 35</div></div>
+          <span class="dot" style="left:150px;top:120px">1</span>
+          <span class="dot" style="left:272px;top:190px">2</span>
+          <span class="dot" style="left:150px;top:432px">3</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">行内「领取」按钮与底部「一键领取」并存；进度条压入行内第二行</figcaption>
+    </figure>
+  </div>
+
+  <div class="calloutGrid">
+    <div class="coItem"><div class="cot"><span class="n">1</span><b>头部用「横幅」而不是细标题条</b></div>
+      <p>列表型弹窗的主要任务是"清空可领内容"，头部做成 <b>44 高横幅</b>（标题 + 右侧插画位），与页面顶栏形成视觉断点；关闭 ✕ 仍固定在本体右上，<b>不压横幅文字</b>。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">2</span><b>列表行三段式：图标 34 ｜ 主副文案 ｜ 状态/动作</b></div>
+      <p>第一行标题（单行省略），第二行左侧"来源/日期"，右侧状态列：<b>倒计时用暖色、过期用红色、无附件用灰字</b>。整行可点＝打开详情/展开；行内动作钮独立热区、不冒泡。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">3</span><b>底部 CTA 固定 + 状态注脚</b></div>
+      <p>「一键领取」常驻底部（永不随列表滚走），<b>数量写进按钮文案</b>（一键领取（2））；按钮下方一行小字承担规则说明（过期自动删除 / 活跃进度），替掉原本塞在列表里的说明行。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">4</span><b>红点位置统一</b></div>
+      <p>行的未读红点挂在<b>行块右上外缘</b>（不是图标上）；入口红点由"存在可领取/未读"驱动，一键领取执行后<b>同步熄灭</b>（含页签与入口）。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">5</span><b>空态与满态</b></div>
+      <p>空列表时：滚动区居中显示"暂无新邮件" + 一行指引（去战斗领取奖励）；CTA 变<b>禁用态</b>但保留占位，避免打开/关闭时高度跳动。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">6</span><b>点击流</b></div>
+      <p class="flow">入口(顶栏邮箱/玩法页) → L3 弹窗展开 → 行点击看详情（就地替换）→ 一键领取 → toast「已领取 N 件」→ 关闭回到原页面原位置</p></div>
+  </div>
+</section>
+
+<!-- ================= 2 详情型弹窗 ================= -->
+<section id="sec-detail">
+  <div class="secHead"><span class="no">02</span><h2>详情型弹窗（L 档 · 对照图 2「宝石属性 / 装备属性」）</h2><small>品质色头部 + 2 枚页签 + 属性行（带行内动作）+ 底部单一去向 CTA</small></div>
+
+  <div class="gallery">
+
+    <!-- 2-A 装备详情 -->
+    <figure class="ph">
+      <div class="phHead"><b>2-A 装备详情</b><span class="ref">对标图 2 · 本项目 装备/宝石详情</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.5"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div><i></i>商店</div><div class="on"><i></i>英雄</div><div><i></i>战斗</div><div><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop L">
+          <div class="qHead q1">
+            <div class="qi">👟<span class="tier">1阶</span></div>
+            <div class="qm">
+              <b><span class="tagQuality">普通</span> · 足具</b>
+              <div class="qs"><span>品阶：1 阶</span><span>等级：7</span><span>评分 620</span></div>
+            </div>
+          </div>
+          <div class="wtabs"><div class="on">宝石属性</div><div>装备属性</div></div>
+          <div class="pScroll">
+            <div class="attrRow"><div class="ai">🟣</div><div class="at">物理系伤害 <em>+12%</em></div><div class="ab">⏏</div><span class="abAct">卸下</span></div>
+            <div class="attrRow"><div class="ai">🟪</div><div class="at">前 5 级攻击造成伤害 <em>+48%</em></div><div class="ab">⏏</div><span class="abAct">卸下</span></div>
+            <div class="attrRow"><div class="ai">🟢</div><div class="at">对血量高于 70% 的怪物伤害 <em>+20%</em></div><div class="ab">⏏</div><span class="abAct">卸下</span></div>
+            <div class="attrRow"><div class="ai">🔵</div><div class="at">技能弹道与行进速度 <em>+24%</em></div><div class="ab">⏏</div><span class="abAct">卸下</span></div>
+            <div class="attrRow empty"><div class="ai">＋</div><div class="at">空槽位 · 点击镶嵌宝石</div><span class="abAct" style="border-color:var(--info);color:var(--info);background:rgba(90,167,232,.1)">镶嵌</span></div>
+            <div class="fadeEnd"></div>
+          </div>
+          <div class="pCTA"><div class="btnBig">装备锻造</div><div class="note">卸下的宝石自动回收到背包</div></div>
+          <span class="dot" style="left:56px;top:96px">1</span>
+          <span class="dot" style="left:150px;top:158px">2</span>
+          <span class="dot" style="left:258px;top:214px">3</span>
+          <span class="dot" style="left:150px;top:452px">4</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">品质头承担"身份"，Tab 承担"视角"，行尾承担"动作"</figcaption>
+    </figure>
+
+    <!-- 2-B 物品/材料详情 -->
+    <figure class="ph">
+      <div class="phHead"><b>2-B 材料 · 消耗品详情</b><span class="ref">图 2 母版 · 无页签简化版</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.5"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div><i></i>商店</div><div class="on"><i></i>英雄</div><div><i></i>战斗</div><div><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop M" style="top:150px;bottom:170px">
+          <div class="qHead q2" style="padding:8px 11px">
+            <div class="qi" style="width:40px;height:40px;font-size:20px">🔷</div>
+            <div class="qm"><b>强化石</b><div class="qs"><span>稀有度：蓝</span><span>持有：229</span></div></div>
+            <span class="x" style="position:static;flex:none">✕</span>
+          </div>
+          <div class="pScroll">
+            <div class="gTitle">用途</div>
+            <div class="attrRow"><div class="ai">🔧</div><div class="at">装备强化：每级消耗 2~9 颗，随部位等级递增</div></div>
+            <div class="attrRow"><div class="ai">⚒️</div><div class="at">装备合成：同阶三合一时作为辅料抵扣</div></div>
+            <div class="gTitle">来源</div>
+            <div class="kvRow"><span>关卡掉落（3-2 起）</span><b>32%</b></div>
+            <div class="kvRow"><span>装备分解返还</span><b>每件 1~3 颗</b></div>
+            <div class="kvRow"><span>资源副本 · 矿石场</span><b>每日 3 次</b></div>
+            <div class="fadeEnd"></div>
+          </div>
+          <div class="pCTA">
+            <div class="btnRow"><div class="b bG">批量分解</div><div class="b b2">前往获取</div></div>
+            <div class="note">点击「前往获取」直达资源副本</div>
+          </div>
+          <span class="dot" style="left:150px;top:170px">1</span>
+          <span class="dot" style="left:60px;top:330px">2</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">材料/道具详情：品质头压缩 + 用途/来源两组 KV + 双按钮去向</figcaption>
+    </figure>
+
+    <!-- 2-C 英雄属性拆解 -->
+    <figure class="ph">
+      <div class="phHead"><b>2-C 属性 · 战力拆解</b><span class="ref">图 2 母版 · 本项目 📊 属性详情</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.5"></div><div class="blk blkTall"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div><i></i>商店</div><div class="on"><i></i>英雄</div><div><i></i>战斗</div><div><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop M" style="top:130px;bottom:150px">
+          <div class="pTop">📊 属性详情 · 郑锐达<span class="x">✕</span></div>
+          <div class="pScroll">
+            <div class="pFix" style="border:1px solid var(--line2);border-radius:9px;background:#1b2130">
+              <div class="kvRow total" style="border:0"><span>总战力</span><b>12,480</b></div>
+            </div>
+            <div class="gTitle">攻击构成</div>
+            <div class="kvRow"><span>基础攻击</span><b>620</b></div>
+            <div class="kvRow"><span>武器 ×核心</span><b>×1.85</b></div>
+            <div class="kvRow"><span>装备 · 宝石加成</span><b>+412</b></div>
+            <div class="kvRow"><span>天赋 · 羁绊 · 基地</span><b>×1.32</b></div>
+            <div class="gTitle">生存与效率</div>
+            <div class="kvRow"><span>载具耐久加成</span><b>+18%</b></div>
+            <div class="kvRow"><span>金币获取</span><b>+12%</b></div>
+            <div class="fadeEnd"></div>
+          </div>
+          <div class="pCTA"><div class="btnBig">前往提升</div><div class="note">缺口最大项：装备宝石（+2 槽位可开）</div></div>
+          <span class="dot" style="left:150px;top:150px">1</span>
+          <span class="dot" style="left:60px;top:300px">2</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">把"战力"拆成可点击的分项：合计行固定在顶部，明细可滚</figcaption>
+    </figure>
+  </div>
+
+  <div class="calloutGrid">
+    <div class="coItem"><div class="cot"><span class="n">1</span><b>品质色头部 = 身份牌</b></div>
+      <p>头部用<b>品质底色 + 左上阶标 + 图标 + 名称 + 3 条短属性</b>。品质底色是<em>语义色</em>（本稿只用色带位置，具体色值留给美术任务）；阶标（1阶）永远贴图标左上，不写进标题文字。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">2</span><b>Tab 紧贴头部下方，两枚最佳</b></div>
+      <p>详情弹窗 Tab 上限 <b>4 枚</b>（宝石属性/装备属性/词条/来源）。切页签<b>只换内容区</b>，头部保持不动；选中态用下划线 + 高亮，避免整块变色导致头重脚轻。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">3</span><b>属性行 = 图标 + 文案 + 行尾动作</b></div>
+      <p>行尾动作固定两种：<b>图标钮</b>（查看/展开，26 宽）与<b>文字钮</b>（卸下/镶嵌，金色描边）。空槽位用虚线行 + 蓝色「镶嵌」，与已填行的金色动作形成"换/加"对比。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">4</span><b>底部 CTA 是"下一步"，不是"关闭"</b></div>
+      <p>详情弹窗底部只放<b>一个去向</b>（装备锻造 / 前往提升 / 前往获取），关闭交给右上 ✕。CTA 下方一行小字解释副作用（卸下宝石自动回收）。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">5</span><b>长文案换行规则</b></div>
+      <p>属性文案最多 <b>2 行</b>，超出省略并靠"展开阅读"承载；数字（+12%）永远高亮且不换行。行高随文案自适应，行与行之间固定 7 间距。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">6</span><b>点击流</b></div>
+      <p class="flow">背包/槽位点击 → L3 详情（默认"主视角"页签）→ 行尾卸下/镶嵌 → 就地刷新行 → 底部 CTA 钻取到 L2 养成页（左上出现返回）→ 返回落回详情</p></div>
+  </div>
+</section>
+
+<!-- ================= 3 确认型小弹窗 ================= -->
+<section id="sec-confirm">
+  <div class="secHead"><span class="no">03</span><h2>确认型小弹窗（S 档 · 对照图 3「一键合成」）</h2><small>窄弹窗 + 说明行（? 帮助）+ 素材网格 + 单个动作 CTA</small></div>
+
+  <div class="gallery">
+
+    <!-- 3-A 一键合成 -->
+    <figure class="ph">
+      <div class="phHead"><b>3-A 一键合成</b><span class="ref">对标图 3 · 本项目 ⚒️ 工坊合成</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.4"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div><i></i>商店</div><div><i></i>英雄</div><div><i></i>战斗</div><div><i></i>玩法</div><div class="on"><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop S" style="top:186px;transform:translate(-50%,0)">
+          <div class="pTop">一键合成<span class="x">✕</span></div>
+          <div class="pMeta">以下物品将合成新物品<span class="q">?</span></div>
+          <div class="pScroll" style="padding:8px 9px">
+            <div class="igrid c5">
+              <i>💠<span class="cnt">1</span></i><i>💠<span class="cnt">1</span></i><i>💠<span class="cnt">2</span></i><i>💠<span class="cnt">1</span></i><i>💠<span class="cnt">2</span></i>
+              <i>💠<span class="cnt">1</span></i><i>💠<span class="cnt">1</span></i><i>💠<span class="cnt">1</span></i><i style="border-style:dashed;opacity:.4"></i><i style="border-style:dashed;opacity:.4"></i>
+            </div>
+            <div class="kvRow" style="margin-top:2px"><span>参与合成</span><b>8 件 → 1 件</b></div>
+            <div class="kvRow"><span>合成后品质</span><b>紫 → 橙（必得）</b></div>
+          </div>
+          <div class="pCTA"><div class="btnBig">合成</div><div class="note">同品质 3 合 1 · 可批量全部合成</div></div>
+          <span class="dot" style="left:186px;top:172px">1</span>
+          <span class="dot" style="left:100px;top:200px">2</span>
+          <span class="dot" style="left:100px;top:382px">3</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">S 档窄弹窗：标题 + 说明 + 素材网格 + 单 CTA，整体居中偏上</figcaption>
+    </figure>
+
+    <!-- 3-B 双按钮确认 -->
+    <figure class="ph">
+      <div class="phHead"><b>3-B 危险/消耗确认</b><span class="ref">图 3 母版 · 双按钮变体</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.5"></div><div class="blk"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div><i></i>商店</div><div class="on"><i></i>英雄</div><div><i></i>战斗</div><div><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop S" style="top:210px;transform:translate(-50%,0)">
+          <div class="pTop">分解装备<span class="x">✕</span></div>
+          <div class="pFix" style="display:flex;gap:8px;align-items:center">
+            <div class="qi" style="width:38px;height:38px;border-radius:8px;border:1px solid var(--line2);background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:19px">🧤</div>
+            <div style="font-size:11px">精良 · 手套<div style="font-size:9.5px;color:var(--sub)">+7 · 已镶嵌 2 颗宝石</div></div>
+          </div>
+          <div class="pScroll" style="flex:none;padding:8px 10px">
+            <div class="kvRow"><span>返还强化石</span><b>× 3</b></div>
+            <div class="kvRow"><span>返还宝石</span><b>× 2（自动入库）</b></div>
+            <div class="kvRow" style="border:0"><span style="color:var(--acc2)">不可撤销</span><b style="color:var(--acc2)">装备消失</b></div>
+          </div>
+          <div class="pCTA">
+            <div class="btnRow"><div class="b bG">取消</div><div class="b bD">确认分解</div></div>
+            <div class="note">长按可连续分解 · 品质 ≥ 紫需二次确认</div>
+          </div>
+          <span class="dot" style="left:186px;top:196px">1</span>
+          <span class="dot" style="left:170px;top:388px">2</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">危险操作：后果用 KV 行前置说明，CTA 用双按钮并右置确认</figcaption>
+    </figure>
+
+    <!-- 3-C 提示型 -->
+    <figure class="ph">
+      <div class="phHead"><b>3-C 拦截提示 + 直达</b><span class="ref">图 3 母版 · 资源不足最小变体</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pBg">
+          <div class="hud"><div class="av"></div><div class="nm"></div><div class="ch"></div><div class="chp"></div><div class="chp"></div></div>
+          <div class="bd"><div class="blk" style="flex:.5"></div><div class="blk"></div><div class="grid5"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="tabsR"><div><i></i>商店</div><div><i></i>英雄</div><div class="on"><i></i>战斗</div><div><i></i>玩法</div><div><i></i>基地</div></div>
+        </div>
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pMask"></div>
+        <div class="wpop S" style="top:250px;transform:translate(-50%,0)">
+          <div class="pTop">体力不足<span class="x">✕</span></div>
+          <div class="pScroll" style="flex:none;padding:10px;text-align:center">
+            <div style="font-size:11.5px">本次出战需要 <b style="color:var(--acc2)">5</b> 点体力</div>
+            <div style="font-size:10px;color:var(--sub);margin-top:4px">当前 2/30 ｜ 距自然恢复 6 分钟</div>
+          </div>
+          <div class="pCTA">
+            <div class="btnRow"><div class="b bG">再等等</div><div class="b b2">看广告 +10</div></div>
+            <div class="note">也可用 💎 购买体力 · 今日已购 1/3</div>
+          </div>
+          <span class="dot" style="left:186px;top:236px">1</span>
+        </div>
+      </div></div>
+      <figcaption class="phCap">拦截型：只给两条出路（等待 / 获取），不出现"取消"干扰项</figcaption>
+    </figure>
+  </div>
+
+  <div class="calloutGrid">
+    <div class="coItem"><div class="cot"><span class="n">1</span><b>S 档只有纵向三行内容</b></div>
+      <p>宽度固定 200（1080 稿 720），内容最多 <b>标题 + 说明 + 3 行信息</b>；素材预览用网格（5 列优先级最高，视数量降为 4/3 列），<b>网格不超过 2 行</b>，更多走"×N"角标。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">2</span><b>说明行 + ? 帮助</b></div>
+      <p>合成/转化类必须在标题下给一行<b>结果说明</b>（"以下物品将合成新物品"），右侧 <b>? </b>指向概率/规则详情；规则细节不要写进正文，避免弹窗变高。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">3</span><b>单动作 CTA vs 双按钮</b></div>
+      <p>可逆/正向操作（合成、强化、领取）用<b>单个居中大按钮</b>；不可逆或消耗型（分解、下阵、购买）用<b>双按钮</b>，取消在左、确认在右，且确认语义用危险色或金色区分。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">4</span><b>禁用态与不足态</b></div>
+      <p>材料不足时按钮<b>禁用于原位</b>，并在按钮下方小字直接给出差额（"还差 3 颗强化石"），点击禁用按钮 → toast 指出缺口，不打开新层。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">5</span><b>点击流</b></div>
+      <p class="flow">工坊「一键合成」→ S 弹窗预览 → 合成 → 结果 toast + 网格就地刷新 → 关闭回到工坊原滚动位</p></div>
+  </div>
+</section>
+
+<!-- ================= 4 全屏二级页 ================= -->
+<section id="sec-full">
+  <div class="secHead"><span class="no">04</span><h2>全屏二级页（XL 档 · 对照图 4/5「装备强化 / 升品」）</h2><small>展示台 + 等级与属性对比块 + 消耗行 + 双 CTA + 槽位条 + 底部操作栏</small></div>
+
+  <div class="gallery">
+
+    <!-- 4-A 装备强化 -->
+    <figure class="ph">
+      <div class="phHead"><b>4-A 装备强化 / 升品</b><span class="ref">对标图 4·5 · 本项目 强化页</span></div>
+      <div class="phShell"><div class="phScr" style="background:#101720">
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="xShow">
+          <div class="pedestal">🪖<span class="tier">1阶</span></div>
+          <div class="pname">头 盔</div>
+          <div class="sub2">部位：头部 · 品质 精良</div>
+        </div>
+        <div class="xMid">
+          <div class="cmpBox">
+            <div class="cmpLine"><span class="v old">8 级</span><span class="arrow">➜</span><span class="v new">9 级</span></div>
+          </div>
+          <div class="cmpBox">
+            <div class="ch">基础属性</div>
+            <div class="cmpBody">
+              <div class="cmpLine" style="padding:2px 0"><span class="v old">攻击 +16</span><span class="arrow">➜</span><span class="v new">攻击 +18</span></div>
+              <div class="cmpLine" style="padding:2px 0"><span class="v old">耐久 +40</span><span class="arrow">➜</span><span class="v new">耐久 +45</span></div>
+            </div>
+          </div>
+          <div class="cmpBox">
+            <div class="ch">解锁 / 新增</div>
+            <div class="cmpBody">
+              <div class="cmpLine" style="padding:2px 0"><span style="font-size:11px">9 级开放第 <b>3</b> 个宝石槽</span><span class="v new">新</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="xBottom">
+          <div class="xCost">
+            <div class="cost"><div class="ci">🔷</div><div class="cv lack">2/9</div></div>
+            <div class="cost"><div class="ci">🪙</div><div class="cv ok">22984/222</div></div>
+          </div>
+          <div class="xCta">
+            <div class="c1">🔨 强化</div>
+            <div class="c2">⚡ 一键强化</div>
+          </div>
+          <div class="xSlotStrip">
+            <div class="slotCell"><span class="tier">1阶</span>🥾</div>
+            <div class="slotCell on"><span class="tier">1阶</span>🪖<span class="redn"></span></div>
+            <div class="slotCell"><span class="tier">1阶</span>🧤</div>
+            <div class="slotCell"><span class="tier">1阶</span>🦺</div>
+            <div class="slotCell"><span class="tier">1阶</span>🖐️</div>
+            <div class="slotCell"><span class="tier">1阶</span>👖</div>
+          </div>
+          <div class="xActs">
+            <div class="back">◀</div>
+            <div class="ptabs">
+              <div class="pt on"><i>🔨</i>强化</div>
+              <div class="pt"><i>✨</i>升品</div>
+            </div>
+          </div>
+        </div>
+        <span class="dot" style="left:150px;top:80px">1</span>
+        <span class="dot" style="left:150px;top:214px">2</span>
+        <span class="dot" style="left:66px;top:401px">3</span>
+        <span class="dot" style="left:115px;top:435px">4</span>
+        <span class="dot" style="left:73px;top:470px">5</span>
+        <span class="dot" style="left:222px;top:512px">6</span>
+      </div></div>
+      <figcaption class="phCap">上 3 / 中 4 / 下 3 的纵向配比：展示台 → 对比块 → 消耗+槽位+操作栏</figcaption>
+    </figure>
+
+    <!-- 4-B 英雄养成页 -->
+    <figure class="ph">
+      <div class="phHead"><b>4-B 英雄养成页</b><span class="ref">图 4 母版 · 技能/天赋/核心/武器统一骨架</span></div>
+      <div class="phShell"><div class="phScr" style="background:#101720">
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="xShow" style="height:120px;top:56px">
+          <div class="pedestal" style="width:64px;height:64px;font-size:30px">🧑‍✈️<span class="tier">5阶</span></div>
+          <div class="pname">郑 锐 达</div>
+          <div class="sub2">战斗力 12,480 · 先锋官 · 已上阵</div>
+        </div>
+        <div class="xMid" style="top:184px;bottom:146px">
+          <div class="cmpBox">
+            <div class="ch">技能养成（普攻 / 技能 / 大招）</div>
+            <div class="cmpBody" style="gap:6px">
+              <div class="attrRow" style="background:#232937"><div class="ai">🔫</div><div class="at"><b>穿甲弹</b> · Lv 5 <em>→ Lv 6</em><br><span style="color:var(--sub)">伤害 +8%，穿透 +1</span></div><span class="abAct">升级</span></div>
+              <div class="attrRow" style="background:#232937"><div class="ai">💥</div><div class="at"><b>燃烧弹幕</b> · Lv 3</div><span class="abAct" style="border-color:var(--line2);color:var(--sub);background:none">材料不足</span></div>
+              <div class="attrRow" style="background:#232937"><div class="ai">🌈</div><div class="at"><b>终极技 · 弹幕风暴</b> · Lv 2</div><span class="abAct">升级</span></div>
+            </div>
+          </div>
+          <div class="gTitle">升级材料（点击可跳转获取）</div>
+          <div class="costRow">
+            <div class="cost"><div class="ci">📘</div><div class="cv ok">6/4</div></div>
+            <div class="cost"><div class="ci">🪙</div><div class="cv ok">22984/1200</div></div>
+          </div>
+        </div>
+        <div class="xBottom" style="height:146px">
+          <div class="xCost" style="border-bottom:1px solid var(--line)">
+            <span style="font-size:10px;color:var(--sub)">本页可用升级：2 项（穿甲弹 / 弹幕风暴）</span>
+          </div>
+          <div class="xCta">
+            <div class="c1">⚡ 升级穿甲弹</div>
+            <div class="c2">🔨 一键升级（2）</div>
+          </div>
+          <div class="xSlotStrip" style="height:38px">
+            <div class="slotCell" style="font-size:12px">🧬核心 3</div>
+            <div class="slotCell on" style="font-size:12px">⚡技能 5</div>
+            <div class="slotCell" style="font-size:12px">🌟天赋 12</div>
+            <div class="slotCell" style="font-size:12px">🔧武器 2</div>
+          </div>
+          <div class="xActs" style="padding-top:2px">
+            <div class="back">◀</div>
+            <div class="ptabs">
+              <div class="pt on"><i>⚡</i>技能</div>
+              <div class="pt"><i>🧬</i>核心</div>
+              <div class="pt"><i>🌟</i>天赋</div>
+              <div class="pt"><i>🔧</i>武器</div>
+            </div>
+          </div>
+        </div>
+        <span class="dot" style="left:150px;top:86px">1</span>
+        <span class="dot" style="left:262px;top:268px">2</span>
+        <span class="dot" style="left:150px;top:362px">3</span>
+        <span class="dot" style="left:150px;top:474px">4</span>
+      </div></div>
+      <figcaption class="phCap">四条养成线收进同一骨架：底部页签切换线，页内不再开新弹窗</figcaption>
+    </figure>
+
+    <!-- 4-C 工坊 -->
+    <figure class="ph">
+      <div class="phHead"><b>4-C 工坊（合成 / 分解）</b><span class="ref">图 4 母版 · 网格型二级页</span></div>
+      <div class="phShell"><div class="phScr" style="background:#101720">
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="pTop" style="position:absolute;left:0;right:0;top:44px;background:#1a2130">⚒️ 装备工坊<span class="back">◀</span><span class="x">ⓘ</span></div>
+        <div class="wtabs four" style="position:absolute;left:10px;right:10px;top:86px;border:1px solid var(--line2);border-radius:9px">
+          <div class="on">合成</div><div>分解</div><div>宝石</div><div>材料</div>
+        </div>
+        <div class="pFix" style="position:absolute;left:10px;right:10px;top:120px;border:1px solid var(--line2);border-radius:9px;background:#1b2130;display:flex;gap:8px;align-items:center">
+          <span style="font-size:10.5px">筛选：</span><span class="tag l3">可合成 8</span><span class="tag">品质 ≥ 紫</span><span class="tag">部位 全部</span>
+        </div>
+        <div style="position:absolute;left:10px;right:10px;top:164px;bottom:104px;display:grid;grid-template-columns:repeat(5,1fr);grid-auto-rows:1fr;gap:6px">
+          <i style="border:1px solid var(--acc);border-radius:8px;background:rgba(240,179,78,.1);display:flex;align-items:center;justify-content:center;font-size:16px;position:relative">💠<span style="position:absolute;left:2px;top:2px;font-size:8px;color:var(--acc)">✓</span></i>
+          <i style="border:1px solid var(--acc);border-radius:8px;background:rgba(240,179,78,.1);display:flex;align-items:center;justify-content:center;font-size:16px;position:relative">💠<span style="position:absolute;left:2px;top:2px;font-size:8px;color:var(--acc)">✓</span></i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+          <i style="border:1px solid var(--line2);border-radius:8px;background:#1b2130;display:flex;align-items:center;justify-content:center;font-size:16px">💠</i>
+        </div>
+        <div class="xBottom" style="height:104px">
+          <div class="xCost" style="justify-content:space-between">
+            <span style="font-size:10px;color:var(--sub)">已选 2 件 · 预计产出 1 件</span>
+            <span style="font-size:10px;color:var(--acc)">一键全选可合成</span>
+          </div>
+          <div class="xActs">
+            <div class="back" style="width:auto;padding:0 12px;border-radius:9px;font-size:11px">取消全选</div>
+            <div class="ptabs">
+              <div class="pt on" style="width:auto;padding:0 14px;height:32px;font-size:11px">分解（2）</div>
+              <div class="pt" style="width:auto;padding:0 14px;height:32px;font-size:11px;color:var(--acc);border-color:var(--acc);background:rgba(240,179,78,.1)">合成</div>
+            </div>
+          </div>
+        </div>
+        <span class="dot" style="left:150px;top:132px">1</span>
+        <span class="dot" style="left:150px;top:352px">2</span>
+        <span class="dot" style="left:150px;top:446px">3</span>
+      </div></div>
+      <figcaption class="phCap">网格页：筛选固定 + 网格滚动 + 底部"已选/产出"汇总条</figcaption>
+    </figure>
+  </div>
+
+  <div class="calloutGrid">
+    <div class="coItem"><div class="cot"><span class="n">1</span><b>顶部展示台（展示对象 = 本次操作主体）</b></div>
+      <p>纵向配比 <b>3 : 4 : 3</b>（展示 : 对比 : 底栏）。展示台只放：图标（带阶标）、名称、一行副信息；<b>不放按钮</b>，避免与底部 CTA 抢焦点。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">2</span><b>对比块是"升级类"的通用件</b></div>
+      <p>等级对比（8级 ➜ 9级）与属性对比（+16 ➜ +18）用同一个 <b>cmpBox</b>：头部小标题 + 内容行；左值弱化、右值强调、中间箭头。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">3</span><b>消耗行：数量写成「持有/需求」</b></div>
+      <p>消耗物统一 <b>图标 + 持有/需求</b>，差额不足<b>标红</b>、充足标绿；一行最多 3 个消耗项，更多折到"更多材料"入口。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">4</span><b>双 CTA 贴着消耗行，在槽位条之上</b></div>
+      <p>「强化」＝单次、「一键强化」＝自动执行到资源上限；两枚并排等宽、一次一色（绿＝常规、金＝批量），位置<b>固定在消耗行下方、槽位条上方</b>。禁用态同时置灰并保留占位；长按单次按钮进入连续强化。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">5</span><b>槽位条 = 就地换目标</b></div>
+      <p>底部槽位条常驻，当前编辑槽高亮；<b>点其它槽＝换对象但不离页</b>（不做返回），红点表示该槽可强化。槽位顺序与英雄页装备格<b>完全一致</b>，避免玩家重新建立空间记忆。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">6</span><b>底部操作栏：左返回 + 右页签</b></div>
+      <p>左圆返回按钮固定；右侧 2~4 枚页签承载同级子页（强化/升品，技能/核心/天赋/武器）。<b>页签即层级</b>，不再向上叠弹窗。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">7</span><b>点击流</b></div>
+      <p class="flow">英雄页/背包 → L2 全屏页（左上返回）→ 槽位条换目标 → 强化 → 数值就地跳动 + 槽位红点更新 → 返回落回英雄页原滚动位</p></div>
+  </div>
+</section>
+
+<!-- ================= 5 结果演出层 ================= -->
+<section id="sec-result">
+  <div class="secHead"><span class="no">05</span><h2>结果演出层（L5 · 独占 · 不可遮罩关闭）</h2><small>招募揭晓 / 战斗结算 / 升级三选一：全屏、强反馈、单一出口</small></div>
+
+  <div class="gallery">
+    <figure class="ph">
+      <div class="phHead"><b>5-A 招募结果</b><span class="ref">本项目 招募结果 / 大成功</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="resLayer">
+          <h4>招 募 结 果</h4>
+          <div class="cardRow">
+            <div class="gcard"><span class="gi">🧑‍✈️</span>郑锐达<span class="nw">NEW</span></div>
+            <div class="gcard"><span class="gi">🧑‍🚀</span>林可<span class="dup">×20 碎片</span></div>
+            <div class="gcard"><span class="gi">🎒</span>装备箱<span class="gi" style="font-size:10px;color:var(--sub)">×1</span></div>
+          </div>
+          <div style="font-size:10px;color:var(--sub)">保底进度 62/80 · 重复英雄自动转化碎片</div>
+          <div style="display:flex;gap:10px;margin-top:6px">
+            <div class="btnBig" style="width:110px">再抽一次</div>
+            <div class="btnBig" style="width:110px;border-color:var(--line2);color:var(--sub);background:none">返回</div>
+          </div>
+          <div style="font-size:9px;color:var(--dim);margin-top:2px">十连结果支持左右滑动逐张揭晓（不改变布局）</div>
+        </div>
+        <span class="dot" style="left:150px;top:150px">1</span>
+        <span class="dot" style="left:150px;top:412px">2</span>
+      </div></div>
+      <figcaption class="phCap">卡面网格居中，底部两个出口：再抽 / 返回</figcaption>
+    </figure>
+
+    <figure class="ph">
+      <div class="phHead"><b>5-B 战斗结算</b><span class="ref">本项目 胜利 / 失败结算</span></div>
+      <div class="phShell"><div class="phScr">
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div class="resLayer" style="justify-content:flex-start;padding-top:80px">
+          <h4>护 送 成 功</h4>
+          <div style="font-size:10.5px;color:var(--sub)">第 12 关 · 噩梦 · 存活 3/4 英雄</div>
+          <div style="width:220px;margin-top:6px;display:flex;flex-direction:column;gap:5px">
+            <div class="lrow" style="padding:6px 8px"><div class="li" style="width:26px;height:26px;font-size:14px">🪙</div><div class="lm"><b>金币</b></div><span class="gk"><b>+1,240</b></span></div>
+            <div class="lrow" style="padding:6px 8px"><div class="li" style="width:26px;height:26px;font-size:14px">🔷</div><div class="lm"><b>强化石</b></div><span class="gk"><b>+6</b></span></div>
+            <div class="lrow" style="padding:6px 8px"><div class="li" style="width:26px;height:26px;font-size:14px">🎒</div><div class="lm"><b>装备 · 精良手套</b></div><span class="gk"><span class="tag l3">NEW</span></span></div>
+            <div class="lrow" style="padding:6px 8px"><div class="li" style="width:26px;height:26px;font-size:14px">📈</div><div class="lm"><b>指挥经验</b></div><span class="gk"><b>+320</b></span></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <div class="btnBig" style="width:100px;border-color:var(--info);color:var(--info);background:rgba(90,167,232,.1)">下一关</div>
+            <div class="btnBig" style="width:100px">再来一次</div>
+          </div>
+          <div style="font-size:9px;color:var(--dim)">胜利后 3 秒内可跳过掉落滚动动画</div>
+        </div>
+        <span class="dot" style="left:150px;top:104px">1</span>
+        <span class="dot" style="left:150px;top:330px">2</span>
+      </div></div>
+      <figcaption class="phCap">结算：结果标题 → 掉落清单 → 双出口（下一关 / 再来一次）</figcaption>
+    </figure>
+
+    <figure class="ph">
+      <div class="phHead"><b>5-C 升级三选一（局内）</b><span class="ref">本项目 战内选卡</span></div>
+      <div class="phShell"><div class="phScr" style="background:#0e1219">
+        <div class="pStatus"><span>9:41</span><span>⌁ 5G ▮</span></div>
+        <div class="capsZone"></div><div class="pCaps"></div>
+        <div style="position:absolute;left:0;right:0;top:70px;text-align:center;z-index:20">
+          <div style="font-size:16px;color:var(--acc);letter-spacing:4px;font-weight:800">升 级 ！Lv 7</div>
+          <div style="font-size:10px;color:var(--sub);margin-top:2px">选择一项强化 · 本局生效</div>
+        </div>
+        <div style="position:absolute;left:16px;right:16px;top:150px;display:flex;flex-direction:column;gap:9px;z-index:20">
+          <div class="attrRow" style="padding:11px 10px;background:#1e2532;border-color:var(--acc)"><div class="ai" style="width:34px;height:34px;font-size:18px">💥</div><div class="at"><b>爆炸弹头</b><br><span style="color:var(--sub)">命中后小范围爆炸，伤害 30%</span></div><span class="abAct">选择</span></div>
+          <div class="attrRow" style="padding:11px 10px;background:#1e2532"><div class="ai" style="width:34px;height:34px;font-size:18px">🎯</div><div class="at"><b>穿甲弹</b><br><span style="color:var(--sub)">子弹穿透 +1，伤害 -5%</span></div><span class="abAct" style="border-color:var(--line2);color:var(--sub);background:none">选择</span></div>
+          <div class="attrRow" style="padding:11px 10px;background:#1e2532"><div class="ai" style="width:34px;height:34px;font-size:18px">⚡</div><div class="at"><b>超载射击</b><br><span style="color:var(--sub)">攻速 +25%，持续 8 秒</span></div><span class="abAct" style="border-color:var(--line2);color:var(--sub);background:none">选择</span></div>
+        </div>
+        <div style="position:absolute;left:16px;right:16px;bottom:64px;z-index:20;display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:10px;color:var(--sub)">🔒 锁定本轮 3 张（消耗 1 次刷新）</div>
+          <div class="btnBig" style="width:96px;height:28px">刷新 ①</div>
+        </div>
+        <span class="dot" style="left:150px;top:112px">1</span>
+        <span class="dot" style="left:264px;top:236px">2</span>
+        <span class="dot" style="left:150px;top:474px">3</span>
+      </div></div>
+      <figcaption class="phCap">局内层：三选一纵向排列（拇指可达），刷新与锁定独立一行</figcaption>
+    </figure>
+  </div>
+
+  <div class="calloutGrid">
+    <div class="coItem"><div class="cot"><span class="n">1</span><b>L5 独占：不出系统返回、不可遮罩关闭</b></div>
+      <p>结果层必须由玩家点自己的按钮离开（返回/下一关）。防止误触丢失展示信息，也避免"未领取就退出"的纠纷。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">2</span><b>出口数量固定 2 个</b></div>
+      <p>招募：再抽 / 返回；结算：下一关 / 再来一次。危险或消耗动作<b>不放结果层</b>，避免在情绪高点误消费。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">3</span><b>局内三选一用纵向卡片</b></div>
+      <p>区别于局外的横向卡面：局内卡片纵向排布在拇指区，单卡 = 图标 + 名称 + 一行效果 + 行尾选择；刷新/锁定独立成行，<b>不挤占三张卡的点击区</b>。</p></div>
+    <div class="coItem"><div class="cot"><span class="n">4</span><b>与 L3/L4 的关系</b></div>
+      <p>L5 打开前<b>强制关闭 L3/L4</b>（结果来自那些操作），关闭后不自动恢复原弹窗，回到其所属页面。</p></div>
+  </div>
+</section>
+
+<!-- ================= 6 清单与映射 ================= -->
+<section id="sec-map">
+  <div class="secHead"><span class="no">06</span><h2>全项目二级界面 / 弹窗清单与映射</h2><small>参考母版 → 本项目表面 → 现层级 → 目标层级与档位 → 关键布局改动</small></div>
+  <table class="diagTable">
+    <thead><tr><th style="width:130px">参考母版</th><th style="width:250px">本项目表面</th><th style="width:90px">现层级</th><th style="width:120px">目标</th><th>关键布局改动</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="6"><b>图 1 列表型</b><br><span class="sub">横幅头 + 滚动列表 + 底部固定 CTA</span></td>
+        <td><b>📬 邮箱</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>横幅头 + 行状态列（倒计时/已过期/无附件）+ 底部「一键领取（N）」+ 过期注脚</td></tr>
+      <tr><td><b>📣 游戏公告</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · L</td><td>顶部分类页签（全部/更新/活动/公告）+ 选中项就地展开正文 + 底部「全部标记已读」</td></tr>
+      <tr><td><b>📋 任务 · 成就</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>页签（每日/成就/活跃宝箱）+ 行内进度条 + 行内「领取」与底部「一键领取」并存</td></tr>
+      <tr><td><b>📅 每日签到 · 七日目标</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>7 格日历网格（已领/今日可领/未来锁）+ 底部「领取今日」；补签入口收进页脚</td></tr>
+      <tr><td><b>🏆 排行榜</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td><b>我的名次固定条</b>贴住底部 CTA 上方 + 榜单滚动；前三名行高加深</td></tr>
+      <tr><td><b>🎁 限时礼包中心</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>礼包卡片列表（含倒计时）+ 底部「全部领取」；已购卡片置灰并下沉</td></tr>
+
+      <tr><td rowspan="6"><b>图 2 详情型</b><br><span class="sub">品质头 + Tab + 行内动作 + 去向 CTA</span></td>
+        <td><b>装备详情（宝石属性 / 装备属性）</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · L</td><td>品质色头 + 阶标贴图标 + 双页签 + 属性行（图标/文案/卸下）+ 底部「装备锻造」</td></tr>
+      <tr><td><b>💎 选择宝石镶嵌</b></td><td><span class="tag l4">L4</span></td><td><span class="tag l3">L3</span> · M</td><td>由抽屉改为弹窗：槽位摘要头 + 可选宝石列表（按适配度排序）+ 底部「镶嵌」</td></tr>
+      <tr><td><b>物品 / 材料 / 道具详情</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>无页签简化版：用途与来源两组 KV + 双按钮去向（批量分解 / 前往获取）</td></tr>
+      <tr><td><b>📊 战力 / 属性详情</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>合计行固定顶部 + 攻击/生存分组明细 + 底部「前往提升」（给缺口最大项）</td></tr>
+      <tr><td><b>📖 图鉴详情 / 🧬 英雄核心 / 🌟 天赋节点</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M/L</td><td>统一详情骨架：身份头 + 效果列表 + 消耗行 + 单去向 CTA；功能差异只体现在内容块</td></tr>
+      <tr><td><b>🎖️ 个人主页 / ⚙️ 设置</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>KV 分组列表 + 行尾开关/箭头；底部不放 CTA，关闭走右上 ✕</td></tr>
+
+      <tr><td rowspan="4"><b>图 3 确认型</b><br><span class="sub">窄弹窗 + 说明行 + 素材网格 + 单 CTA</span></td>
+        <td><b>⚒️ 一键合成</b></td><td><span class="tag l4">L4 内嵌</span></td><td><span class="tag l3">L3</span> · S</td><td>提级为 S 弹窗：标题条 + 说明行（? 规则）+ 5 列素材网格 + 底部「合成」</td></tr>
+      <tr><td><b>分解 / 批量分解</b></td><td><span class="tag l4">L4</span></td><td><span class="tag l3">L3</span> · S</td><td>双按钮确认 + 返还预览 KV + 不可撤销提示；品质 ≥ 紫二次确认</td></tr>
+      <tr><td><b>下阵 / 遣散 / 购买确认</b></td><td>无统一件</td><td><span class="tag l3">L3</span> · S</td><td>统一到双按钮 S 模板（左取消右确认，确认用危险色或金色）</td></tr>
+      <tr><td><b>🍖 体力不足 / 未解锁拦截</b></td><td>toast 混杂</td><td><span class="tag l3">L3</span> · S</td><td>拦截型：只给两条出路（等待 / 获取），不出现"取消"；禁用按钮点击也走此弹窗</td></tr>
+
+      <tr><td rowspan="8"><b>图 4 / 5 全屏页</b><br><span class="sub">展示台 + 对比块 + 消耗 + 双 CTA + 槽位条 + 底栏</span></td>
+        <td><b>装备强化 / 升品</b></td><td><span class="tag l2">弹窗内</span></td><td><span class="tag l2">L2</span> · XL</td><td>新建二级页：展示台 + 等级/属性对比块 + 消耗行（持有/需求）+ 双 CTA + 槽位条 + 底部左返回右页签</td></tr>
+      <tr><td><b>⚡ 技能养成 / 🧬 英雄核心 / 🌟 天赋树 / 🔧 武器强化</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l2">L2</span> · XL</td><td>四条线收进同一 XL 骨架，底部页签切换；页内不再开新弹窗</td></tr>
+      <tr><td><b>⭐ 升星</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l3">L3</span> · M</td><td>保留弹窗（碎片进度 + 升星预览），复用对比块展示星级收益</td></tr>
+      <tr><td><b>⚒️ 装备工坊</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l2">L2</span> · XL</td><td>页签（合成/分解/宝石/材料）+ 筛选固定条 + 5 列网格滚动 + 底部「已选/产出」汇总条</td></tr>
+      <tr><td><b>🏰 资源副本 / 🗼 试炼之塔</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l2">L2</span> · XL</td><td>档位卡列表 + 顶部展示（今日次数/体力）+ 底部「挑战」；层内进度条取代弹窗</td></tr>
+      <tr><td><b>🚀 远征派遣</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l2">L2</span> · XL</td><td>队伍槽位条 + 英雄属性匹配列表 + 底部「出发」+ 倒计时条常驻顶部</td></tr>
+      <tr><td><b>🔧 载具改装</b></td><td><span class="tag l3">L3</span></td><td><span class="tag l2">L2</span> · XL</td><td>四部位槽位条 + 当前/下级对比块 + 消耗行；同一骨架，仅内容换成部位</td></tr>
+      <tr><td><b>🏰 建筑详情 / 升级</b></td><td><span class="tag l4">L4</span></td><td><span class="tag l3">L3</span> · M</td><td>轻量信息走弹窗即可（介绍 + 当前/下级效果 + 升级消耗），不必开 XL</td></tr>
+
+      <tr><td rowspan="4"><b>结果演出</b><br><span class="sub">全屏独占 + 双出口</span></td>
+        <td><b>🎖️ 招募结果 / 大成功</b></td><td><span class="tag l5">L4</span></td><td><span class="tag l5">L5</span> · 独占</td><td>卡面网格居中 + 保底进度行 + 双出口（再抽 / 返回）；十连逐张揭晓不改布局</td></tr>
+      <tr><td><b>战斗结算（胜/败）</b></td><td><span class="tag l5">L5</span></td><td><span class="tag l5">L5</span> · 独占</td><td>结果标题 + 掉落清单（行模板与列表型一致）+ 双出口（下一关 / 再来一次）</td></tr>
+      <tr><td><b>升级三选一（局内）</b></td><td><span class="tag l5">局内</span></td><td><span class="tag l5">L5</span> · 局内</td><td>纵向三卡 + 独立刷新/锁定行；卡片尺寸与局外详情行统一</td></tr>
+      <tr><td><b>看广告（激励视频）遮罩</b></td><td><span class="tag l5">L5</span></td><td><span class="tag l5">L5</span> · 独占</td><td>加载态（转圈 + 取消倒计时）与失败态（重试 / 关闭）两态固定，不叠加其它层</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ================= 附 落地优先级 ================= -->
+<section id="sec-plan">
+  <div class="secHead"><span class="no">07</span><h2>落地优先级（供下一步开发排期）</h2><small>P0 = 结构改动，直接决定后面美术接入是否返工</small></div>
+  <div class="implList">
+    <div class="implItem"><b>弹层分层收口 <span class="pri p0">P0</span></b>现状 L2/L3/L4 混用同一套 <span class="code">protoMask</span>，层级靠类名区分。需统一成 <b>5 级 + 单一开闭入口</b>，同层内"就地替换"，并支持左上返回。</div>
+    <div class="implItem"><b>弹窗五段式骨架 <span class="pri p0">P0</span></b>抽出统一弹窗容器：<b>头部固定 / 说明固定 / 内容滚动 / CTA 固定</b>。所有 M/L 档弹窗复用，消除"CTA 被滚走"和"弹窗高度靠写死"两类问题。</div>
+    <div class="implItem"><b>列表行模板 <span class="pri p0">P0</span></b>邮箱/任务/公告/结算掉落共用一行：<b>图标 34 + 双行文案 + 状态列 + 行内动作 + 红点</b>。当前各弹窗各写一套。</div>
+    <div class="implItem"><b>全屏二级页新建 <span class="pri p0">P0</span></b>装备强化/升品、英雄四条养成线、工坊、副本、派遣、改装全部改为 XL 二级页骨架（展示台 + 对比块 + 消耗行 + 双 CTA + 槽位条 + 底栏）。<b>这是本稿最大改动</b>。</div>
+    <div class="implItem"><b>S 档确认模板 <span class="pri p1">P1</span></b>合成/分解/下阵/购买/拦截统一到 S 模板（单 CTA 或双按钮可配），替换现在的散装实现与 toast。</div>
+    <div class="implItem"><b>对比块组件 <span class="pri p1">P1</span></b>等级对比与属性对比共用 <span class="code">cmpBox</span>，供强化、升品、改装、天赋预览复用。</div>
+    <div class="implItem"><b>消耗行组件 <span class="pri p1">P1</span></b>「持有/需求」统一格式 + 不足标红 + 视觉/功能禁用联动；供所有养成页与确认弹窗复用。</div>
+    <div class="implItem"><b>空态 / 加载 / 失败态 <span class="pri p1">P1</span></b>列表空态、结算加载、广告失败三类状态统一占位高度，避免开关弹窗时高度跳动。</div>
+    <div class="implItem"><b>红点与角标口径 <span class="pri p2">P2</span></b>红点统一挂元素右上外缘；"可领取数量"与"材料差额"角标格式统一，一处实现多处复用。</div>
+    <div class="implItem"><b>滚动位保持 <span class="pri p2">P2</span></b>关闭弹窗/切页签后的滚动位置与页签状态保持；重开同一弹窗回到顶部。</div>
+  </div>
+</section>
+
+<footer>
+  《末日航线》二级界面与二级弹窗 UX 布局交互稿 v1.0 ｜ 只定义<b>布局、层级与交互</b>，不含美术样式与资源（视觉与素材在下一阶段任务中重构） ｜ 尺寸口径：设计画布 1080×1920，本稿缩样展示，比例与相对关系为准。
+</footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+/* 页签高亮与定位 */
+document.querySelectorAll('#pageTabs button[data-go]').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('#pageTabs button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    const el = document.getElementById(b.dataset.go);
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  };
+});
+
+/* 开关：遮罩 / 胶囊禁入区 / 标注 */
+$('#maskTgl').onclick = ()=>{
+  document.body.classList.toggle('noMask');
+  const on = !document.body.classList.contains('noMask');
+  $('#maskTgl').classList.toggle('on', on);
+  $('#maskTgl').textContent = on ? '● 遮罩：真实' : '○ 遮罩：透看背景';
+};
+$('#capsTgl').onclick = ()=>{
+  document.body.classList.toggle('noCaps');
+  const on = !document.body.classList.contains('noCaps');
+  $('#capsTgl').classList.toggle('on', on);
+  $('#capsTgl').textContent = on ? '● 胶囊禁入区：显示' : '○ 胶囊禁入区：隐藏';
+};
+$('#annoTgl').onclick = ()=>{
+  document.body.classList.toggle('hideAnno');
+  const on = !document.body.classList.contains('hideAnno');
+  $('#annoTgl').classList.toggle('on', on);
+  $('#annoTgl').textContent = on ? '● 标注：开' : '○ 标注：关';
+};
+
+/* 支持 #sec-xxx 直达（审阅/截图用） */
+const h = (location.hash || '').replace('#','');
+if (h && document.getElementById(h)) {
+  document.documentElement.style.scrollBehavior = 'auto';
+  document.getElementById(h).scrollIntoView();
+  document.querySelectorAll('#pageTabs button[data-go]').forEach(x=>x.classList.toggle('on', x.dataset.go===h));
+}
+</script>
+</body>
+</html>
