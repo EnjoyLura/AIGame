@@ -7,6 +7,8 @@ const src = UI_FILES.map(readUi).join('\n');
 const clsSrc = UI_FILES.filter((f) => f !== 'HomeUiStyle.ts').map(readUi).join('\n');
 // 资源与体力时间戳兜底检查需要读核心层
 const resSrc = fs.readFileSync('assets/scripts/core/PlayerResources.ts', 'utf8');
+// 装备存档校验兜底检查需要读核心层
+const gmSrc = fs.readFileSync('assets/scripts/core/GameManager.ts', 'utf8');
 let fail = 0;
 const ok = (name, cond) => {
   console.log((cond ? 'PASS' : 'FAIL') + ' ' + name);
@@ -236,6 +238,36 @@ ok('试炼锁定层段/层位给 3-C 拦截（不再是裸 toast）', /if \(lock
 ok('远征派遣标签与拦截弹窗同源（不出现两套说辞）', /label: gate\.ok \? '派 遣' : gate\.reason \?\? '不可派遣',/.test(src) && !/`请选择 \$\{def\.slots - picked\.length\} 名英雄`/.test(src));
 ok('商城英雄卡受金币门槛约束（不再出现注定失败的购买确认）', /const poor = !owned && gm\.gold < price;/.test(src) && /disabled: owned \|\| poor,/.test(src) && /this\._openResGate\('gold', price, def\.name\);/.test(src) && /this\._toast\('金币不足 · 未能解锁'\);/.test(src));
 ok('体力倒计时文案无错字（下一点）', /⏳ 下一点 \$\{Math\.floor\(nextIn \/ 60\)\}/.test(src) && !/下一几点/.test(src));
+
+
+// 16. 英雄页 背包→装备槽 拖拽穿戴（全新交互：全工程此前无指针事件/长按/拖拽）
+ok('拖拽会话三态 pending→scroll|drag', /mode: 'pending' \| 'scroll' \| 'drag'/.test(src));
+ok('触摸长按 220ms 才进拖拽（提前移动＝滑背包）', /s\.timer = setTimeout\(\(\) => \{[\s\S]{0,180}?\}, 220\);/.test(src) && /s\.mode = 'scroll';/.test(src));
+ok('指针事件接线：down/move/up/cancel + 指针捕获', /addEventListener\('pointerdown'/.test(src) && /addEventListener\('pointermove'/.test(src)
+  && /addEventListener\('pointerup'/.test(src) && /addEventListener\('pointercancel'/.test(src) && /setPointerCapture/.test(src));
+ok('不支持 PointerEvent 时降级为纯点击（不接线拖拽）', /protected _pointerReady\(\): boolean \{[\s\S]{0,140}?!!window\.PointerEvent/.test(src) && /if \(!this\._pointerReady\(\)\) \{[\s\S]{0,40}?return;/.test(src));
+ok('装备槽挂 data-slot 作为落点标识', /el\.dataset\.slot = slot;/.test(src));
+ok('同部位槽位高亮可落 / 异部位压暗', /classList\.toggle\('dropOk', match\)/.test(src) && /classList\.toggle\('dropBad', !match\)/.test(src));
+ok('落点部位不符不换装并解释原因', /slot !== s\.item\.slot[\s\S]{0,160}?部位不匹配/.test(src));
+ok('拖影挂 pointer-events:none（否则 elementFromPoint 永远命中拖影）', /#homeUi \.dragGhost \{ position: fixed;[\s\S]{0,120}?pointer-events: none;/.test(src));
+ok('落地按件身份复核背包下标（防刷新后错位穿错件）', /protected _findBagIndex\(s: EquipDragSession\): number \{/.test(src) && /if \(at && same\(at, s\.item\)\) \{/.test(src) && /背包已变化 · 请重新拖拽/.test(src));
+ok('穿戴走 equipFromBag（旧件回背包由核心层保证）', /hs\.equipFromBag\(def\.id, idx\)/.test(src) && /hs\.equipped\(def\.id, s\.item\.slot\)/.test(src));
+ok('拖拽结束吞掉同一次手势合成的 click（吞且仅吞一个）', /protected _consumeDragClick\(\): boolean \{/.test(src)
+  && /this\._swallowClick = true;/.test(src) && /this\._swallowClick = false;\s*\n\s*const touch/.test(src)
+  && /cell\.onclick = \(e\) => \{[\s\S]{0,120}?this\._consumeDragClick\(\)/.test(src) && /el\.onclick = \(e\) => \{[\s\S]{0,120}?this\._consumeDragClick\(\)/.test(src));
+ok('吞 click 标记在根层按下复位（落地重绘后合成 click 打在脱离节点上，不冒泡到格子）', /protected _armDragClickGuard\(\): void \{/.test(src)
+  && /this\._root\.addEventListener\('pointerdown', \(\) => \{ this\._swallowClick = false; \}, true\)/.test(src)
+  && /this\._equipDragAbort\(\);\s*\n\s*this\._armDragClickGuard\(\);/.test(src));
+ok('整块重建前先收拖拽（捕获元素会被拆掉）', /protected _refreshHeroes\(\): void \{\s*\n\s*\/\/[^\n]*\n\s*this\._equipDragAbort\(\);/.test(src));
+ok('只有装备页签接线拖拽（其它页签保持点击开详情）', (src.match(/_wireBagDrag\(/g) || []).length === 2);
+ok('背包滚动改手动驱动（格子 touch-action:none，两层各一份）', (src.match(/#homeUi \.bagBar \.bcell \{ touch-action: none;/g) || []).length >= 2);
+ok('拖拽态两层 CSS（拖影/可落/悬停）', (src.match(/#homeUi \.dragGhost \{/g) || []).length >= 2
+  && (src.match(/#homeUi \.slot\.dropOk \{/g) || []).length >= 2 && (src.match(/#homeUi \.slot\.over \{/g) || []).length >= 2);
+ok('长按手势有入口说明（新交互可发现性）', /longPress|长按装备拖到右侧槽位即可穿戴/.test(src) && /bagHint/.test(src));
+ok('背包件穿戴后能过存档校验（虚拟 id bag:slot:tier 不再被当坏档丢掉）',
+  /private _equipIdOk\(id: string, slot: EquipSlot\): boolean \{/.test(gmSrc)
+  && /if \(!id\.startsWith\('bag:'\)\) \{/.test(gmSrc) && /isEquipTier\(Number\(parts\[2\]\)\)/.test(gmSrc)
+  && /this\._equipIdOk\(st\.id, slot\)/.test(gmSrc));
 
 
 process.exit(fail ? 1 : 0);

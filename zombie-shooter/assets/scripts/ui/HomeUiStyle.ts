@@ -932,6 +932,27 @@ export const HOME_UI_CSS = `
 #homeUi .bagBar .bagTabs { margin-bottom: calc(16px * var(--hs,1)); }
 #homeUi .bagBar .bagGrid { grid-template-columns: repeat(5, 1fr); gap: calc(12px * var(--hs,1)); max-height: calc(300px * var(--hs,1)); overflow-y: auto; }
 #homeUi .bagBar .bcell { height: calc(110px * var(--hs,1)); font-size: calc(44px * var(--hs,1)); }
+/* ===== 背包→装备槽 拖拽穿戴 =====
+   格子交出浏览器手势（否则长按后一移动就被系统滚动接管、抽掉指针），滚动改由 pointermove 手动驱动 */
+#homeUi .bagBar .bcell { touch-action: none; -webkit-user-select: none; user-select: none; }
+#homeUi .bcell.dragSrc { opacity: .4; }
+#homeUi .slot.dropOk { border-color: #4ce07a; border-style: solid; box-shadow: 0 0 12px rgba(76,224,122,.45); }
+#homeUi .slot.dropBad { opacity: .3; }
+#homeUi .slot.over { border-color: #ffe9a8; box-shadow: 0 0 16px rgba(255,233,168,.8); transform: scale(1.06); }
+#homeUi .dragGhost { position: fixed; left: 0; top: 0; z-index: 600; pointer-events: none;
+  width: calc(124px * var(--hs,1)); height: calc(124px * var(--hs,1)); display: flex; align-items: center;
+  justify-content: center; font-size: calc(52px * var(--hs,1)); color: #dce8f7; border-radius: calc(20px * var(--hs,1));
+  border: 2px solid #8a6a20; background: radial-gradient(circle at 50% 30%, #1a2a4a, #0d1626);
+  box-shadow: 0 12px 26px rgba(0,0,0,.55); transform: translate(-50%, -50%) scale(1.06); }
+#homeUi .dragGhost.r3 { border-color: #3a8ad0; }
+#homeUi .dragGhost.r4 { border-color: #9a5ce0; }
+#homeUi .dragGhost.r5 { border-color: #ff9d45; }
+#homeUi .dragGhost.r6 { border-color: #ff5252; box-shadow: 0 12px 26px rgba(255,82,82,.5); }
+#homeUi .dragGhost em { position: absolute; right: calc(6px * var(--hs,1)); bottom: calc(4px * var(--hs,1));
+  font-style: normal; font-size: calc(20px * var(--hs,1)); color: #dce8f7; font-weight: 700; text-shadow: 0 1px 2px #000; }
+/* 背包内整行元素：网格是 5 列，说明行/空态文案要跨满整行才不会挤成一列 */
+#homeUi .bagBar .bagHint, #homeUi .bagBar .bagGrid .mSub { grid-column: 1 / -1; }
+#homeUi .bagHint { font-size: calc(18px * var(--hs,1)); color: #8ba3c7; }
 #homeUi .sqRow { display: flex; gap: calc(16px * var(--hs,1)); justify-content: center; margin-bottom: calc(24px * var(--hs,1)); }
 #homeUi .sqSlot { width: calc(132px * var(--hs,1)); height: calc(148px * var(--hs,1)); border-radius: calc(20px * var(--hs,1));
   background: radial-gradient(circle at 50% 30%, #2a4470, #0d1626); border: 1px solid #8a6a20; cursor: pointer;
@@ -1311,6 +1332,21 @@ export const HOME_UI_CSS = `
 #homeUi .eqGrid { gap: calc(6px * var(--pw,2.5)); align-self: stretch; align-content: space-evenly; }
 #homeUi .eqGrid .slot { width: 100%; height: calc(56px * var(--pw,2.5)); }
 #homeUi .bagBar { position: sticky; bottom: 0; z-index: 6; }
+/* 拖拽穿戴（青瓷）：落点高亮/压暗 + 跟手拖影，配色走浅色令牌 */
+#homeUi .bagBar .bcell { touch-action: none; -webkit-user-select: none; user-select: none; }
+#homeUi .bcell.dragSrc { opacity: .4; }
+#homeUi .slot.dropOk { border-color: #35a860; border-style: solid; box-shadow: inset 0 0 0 2px rgba(53,168,96,.4); }
+#homeUi .slot.dropBad { opacity: .3; }
+#homeUi .slot.over { border-color: #c8862f; box-shadow: inset 0 0 0 3px rgba(200,134,47,.5); transform: scale(1.06); }
+#homeUi .dragGhost { width: calc(48px * var(--pw,2.5)); height: calc(48px * var(--pw,2.5)); font-size: calc(22px * var(--pw,2.5));
+  border-radius: calc(5px * var(--pw,2.5)); border: 2px solid #c69c5e; color: #395a6b; background: #dce8ef;
+  box-shadow: 0 calc(4px * var(--pw,2.5)) calc(10px * var(--pw,2.5)) rgba(40,70,90,.35); }
+#homeUi .dragGhost.r3 { border-color: #5a9ad0; }
+#homeUi .dragGhost.r4 { border-color: #a678d8; }
+#homeUi .dragGhost.r5 { border-color: #e8892e; }
+#homeUi .dragGhost.r6 { border-color: #e04848; }
+#homeUi .dragGhost em { font-size: calc(10px * var(--pw,2.5)); color: #395a6b; text-shadow: none; }
+#homeUi .bagHint { font-size: calc(10px * var(--pw,2.5)); color: #527085; }
 #homeUi .heroFigure { height: calc(220px * var(--pw,2.5)); }
 #homeUi .halo, #homeUi .halo2 { display: none; }
 #homeUi .heroEmoji { width: 100%; max-width: calc(150px * var(--pw,2.5)); height: calc(190px * var(--pw,2.5)); filter: none; }

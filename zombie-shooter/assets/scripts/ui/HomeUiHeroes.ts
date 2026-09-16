@@ -31,6 +31,29 @@ import type { PopCta, PopOpts } from './HomeUiCore';
 import { HomeUiMall } from './HomeUiMall';
 
 /**
+ * 背包→装备槽拖拽会话：一次按下到抬起的完整手势。
+ * pending 待判定 → 触摸长按 220ms 进 drag，或提前移动进 scroll（背包仍要能滑）。
+ */
+interface EquipDragSession {
+    pointerId: number;
+    /** 触摸来源：长按才进拖拽；鼠标移动过死区即启拖 */
+    touch: boolean;
+    mode: 'pending' | 'scroll' | 'drag';
+    /** 按下时的背包下标；落地前按件身份复核，背包变动则作废（下标会失效） */
+    bagIndex: number;
+    item: BagItem;
+    startX: number;
+    startY: number;
+    src: HTMLElement;
+    /** 滚动容器与按下时的滚动位置：手动驱动滚动，才能和长按拖拽共存 */
+    scrollEl: HTMLElement | null;
+    startTop: number;
+    ghost: HTMLElement | null;
+    over: HTMLElement | null;
+    timer: ReturnType<typeof setTimeout> | 0;
+}
+
+/**
  * 英雄页：横滑选择条 + 英雄详情（三维/装备/背包/技能养成）
  * + 英雄域弹窗群（招募/天赋/工坊/宝石/核心/武器/装备面板/个人主页域）。
  */
@@ -45,8 +68,17 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     /** 英雄页内嵌物品栏当前页签（equip/gem/mat/item） */
     protected _heroBagTab: 'equip' | 'gem' | 'mat' | 'item' = 'equip';
 
-    /** 英雄页天赋入口红点（有未分配点数时点亮） */
+    /** 天赋入口红点（有未分配点数时点亮） */
     protected _talentRedEl: HTMLElement | null = null;
+
+    /** 拖拽穿戴会话（同一时刻只允许一个） */
+    protected _equipDrag: EquipDragSession | null = null;
+
+    /** 拖拽落地时刻：抑制同一次手势合成出的 click（否则会顺带弹出物品详情/装备面板） */
+    protected _swallowClick = false;
+
+    /** 根层按下复位监听是否已挂（只挂一次，避免每次重绘叠监听） */
+    protected _dragGuardBound = false;
 
     /** 工坊当前页签（0 合成 / 1 分解）：切页签与重开都回到原页签 */
     protected _forgeTab = 0;
@@ -408,6 +440,9 @@ export abstract class HomeUiHeroes extends HomeUiMall {
 
     /** 英雄页刷新：横滑选择条 + 头牌/战力 + 左右三槽夹立绘 + 三维 + 升级/核心/武器/背包 */
     protected _refreshHeroes(): void {
+        // 整块重建会拆掉指针捕获的元素，先收掉可能进行中的拖拽
+        this._equipDragAbort();
+        this._armDragClickGuard();
         const gm = GameManager.instance;
         const hs = HeroSystem.instance;
         const rs = RecruitSystem.instance;
@@ -497,6 +532,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             const cur = owned ? hs.equipped(def.id, slot) : null;
             const el = document.createElement('div');
             el.className = 'slot' + (cur ? ' filled' : ' empty');
+            el.dataset.slot = slot;
             const sname = document.createElement('span');
             sname.className = 'sname';
             sname.textContent = EQUIP_SLOT_NAMES[slot];
@@ -523,6 +559,9 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             }
             el.onclick = (e) => {
                 e.stopPropagation();
+                if (this._consumeDragClick()) {
+                    return;
+                }
                 if (!owned) {
                     this._toast('先解锁英雄');
                     return;
@@ -712,16 +751,28 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 tip.textContent = '装备背包空空如也 · 去商店购买装备部件';
                 grid.appendChild(tip);
             }
-            for (const it of items) {
+            // 长按拖到右侧装备槽直接穿戴（新交互，给一行说明降低学习成本）
+            if (items.length > 0) {
+                const hint = document.createElement('small');
+                hint.className = 'bagHint';
+                hint.textContent = '长按装备拖到右侧槽位即可穿戴 · 点击看详情';
+                grid.appendChild(hint);
+            }
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
                 const cell = document.createElement('div');
                 cell.className = `bcell r${tierRank(it.tier)}`;
                 cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>+${it.lv}</em>`
                     + (this._affixBadge(it.affixes) ? `<span class="bcellAffix">${this._affixBadge(it.affixes)}</span>` : '');
                 cell.onclick = (e) => {
                     e.stopPropagation();
+                    if (this._consumeDragClick()) {
+                        return;
+                    }
                     SoundFx.play('ui');
                     this._openBagItemTip(def.id, { slot: it.slot, tier: it.tier, lv: it.lv, affixes: it.affixes });
                 };
+                this._wireBagDrag(cell, i, it);
                 grid.appendChild(cell);
             }
         } else {
@@ -752,6 +803,283 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         bar.appendChild(grid);
         body.appendChild(bar);
         this._applyPendingTex();
+    }
+
+
+    // ================= 背包 → 装备槽 拖拽穿戴 =================
+    // 手势模型：按下进 pending；触摸按住不动 220ms 进拖拽、提前移动算滑背包（鼠标过 8px 死区即拖）。
+    // 背包格子 touch-action:none 交出滚动控制权，滚动改由 pointermove 手动驱动 ——
+    // 否则长按后一移动就会被系统滚动接管并抽掉指针（pointercancel），拖拽必断。
+    /** 运行环境是否支持指针事件：不支持时只保留点击路径（不接线拖拽，不做假手势） */
+    protected _pointerReady(): boolean {
+        return typeof window !== 'undefined' && !!window.PointerEvent;
+    }
+
+    /**
+     * 拖拽落地后吞掉同一次手势合成出的 click：吞且仅吞一个。
+     * 复位点挂在根层按下（捕获相），不能只挂在背包格子 ——
+     * 落地重绘会把来源格子摘出文档，合成 click 打在已脱离的节点上、事件根本不冒泡，
+     * 只靠格子复位会让标记一直挂着，把用户下一次真实点击一起吞掉。
+     */
+    protected _consumeDragClick(): boolean {
+        if (!this._swallowClick) {
+            return false;
+        }
+        this._swallowClick = false;
+        return true;
+    }
+
+    /** 挂一次性根层按下复位（幂等）：任何一次真实按下都清掉上一轮残留的吞 click 标记 */
+    protected _armDragClickGuard(): void {
+        if (this._dragGuardBound || !this._root) {
+            return;
+        }
+        this._dragGuardBound = true;
+        this._root.addEventListener('pointerdown', () => { this._swallowClick = false; }, true);
+    }
+
+    /** 装备六槽（落点集）：只收 .eqGrid 里的槽位，避免误判到其它页面的同名元素 */
+    protected _eqSlotEls(): HTMLElement[] {
+        const out: HTMLElement[] = [];
+        if (!this._heroBodyEl) {
+            return out;
+        }
+        this._heroBodyEl.querySelectorAll('.eqGrid .slot').forEach(el => out.push(el as HTMLElement));
+        return out;
+    }
+
+    /** 命中测试：拖影挂 pointer-events:none，所以指针下方就是真实落点 */
+    protected _slotAt(x: number, y: number): HTMLElement | null {
+        let cur = document.elementFromPoint(x, y) as HTMLElement | null;
+        while (cur) {
+            if (cur.classList && cur.classList.contains('slot')) {
+                return cur;
+            }
+            cur = cur.parentElement;
+        }
+        return null;
+    }
+
+    /** 按下：记录候选件，触摸挂长按定时器；指针捕获保证移出格子仍收得到 move/up */
+    protected _equipDragDown(e: Event, bagIndex: number, item: BagItem, src: HTMLElement): void {
+        const pe = e as PointerEvent;
+        if (typeof pe.pointerId !== 'number' || (pe.pointerType === 'mouse' && pe.button !== 0)) {
+            return;
+        }
+        this._equipDragAbort();
+        // 新手势开始：复位吞 click 标记（根层捕获复位是主路径，这里兜底）
+        this._swallowClick = false;
+        const touch = pe.pointerType !== 'mouse';
+        const scroll = src.parentElement;
+        const s: EquipDragSession = {
+            pointerId: pe.pointerId, touch, mode: 'pending', bagIndex, item,
+            startX: pe.clientX, startY: pe.clientY, src,
+            scrollEl: scroll, startTop: scroll ? scroll.scrollTop : 0,
+            ghost: null, over: null, timer: 0,
+        };
+        this._equipDrag = s;
+        if (touch) {
+            s.timer = setTimeout(() => {
+                if (this._equipDrag === s && s.mode === 'pending') {
+                    this._equipDragBegin(s, s.startX, s.startY);
+                }
+            }, 220);
+        }
+        try {
+            src.setPointerCapture(pe.pointerId);
+        } catch (err) {
+            // 无捕获权限时退回元素自身事件：拖出格子会提前结束，但不影响点击路径
+        }
+    }
+
+    /** 进拖拽：起拖影、同部位槽位高亮，异部位压暗（减少试错） */
+    protected _equipDragBegin(s: EquipDragSession, x: number, y: number): void {
+        s.mode = 'drag';
+        s.src.classList.add('dragSrc');
+        const ghost = document.createElement('div');
+        ghost.className = `dragGhost r${tierRank(s.item.tier)}`;
+        ghost.innerHTML = `${SLOT_EMOJI[s.item.slot]}<em>+${s.item.lv}</em>`;
+        s.ghost = ghost;
+        if (this._root) {
+            this._root.appendChild(ghost);
+        }
+        this._eqSlotEls().forEach(el => {
+            const match = el.dataset.slot === s.item.slot;
+            el.classList.toggle('dropOk', match);
+            el.classList.toggle('dropBad', !match);
+        });
+        SoundFx.play('ui');
+        this._equipDragMove(s, x, y);
+    }
+
+    /** 拖拽中：拖影跟手（触摸抬起一截，避免被手指盖住）+ 换落点高亮 */
+    protected _equipDragMove(s: EquipDragSession, x: number, y: number): void {
+        if (s.ghost) {
+            s.ghost.style.left = `${x}px`;
+            s.ghost.style.top = `${y - (s.touch ? 72 : 0)}px`;
+        }
+        const hit = this._slotAt(x, y);
+        if (hit === s.over) {
+            return;
+        }
+        if (s.over) {
+            s.over.classList.remove('over');
+        }
+        s.over = hit;
+        if (hit) {
+            hit.classList.add('over');
+        }
+    }
+
+    protected _equipDragMoveEvt(e: Event): void {
+        const s = this._equipDrag;
+        if (!s) {
+            return;
+        }
+        const pe = e as PointerEvent;
+        if (pe.pointerId !== s.pointerId) {
+            return;
+        }
+        const dx = pe.clientX - s.startX;
+        const dy = pe.clientY - s.startY;
+        if (s.mode === 'pending') {
+            if (dx * dx + dy * dy <= 64) {
+                return;
+            }
+            if (s.timer) {
+                clearTimeout(s.timer);
+                s.timer = 0;
+            }
+            if (s.touch) {
+                // 触摸提前移动＝用户在滑背包，不是拖装备
+                s.mode = 'scroll';
+                return;
+            }
+            this._equipDragBegin(s, pe.clientX, pe.clientY);
+            if (typeof pe.preventDefault === 'function') {
+                pe.preventDefault();
+            }
+            return;
+        }
+        if (s.mode === 'scroll') {
+            if (s.scrollEl) {
+                s.scrollEl.scrollTop = s.startTop - dy;
+            }
+        } else {
+            this._equipDragMove(s, pe.clientX, pe.clientY);
+        }
+        if (typeof pe.preventDefault === 'function') {
+            pe.preventDefault();
+        }
+    }
+
+    protected _equipDragUpEvt(e: Event): void {
+        const s = this._equipDrag;
+        if (!s) {
+            return;
+        }
+        const pe = e as PointerEvent;
+        if (pe.pointerId !== s.pointerId) {
+            return;
+        }
+        if (s.mode !== 'drag') {
+            // 未成拖拽＝点击路径：交给 cell.onclick 开详情
+            this._equipDragAbort();
+            return;
+        }
+        this._swallowClick = true;
+        const hit = this._slotAt(pe.clientX, pe.clientY);
+        const slot = hit ? hit.dataset.slot as EquipSlot : undefined;
+        this._equipDragAbort();
+        if (!slot) {
+            this._toast('拖到右侧装备槽完成穿戴');
+            return;
+        }
+        if (slot !== s.item.slot) {
+            this._toast(`部位不匹配 · 这件是${EQUIP_SLOT_NAMES[s.item.slot]}`);
+            return;
+        }
+        this._equipDrop(s);
+    }
+
+    /** 落地：按件身份复核下标后穿戴（背包中途变动则作废，不穿错件） */
+    protected _findBagIndex(s: EquipDragSession): number {
+        const bag = GameManager.instance.bag;
+        const same = (a: BagItem, b: BagItem): boolean =>
+            a.slot === b.slot && a.tier === b.tier && a.lv === b.lv
+            && JSON.stringify(a.affixes ?? null) === JSON.stringify(b.affixes ?? null);
+        const at = bag[s.bagIndex];
+        if (at && same(at, s.item)) {
+            return s.bagIndex;
+        }
+        let found = -1;
+        for (let i = 0; i < bag.length; i++) {
+            if (!same(bag[i], s.item)) {
+                continue;
+            }
+            if (found >= 0) {
+                return -1;
+            }
+            found = i;
+        }
+        return found;
+    }
+
+    protected _equipDrop(s: EquipDragSession): void {
+        const def = HERO_DEFS[this._heroSelIdx % HERO_DEFS.length];
+        const idx = this._findBagIndex(s);
+        if (idx < 0) {
+            this._toast('背包已变化 · 请重新拖拽');
+            this._refreshHeroes();
+            return;
+        }
+        const hs = HeroSystem.instance;
+        const had = !!hs.equipped(def.id, s.item.slot);
+        if (!hs.equipFromBag(def.id, idx)) {
+            this._toast('穿戴失败 · 请重试');
+            return;
+        }
+        SoundFx.play('coin');
+        this._toast(`${EQUIP_SLOT_NAMES[s.item.slot]} 已穿戴${had ? ' · 旧装备已回背包' : ''}`);
+        this._refreshHeroes();
+    }
+
+    /** 收尾：定时器/拖影/高亮/捕获全部清掉（幂等，可重复调用） */
+    protected _equipDragAbort(): void {
+        const s = this._equipDrag;
+        if (!s) {
+            return;
+        }
+        this._equipDrag = null;
+        if (s.timer) {
+            clearTimeout(s.timer);
+        }
+        if (s.ghost && s.ghost.parentElement) {
+            s.ghost.parentElement.removeChild(s.ghost);
+        }
+        s.src.classList.remove('dragSrc');
+        this._eqSlotEls().forEach(el => {
+            el.classList.remove('dropOk');
+            el.classList.remove('dropBad');
+            el.classList.remove('over');
+        });
+        try {
+            s.src.releasePointerCapture(s.pointerId);
+        } catch (err) {
+            // 元素已随重绘卸载时释放捕获会抛错，忽略
+        }
+    }
+
+    /** 背包格子接线（装备页签）：只有装备能拖到槽上，其它页签保持点击开详情 */
+    protected _wireBagDrag(cell: HTMLElement, bagIndex: number, item: BagItem): void {
+        if (!this._pointerReady()) {
+            return;
+        }
+        cell.addEventListener('pointerdown', (e: Event) => this._equipDragDown(e, bagIndex, item, cell));
+        cell.addEventListener('pointermove', (e: Event) => this._equipDragMoveEvt(e));
+        cell.addEventListener('pointerup', (e: Event) => this._equipDragUpEvt(e));
+        cell.addEventListener('pointercancel', () => this._equipDragAbort());
+        cell.addEventListener('lostpointercapture', () => this._equipDragAbort());
     }
 
 
