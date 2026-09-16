@@ -16,7 +16,7 @@ const ok = (name, cond) => {
 };
 
 // 1. 导航：第 4 页签改为玩法（key 沿用 core，texKey nav_core 不变 → 不动美术资源）
-ok("NAV 'core' 名称=玩法", /key: 'core', icon: '🎮', name: '玩法'/.test(src));
+ok("NAV 'core' 名称=行动", /key: 'core', icon: '🎮', name: '行动'/.test(src));
 ok("texKey core→nav_core 保留", /item\.key === 'core' \? 'ui\/nav_core'/.test(src));
 
 // 2. 构建与切换接线
@@ -37,6 +37,51 @@ ok('弹窗不再含宝箱三档(已上浮)', !/_openStageRewardModal[\s\S]{0,400
 ok('_refreshStagePage 不再查 chests', !/const chests = this\._chestsEl/.test(src));
 ok('_refreshStagePage 页面不再构建 lootPrev', !/page\.appendChild\(lootPrev\)/.test(src));
 
+// 3-B. 护送页骨架（布局稿 R2）：章节头 / 居中难度段 / 场景内侧快捷栏 / 里程碑 / 编队条 / 底部 CTA
+ok('护送页六段骨架齐备', /'chapter-head'/.test(src) && /'difficulty'/.test(src) && /'stage'/.test(src)
+  && /'milestones'/.test(src) && /'team-strip'/.test(src) && /'battle-bottom'/.test(src));
+ok('章节头含副标（护送主线 · n/5）', /'chSub'/.test(src) && /护送主线[\s\S]{0,80}\$\{stageId\}\/\$\{FINAL_STAGE_ID\}/.test(src));
+ok('难度段三档居中定宽（去掉行头与行尾无尽 chip）', /className = 'diffSeg'/.test(src) && !/diffHead|endChip/.test(src));
+ok('难度锁定档不禁用·点击给解锁条件', /未解锁 · \$\{d\.unlockNote\}/.test(src) && !/b\.disabled = true/.test(src));
+ok('场景内侧左右快捷栏（左运营带红点 / 右图鉴·排行·试炼）',
+  /_buildSideTools\(railL, 'L'\)/.test(src) && /_buildSideTools\(railR, 'R'\)/.test(src)
+  && /mkBtn\('📅', '签到', true/.test(src) && /mkBtn\('📋', '任务', true/.test(src) && /mkBtn\('🎁', '礼包', true/.test(src)
+  && /mkBtn\('📖', '图鉴', false/.test(src) && /mkBtn\('🏆', '排行', false/.test(src) && /mkBtn\('🗼', '试炼', false/.test(src));
+ok('场景底部战力注脚（我方编队战力 vs 推荐战力）', /\.capPow/.test(src) && /\.capRec/.test(src)
+  && /gm\.lineup\.reduce\(\(s, id\) => s \+ this\._heroPower\(id\), 0\)/.test(src));
+ok('里程碑三档（首次通关/耐久过半/完美护送）', /milestone \$\{st\}/.test(src)
+  && /'首次通关'/.test(src) && /'耐久过半'/.test(src) && /'完美护送'/.test(src));
+ok('里程碑点击进奖励详情弹窗', /c\.onclick = \(e\) => \{[\s\S]{0,140}_openStageRewardModal\(\)/.test(src));
+ok('编队条四席头像 + 空席占位 + 进编队抽屉', /'team-slots'/.test(src) && /'slot-avatar' \+ \(id \? '' : ' empty'\)/.test(src)
+  && /'空席'/.test(src) && /'team-slots'[\s\S]{0,2400}_openSquadModal\(\)/.test(src));
+ok('底部 CTA 网格 56/1fr/56 + 主钮含体力消耗', /grid-template-columns: calc\(56px \* var\(--pw,2\.5\)\) 1fr calc\(56px \* var\(--pw,2\.5\)\)/.test(src)
+  && /\.goCost/.test(src) && /BattleConfig\.RUN_STAMINA_COST/.test(src));
+ok('无尽入口移到 CTA 左快捷（锁定只降透明）', /_endlessHot[\s\S]{0,400}classList\.toggle\('off', !endlessOk\)/.test(src) && !/endChip/.test(src));
+ok('旧关卡信息三格/场景 chip/耐久 chip 已删', !/_siLvlEl|_siPowEl|_siStEl|_siChipEl|_missionTitleEl|_sceneChipEl/.test(src));
+ok('护送页骨架两层 CSS 齐备', ['chapter-head', 'difficulty', 'stage', 'stage-scene', 'side-tools', 'stage-caption',
+  'milestones', 'team-strip', 'slot-avatar', 'battle-bottom'].every(c =>
+  (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2));
+ok('页面显隐改走 .on 类（护送页 flex 骨架 / 其余四页块级滚动）', /classList\.toggle\('on', key === page\)/.test(src)
+  && !/_pages\[key\]\.style\.display/.test(src) && (src.match(/#homeUi \.screen\.sStage\.on \{ display: flex/g) || []).length >= 2);
+
+// 3-C. 英雄页骨架（布局稿 R2）：选择条 / 角色区（两列功能夹立绘 + 六槽）/ 工具行 / 背包四段
+ok('英雄页选择条 38px 等分（招募移入工具行）', /pick\.className = 'hero-roster'/.test(src) && !/hpick recruitEntry/.test(clsSrc));
+ok('角色区四列网格 44|1fr|44|124（两列功能分立绘两侧）', /grid-template-columns: calc\(44px \* var\(--pw,2\.5\)\) minmax\(0,1fr\) calc\(44px \* var\(--pw,2\.5\)\) calc\(124px \* var\(--pw,2\.5\)\)/.test(src));
+ok('角色区名字+星级并入副标（旧头牌/标签行已删）', /className = 'hero-name'/.test(src) && /\$\{def\.role\} · \$\{'★'/.test(src)
+  && !/tagRow = document/.test(clsSrc) && !/heroHead/.test(clsSrc));
+ok('战力行 = 战力 + 右侧 ⓘ 明细', /className = 'powerBadge'/.test(src) && /power\.innerHTML = `战力 <strong>/.test(src) && /power\.appendChild\(pwInfo\)/.test(src));
+ok('工具行：编队状态 + 招募/工坊', /className = 'hero-tools'/.test(src) && /className = 'loadouts'/.test(src)
+  && /this\._openSquadModal\(\)/.test(src) && />招募/.test(src) && />工坊/.test(src));
+ok('背包区四段（头 30 / 滚动网格 / 说明 25 / 页签 34）', /'bagBar bag-section'/.test(src) && /'bag-head'/.test(src)
+  && /'bag-scroll'/.test(src) && /'bagGrid bag-grid'/.test(src) && /'bag-detail'/.test(src) && /'bagTabs flat-tabs'/.test(src));
+ok('背包部位筛选就地重绘（不重开页面）', /_heroBagFilter/.test(src) && /this\._heroBagFilter = filter\.value as/.test(src));
+ok('英雄页骨架两层 CSS 齐备', ['hero-roster', 'hero-body', 'hero-stage', 'hero-quick', 'hero-figure', 'hero-name',
+  'powerBadge', 'equipment', 'hero-tools', 'bag-detail', 'flat-tabs'].every(c =>
+  (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2));
+ok('英雄页骨架栅格两层同值（44/1fr/44/124 + 6 列背包）', (src.match(/grid-template-columns: repeat\(6, minmax\(0,1fr\)\)/g) || []).length >= 2
+  && (src.match(/height: 38%; max-height: calc\(263px/g) || []).length >= 2);
+ok('英雄页页面显隐走 .on 类（flex 满屏骨架）', (src.match(/#homeUi \.screen\.sHeroes\.on \{ display: flex/g) || []).length >= 2);
+
 // 4. 英雄页吸收技能
 ok('_renderSkillCards 存在', /protected _renderSkillCards\(def: HeroDef, onUpgraded\?: \(\) => void\): HTMLDivElement \{/.test(src));
 ok('技能养成改左功能列按钮入口', /skillEntry/.test(src) && /⚡<span>技能<\/span>/.test(src));
@@ -53,17 +98,25 @@ ok('_chestsEl/_lootPrevEl 字段已删', !/_chestsEl|_lootPrevEl/.test(src));
 ok('_buildPlayPage 存在', /protected _buildPlayPage\(root: HTMLDivElement\): void \{/.test(src));
 ok('玩法页不再有页标题', !/_mkHeading\(/.test(src));
 ok('页标题方法已删（CSS 遗留规则无害）', !/protected _mkHeading/.test(src));
-ok('玩法页含任务+签到状态卡', /dutyRow[\s\S]{0,600}dutyCard[\s\S]{0,600}questRed/.test(src));
-ok('玩法页红点接线 _questRedEl', /this\._questRedEl = questBtn\.querySelector/.test(src));
-ok('玩法页红点接线 _signinRedEl', /this\._signinRedEl = signinBtn\.querySelector/.test(src));
-ok('玩法行列表挂 _playGridEl', /this\._playGridEl = list/.test(src));
-ok('玩法行遍历 BUILDINGS pureEntry', /_refreshPlayPage[\s\S]{0,600}if \(!b\.pureEntry\) \{\s*\n\s*continue;/.test(src));
-ok('玩法行 data-entry 属性', /row\.dataset\.entry = b\.id/.test(src));
-ok('玩法行走 _pureEntryDesc/_pureEntryBtnText/_enterPureEntry',
-  /unlocked \? this\._pureEntryDesc\(b\.id\) :/.test(src) &&
-  /btn\.textContent = this\._pureEntryBtnText\(b\.id\)/.test(src) &&
-  /this\._enterPureEntry\(b\.id\)/.test(src));
-ok('玩法行红点 _refreshPureEntryRed', /_refreshPureEntryRed\(b\.id, red\)/.test(src));
+ok('行动页含日常四快捷（签到/任务/成就/礼包）', /'action-daily'/.test(src) && /mkDaily\('📅', '签到'/.test(src)
+  && /mkDaily\('📋', '任务'/.test(src) && /mkDaily\('🎖️', '成就'/.test(src) && /mkDaily\('🎁', '礼包'/.test(src));
+ok('行动页红点接线 _questRedEl', /this\._questRedEl = questBtn\.querySelector/.test(src));
+ok('行动页红点接线 _signinRedEl', /this\._signinRedEl = signinBtn\.querySelector/.test(src));
+ok('行动页入口红点巡检挂整页 _playGridEl', /this\._playGridEl = page/.test(src));
+ok('挑战场两席（无尽试炼 / 无尽护送·锁定态）', /'challenge-ground'/.test(src) && /mkEntry\('🗼', '无尽试炼'/.test(src)
+  && /mkEntry\('🌀', '无尽护送'/.test(src) && /_startBattle\(true\)/.test(src));
+ok('资源副本四联走 DUNGEON_DEFS', /className = 'dungeon-row'/.test(src) && /DUNGEON_DEFS\.forEach\(\(def, i\)/.test(src)
+  && /_openDungeonModal\(i\)/.test(src));
+ok('远征行（图标 + 进度文案 + 入口）', /className = 'expedition'/.test(src) && /this\._enterPureEntry\('expedition'\)/.test(src));
+ok('页脚三快捷（图鉴/排行/载具改装）', /'action-footer'/.test(src) && /mkFoot\('📖', '怪物图鉴'/.test(src)
+  && /mkFoot\('🏆', '排行榜'/.test(src) && /mkFoot\('🔧', '载具改装'/.test(src));
+ok('行动页仍走 _pureEntryDesc/_enterPureEntry', /this\._pureEntryDesc\('expedition'\)/.test(src)
+  && /this\._enterPureEntry\('expedition'\)/.test(src));
+ok('行动页红点 _refreshPureEntryRed', /_refreshEntryReds[\s\S]{0,400}_refreshPureEntryRed\(card\.dataset\.entry/.test(src));
+ok('行动页骨架两层 CSS 齐备', ['action-title', 'action-daily', 'challenge-ground', 'entry', 'dungeons',
+  'section-label', 'dungeon-row', 'expedition', 'expedition-text', 'action-footer'].every(c =>
+  (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2));
+ok('行动页满屏骨架 .on 类（两层）', (src.match(/#homeUi \.screen\.sAction\.on \{ display: flex/g) || []).length >= 2);
 ok('基地横幅不再含任务/签到按钮', !/questEntry|signinEntry/.test(readUi('HomeUiBase.ts')));
 
 // 6. 红点增量刷新迁移
@@ -79,31 +132,59 @@ ok('建筑升级在抽屉内接线', /gm\.upgradeBuilding\(b\.id\)[\s\S]{0,300}t
 ok('META 局外强化卡挂 _baseMetaEl', /this\._baseMetaEl = meta/.test(src));
 ok('_baseRows 累加字段已删', !/_baseRows/.test(src));
 
+// 7-B. 商店页骨架（布局稿 R2）：货架头 / 滚动货架（主推 offer + 分区标签 + 三列货架）/ 底部页签
+ok('商店页货架头（页名 + 每日免费补给）', /'shop-mast'/.test(src) && /giftDot/.test(src) && /_mastTitleEl/.test(src));
+ok('主推一：招募 offer（保底条 + 免费/单抽/十连）', /'shop-offer rcard'/.test(src) && /offer-buttons/.test(src)
+  && /rcOne/.test(src) && /rcTen/.test(src) && /rcAd/.test(src));
+ok('主推二：礼包 offer（escort 立绘收进 offer-art）', /'shop-offer giftOffer'/.test(src) && /offer-art/.test(src)
+  && /scenes\/escort/.test(src));
+ok('货架分区标签 + 三列货架', /'section-label'/.test(src) && /'goods shopGrid'/.test(src));
+ok('商店页签收到底部 flat-tabs', /'flat-tabs shopTabs'/.test(src));
+ok('商店页骨架两层 CSS 齐备', ['shop-mast', 'shop-scroll', 'shop-offer', 'offer-art', 'offer-copy', 'offer-buttons',
+  'goods', 'good'].every(c => (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2)
+  && (src.match(/#homeUi \.screen\.sShop\.on \{ display: flex/g) || []).length >= 2);
+ok('商店旧 banner 类已退出构建（shopBanner/sbTxt 不再出现）', !/shopBanner/.test(clsSrc) && !/sbTxt/.test(clsSrc));
+
+// 7-C. 基地页骨架（布局稿 R2）：头行 / 营地地图（路面 + 2×4 建筑格）/ 局外强化条 / 底行
+ok('基地页头行（基地名 + 全队加成）', /'base-head'/.test(src) && /_baseHeadSubEl/.test(src));
+ok('营地地图：路面底纹 + 2×4 建筑格', /'base-map'/.test(src) && /'map-roads'/.test(src) && /'base-buildings'/.test(src)
+  && /this\._baseBuildingsEl = buildings/.test(src));
+ok('建筑格 8 座（跳过 pureEntry）+ 红点/锁定态', /node\.dataset\.building = b\.id/.test(src)
+  && /b\.pureEntry[\s\S]{0,60}continue/.test(src) && /building' \+ \(unlocked \? '' : ' locked'\)/.test(src));
+ok('基地底行（下一级营地 / 已开放设施数）', /'base-bottom'/.test(src) && /下一级营地：解锁/.test(src) && /已开放 \$\{opened\}/.test(src));
+ok('基地页骨架两层 CSS 齐备', ['base-head', 'base-map', 'map-roads', 'base-buildings', 'building', 'base-meta', 'base-bottom']
+  .every(c => (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2)
+  && (src.match(/#homeUi \.screen\.sBase\.on \{ display: flex/g) || []).length >= 2);
+ok('基地旧横幅/节点类已退出构建（baseBanner/mapNode 不再出现）', !/baseBanner/.test(clsSrc) && !/mapNode/.test(clsSrc));
+
 // 8. 两层 CSS
 ok('dutyCard base 层(--hs)', /#homeUi \.dutyCard \{[^}]*--hs,1/.test(src));
 ok('dutyCard 青瓷层(--pw)', /#homeUi \.dutyCard \{[^}]*--pw,2\.5/.test(src));
 ok('modeRow 两层 CSS', (src.match(/#homeUi \.modeRow \{[^}]*\}/g) || []).length >= 2);
 ok('baseMap/mapNode 两层 CSS', (src.match(/#homeUi \.mapNode \{[^}]*\}/g) || []).length >= 2);
 ok('rcard 两层 CSS', (src.match(/#homeUi \.rcard \{[^}]*\}/g) || []).length >= 2);
-ok('chestHead 两层 CSS', (src.match(/#homeUi \.chestHead \{[^}]*\}/g) || []).length >= 2);
+ok('milestones 两层 CSS', (src.match(/#homeUi \.milestones \{[^}]*\}/g) || []).length >= 2);
 
 // 9. P0/P1 壳层关键接线
-ok('悬浮栏仅战斗页挂 on', /querySelectorAll\('#homeUi \.floatRail'\)[\s\S]{0,120}page === 'battle'/.test(src));
+ok('运营/快捷栏收进护送页场景内侧（不再挂 viewport 悬浮）', /'side-tools left'/.test(src) && /'side-tools right'/.test(src) && !/floatRail|frBtn/.test(src));
 ok('胶囊禁入区：viewport-fit=cover', /viewport-fit=cover/.test(require('fs').readFileSync('build-templates/web-mobile/index.html', 'utf8')));
 ok('胶囊禁入区：_applySafeArea 探针填令牌', /_applySafeArea/.test(src) && /setProperty\('--sat'/.test(src) && /setProperty\('--sab'/.test(src));
 ok('胶囊禁入区：CSS 挂令牌（顶栏/CTA/底栏/悬浮栏/toast/弹窗）', (src.match(/var\(--sat,0px\)|var\(--sab,0px\)/g) || []).length >= 10);
-ok('底部导航关卡→战斗', /key: 'battle', icon: '🚚', name: '战斗'/.test(src));
+ok('底部导航关卡→护送', /key: 'battle', icon: '🚚', name: '护送'/.test(src));
+ok('五签等分（布局稿 R2 去掉居中凸起主钮）', /grid-template-columns: repeat\(5, 1fr\)/.test(src) && !/\.tab\.main \{/.test(src));
 ok('编队升级为 L4 半屏抽屉弹层', /protected _openSquadModal\(\): void \{[\s\S]{0,1600}?tier: 4,\s*\n\s*size: 'M',/.test(src) && /protected _openSquadModal\(\): void \{[\s\S]{0,8600}?this\._openPop\(opt\(\)\);/.test(src));
 ok('招募结果层升级为 L5 结果演出层（不再走旧 _openResult）', /protected _openRecruitResultModal\(results: RecruitResult\[\]\): void \{[\s\S]{0,400}?_openPop\(\{[\s\S]{0,120}?tier: 5/.test(src));
 ok('招募单抽/十连进商店 rcard', /doPull = \(count: 1 \| 10, free = false\)/.test(src));
-ok('英雄页功能钮双列(左:核心/强化/技能 右:升星/天赋)', /fcolR\.appendChild\(starBtn\)/.test(src) && /main\.appendChild\(fcol\);[\s\S]{0,200}main\.appendChild\(fcolR\);/.test(src) && !/fcol\.appendChild\(talBtn\)/.test(src));
+ok('英雄页功能钮双列(左:技能/天赋/升星 右:武器/核心)', /fcol\.appendChild\(skBtn\);[\s\S]{0,200}fcol\.appendChild\(talBtn\);[\s\S]{0,200}fcol\.appendChild\(starBtn\)/.test(src)
+  && /fcolR\.appendChild\(wpnBtn\);[\s\S]{0,200}fcolR\.appendChild\(coreBtn\)/.test(src)
+  && /stage\.appendChild\(fcol\);[\s\S]{0,200}stage\.appendChild\(fcolR\);/.test(src));
 ok('英雄页五钮齐备并汇入养成页(核心1/强化3/技能0/升星/天赋2)', /fcol[\s\S]{0,400}_openHeroGrowModal\(def\.id, 1\)[\s\S]{0,400}_openHeroGrowModal\(def\.id, 3\)[\s\S]{0,400}_openHeroGrowModal\(def\.id, 0\)[\s\S]{0,500}_openStarModal\(def\.id\)[\s\S]{0,400}_openHeroGrowModal\(def\.id, 2\)/.test(src));
 ok('战力徽章挂立绘下方', /fig\.appendChild\(power\)/.test(src) && !/head\.appendChild\(power\)/.test(src));
 ok('大升星条已删·改弹窗入口', !/className = 'starBar panel'/.test(src) && /_openStarModal\(heroId: string\): void/.test(src) && /starEntry/.test(src));
 ok('战力右侧 ⓘ 详情入口', /pwInfo/.test(src) && /power\.appendChild\(pwInfo\)/.test(src));
 ok('属性详情弹窗 _openPowerDetailModal', /protected _openPowerDetailModal\(heroId: string\): void/.test(src));
 ok('三维栏已删（statRow 不再构建）', !/className = 'statRow'/.test(src) && !/mkStat\(/.test(src));
-ok('装备六槽 eqGrid', /className = 'eqGrid'/.test(src));
+ok('装备六槽 eqGrid equipment', /className = 'eqGrid equipment'/.test(src));
 
 // 6. 二级弹层系统（UX 布局稿 v1.0 落地）：统一入口 / 五级分层 / 四尺寸档 / 五段式 / 双主题令牌
 ok('弹层统一入口 _openPop', /protected _openPop\(opts: PopOpts\): void \{/.test(src) && /_renderPop\(opts: PopOpts, keepScroll = false\)/.test(src));
@@ -193,7 +274,7 @@ const interceptBody = (src.match(/protected _popIntercept\(o: \{[\s\S]{0,1800}?\
 ok('3-C 拦截型 S 弹窗：体力不足/未解锁两条出路，不出现「取消」', /protected _popIntercept\(o: \{/.test(src) && /protected _openStaminaGate\(need: number, after\?: \(\) => void, stayLabel\?: string\): void \{/.test(src) && /protected _openUnlockGate\(\s*\n\s*title: string,\s*\n\s*icon: string,\s*\n\s*reason: string,\s*\n\s*goLabel = '前 往 关 卡',\s*\n\s*go\?: \(\) => void,\s*\n\s*note = '解锁进度随主线推进自动刷新'\s*\n\s*\): void \{/.test(src) && interceptBody.indexOf('取消') < 0 && /再 等 等/.test(interceptBody) && /o\.ok\.label/.test(interceptBody));
 ok('体力不足不再 toast 混杂：出战与副本各一处走拦截弹窗', /this\._openStaminaGate\(BattleConfig\.RUN_STAMINA_COST\);/.test(clsSrc) && /this\._openStaminaGate\(DUNGEON_STAMINA_COST/.test(clsSrc));
 ok('禁用键不是死键：PopCta/PopRow/商城键各有 onDisabled 通道', /onDisabled\?: \(\) => void;/.test(src) && /c\.onDisabled\?\.\(\);/.test(src) && /o\.action!\.onDisabled\?\.\(\);/.test(src) && /opt\.onBlocked\?\.\(\);/.test(src));
-ok('交互入口不用 HTML disabled（会吞掉 click，缺口提示无法触达）', !/buy\.disabled = !!opt\.disabled/.test(src) && !/endChip\.disabled = !endlessOk/.test(src) && !/this\._railEndlessBtn\.disabled = !endlessOk/.test(src) && /'btn gold gBuy' \+ \(opt\.disabled \? ' off' : ''\)/.test(src));
+ok('交互入口不用 HTML disabled（会吞掉 click，缺口提示无法触达）', !/buy\.disabled = !!opt\.disabled/.test(src) && !/endChip\.disabled = !endlessOk/.test(src) && !/this\._endlessHot\.disabled = !endlessOk/.test(src) && /'btn gold gBuy' \+ \(opt\.disabled \? ' off' : ''\)/.test(src));
 ok('下阵走 S 型双按钮模板（确认后才移出编队）', /title: '下阵确认'/.test(src) && /ok: '确 认 下 阵'/.test(src) && /cancel: '再 想 想'/.test(src) && /confirmOff\(def\.id\)/.test(src));
 ok('钻石购买走双按钮确认，金币购买保持即点即得', /protected _tapBuy\(item: ShopItem, buy: \(\) => void\): void \{/.test(src) && /item\.price\.res !== 'diamond'/.test(src) && /title: '购买确认'/.test(src));
 ok('资源不足拦截（3-C 资源变体）给差额与获取去向', /protected _openResGate\(res: string, need: number, itemName: string\): void \{/.test(src) && /还差 \*\*/.test(src) && /this\._openGiftModal\(\);/.test(src) && /protected _openGiftModal\(\): void \{/.test(src));
@@ -263,7 +344,7 @@ ok('只有装备页签接线拖拽（其它页签保持点击开详情）', (src
 ok('背包滚动改手动驱动（格子 touch-action:none，两层各一份）', (src.match(/#homeUi \.bagBar \.bcell \{ touch-action: none;/g) || []).length >= 2);
 ok('拖拽态两层 CSS（拖影/可落/悬停）', (src.match(/#homeUi \.dragGhost \{/g) || []).length >= 2
   && (src.match(/#homeUi \.slot\.dropOk \{/g) || []).length >= 2 && (src.match(/#homeUi \.slot\.over \{/g) || []).length >= 2);
-ok('长按手势有入口说明（新交互可发现性）', /longPress|长按装备拖到右侧槽位即可穿戴/.test(src) && /bagHint/.test(src));
+ok('长按手势有入口说明（新交互可发现性）', /longPress|长按装备拖到左侧槽位即可穿戴/.test(src) && /bagHint/.test(src));
 ok('背包件穿戴后能过存档校验（虚拟 id bag:slot:tier 不再被当坏档丢掉）',
   /private _equipIdOk\(id: string, slot: EquipSlot\): boolean \{/.test(gmSrc)
   && /if \(!id\.startsWith\('bag:'\)\) \{/.test(gmSrc) && /isEquipTier\(Number\(parts\[2\]\)\)/.test(gmSrc)

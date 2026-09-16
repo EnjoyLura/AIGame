@@ -255,75 +255,95 @@ export abstract class HomeUiBase extends HomeUiPlay {
 
     // ================= 基地页 =================
 
-    /** 基地页：基地横幅（繁荣度）+ 建筑地图（节点化布局，点击开详情/升级抽屉）+ 局外强化卡 */
+    /**
+     * 基地页（布局稿 R2）：头行（基地名 + 全队加成）→ 营地地图（路面底纹 + 2×4 建筑格）
+     * → 局外强化条 → 底行（下一级目标 / 已开放设施数）。
+     */
     protected _buildBasePage(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'screen';
+        page.className = 'screen sBase';
         this._pages.base = page;
-        // 基地页只承载建筑养成：任务/签到迁玩法页、五大玩法入口迁玩法页，横幅只留等级与繁荣度
-        const banner = document.createElement('div');
-        banner.className = 'baseBanner panel frame';
-        banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag"></span></h3>` +
-            `<div class="pros"></div>` +
-            `<div class="prosBar"><i></i></div></div>`;
-        page.appendChild(banner);
-        this._baseBannerEls = {
-            lv: banner.querySelector('.lvtag'),
-            pros: banner.querySelector('.pros'),
-            bar: banner.querySelector('.prosBar i'),
-        };
-        // 建筑地图（节点坐标在 _refreshBase 固定摆放）
+        // 头行：基地等级 = 指挥中心等级；右侧全局加成（火力/装甲强化实时值）
+        const head = document.createElement('div');
+        head.className = 'base-head';
+        const h1 = document.createElement('h1');
+        h1.textContent = '第 7 区 · 方舟基地';
+        const sub = document.createElement('small');
+        head.appendChild(h1);
+        head.appendChild(sub);
+        page.appendChild(head);
+        this._baseHeadSubEl = sub;
+        // 营地地图：路面底纹 + 建筑格（2 列 × 4 行，养成建筑 8 座）
         const map = document.createElement('div');
-        map.className = 'baseMap';
+        map.className = 'base-map';
+        const roads = document.createElement('div');
+        roads.className = 'map-roads';
+        roads.innerHTML = '<svg viewBox="0 0 390 600" preserveAspectRatio="none" aria-hidden="true">' +
+            '<path d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke="#b8b8b8" stroke-width="40" fill="none"/>' +
+            '<path d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke="#eee" stroke-width="2" stroke-dasharray="12 12" fill="none"/>' +
+            '</svg>';
+        const buildings = document.createElement('div');
+        buildings.className = 'base-buildings';
+        map.appendChild(roads);
+        map.appendChild(buildings);
         page.appendChild(map);
         this._baseMapEl = map;
-        // 局外强化（META_UPGRADES 卡网格）
+        this._baseBuildingsEl = buildings;
+        // 局外强化（META_UPGRADES：火力/装甲/赏金/演练，金币直购）
         const sec = document.createElement('div');
-        sec.className = 'secTitle';
-        sec.textContent = '⚒️ 局外强化';
+        sec.className = 'section-label';
+        sec.innerHTML = '<b>⚒️ 局外强化</b><small>金币直购 · 全局生效</small>';
         page.appendChild(sec);
         const meta = document.createElement('div');
-        meta.className = 'baseGrid';
+        meta.className = 'base-meta';
         page.appendChild(meta);
         this._baseMetaEl = meta;
+        // 底行：下一级目标 + 已开放设施数
+        const bottom = document.createElement('div');
+        bottom.className = 'base-bottom';
+        const nextTip = document.createElement('small');
+        const openTip = document.createElement('small');
+        bottom.appendChild(nextTip);
+        bottom.appendChild(openTip);
+        page.appendChild(bottom);
+        this._baseNextEl = nextTip;
+        this._baseOpenEl = openTip;
         root.appendChild(page);
     }
 
 
     protected _baseMapEl: HTMLDivElement | null = null;
 
+    protected _baseBuildingsEl: HTMLDivElement | null = null;
+
     protected _baseMetaEl: HTMLDivElement | null = null;
 
-    protected _baseBannerEls: { lv: HTMLElement | null; pros: HTMLElement | null; bar: HTMLElement | null } | null = null;
+    protected _baseHeadSubEl: HTMLElement | null = null;
+
+    protected _baseNextEl: HTMLElement | null = null;
+
+    protected _baseOpenEl: HTMLElement | null = null;
 
 
     protected _refreshBase(): void {
         const gm = GameManager.instance;
-        const map = this._baseMapEl;
-        if (!map) {
+        const list = this._baseBuildingsEl;
+        if (!list) {
             return;
         }
-        // 横幅：基地等级 = 指挥中心等级；繁荣度 = 建筑等级总和
-        const pro = gm.prosperity();
-        if (this._baseBannerEls) {
-            const { lv, pros, bar } = this._baseBannerEls;
-            if (lv) {
-                lv.textContent = `基地 LV.${gm.hqLevel()}`;
-            }
-            if (pros) {
-                pros.textContent = `繁荣度 ${pro.cur.toLocaleString()} / ${pro.max.toLocaleString()} · 升级建筑提升繁荣度与全局上限`;
-            }
-            if (bar) {
-                bar.style.width = `${pro.max > 0 ? Math.max(3, Math.round(pro.cur / pro.max * 100)) : 0}%`;
-            }
-        }
-        // 建筑地图节点重绘（养成建筑固定坐标摆放；玩法入口建筑不在此页）
-        map.innerHTML = '';
-        const POS: Record<string, [number, number]> = {
-            camp: [20, 12], lab: [50, 9], armory: [80, 12],
-            station: [15, 48], hq: [50, 44], depot: [85, 48],
-            workshop: [32, 80], radar: [68, 80],
+        const lvOf = (id: string): number => gm.upgradeLevel(id);
+        const descOf = (id: string): string => {
+            const def = META_UPGRADES.find(u => u.id === id);
+            return def ? def.desc(lvOf(id)) : '';
         };
+        if (this._baseHeadSubEl) {
+            this._baseHeadSubEl.textContent = `${descOf('atk')}　${descOf('vehHp')}`;
+        }
+        // 营地建筑格（养成建筑按 BUILDINGS 顺序铺 2×4；奇偶错位由 CSS nth-child 完成）
+        list.innerHTML = '';
+        let opened = 0;
+        let lockedName = '';
+        let unlockedCount = 0;
         for (const b of BUILDINGS) {
             if (b.pureEntry) {
                 continue;
@@ -331,20 +351,33 @@ export abstract class HomeUiBase extends HomeUiPlay {
             const lv = gm.buildingLevel(b.id);
             const maxed = lv >= b.maxLevel;
             const unlocked = gm.isBuildingUnlocked(b.id);
-            const pos = POS[b.id] ?? [50, 50];
+            if (unlocked) {
+                opened++;
+            }
+            const canUp = unlocked && gm.canUpgradeBuilding(b.id);
+            if (!unlocked && !lockedName) {
+                lockedName = `${b.name}（指挥中心 LV.${b.unlockHq}）`;
+            }
             const node = document.createElement('button');
-            node.className = 'mapNode panel' + (unlocked ? '' : ' lock');
-            node.style.left = `${pos[0]}%`;
-            node.style.top = `${pos[1]}%`;
-            node.innerHTML = `<span class="mnIc">${b.ic}</span><span class="mnName">${b.name}</span>` +
-                `<span class="mnLv">${unlocked ? `LV.${lv}${maxed ? ' · MAX' : ''}` : `🔒 HQ${b.unlockHq} 解锁`}</span>`;
+            node.className = 'building' + (unlocked ? '' : ' locked');
+            node.dataset.building = b.id;
+            node.innerHTML = `<span class="ic">${b.ic}</span>` +
+                `<strong>${unlocked ? '' : '♙ '}${b.name}${canUp ? '<i class="questRed on"></i>' : ''}</strong>` +
+                `<small>${unlocked ? `LV.${lv}${maxed ? ' · MAX' : ''}` : `指挥中心 Lv.${b.unlockHq} 解锁`}</small>`;
             node.title = unlocked ? `${b.name} · 点击查看详情/升级` : `${b.name} · 指挥中心 LV.${b.unlockHq} 解锁`;
             node.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
                 this._openBuildingInfoModal(b.id);
             };
-            map.appendChild(node);
+            list.appendChild(node);
+            unlockedCount++;
+        }
+        if (this._baseNextEl) {
+            this._baseNextEl.textContent = lockedName ? `下一级营地：解锁${lockedName}` : '全部设施已开放';
+        }
+        if (this._baseOpenEl) {
+            this._baseOpenEl.textContent = `已开放 ${opened} / ${unlockedCount} 设施`;
         }
         // 局外强化卡（真数据 META_UPGRADES：火力/装甲/赏金/演练）
         const meta = this._baseMetaEl;
@@ -355,7 +388,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
                 const maxed = lv >= def.maxLevel;
                 const cost = gm.upgradeCost(def.id);
                 const card = document.createElement('div');
-                card.className = 'bcard panel';
+                card.className = 'bcard';
                 const ic = document.createElement('div');
                 ic.className = 'bIc';
                 ic.textContent = def.id === 'atk' ? '⚔️' : def.id === 'vehHp' ? '🛡️' : def.id === 'goldGain' ? '🪙' : '🎯';
@@ -369,7 +402,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
                 ds.textContent = maxed ? def.desc(lv) : def.desc(lv + 1);
                 card.appendChild(ds);
                 const btn = document.createElement('button');
-                btn.className = 'btn gold sm';
+                btn.className = 'game-button sm';
                 btn.style.width = '100%';
                 if (maxed) {
                     btn.textContent = '已满级';

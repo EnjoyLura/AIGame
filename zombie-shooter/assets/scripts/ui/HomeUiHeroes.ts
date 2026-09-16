@@ -89,6 +89,12 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     /** 工坊网格选中下标（-1 未选）：同上按页签各记一份 */
     protected _forgeSel: [number, number] = [-1, -1];
 
+    /** 背包部位筛选（'all' 全部）：与页签同级的就地筛选，不重开弹窗 */
+    protected _heroBagFilter: 'all' | EquipSlot = 'all';
+
+    /** 护送编队抽屉（实现在 HomeUiStage；英雄页工具行复用同一入口） */
+    protected abstract _openSquadModal(): void;
+
 
     /** 天赋入口红点：有未分配的可用天赋点时点亮（英雄页选择条入口） */
     protected _refreshTalentRed(): void {
@@ -410,16 +416,17 @@ export abstract class HomeUiHeroes extends HomeUiMall {
 
     // ================= 英雄页 =================
 
-    /** 英雄页：英雄横滑选择条 + 详情（由 _refreshHeroes 整块重建） */
+    /** 英雄页：英雄选择条 + 角色区（两列功能夹立绘 + 六装备槽）+ 工具行 + 背包（整块由 _refreshHeroes 重建） */
     protected _buildHeroesPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'screen';
+        page.className = 'screen sHeroes';
         this._pages.heroes = page;
         const pick = document.createElement('div');
-        pick.className = 'heroPick';
+        pick.className = 'hero-roster';
         page.appendChild(pick);
         this._heroPickEl = pick;
         const body = document.createElement('div');
+        body.className = 'hero-body';
         page.appendChild(body);
         this._heroBodyEl = body;
         root.appendChild(page);
@@ -451,18 +458,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         if (!pick || !body) {
             return;
         }
-        // 横滑选择条：招募入口（跳商店主卡）+ 英雄卡（天赋入口移至左功能列）
+        // 选择条：只放英雄卡（招募/工坊入口收进下方工具行），等分横排
         pick.innerHTML = '';
-        const recruitBtn = document.createElement('button');
-        recruitBtn.className = 'hpick recruitEntry';
-        recruitBtn.innerHTML = '<span class="pic rcIc">🎖️</span><i>招募</i>';
-        recruitBtn.title = '前往商店招募主卡（抽卡）';
-        recruitBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._switchPage('mall');
-        };
-        pick.appendChild(recruitBtn);
         HERO_DEFS.forEach((d, i) => {
             const owned = gm.isHeroOwned(d.id);
             const b = document.createElement('button');
@@ -495,39 +492,10 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const inLineup = gm.isInLineup(def.id);
         const idx = this._heroSelIdx % HERO_DEFS.length;
 
-        // 头牌：名字+星级 / 定位标签 / 战力徽章
-        const head = document.createElement('div');
-        head.className = 'heroHead';
-        const hLeft = document.createElement('div');
-        const hName = document.createElement('div');
-        hName.className = 'heroName';
-        if (owned) {
-            // 星级 = 招募升星真实等级（0~6 星），不再是固定标签
-            const st = rs.stars(def.id);
-            const stars = document.createElement('span');
-            stars.className = 'star';
-            stars.textContent = '★'.repeat(st) + '☆'.repeat(HERO_STAR_MAX - st);
-            stars.title = st >= HERO_STAR_MAX
-                ? '已满星'
-                : `升星进度 ${rs.shards(def.id)} / ${rs.starCost(def.id)} 碎片`;
-            hName.appendChild(document.createTextNode(def.name));
-            hName.appendChild(stars);
-        } else {
-            hName.textContent = def.name + '（未获得）';
-        }
-        const tagRow = document.createElement('div');
-        tagRow.className = 'tagRow';
-        tagRow.innerHTML = `<span class="tag b">人类·${this._heroWeaponName(def.id)}</span>` +
-            `<span class="tag g">${def.role}</span>` +
-            `<span class="tag">${inLineup ? '已上阵' : '未上阵'} ${gm.lineup.length}/${GameManager.LINEUP_MAX}</span>`;
-        hLeft.appendChild(hName);
-        hLeft.appendChild(tagRow);
-        head.appendChild(hLeft);
-        body.appendChild(head);
-
-        // 中部：左功能列（核心/强化/天赋）+ 立绘 + 右装备格（2×3 六槽）
-        const main = document.createElement('div');
-        main.className = 'heroMain';
+        // 角色区：左功能列（技能/天赋/升星）+ 立绘（左上名字、左下战力）+ 右功能列（武器/核心）+ 六槽装备栏
+        const stage = document.createElement('div');
+        stage.className = 'hero-stage';
+        /** 单个装备槽：空槽显示部位名，已装备显示部位图标 + 强化等级（品质描边） */
         const mkSlot = (slot: EquipSlot) => {
             const cur = owned ? hs.equipped(def.id, slot) : null;
             const el = document.createElement('div');
@@ -553,6 +521,11 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 slv.textContent = `+${cur.lv}`;
                 slv.style.borderColor = EQUIP_TIER_COLORS[tier - 1];
                 el.appendChild(slv);
+                // 品阶贴左下角（布局稿 .equip-slot .tier）：槽位内一眼看清品阶/强化级
+                const tierEl = document.createElement('span');
+                tierEl.className = 'tier';
+                tierEl.textContent = EQUIP_TIER_NAMES[tier - 1];
+                el.appendChild(tierEl);
                 el.title = `${bagItemName({ slot, tier, lv: cur.lv })}`;
             } else {
                 el.title = `${EQUIP_SLOT_NAMES[slot]} · 空槽位`;
@@ -572,7 +545,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             return el;
         };
         const fig = document.createElement('div');
-        fig.className = 'heroFigure';
+        fig.className = 'hero-figure';
         const halo = document.createElement('div');
         halo.className = 'halo';
         const halo2 = document.createElement('div');
@@ -588,14 +561,25 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             emoji.style.backgroundPosition = 'center';
         });
         emoji.title = owned ? def.name : '未获得';
-        // 战力徽章挂在立绘正下方（火焰+数字，参考主流卡牌页），不再占头牌右侧
-        const heroLv = document.createElement('div');
-        heroLv.className = 'heroLv';
-        heroLv.textContent = owned ? def.role : '未获得';
+        // 名字压立绘左上角，星级/定位并进副标（布局稿 .hero-name small）
+        const hName = document.createElement('div');
+        hName.className = 'hero-name';
+        if (owned) {
+            const st = rs.stars(def.id);
+            hName.appendChild(document.createTextNode(def.name));
+            const sub = document.createElement('small');
+            sub.textContent = `${def.role} · ${'★'.repeat(st)}${'☆'.repeat(HERO_STAR_MAX - st)}`;
+            sub.title = st >= HERO_STAR_MAX
+                ? '已满星'
+                : `升星进度 ${rs.shards(def.id)} / ${rs.starCost(def.id)} 碎片`;
+            hName.appendChild(sub);
+        } else {
+            hName.textContent = def.name + '（未获得）';
+        }
+        // 战力挂在立绘正下方，右侧 ⓘ 进属性明细弹窗
         const power = document.createElement('div');
         power.className = 'powerBadge';
-        power.innerHTML = `🔥 <span>${owned ? this._heroPower(def.id).toLocaleString() : '---'}</span>`;
-        // 战力右侧 ⓘ 详情：攻击/战力/装备加成明细收进弹窗（三维栏已从主页面移除）
+        power.innerHTML = `战力 <strong>${owned ? this._heroPower(def.id).toLocaleString() : '---'}</strong>`;
         const pwInfo = document.createElement('button');
         pwInfo.className = 'pwInfo';
         pwInfo.textContent = 'ⓘ';
@@ -610,23 +594,23 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         fig.appendChild(halo);
         fig.appendChild(halo2);
         fig.appendChild(emoji);
-        fig.appendChild(heroLv);
+        fig.appendChild(hName);
         fig.appendChild(power);
         const colR = document.createElement('div');
-        colR.className = 'eqGrid';
+        colR.className = 'eqGrid equipment';
         colR.appendChild(mkSlot('head'));
         colR.appendChild(mkSlot('body'));
         colR.appendChild(mkSlot('wrist'));
         colR.appendChild(mkSlot('legs'));
         colR.appendChild(mkSlot('gloves'));
         colR.appendChild(mkSlot('shoes'));
-        // 功能入口拆双列分立绘两侧：左列 核心/强化/技能，右列 升星/天赋（未获得英雄时养成入口置灰，天赋全局可用）
+        // 功能入口拆双列分立绘两侧：左列 技能/天赋/升星，右列 武器/核心（未获得英雄时养成入口置灰，天赋全局可用）
         const fcol = document.createElement('div');
-        fcol.className = 'fcol';
+        fcol.className = 'fcol hero-quick left';
         const fcolR = document.createElement('div');
-        fcolR.className = 'fcol';
+        fcolR.className = 'fcol hero-quick right';
         const coreBtn = document.createElement('button');
-        coreBtn.className = 'btn blue';
+        coreBtn.className = 'btn blue hot';
         coreBtn.innerHTML = '🧬<span>核心</span>';
         coreBtn.title = '英雄核心';
         coreBtn.disabled = !owned;
@@ -636,8 +620,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             this._openHeroGrowModal(def.id, 1);
         };
         const wpnBtn = document.createElement('button');
-        wpnBtn.className = 'btn blue';
-        wpnBtn.innerHTML = '🔧<span>强化</span>';
+        wpnBtn.className = 'btn blue hot';
+        wpnBtn.innerHTML = '🔧<span>武器</span>';
         wpnBtn.title = '武器强化';
         wpnBtn.disabled = !owned;
         wpnBtn.onclick = (e) => {
@@ -646,7 +630,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             this._openHeroGrowModal(def.id, 3);
         };
         const skBtn = document.createElement('button');
-        skBtn.className = 'btn blue skillEntry';
+        skBtn.className = 'btn blue hot skillEntry';
         skBtn.innerHTML = '⚡<span>技能</span>';
         skBtn.title = '技能养成（普攻/技能/大招升级）';
         skBtn.disabled = !owned;
@@ -657,7 +641,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         };
         // 升星入口（参考主流卡牌「1阶」角标）：碎片进度与升星操作收进弹窗
         const starBtn = document.createElement('button');
-        starBtn.className = 'btn blue starEntry';
+        starBtn.className = 'btn blue hot starEntry';
         starBtn.innerHTML = `⭐<span>${owned ? rs.stars(def.id) + '阶' : '升星'}</span>`;
         starBtn.title = '升星（碎片进度与升星操作）';
         starBtn.disabled = !owned;
@@ -667,7 +651,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             this._openStarModal(def.id);
         };
         const talBtn = document.createElement('button');
-        talBtn.className = 'btn blue talentEntry2';
+        talBtn.className = 'btn blue hot talentEntry2';
         talBtn.innerHTML = '🌟<span>天赋<span class="questRed"></span></span>';
         talBtn.title = '天赋树（可用点数分配）';
         talBtn.onclick = (e) => {
@@ -675,18 +659,59 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             SoundFx.play('ui');
             this._openHeroGrowModal(def.id, 2);
         };
-        fcol.appendChild(coreBtn);
-        fcol.appendChild(wpnBtn);
         fcol.appendChild(skBtn);
-        fcolR.appendChild(starBtn);
-        fcolR.appendChild(talBtn);
+        fcol.appendChild(talBtn);
+        fcol.appendChild(starBtn);
+        fcolR.appendChild(wpnBtn);
+        fcolR.appendChild(coreBtn);
         this._talentRedEl = talBtn.querySelector('.questRed') as HTMLElement;
         this._refreshTalentRed();
-        main.appendChild(fcol);
-        main.appendChild(fig);
-        main.appendChild(fcolR);
-        main.appendChild(colR);
-        body.appendChild(main);
+        stage.appendChild(fcol);
+        stage.appendChild(fig);
+        stage.appendChild(fcolR);
+        stage.appendChild(colR);
+        body.appendChild(stage);
+
+        // 工具行：编队状态/入口 + 招募 / 工坊两个快捷
+        const tools = document.createElement('div');
+        tools.className = 'hero-tools';
+        const loadouts = document.createElement('div');
+        loadouts.className = 'loadouts';
+        const loLabel = document.createElement('b');
+        loLabel.textContent = '编队';
+        const loState = document.createElement('button');
+        loState.className = 'squadEntry';
+        loState.textContent = `${inLineup ? '已上阵' : '未上阵'} ${gm.lineup.length}/${GameManager.LINEUP_MAX}`;
+        loState.title = '调整护送编队（上阵/下阵）';
+        loState.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openSquadModal();
+        };
+        loadouts.appendChild(loLabel);
+        loadouts.appendChild(loState);
+        tools.appendChild(loadouts);
+        const recruitHot = document.createElement('button');
+        recruitHot.className = 'hot';
+        recruitHot.innerHTML = '<span class="ic">🎖️</span>招募';
+        recruitHot.title = '招募英雄（抽卡）';
+        recruitHot.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openRecruitModal();
+        };
+        const forgeEntry = document.createElement('button');
+        forgeEntry.className = 'hot forgeEntry';
+        forgeEntry.innerHTML = '<span class="ic">⚒️</span>工坊';
+        forgeEntry.title = '装备工坊（合成 / 分解）';
+        forgeEntry.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openForgeModal();
+        };
+        tools.appendChild(recruitHot);
+        tools.appendChild(forgeEntry);
+        body.appendChild(tools);
 
         // 三维面板已移除：攻击/战力/装备加成明细走战力右侧 ⓘ 详情弹窗
         if (!owned) {
@@ -705,61 +730,70 @@ export abstract class HomeUiHeroes extends HomeUiMall {
 
         // 大按钮（上阵/下阵）已按需求移除：编队切换统一走关卡页护送编队弹窗
 
-        // 底部内嵌物品栏：四页签（装备/宝石/材料/道具），点击物品弹详情
+        // 背包区（布局稿）：头行（件数 + 部位筛选 + 合成）→ 滚动网格 → 底部说明行 → 页签
         const bar = document.createElement('div');
-        bar.className = 'bagBar';
-        const tabs = document.createElement('div');
-        tabs.className = 'bagTabs';
-        const mkTab = (key: 'equip' | 'gem' | 'mat' | 'item', label: string) => {
-            const b = document.createElement('button');
-            if (this._heroBagTab === key) {
-                b.className = 'on';
+        bar.className = 'bagBar bag-section';
+        const head = document.createElement('div');
+        head.className = 'bag-head';
+        const headTitle = document.createElement('b');
+        headTitle.textContent = '我的背包 ';
+        const headNum = document.createElement('small');
+        headNum.textContent = this._heroBagTab === 'equip' ? `${gm.bag.length} 件` : '';
+        headTitle.appendChild(headNum);
+        head.appendChild(headTitle);
+        const headRight = document.createElement('div');
+        headRight.className = 'bag-head-right';
+        if (this._heroBagTab === 'equip') {
+            // 部位筛选：就地重绘网格，不重开页面
+            const filter = document.createElement('select');
+            filter.title = '按部位筛选';
+            const opts: Array<'all' | EquipSlot> = ['all' as 'all' | EquipSlot].concat(EQUIP_SLOTS);
+            for (const val of opts) {
+                const o = document.createElement('option');
+                o.value = val;
+                o.textContent = val === 'all' ? '全部' : EQUIP_SLOT_NAMES[val];
+                if (this._heroBagFilter === val) {
+                    o.selected = true;
+                }
+                filter.appendChild(o);
             }
-            b.textContent = label;
-            b.onclick = (e) => {
+            filter.onchange = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
-                this._heroBagTab = key;
+                this._heroBagFilter = filter.value as 'all' | EquipSlot;
                 this._refreshHeroes();
             };
-            tabs.appendChild(b);
-        };
-        mkTab('equip', '🛡️ 装备');
-        mkTab('gem', '💎 宝石');
-        mkTab('mat', '⚙️ 材料');
-        mkTab('item', '🧪 道具');
-        bar.appendChild(tabs);
-        // 装备页签右上角挂「工坊」入口（合成/分解）
-        if (this._heroBagTab === 'equip') {
-            const forgeBtn = document.createElement('button');
-            forgeBtn.className = 'btn dark sm forgeBtn';
-            forgeBtn.textContent = '⚒️ 工坊';
-            forgeBtn.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.play('ui');
-                this._openForgeModal();
-            };
-            tabs.appendChild(forgeBtn);
+            headRight.appendChild(filter);
         }
+        const forgeHot = document.createElement('button');
+        forgeHot.className = 'hot forgeBtn';
+        forgeHot.innerHTML = '<span class="ic">⚒️</span>合成';
+        forgeHot.title = '装备工坊（合成 / 分解）';
+        forgeHot.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openForgeModal();
+        };
+        headRight.appendChild(forgeHot);
+        head.appendChild(headRight);
+        bar.appendChild(head);
+        const scroll = document.createElement('div');
+        scroll.className = 'bag-scroll';
         const grid = document.createElement('div');
-        grid.className = 'bagGrid';
+        grid.className = 'bagGrid bag-grid';
         if (this._heroBagTab === 'equip') {
-            const items = gm.bag;
+            const items = gm.bag
+                .map((it, i) => ({ it, i }))
+                .filter(x => this._heroBagFilter === 'all' || x.it.slot === this._heroBagFilter);
             if (items.length === 0) {
                 const tip = document.createElement('p');
                 tip.className = 'mSub';
-                tip.textContent = '装备背包空空如也 · 去商店购买装备部件';
+                tip.textContent = this._heroBagFilter === 'all'
+                    ? '装备背包空空如也 · 去商店购买装备部件'
+                    : `没有${EQUIP_SLOT_NAMES[this._heroBagFilter as EquipSlot]} · 换个部位看看`;
                 grid.appendChild(tip);
             }
-            // 长按拖到右侧装备槽直接穿戴（新交互，给一行说明降低学习成本）
-            if (items.length > 0) {
-                const hint = document.createElement('small');
-                hint.className = 'bagHint';
-                hint.textContent = '长按装备拖到右侧槽位即可穿戴 · 点击看详情';
-                grid.appendChild(hint);
-            }
-            for (let i = 0; i < items.length; i++) {
-                const it = items[i];
+            for (const { it, i } of items) {
                 const cell = document.createElement('div');
                 cell.className = `bcell r${tierRank(it.tier)}`;
                 cell.innerHTML = `${SLOT_EMOJI[it.slot]}<em>+${it.lv}</em>`
@@ -800,7 +834,39 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 grid.appendChild(tip);
             }
         }
-        bar.appendChild(grid);
+        scroll.appendChild(grid);
+        bar.appendChild(scroll);
+        // 底部说明行：装备页签给出手势提示（新交互可发现性），其余页签给出分类口径
+        const detail = document.createElement('div');
+        detail.className = 'bag-detail';
+        const hint = document.createElement('b');
+        hint.className = 'bagHint';
+        hint.textContent = this._heroBagTab === 'equip'
+            ? '长按装备拖到左侧槽位即可穿戴 · 点击看详情'
+            : '物品按分类展示 · 点击看详情';
+        detail.appendChild(hint);
+        bar.appendChild(detail);
+        const tabs = document.createElement('div');
+        tabs.className = 'bagTabs flat-tabs';
+        const mkTab = (key: 'equip' | 'gem' | 'mat' | 'item', label: string) => {
+            const b = document.createElement('button');
+            if (this._heroBagTab === key) {
+                b.className = 'on active';
+            }
+            b.textContent = label;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._heroBagTab = key;
+                this._refreshHeroes();
+            };
+            tabs.appendChild(b);
+        };
+        mkTab('equip', '🛡️ 装备');
+        mkTab('gem', '💎 宝石');
+        mkTab('mat', '⚙️ 材料');
+        mkTab('item', '🧪 道具');
+        bar.appendChild(tabs);
         body.appendChild(bar);
         this._applyPendingTex();
     }

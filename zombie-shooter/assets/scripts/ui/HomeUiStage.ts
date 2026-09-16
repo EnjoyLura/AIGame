@@ -53,50 +53,55 @@ const WAVES_PER_STAGE = 5;
  * 奖励详情弹窗与护送编队弹窗。
  */
 export abstract class HomeUiStage extends HomeUiHeroes {
-    /** 关卡页动态元素 */
+    /** 护送页动态元素 */
     protected _sceneEl: HTMLDivElement | null = null;
-
-    protected _sceneChipEl: HTMLDivElement | null = null;
 
     protected _vehEl: HTMLDivElement | null = null;
 
     protected _mobsEl: HTMLDivElement | null = null;
 
-    protected _missionTitleEl: HTMLElement | null = null;
-
-    /** 已领取宝箱的关卡（对齐原型 claimedRewards：ready 领取后置 got） */
+    /** 已领取里程碑的关卡（对齐原型 claimedRewards：ready 领取后置 got） */
     protected _claimedChests = new Set<string>();
 
-    protected _siLvlEl: HTMLElement | null = null;
-
-    protected _siPowEl: HTMLElement | null = null;
-
-    protected _siStEl: HTMLElement | null = null;
-
-    /** 章节头（‹ 章节名 ›，替代原五章页签） */
+    /** 章节头（‹ 章节名 + 副标 ›，替代原五章页签） */
     protected _chNameEl: HTMLElement | null = null;
+
+    protected _chSubEl: HTMLElement | null = null;
 
     protected _chArrowL: HTMLButtonElement | null = null;
 
     protected _chArrowR: HTMLButtonElement | null = null;
 
-    /** 主页宝箱三档容器（自奖励弹窗上浮到战斗页） */
+    /** 场景底部注脚：我方队伍战力 / 本关推荐战力 */
+    protected _capPowEl: HTMLElement | null = null;
+
+    protected _capRecEl: HTMLElement | null = null;
+
+    /** 里程碑三档容器（首次通关/耐久过半/完美护送，就地在主界面领取） */
     protected _chestRowEl: HTMLDivElement | null = null;
 
-    /** 战斗页专属悬浮栏（左运营：签到/任务/礼包；右快捷：无尽/试炼） */
-    protected _railSigninRed: HTMLElement | null = null;
+    /** 编队条：上阵席位数 + 四席头像 */
+    protected _teamLabelEl: HTMLElement | null = null;
 
-    protected _railQuestRed: HTMLElement | null = null;
+    protected _teamSlotsEl: HTMLDivElement | null = null;
 
-    protected _railGiftRed: HTMLElement | null = null;
+    /** 场景左栏运营入口红点（签到/任务/礼包） */
+    protected _sideSigninRed: HTMLElement | null = null;
 
-    protected _railEndlessBtn: HTMLButtonElement | null = null;
+    protected _sideQuestRed: HTMLElement | null = null;
+
+    protected _sideGiftRed: HTMLElement | null = null;
+
+    /** 底部左·无尽入口（锁定态只降透明不禁用，点击落进 3-C 未解锁拦截） */
+    protected _endlessHot: HTMLButtonElement | null = null;
 
 
-    // ---- 悬浮栏弹层分发（实现在链下游 HomeUiPlay；此处只声明入口供 _buildFloatRails 接线） ----
+    // ---- 场景侧栏弹层分发（实现在链下游 HomeUiPlay；此处只声明入口供 _buildSideTools 接线） ----
     protected abstract _openSigninModal(): void;
     protected abstract _openQuestModal(): void;
     protected abstract _openTrialModal(): void;
+    protected abstract _openBestiaryModal(): void;
+    protected abstract _openLeaderboardModal(): void;
 
 
     protected _startBattle(endless = false, _diff?: StageDifficulty): void {
@@ -137,29 +142,35 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     // ================= 关卡页（战斗页） =================
 
     /**
-     * 战斗页：章节头 + 护送场景 + 关卡信息条 + 难度分段（行尾无尽 chip）+ 主页宝箱三档 + 编队/出战 CTA。
-     * 悬浮栏（左运营/右快捷）挂 viewport、仅本页显示（_switchPage 切 on）。
+     * 护送页（布局稿 R2）：章节头 + 居中难度段 + 场景（内侧左右快捷栏 + 底部战力注脚）
+     * + 里程碑三档 + 编队条 + 底部主 CTA。运营/快捷入口收进场景内侧，不再挂 viewport 悬浮。
      */
     protected _buildStagePage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen sStage';
         this._pages.battle = page;
 
-        // 章节头：‹ 章节名 ›（自原五章页签瘦身为单行标题，切换箭头从场景内上移到此）
+        // 章节头：‹ 章节名 + 副标 ›
         const head = document.createElement('div');
-        head.className = 'chHead';
+        head.className = 'chapter-head';
         const hl = document.createElement('button');
-        hl.className = 'chArrow l';
+        hl.className = 'arrow l';
         hl.textContent = '‹';
         hl.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
             this._switchStage(-1);
         };
-        const hName = document.createElement('div');
+        const hBox = document.createElement('div');
+        hBox.className = 'chBox';
+        const hName = document.createElement('h1');
         hName.className = 'chName';
+        const hSub = document.createElement('small');
+        hSub.className = 'chSub';
+        hBox.appendChild(hName);
+        hBox.appendChild(hSub);
         const hr = document.createElement('button');
-        hr.className = 'chArrow r';
+        hr.className = 'arrow r';
         hr.textContent = '›';
         hr.onclick = (e) => {
             e.stopPropagation();
@@ -167,27 +178,47 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             this._switchStage(1);
         };
         head.appendChild(hl);
-        head.appendChild(hName);
+        head.appendChild(hBox);
         head.appendChild(hr);
         page.appendChild(head);
         this._chNameEl = hName;
+        this._chSubEl = hSub;
         this._chArrowL = hl;
         this._chArrowR = hr;
 
-        // 护送场景（CSS 动画：太阳/山丘/公路/载具/怪物 + 关卡 chip 左上 + 最佳耐久 chip 右上 + 底部标题块）
+        // 难度段：居中定宽三档（普通/精英/噩梦），无尽入口移到底部左快捷
+        const diff = document.createElement('div');
+        diff.className = 'difficulty';
+        page.appendChild(diff);
+        this._diffRowEl = diff;
+
+        // 场景：护送底图 + 左运营栏 + 右快捷栏 + 底部战力注脚
+        const stage = document.createElement('div');
+        stage.className = 'stage';
         const scene = document.createElement('div');
-        scene.className = 'scene frame';
+        scene.className = 'stage-scene';
         scene.innerHTML = `<div class="sun"></div><div class="mtn"></div><div class="hill"></div>` +
             `<div class="ground"></div><div class="road"></div><div class="dash"></div>` +
             `<div class="mobs"><span>🐺</span><span>🐗</span><span>🦅</span></div>` +
             `<div class="veh">🚚</div>` +
-            `<div class="crew"><i></i><i></i><i></i><i></i></div>` +
-            `<div class="sceneTitle"><small>末日航线 / 护送行动</small><h1 class="missionTitle"></h1>` +
-            `<p>穿越荒原，让希望抵达下一站。</p></div>` +
-            `<div class="sceneInfo"><div class="siChip"></div>` +
-            `<div class="siHp">最佳耐久 <div class="hpBar"><i></i></div> 82%</div></div>`;
-        page.appendChild(scene);
+            `<div class="crew"><i></i><i></i><i></i><i></i></div>`;
+        stage.appendChild(scene);
+        const railL = document.createElement('div');
+        railL.className = 'side-tools left';
+        this._buildSideTools(railL, 'L');
+        const railR = document.createElement('div');
+        railR.className = 'side-tools right';
+        this._buildSideTools(railR, 'R');
+        const cap = document.createElement('div');
+        cap.className = 'stage-caption';
+        cap.innerHTML = `<span>战力 <b class="capPow"></b></span><span>推荐 <b class="capRec"></b></span>`;
+        stage.appendChild(railL);
+        stage.appendChild(railR);
+        stage.appendChild(cap);
+        page.appendChild(stage);
         this._sceneEl = scene;
+        this._capPowEl = cap.querySelector('.capPow');
+        this._capRecEl = cap.querySelector('.capRec');
         // 浅色主题：场景底图 = escort.png 照片（interface.css：center 57%/cover），CSS 装饰子元素全部隐藏
         this._tex('scenes/escort', u => {
             scene.style.backgroundImage = u;
@@ -195,112 +226,111 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             scene.style.backgroundPosition = 'center 57%';
             scene.style.backgroundRepeat = 'no-repeat';
         });
-        this._sceneChipEl = scene.querySelector('.siChip');
         this._vehEl = scene.querySelector('.veh');
         this._mobsEl = scene.querySelector('.mobs');
-        this._missionTitleEl = scene.querySelector('.missionTitle');
 
-        // 关卡信息单条三格：当前关卡 / 推荐战力 / 关卡状态
-        const info = document.createElement('div');
-        info.className = 'stageInfo';
-        info.innerHTML = `<div class="siBox panel">当前关卡<b class="siLvl"></b></div>` +
-            `<div class="siBox panel">推荐战力<b class="siPow"></b></div>` +
-            `<div class="siBox panel">关卡状态<b class="siSt"></b></div>`;
-        page.appendChild(info);
-        this._siLvlEl = info.querySelector('.siLvl');
-        this._siPowEl = info.querySelector('.siPow');
-        this._siStEl = info.querySelector('.siSt');
-
-        // 难度分段选择器：普通/精英/噩梦（行尾无尽 chip 在 _refreshStagePage 追加）
-        const diffRow = document.createElement('div');
-        diffRow.className = 'diffRow';
-        page.appendChild(diffRow);
-        this._diffRowEl = diffRow;
-
-        // 主页宝箱三档 + 奖励详情入口（领取上浮到主界面，金币区间/掉率明细收进弹窗）
-        const chestHead = document.createElement('div');
-        chestHead.className = 'chestHead';
-        const detailBtn = document.createElement('button');
-        detailBtn.textContent = '🎁 护送宝箱 · 奖励详情 ›';
-        detailBtn.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openStageRewardModal();
-        };
-        chestHead.appendChild(detailBtn);
-        page.appendChild(chestHead);
+        // 里程碑三档：首次通关 / 耐久过半 / 完美护送（就地在主界面领取，明细走奖励详情弹窗）
         const chestRow = document.createElement('div');
-        chestRow.className = 'chests';
+        chestRow.className = 'milestones';
         page.appendChild(chestRow);
         this._chestRowEl = chestRow;
 
-        // 底部 CTA：编队 + 出战（无尽入口上浮到难度行 chip 与右侧悬浮栏）
-        const btns = document.createElement('div');
-        btns.className = 'stageBtns';
+        // 编队条：编队席位数 + 四席头像 + 调整入口
+        const team = document.createElement('div');
+        team.className = 'team-strip';
+        const teamLabel = document.createElement('span');
+        teamLabel.className = 'team-label';
+        team.appendChild(teamLabel);
+        this._teamLabelEl = teamLabel;
+        const teamSlots = document.createElement('div');
+        teamSlots.className = 'team-slots';
+        team.appendChild(teamSlots);
+        this._teamSlotsEl = teamSlots;
         const squad = document.createElement('button');
-        squad.className = 'btn blue squad';
+        squad.className = 'hot squadEntry';
+        squad.innerHTML = `<span class="ic">👥</span><span>编队</span>`;
         squad.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
             this._openSquadModal();
         };
+        team.appendChild(squad);
+        page.appendChild(team);
+
+        // 底部：无尽（左）+ 开始护送主 CTA（中）+ 宝箱奖励详情（右）
+        const bottom = document.createElement('div');
+        bottom.className = 'battle-bottom';
+        const endless = document.createElement('button');
+        endless.className = 'hot endlessHot';
+        endless.innerHTML = `<span class="ic">♾️</span><span>无尽</span>`;
+        endless.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.unlock();
+            this._startBattle(true);
+        };
+        bottom.appendChild(endless);
+        this._endlessHot = endless;
         const go = document.createElement('button');
-        go.className = 'btn gold go';
-        go.textContent = '▶ 开始护送';
+        go.className = 'game-button major start go';
+        go.innerHTML = `开始护送<small><span class="ic">⚡</span><span class="goCost"></span></small>`;
         go.onclick = (e) => {
             e.stopPropagation();
             SoundFx.unlock();
             this._startBattle();
         };
-        btns.appendChild(squad);
-        btns.appendChild(go);
-        page.appendChild(btns);
-        this._squadBtn = squad;
+        bottom.appendChild(go);
+        this._goBtnEl = go;
+        const detailBtn = document.createElement('button');
+        detailBtn.className = 'hot rewardHot';
+        detailBtn.innerHTML = `<span class="ic">🎁</span><span>掉落</span>`;
+        detailBtn.title = '护送宝箱 · 奖励详情';
+        detailBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openStageRewardModal();
+        };
+        bottom.appendChild(detailBtn);
+        page.appendChild(bottom);
 
         root.appendChild(page);
-        this._buildFloatRails(root);
     }
 
 
-    /** 战斗页专属悬浮栏：左·运营（签到/任务/礼包，带红点）右·快捷（无尽/试炼）；挂 viewport，仅 battle 页挂 on 类 */
-    protected _buildFloatRails(root: HTMLDivElement): void {
-        const mkBtn = (rail: HTMLDivElement, ic: string, label: string, onTap: () => void): HTMLButtonElement => {
+    /**
+     * 护送场景内侧快捷栏：左·运营（签到/任务/礼包，带红点）右·快捷（图鉴/排行/试炼）。
+     * 收进场景内后随页面显隐，无需 _switchPage 再切 on 类。
+     */
+    protected _buildSideTools(rail: HTMLDivElement, side: 'L' | 'R'): void {
+        const mkBtn = (ic: string, label: string, red: boolean, onTap: () => void): HTMLButtonElement => {
             const b = document.createElement('button');
-            b.className = 'frBtn';
-            b.innerHTML = `<span class="fi">${ic}</span><span>${label}</span>`;
+            b.className = 'hot toolHot';
+            b.innerHTML = `<span class="ic">${ic}</span><span>${label}</span>`;
             b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.unlock();
                 onTap();
             };
             rail.appendChild(b);
+            if (red) {
+                const dot = document.createElement('i');
+                dot.className = 'questRed';
+                b.appendChild(dot);
+            }
             return b;
         };
-        const railL = document.createElement('div');
-        railL.className = 'floatRail L';
-        const signBtn = mkBtn(railL, '📅', '签到', () => this._openSigninModal());
-        this._railSigninRed = document.createElement('i');
-        this._railSigninRed.className = 'frRed';
-        signBtn.appendChild(this._railSigninRed);
-        const questBtn = mkBtn(railL, '📋', '任务', () => this._openQuestModal());
-        this._railQuestRed = document.createElement('i');
-        this._railQuestRed.className = 'frRed';
-        questBtn.appendChild(this._railQuestRed);
-        const giftBtn = mkBtn(railL, '🎁', '礼包', () => this._openGiftModal());
-        this._railGiftRed = document.createElement('i');
-        this._railGiftRed.className = 'frRed';
-        giftBtn.appendChild(this._railGiftRed);
-        root.appendChild(railL);
-
-        const railR = document.createElement('div');
-        railR.className = 'floatRail R';
-        this._railEndlessBtn = mkBtn(railR, '♾️', '无尽', () => this._startBattle(true));
-        mkBtn(railR, '🗼', '试炼', () => this._openTrialModal());
-        root.appendChild(railR);
+        if (side === 'L') {
+            const signBtn = mkBtn('📅', '签到', true, () => this._openSigninModal());
+            this._sideSigninRed = signBtn.querySelector('.questRed');
+            const questBtn = mkBtn('📋', '任务', true, () => this._openQuestModal());
+            this._sideQuestRed = questBtn.querySelector('.questRed');
+            const giftBtn = mkBtn('🎁', '礼包', true, () => this._openGiftModal());
+            this._sideGiftRed = giftBtn.querySelector('.questRed');
+            return;
+        }
+        mkBtn('📖', '图鉴', false, () => this._openBestiaryModal());
+        mkBtn('🏆', '排行', false, () => this._openLeaderboardModal());
+        mkBtn('🗼', '试炼', false, () => this._openTrialModal());
     }
-
-
-    protected _squadBtn: HTMLButtonElement | null = null;
 
     /** 关卡难度选择（0 普通/1 精英/2 噩梦；跨关卡切换时重置为可解锁的最高档） */
     protected _stageDiffSel: StageDifficulty = 0;
@@ -308,8 +338,11 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     /** 难度选择器容器（_refreshStagePage 重建三档按钮） */
     protected _diffRowEl: HTMLDivElement | null = null;
 
+    /** 底部主 CTA（体力口径与拦截提示） */
+    protected _goBtnEl: HTMLButtonElement | null = null;
 
-    /** 战斗页刷新：章节头/场景内容/信息/难度（真数据 STAGES + stageCleared）；宝箱与悬浮栏红点一并同步 */
+
+    /** 护送页刷新：章节头/场景/战力注脚/难度段/编队条（真数据 STAGES + stageCleared）；里程碑与运营红点一并同步 */
     protected _refreshStagePage(): void {
         const gm = GameManager.instance;
         const scene = this._sceneEl;
@@ -320,9 +353,17 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         const info = stageInfo(stageId);
         const theme = CHAPTER_THEMES[stageId - 1] ?? CHAPTER_THEMES[0];
 
-        // 章节头：名称 + 切换箭头可用态
+        const clearedAll = stageId <= gm.stageCleared;
+        // 无尽模式可用态：全通关解锁（底部左快捷入口）
+        const endlessOk = gm.stageCleared >= FINAL_STAGE_ID;
+
+        // 章节头：名称 + 副标（对齐原型「护送主线 · 3/5」）+ 切换箭头可用态
         if (this._chNameEl) {
             this._chNameEl.textContent = info.name;
+        }
+        if (this._chSubEl) {
+            const open = clearedAll || stageId === gm.stageCleared + 1;
+            this._chSubEl.textContent = `${open ? '护送主线' : '尚未解锁'} · ${stageId}/${FINAL_STAGE_ID}`;
         }
         if (this._chArrowL) {
             this._chArrowL.disabled = stageId <= 1;
@@ -332,7 +373,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         }
 
         // 场景内容
-        scene.className = 'scene frame c' + ((stageId - 1) % 3 + 1);
+        scene.className = 'stage-scene c' + ((stageId - 1) % 3 + 1);
         if (this._vehEl) {
             this._vehEl.textContent = theme.veh;
             this._tex('scenes/vehicle_tail', u => {
@@ -346,17 +387,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             this._mobsEl.innerHTML = theme.mobs.map((m, i) =>
                 `<span style="animation-delay:${i * 0.4}s">${m}</span>`).join('');
         }
-        if (this._sceneChipEl) {
-            this._sceneChipEl.textContent = `${info.name} ${theme.veh}`;
-        }
-        if (this._missionTitleEl) {
-            this._missionTitleEl.textContent = info.name.replace(/^\d+\./, '');
-        }
 
-        // 关卡信息
-        const clearedAll = stageId <= gm.stageCleared;
-        // 无尽模式可用态：全通关解锁（难度行 chip 与右侧悬浮栏共用）
-        const endlessOk = gm.stageCleared >= FINAL_STAGE_ID;
         // 难度选择：切关卡时重置为本关已解锁的最高档
         let maxDiff: StageDifficulty = 0;
         for (const d of STAGE_DIFFS) {
@@ -371,97 +402,120 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             this._stageDiffSel = 0;
         }
         const diffDef = stageDiffDef(this._stageDiffSel);
+
+        // 难度条（布局稿：居中定宽三段）。锁定档只置灰不禁用，点击给解锁条件
         if (this._diffRowEl) {
             this._diffRowEl.innerHTML = '';
-            const head = document.createElement('div');
-            head.className = 'diffHead';
-            head.textContent = '⚔️ 难度';
-            this._diffRowEl.appendChild(head);
             for (const d of STAGE_DIFFS) {
                 const unlocked = gm.isDiffUnlocked(stageId, d.id);
                 const cleared = gm.isStageDiffCleared(stageId, d.id);
                 const b = document.createElement('button');
-                b.className = 'btn sm diffBtn' + (d.id === this._stageDiffSel ? ' gold on' : unlocked ? ' blue' : ' dark lock');
-                b.innerHTML = `<b>${d.ic} ${d.name}</b>` +
-                    `<span>${unlocked ? (cleared ? '✅ 已通关' : `怪强 ×${d.hpMul} · 奖励 ×${d.rewardMul}`) : '🔒 ' + d.unlockNote}</span>`;
-                if (!unlocked) {
-                    b.disabled = true;
-                } else {
+                b.className = 'diffSeg' + (d.id === this._stageDiffSel ? ' on' : '') + (unlocked ? '' : ' off');
+                b.textContent = `${unlocked ? '' : '🔒'}${cleared ? '✅' : ''}${d.name}`;
+                b.title = unlocked
+                    ? `怪强 ×${d.hpMul} · 奖励 ×${d.rewardMul}${cleared ? ' · 已通关' : ''}`
+                    : `未解锁 · ${d.unlockNote}`;
+                if (unlocked) {
                     b.onclick = (e) => {
                         e.stopPropagation();
                         SoundFx.play('ui');
                         this._stageDiffSel = d.id;
                         this._refreshStagePage();
                     };
+                } else {
+                    b.onclick = (e) => {
+                        e.stopPropagation();
+                        SoundFx.play('ui');
+                        this._toast(`🔒 ${d.name}未解锁 · ${d.unlockNote}`);
+                    };
                 }
                 this._diffRowEl.appendChild(b);
             }
-            // 无尽 chip（自 stageBtns 迁入行尾）：全通关解锁，波次无限 + 里程碑奖励
-            const endChip = document.createElement('button');
-            endChip.className = 'btn sm dark endChip';
-            endChip.textContent = endlessOk ? '♾️ 无尽' : '🔒 无尽';
-            // 不禁用真按钮（disabled 会吞掉 click）：锁定态点击同样落进 3-C 未解锁拦截
-            endChip.style.opacity = endlessOk ? '1' : '0.45';
-            endChip.title = endlessOk ? '波次无限 · 每 5 波里程碑奖励' : '通关全部章节后解锁';
-            endChip.onclick = (e) => {
-                e.stopPropagation();
-                SoundFx.unlock();
-                this._startBattle(true);
-            };
-            this._diffRowEl.appendChild(endChip);
         }
-        if (this._siLvlEl) {
-            this._siLvlEl.textContent = `${stageId}-${this._stageDiffSel + 1}`;
+
+        // 场景底部注脚：我方编队战力 vs 本关推荐战力
+        if (this._capPowEl) {
+            this._capPowEl.textContent = gm.lineup.reduce((s, id) => s + this._heroPower(id), 0).toLocaleString();
         }
-        if (this._siPowEl) {
-            this._siPowEl.textContent = Math.round((7600 + stageId * 1400) * (0.7 + diffDef.hpMul * 0.3)).toLocaleString();
+        if (this._capRecEl) {
+            this._capRecEl.textContent = Math.round((7600 + stageId * 1400) * (0.7 + diffDef.hpMul * 0.3)).toLocaleString();
         }
-        if (this._siStEl) {
-            if (clearedAll) {
-                this._siStEl.textContent = `✅ 已通关·${diffDef.name}`;
-                this._siStEl.className = 'ok';
-            } else if (stageId === gm.stageCleared + 1) {
-                this._siStEl.textContent = `▶ ${diffDef.name}·待挑战`;
-                this._siStEl.className = 'go';
-            } else {
-                this._siStEl.textContent = '🔒 未解锁';
-                this._siStEl.className = '';
+
+        // 编队条：席位数 + 四席头像（空席显示 +，点击进编队抽屉）
+        if (this._teamLabelEl) {
+            this._teamLabelEl.innerHTML = `<b>编队 1</b>${gm.lineup.length} / ${GameManager.LINEUP_MAX} 已上阵`;
+        }
+        if (this._teamSlotsEl) {
+            this._teamSlotsEl.innerHTML = '';
+            for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
+                const id = gm.lineup[i];
+                const av = document.createElement('button');
+                av.className = 'slot-avatar' + (id ? '' : ' empty');
+                if (id) {
+                    const def = HERO_DEFS.find(d => d.id === id);
+                    const photo = this._heroPhoto(Math.max(0, HERO_DEFS.findIndex(d => d.id === id)), 'slot');
+                    const ic = document.createElement('span');
+                    ic.className = 'ic';
+                    ic.setAttribute('style', photo.css);
+                    this._tex(photo.key, u => { ic.style.backgroundImage = u; });
+                    av.appendChild(ic);
+                    const nm = document.createElement('small');
+                    nm.textContent = def ? def.name : id;
+                    av.appendChild(nm);
+                } else {
+                    const plus = document.createElement('span');
+                    plus.className = 'plus';
+                    plus.textContent = '+';
+                    av.appendChild(plus);
+                    const nm = document.createElement('small');
+                    nm.textContent = '空席';
+                    av.appendChild(nm);
+                }
+                av.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    this._openSquadModal();
+                };
+                this._teamSlotsEl.appendChild(av);
             }
         }
 
-        // 编队按钮文案
-        if (this._squadBtn) {
-            this._squadBtn.textContent = `👥 护送编队 ${gm.lineup.length}/${GameManager.LINEUP_MAX}`;
+        // 底部：主 CTA 体力口径 + 无尽可用态（锁定只降透明，点击落进 3-C 未解锁拦截）
+        if (this._goBtnEl) {
+            const ok = gm.canStartRun();
+            this._goBtnEl.classList.toggle('off', !ok);
+            this._goBtnEl.title = ok ? '' : `体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`;
+            const cost = this._goBtnEl.querySelector('.goCost');
+            if (cost) {
+                cost.textContent = `${BattleConfig.RUN_STAMINA_COST}`;
+            }
+        }
+        if (this._endlessHot) {
+            this._endlessHot.classList.toggle('off', !endlessOk);
+            this._endlessHot.title = endlessOk ? '波次无限 · 每 5 波里程碑奖励' : '通关全部章节后解锁';
         }
 
-        // 主页宝箱三档 + 出战按钮体力口径
+        // 里程碑三档（就地在主界面领取）
         this._refreshBattleChests();
-        const go2 = document.querySelector<HTMLButtonElement>('#homeUi .btn.go');
-        if (go2) {
-            go2.style.opacity = gm.canStartRun() ? '1' : '0.45';
-            go2.title = gm.canStartRun() ? '' : `体力不足（需要 ${BattleConfig.RUN_STAMINA_COST} 点）`;
-        }
 
-        // 悬浮栏红点 + 无尽可用态
-        if (this._railQuestRed) {
-            this._refreshQuestRed(this._railQuestRed);
+        // 场景左栏运营红点
+        if (this._sideQuestRed) {
+            this._refreshQuestRed(this._sideQuestRed);
         }
-        if (this._railSigninRed) {
-            this._refreshSigninRed(this._railSigninRed);
+        if (this._sideSigninRed) {
+            this._refreshSigninRed(this._sideSigninRed);
         }
-        if (this._railGiftRed) {
-            this._refreshGiftDot(this._railGiftRed);
-        }
-        if (this._railEndlessBtn) {
-            // 不禁用真按钮（disabled 会吞掉 click）：保持可点，点击落进 3-C 未解锁拦截
-            this._railEndlessBtn.style.opacity = endlessOk ? '1' : '0.45';
-            this._railEndlessBtn.title = endlessOk ? '波次无限 · 每 5 波里程碑奖励' : '通关全部章节后解锁';
+        if (this._sideGiftRed) {
+            this._refreshGiftDot(this._sideGiftRed);
         }
         this._applyPendingTex();
     }
 
 
-    /** 主页宝箱三档：耐久结算奖励上浮到战斗页（ready 可直接领取；明细见奖励详情弹窗） */
+    /**
+     * 里程碑三档（布局稿：首次通关 / 耐久过半 / 完美护送）：通关结算奖励就地领取，
+     * 金币区间与掉率明细走底部「掉落」入口的奖励详情弹窗。
+     */
     protected _refreshBattleChests(): void {
         const row = this._chestRowEl;
         if (!row) {
@@ -474,19 +528,19 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         const claimKey = `${stageId}`;
         const claimed = this._claimedChests.has(claimKey);
         const boxes: Array<[string, string, string]> = clearedAll
-            ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'got', '已领取'], ['满耐久通关', 'got', '已领取']]
+            ? [['首次通关', 'got', '已达成'], ['耐久过半', 'got', '已达成'], ['完美护送', 'got', '已达成']]
             : stageId === gm.stageCleared + 1
-                ? [['耐久≥50%', 'got', '已领取'], ['耐久≥75%', 'ready', ''], ['满耐久通关', 'lock', '需完美护送']]
-                : [['耐久≥50%', 'lock', '通关后结算'], ['耐久≥75%', 'lock', '通关后结算'], ['满耐久通关', 'lock', '通关后结算']];
+                ? [['首次通关', 'got', '已达成'], ['耐久过半', 'ready', ''], ['完美护送', 'lock', '需完美护送']]
+                : [['首次通关', 'lock', '通关后结算'], ['耐久过半', 'lock', '通关后结算'], ['完美护送', 'lock', '通关后结算']];
         if (claimed && boxes[1][1] === 'ready') {
             boxes[1][1] = 'got';
             boxes[1][2] = '已领取';
         }
         for (const [label, st, tip] of boxes) {
             const c = document.createElement('div');
-            c.className = `chest panel ${st}`;
+            c.className = `hot milestone ${st}`;
             const cic = document.createElement('span');
-            cic.className = 'cic';
+            cic.className = 'ic';
             this._tex('ui/chest', u => {
                 cic.style.backgroundImage = u;
                 cic.style.backgroundSize = 'contain';
@@ -494,13 +548,13 @@ export abstract class HomeUiStage extends HomeUiHeroes {
                 cic.style.backgroundPosition = 'center';
             });
             c.appendChild(cic);
-            const p = document.createElement('p');
+            const p = document.createElement('span');
             p.textContent = label;
             c.appendChild(p);
             if (st === 'ready') {
                 const b = document.createElement('button');
-                b.className = 'btn gold sm cbtn';
-                b.textContent = '领 取';
+                b.className = 'game-button sm cbtn';
+                b.textContent = '领取';
                 b.onclick = (e) => {
                     e.stopPropagation();
                     this._claimedChests.add(claimKey);
@@ -511,13 +565,15 @@ export abstract class HomeUiStage extends HomeUiHeroes {
                 };
                 c.appendChild(b);
             } else {
-                const tag = document.createElement('span');
-                tag.className = 'tag';
-                tag.style.marginTop = 'calc(6px * var(--hs,1))';
-                tag.style.display = 'inline-block';
+                const tag = document.createElement('small');
                 tag.textContent = tip;
                 c.appendChild(tag);
             }
+            c.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._openStageRewardModal();
+            };
             row.appendChild(c);
         }
     }

@@ -43,6 +43,23 @@ export abstract class HomeUiPlay extends HomeUiStage {
     /** 基地页签到入口红点 */
     protected _signinRedEl: HTMLElement | null = null;
 
+    /** 行动页标题右侧的今日活跃度 */
+    protected _actNumEl: HTMLElement | null = null;
+
+    /** 日常四快捷的副标（签到天数 / 待领任务 / 成就进度 / 礼包） */
+    protected _signinSubEl: HTMLElement | null = null;
+    protected _questSubEl: HTMLElement | null = null;
+    protected _achSubEl: HTMLElement | null = null;
+    protected _giftSubEl: HTMLElement | null = null;
+
+    /** 挑战场两席（无尽试炼 / 无尽护送）与远征行文案 */
+    protected _trialEntryEl: HTMLElement | null = null;
+    protected _endlessEntryEl: HTMLElement | null = null;
+    protected _expTextEl: HTMLElement | null = null;
+
+    /** 载具改装 XL 页（实现在 HomeUiBase；行动页页脚复用入口） */
+    protected abstract _openTuningModal(onBack?: () => void): void;
+
     /** 远征当前选中的任务 */
     protected _expSel: ExpeditionId = 'scout';
 
@@ -59,9 +76,9 @@ export abstract class HomeUiPlay extends HomeUiStage {
         if (!grid) {
             return;
         }
-        const cards = grid.querySelectorAll<HTMLElement>('.modeRow[data-entry]');
+        const cards = grid.querySelectorAll<HTMLElement>('[data-entry]');
         for (const card of cards) {
-            const red = card.querySelector('.bcardRed');
+            const red = card.querySelector('.questRed');
             if (red) {
                 this._refreshPureEntryRed(card.dataset.entry ?? '', red as HTMLElement);
             }
@@ -1019,92 +1036,231 @@ export abstract class HomeUiPlay extends HomeUiStage {
 
     // ================= 玩法页（日常运营 + 玩法入口） =================
 
-    /** 玩法页：每日任务/签到状态卡（红点驱动，点击直达）+ 试炼/副本/远征/图鉴/排行入口行 */
+    /**
+     * 行动页（布局稿 R2）：标题行（今日活跃）→ 日常四快捷 → 挑战场（无尽试炼/无尽护送）
+     * → 资源副本四联 → 远征行 → 页脚三快捷。整页竖排，副本/远征/页脚常驻底部。
+     */
     protected _buildPlayPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'screen';
+        page.className = 'screen sAction';
         this._pages.core = page;
 
-        // 日常状态卡：任务 + 签到（运营功能与基地建筑养成解耦，集中放在玩法页顶部）
-        const dutyRow = document.createElement('div');
-        dutyRow.className = 'dutyRow';
-        const mkDuty = (ic: string, title: string, sub: string, onTap: () => void): HTMLButtonElement => {
-            const card = document.createElement('button');
-            card.className = 'dutyCard panel frame';
-            card.innerHTML = `<span class="dcIc">${ic}</span><span class="dcTxt"><b>${title}</b><i>${sub}</i></span><i class="questRed"></i>`;
-            card.onclick = (e) => {
+        // 标题行：页名 + 今日活跃度（活跃宝箱口径）
+        const title = document.createElement('div');
+        title.className = 'action-title';
+        const h1 = document.createElement('h1');
+        h1.textContent = '作战行动';
+        const act = document.createElement('small');
+        act.className = 'actNum';
+        title.appendChild(h1);
+        title.appendChild(act);
+        page.appendChild(title);
+        this._actNumEl = act;
+
+        // 日常四快捷：签到 / 任务 / 成就 / 礼包（红点驱动，点击直达）
+        const daily = document.createElement('div');
+        daily.className = 'action-daily';
+        const mkDaily = (ic: string, label: string, sub: string, onTap: () => void): HTMLButtonElement => {
+            const b = document.createElement('button');
+            b.className = 'hot dutyCard';
+            b.innerHTML = `<span class="ic">${ic}</span><span>${label}</span><small class="dcSub">${sub}</small>`
+                + '<i class="questRed"></i>';
+            b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
                 onTap();
             };
-            dutyRow.appendChild(card);
-            return card;
+            daily.appendChild(b);
+            return b;
         };
-        const questBtn = mkDuty('📋', '每日任务', '活跃宝箱 · 成就领奖', () => this._openQuestModal());
-        this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
-        this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
-        const signinBtn = mkDuty('📅', '每日签到', '七日奖励 · 断签不罚', () => this._openSigninModal());
-        this._refreshSigninRed(signinBtn.querySelector('.questRed') as HTMLElement);
+        const signinBtn = mkDaily('📅', '签到', '第 1 天', () => this._openSigninModal());
         this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
-        page.appendChild(dutyRow);
+        this._refreshSigninRed(this._signinRedEl);
+        this._signinSubEl = signinBtn.querySelector('.dcSub') as HTMLElement;
+        const questBtn = mkDaily('📋', '任务', '0 项可领', () => this._openQuestModal(0));
+        this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
+        this._refreshQuestRed(this._questRedEl);
+        this._questSubEl = questBtn.querySelector('.dcSub') as HTMLElement;
+        const achBtn = mkDaily('🎖️', '成就', '0 项达成', () => this._openQuestModal(1));
+        this._achSubEl = achBtn.querySelector('.dcSub') as HTMLElement;
+        const giftBtn = mkDaily('🎁', '礼包', '每日补给', () => this._openGiftModal());
+        this._giftSubEl = giftBtn.querySelector('.dcSub') as HTMLElement;
+        page.appendChild(daily);
 
-        // 玩法入口列表（BUILDINGS pureEntry：试炼/副本/远征/图鉴/排行）
-        const list = document.createElement('div');
-        list.className = 'modeList';
-        page.appendChild(list);
-        this._playGridEl = list;
+        // 挑战场：无尽试炼（塔层） / 无尽护送（通关全章解锁）
+        const ground = document.createElement('div');
+        ground.className = 'challenge-ground';
+        const mkEntry = (ic: string, name: string, onTap?: () => void): HTMLButtonElement => {
+            const b = document.createElement('button');
+            b.className = 'entry';
+            b.innerHTML = `<span class="ic">${ic}</span><h2>${name}</h2><small></small>`;
+            if (onTap) {
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    onTap();
+                };
+            }
+            ground.appendChild(b);
+            return b;
+        };
+        const trialEl = mkEntry('🗼', '无尽试炼', () => this._openTrialModal());
+        trialEl.dataset.entry = 'trial';
+        trialEl.appendChild(this._mkRed('trial'));
+        const endlessEl = mkEntry('🌀', '无尽护送', () => this._startBattle(true));
+        endlessEl.dataset.entry = 'endless';
+        this._trialEntryEl = trialEl;
+        this._endlessEntryEl = endlessEl;
+        page.appendChild(ground);
+
+        // 资源副本四联（金币/强化石/合金/宝石）
+        const dungeons = document.createElement('div');
+        dungeons.className = 'dungeons';
+        const dLabel = document.createElement('div');
+        dLabel.className = 'section-label';
+        dLabel.innerHTML = `<b>资源副本</b><small>每次 ${DUNGEON_STAMINA_COST} 体力</small>`;
+        dungeons.appendChild(dLabel);
+        const dRow = document.createElement('div');
+        dRow.className = 'dungeon-row';
+        DUNGEON_DEFS.forEach((def, i) => {
+            const b = document.createElement('button');
+            b.className = 'hot';
+            b.dataset.entry = 'dungeon';
+            b.dataset.dungeon = def.id;
+            b.innerHTML = `<span class="ic">${def.ic}</span><span>${def.name}</span><small>${DUNGEON_RUNS_PER_DAY} 次</small>`;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                if (!GameManager.instance.isBuildingUnlocked('dungeon')) {
+                    this._toast('🔒 指挥中心 LV.2 解锁资源副本');
+                    return;
+                }
+                this._openDungeonModal(i);
+            };
+            b.appendChild(this._mkRed('dungeon'));
+            dRow.appendChild(b);
+        });
+        dungeons.appendChild(dRow);
+        page.appendChild(dungeons);
+
+        // 远征行：图标 + 进度文案 + 远征入口
+        const exp = document.createElement('div');
+        exp.className = 'expedition';
+        exp.dataset.entry = 'expedition';
+        exp.innerHTML = '<span class="ic">🚚</span><div class="expedition-text"><b>远征 · 物资搜寻</b><small></small></div>';
+        const expHot = document.createElement('button');
+        expHot.className = 'hot';
+        expHot.innerHTML = '<span class="ic">🚩</span>远征';
+        expHot.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._enterPureEntry('expedition');
+        };
+        exp.appendChild(expHot);
+        exp.appendChild(this._mkRed('expedition'));
+        page.appendChild(exp);
+        this._expTextEl = exp.querySelector('.expedition-text small') as HTMLElement;
+
+        // 页脚三快捷：怪物图鉴 / 排行榜 / 载具改装
+        const footer = document.createElement('div');
+        footer.className = 'action-footer';
+        const mkFoot = (ic: string, label: string, onTap: () => void, key?: string): HTMLButtonElement => {
+            const b = document.createElement('button');
+            b.className = 'hot';
+            b.innerHTML = `<span class="ic">${ic}</span>${label}`;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                onTap();
+            };
+            if (key) {
+                b.dataset.entry = key;
+                b.appendChild(this._mkRed(key));
+            }
+            footer.appendChild(b);
+            return b;
+        };
+        mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary');
+        mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard');
+        mkFoot('🔧', '载具改装', () => this._openTuningModal());
+        page.appendChild(footer);
+
         root.appendChild(page);
+        // 入口红点巡检覆盖整页（入口分散在挑战场/副本/远征/页脚）
+        this._playGridEl = page;
+    }
+
+    /** 入口红点占位（纯 CSS 控制显隐） */
+    protected _mkRed(key: string): HTMLElement {
+        const red = document.createElement('i');
+        red.className = 'questRed';
+        red.dataset.red = key;
+        return red;
     }
 
 
-    /** 玩法页刷新：入口行重绘（动态进度描述 + 红点 + 进入态） */
+    /** 行动页刷新：标题活跃度 + 日常副标 + 挑战场层数/解锁 + 副本次数 + 远征文案 */
     protected _refreshPlayPage(): void {
-        const grid = this._playGridEl;
-        if (!grid) {
+        const page = this._playGridEl;
+        if (!page) {
             return;
         }
-        grid.innerHTML = '';
         const gm = GameManager.instance;
-        // 玩法定位短语（行内副标签）
-        const sub: Record<string, string> = {
-            trial: '爬塔挑战', dungeon: '材料产线', expedition: '离线派遣',
-            bestiary: '图鉴收集', leaderboard: '积分竞技',
-        };
-        for (const b of BUILDINGS) {
-            if (!b.pureEntry) {
-                continue;
-            }
-            const unlocked = gm.isBuildingUnlocked(b.id);
-            const row = document.createElement('button');
-            row.className = 'modeRow panel' + (unlocked ? '' : ' locked lock');
-            row.dataset.entry = b.id;
-            row.title = b.intro ?? '';
-            const ic = document.createElement('div');
-            ic.className = 'mmIc';
-            ic.textContent = b.ic;
-            row.appendChild(ic);
-            const mid = document.createElement('div');
-            mid.className = 'mm';
-            mid.innerHTML = `<b>${b.name}<span class="mini4">${sub[b.id] ?? ''}</span></b>` +
-                `<i>${unlocked ? this._pureEntryDesc(b.id) : `🔒 指挥中心 LV.${b.unlockHq} 解锁`}</i>`;
-            row.appendChild(mid);
-            const btn = document.createElement('span');
-            btn.className = 'mmGo';
-            btn.textContent = this._pureEntryBtnText(b.id);
-            row.appendChild(btn);
-            if (unlocked) {
-                row.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.play('ui');
-                    this._enterPureEntry(b.id);
-                };
-            }
-            const red = document.createElement('span');
-            red.className = 'bcardRed';
-            row.appendChild(red);
-            this._refreshPureEntryRed(b.id, red);
-            grid.appendChild(row);
+        const qs = QuestSystem.instance;
+        // 标题：今日活跃度（活跃宝箱口径）
+        if (this._actNumEl) {
+            this._actNumEl.textContent = `今日活跃 ${qs.activity} / ${ACTIVITY_MAX}`;
         }
+        const owned = QUEST_DEFS.filter(q => q.kind === 'daily' && qs.canClaim(q)).length;
+        if (this._questSubEl) {
+            this._questSubEl.textContent = owned > 0 ? `${owned} 项可领` : '今日已清';
+        }
+        if (this._signinSubEl) {
+            this._signinSubEl.textContent = this._signinDayText();
+        }
+        if (this._achSubEl) {
+            const achv = QUEST_DEFS.filter(q => q.kind === 'achv');
+            const done = achv.filter(q => qs.isClaimed(q)).length;
+            this._achSubEl.textContent = `达成 ${done} / ${achv.length}`;
+        }
+        if (this._giftSubEl) {
+            this._giftSubEl.textContent = '每日补给';
+        }
+        // 挑战场：试炼层数 / 无尽解锁（通关全章）
+        if (this._trialEntryEl) {
+            const ts = TrialSystem.instance;
+            const sub = this._trialEntryEl.querySelector('small') as HTMLElement;
+            sub.textContent = ts.maxFloor > 0 ? `第 ${ts.nextFloor} 层 · 不耗体力` : '不耗体力 · 从第 1 层开始';
+            this._trialEntryEl.title = '爬塔：层段固定奖励，首通结算';
+        }
+        if (this._endlessEntryEl) {
+            const ok = gm.stageCleared >= FINAL_STAGE_ID;
+            const sub = this._endlessEntryEl.querySelector('small') as HTMLElement;
+            sub.textContent = ok ? '波次无限 · 每 5 波里程碑' : `通关第 ${FINAL_STAGE_ID} 章解锁`;
+            this._endlessEntryEl.className = 'entry' + (ok ? '' : ' locked');
+            this._endlessEntryEl.title = ok ? '无尽护送：波次无限' : `通关第 ${FINAL_STAGE_ID} 章解锁`;
+        }
+        // 资源副本：每类今日剩余次数
+        page.querySelectorAll<HTMLElement>('.dungeon-row .hot[data-dungeon]').forEach(el => {
+            const id = el.dataset.dungeon as DungeonId;
+            const sub = el.querySelector('small');
+            if (sub) {
+                const left = DungeonSystem.instance.remaining(id);
+                sub.textContent = left > 0 ? `${left} / ${DUNGEON_RUNS_PER_DAY} 次` : '今日已用尽';
+            }
+            el.classList.toggle('off', GameManager.instance.stamina() < DUNGEON_STAMINA_COST);
+        });
+        if (this._expTextEl) {
+            this._expTextEl.textContent = this._pureEntryDesc('expedition');
+        }
+        this._refreshEntryReds();
+    }
+
+
+    /** 签到副标：按当前签到天数给出「第 N 天 / 7」 */
+    protected _signinDayText(): string {
+        const ss = SigninSystem.instance;
+        return `第 ${Math.min(ss.totalDays, ss.day)} 天 / ${ss.totalDays}`;
     }
 
 

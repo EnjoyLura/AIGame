@@ -262,9 +262,10 @@ export abstract class HomeUiCore extends Component {
                 // 画布在超长屏上按高度铺满时 CSS 宽会超出视口；DOM 覆盖层必须按视口宽缩放，
                 // 否则 --pw 偏大导致 HUD 超屏被裁。取画布宽与视口宽的较小值。
                 const w = Math.min(canvas.getBoundingClientRect().width, window.innerWidth);
-                // --hs：设计宽 1080 缩放；--pw：原型 430px 手机框等比缩放（interface.css 覆盖层用）
+                // --hs：设计宽 1080 缩放；--pw：布局稿 390×844 手机框等比缩放（青瓷覆盖层用）。
+                // 390 是布局稿画框宽度：以它为基准，真机 390 宽时逐条与稿 1:1，更宽屏等比放大。
                 document.documentElement.style.setProperty('--hs', (w / 1080).toFixed(4));
-                document.documentElement.style.setProperty('--pw', (w / 430).toFixed(4));
+                document.documentElement.style.setProperty('--pw', (w / 390).toFixed(4));
             }
             this._applySafeArea();
         };
@@ -1255,7 +1256,11 @@ export abstract class HomeUiCore extends Component {
 
     // ================= 顶栏（全局） =================
 
-    /** 顶栏：玩家头像 + 名牌/等级/经验条 + 三资源胶囊（金币/钻石/体力） */
+    /**
+     * HUD 通栏（五页共用）：左侧竖版头像（等级角标压左上角、绝对定位），
+     * 右侧两行——上排三资源等分，下排昵称 + 经验条 + 邮箱/设置小图标。
+     * 内容整体右移让位头像，整条 64px（原型口径）。
+     */
     protected _buildTopbar(root: HTMLDivElement): void {
         const bar = document.createElement('div');
         bar.className = 'topbar';
@@ -1278,28 +1283,12 @@ export abstract class HomeUiCore extends Component {
             face.textContent = '';
         });
         avatar.appendChild(face);
+        // 等级角标压在头像左上角外沿（布局稿 .portrait strong），头像即等级入口
+        const lvBadge = document.createElement('b');
+        lvBadge.className = 'lvtag';
+        lvBadge.textContent = '12';
+        avatar.appendChild(lvBadge);
         bar.appendChild(avatar);
-        const info = document.createElement('div');
-        info.className = 'pinfo';
-        const nameRow = document.createElement('div');
-        nameRow.className = 'pname';
-        nameRow.appendChild(document.createTextNode('末日指挥官'));
-        const lvtag = document.createElement('span');
-        lvtag.className = 'lvtag';
-        lvtag.textContent = 'LV.12';
-        nameRow.appendChild(lvtag);
-        const exp = document.createElement('div');
-        exp.className = 'expbar';
-        const fill = document.createElement('i');
-        exp.appendChild(fill);
-        const expnum = document.createElement('div');
-        expnum.className = 'expnum';
-        info.appendChild(nameRow);
-        info.appendChild(exp);
-        info.appendChild(expnum);
-        bar.appendChild(info);
-        this._expFill = fill;
-        this._expNum = expnum;
         const reswrap = document.createElement('div');
         reswrap.className = 'reswrap';
         const mkRes = (id: 'gold' | 'diamond' | 'stamina', texKey: string) => {
@@ -1340,11 +1329,33 @@ export abstract class HomeUiCore extends Component {
         mkRes('diamond', 'ui/res_diamond');
         mkRes('stamina', 'ui/res_stamina');
         bar.appendChild(reswrap);
-        // 邮箱 + 设置收进 HUD 右侧工具组（与资源胶囊同一行，不再下探）
+        // 下排：昵称 + 经验条（+ 进度文案）｜右侧邮箱 / 设置两个小图标
+        const identity = document.createElement('div');
+        identity.className = 'identity';
+        const idLeft = document.createElement('div');
+        idLeft.className = 'idLeft';
+        const nameRow = document.createElement('span');
+        nameRow.className = 'pname';
+        nameRow.textContent = '末日指挥官';
+        const xpRow = document.createElement('div');
+        xpRow.className = 'xpRow';
+        const exp = document.createElement('div');
+        exp.className = 'expbar';
+        const fill = document.createElement('i');
+        exp.appendChild(fill);
+        const expnum = document.createElement('span');
+        expnum.className = 'expnum';
+        xpRow.appendChild(exp);
+        xpRow.appendChild(expnum);
+        idLeft.appendChild(nameRow);
+        idLeft.appendChild(xpRow);
+        identity.appendChild(idLeft);
+        this._expFill = fill;
+        this._expNum = expnum as HTMLDivElement;
         const util = document.createElement('div');
         util.className = 'hudUtil';
         const mailBtn = document.createElement('button');
-        mailBtn.className = 'btn dark sm setGear homeMailBtn';
+        mailBtn.className = 'tinyIcon homeMailBtn';
         mailBtn.textContent = '📬';
         mailBtn.title = '邮箱';
         mailBtn.onclick = (e) => {
@@ -1355,7 +1366,7 @@ export abstract class HomeUiCore extends Component {
         util.appendChild(mailBtn);
         this._homeMailBtn = mailBtn;
         const gear = document.createElement('button');
-        gear.className = 'btn dark sm setGear';
+        gear.className = 'tinyIcon';
         gear.textContent = '⚙️';
         gear.title = '设置';
         gear.onclick = (e) => {
@@ -1364,7 +1375,8 @@ export abstract class HomeUiCore extends Component {
             this._openSettingsModal();
         };
         util.appendChild(gear);
-        bar.appendChild(util);
+        identity.appendChild(util);
+        bar.appendChild(identity);
         root.appendChild(bar);
     }
 
@@ -1407,8 +1419,8 @@ export abstract class HomeUiCore extends Component {
         const NAV: Array<{ key: string; icon: string; name: string; main?: boolean }> = [
             { key: 'mall', icon: '🛒', name: '商店' },
             { key: 'heroes', icon: '🎖️', name: '英雄' },
-            { key: 'battle', icon: '🚚', name: '战斗', main: true },
-            { key: 'core', icon: '🎮', name: '玩法' },
+            { key: 'battle', icon: '🚚', name: '护送' },
+            { key: 'core', icon: '🎮', name: '行动' },
             { key: 'base', icon: '🏰', name: '基地' },
         ];
         for (const item of NAV) {
@@ -1433,10 +1445,7 @@ export abstract class HomeUiCore extends Component {
                 icon.style.backgroundSize = 'contain';
                 icon.style.backgroundRepeat = 'no-repeat';
                 icon.style.backgroundPosition = 'center';
-                // 原型 interface.css：普通页签图标 34px、主钮图标 39px（430px 口径）
-                const iw = item.main ? 39 : 34;
-                icon.style.width = `calc(${iw}px * var(--pw,2.5))`;
-                icon.style.height = `calc(${iw}px * var(--pw,2.5))`;
+                // 图标尺寸交给 CSS（五签等分，选中态 42px 由 .tab.on 覆盖）——内联尺寸会压掉覆盖规则
                 icon.textContent = '';
             });
             nav.appendChild(btn);
@@ -1471,16 +1480,15 @@ export abstract class HomeUiCore extends Component {
 
 
     protected _switchPage(page: string): void {
+        // 显隐交给 CSS 的 .on 类：护送页是满屏竖向 flex 骨架，其余四页为块级滚动流，
+        // 内联 display 会把两种布局模式压成同一个值
         for (const key of Object.keys(this._pages)) {
-            this._pages[key].style.display = key === page ? 'block' : 'none';
+            this._pages[key].classList.toggle('on', key === page);
         }
         for (const key of Object.keys(this._navBtns)) {
             this._navBtns[key].classList.toggle('on', key === page);
         }
-        // 悬浮栏只随战斗页出现（左运营/右快捷），其余四页通栏
-        document.querySelectorAll('#homeUi .floatRail').forEach(el => {
-            el.classList.toggle('on', page === 'battle');
-        });
+        // 运营/快捷入口已收进护送页场景内侧，随页面显隐；此处不再切悬浮栏
         if (page === 'battle') {
             this._refreshStagePage();
         }
