@@ -129,7 +129,10 @@ ok('基地页挂 _baseMapEl 地图', /this\._baseMapEl = map/.test(src));
 ok('基地地图节点点击开详情抽屉', /node\.onclick[\s\S]{0,160}_openBuildingInfoModal\(b\.id\)/.test(src));
 ok('建筑详情升级为 L3·M 弹层', /protected _openBuildingInfoModal\(id: string\): void \{[\s\S]{0,700}?tier: 3,\s*\n\s*size: 'M',/.test(src));
 ok('建筑升级在抽屉内接线', /gm\.upgradeBuilding\(b\.id\)[\s\S]{0,300}this\._refreshBase\(\)/.test(src));
-ok('META 局外强化卡挂 _baseMetaEl', /this\._baseMetaEl = meta/.test(src));
+ok('META 局外强化升为 L2·XL 二级页（不再占基地页中段）', !/className = 'base-meta'/.test(src)
+  && /protected _openMetaUpgradeModal\(onBack\?: \(\) => void\): void \{/.test(src)
+  && /this\._openMetaUpgradeModal\(\(\) => this\._openBuildingInfoModal\(b\.id\)\)/.test(src)
+  && /META_UPGRADES\[sel\]/.test(src));
 ok('_baseRows 累加字段已删', !/_baseRows/.test(src));
 
 // 7-B. 商店页骨架（布局稿 R2）：货架头 / 滚动货架（主推 offer + 分区标签 + 三列货架）/ 底部页签
@@ -152,7 +155,7 @@ ok('营地地图：路面底纹 + 2×4 建筑格', /'base-map'/.test(src) && /'m
 ok('建筑格 8 座（跳过 pureEntry）+ 红点/锁定态', /node\.dataset\.building = b\.id/.test(src)
   && /b\.pureEntry[\s\S]{0,60}continue/.test(src) && /building' \+ \(unlocked \? '' : ' locked'\)/.test(src));
 ok('基地底行（下一级营地 / 已开放设施数）', /'base-bottom'/.test(src) && /下一级营地：解锁/.test(src) && /已开放 \$\{opened\}/.test(src));
-ok('基地页骨架两层 CSS 齐备', ['base-head', 'base-map', 'map-roads', 'base-buildings', 'building', 'base-meta', 'base-bottom']
+ok('基地页骨架两层 CSS 齐备', ['base-head', 'base-map', 'map-roads', 'base-buildings', 'building', 'base-bottom']
   .every(c => (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2)
   && (src.match(/#homeUi \.screen\.sBase\.on \{ display: flex/g) || []).length >= 2);
 ok('基地旧横幅/节点类已退出构建（baseBanner/mapNode 不再出现）', !/baseBanner/.test(clsSrc) && !/mapNode/.test(clsSrc));
@@ -284,7 +287,7 @@ ok('HomeUiStage 旧弹窗入口清零', !/_openStageRewardModal[\s\S]{0,600}this
 
 // 12. 建筑详情 / 载具改装迁移
 ok('建筑详情 L3·M：效果 + 升级 KV + 受限告警', /banner: `\$\{b\.ic\} \$\{b\.name\}`/.test(src) && /text: `升到 LV\.\$\{lv \+ 1\}：\*\*\$\{b\.desc\(lv \+ 1\)\}\*\*`/.test(src) && /c\.appendChild\(this\._popWarn\(`需指挥中心 LV\.\$\{b\.unlockHq\} 解锁（当前 LV\.\$\{gm\.hqLevel\(\)\}）`\)\);/.test(src));
-ok('建筑详情升级就地重绘（不再拆弹窗重开）', /_openBuildingInfoModal\(id: string\): void \{[\s\S]{0,5200}?this\._popRebuild\(opt\(\)\);/.test(src) && !/biLvRow/.test(clsSrc));
+ok('建筑详情升级就地重绘（不再拆弹窗重开）', /_openBuildingInfoModal\(id: string\): void \{[\s\S]{0,6400}?this\._popRebuild\(opt\(\)\);/.test(src) && !/biLvRow/.test(clsSrc));
 ok('建筑详情受指挥中心上限约束走告警行', /c\.appendChild\(this\._popWarn\('受指挥中心上限约束 · 先升级指挥中心'\)\);/.test(src));
 ok('载具工坊钻取改装 + onBack 回建筑详情', /_openTuningModal\(\(\) => this\._openBuildingInfoModal\(b\.id\)\)/.test(src) && /protected _openTuningModal\(onBack\?: \(\) => void\): void \{/.test(src) && /^\s+onBack,$/m.test(src));
 ok('载具改装 XL 二级页：四部位槽位条 + 展示台 + 对比块', /title: '🔧 载具改装'/.test(src) && /tier: maxed \? 'MAX' : `LV\.\$\{lv\}`/.test(src) && /this\._popCmp\('改装预览', \[\{/.test(src) && /for \(let i = 0; i < TUNE_SLOTS\.length; i\+\+\)/.test(src));
