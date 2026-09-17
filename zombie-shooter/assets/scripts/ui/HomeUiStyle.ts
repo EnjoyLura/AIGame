@@ -1178,7 +1178,7 @@ export const HOME_UI_CSS = `
   min-height: calc(30px * var(--hs,1)); font-size: calc(11px * var(--hs,1)); }
 #homeUi .hero-tools .hot .ic { width: calc(23px * var(--hs,1)); height: calc(23px * var(--hs,1)); font-size: calc(23px * var(--hs,1)); }
 #homeUi .screen.sHeroes .bagBar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #101c33;
-  margin: 0; padding: 0; border-radius: 0; position: static; }
+  margin: 0; padding: 0; border-radius: 0; position: static; max-height: none; }
 #homeUi .screen.sHeroes .bag-head { flex: none; height: calc(30px * var(--hs,1)); display: flex; align-items: center;
   justify-content: space-between; padding: 0 calc(10px * var(--hs,1)); font-size: calc(12px * var(--hs,1)); color: #eaf2ff; }
 #homeUi .screen.sHeroes .bag-head small { font-size: calc(10px * var(--hs,1)); color: #8ba3c7; }
@@ -1438,7 +1438,7 @@ export const HOME_UI_CSS = `
 #homeUi .screen { padding: calc(16px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) calc(20px * var(--pw,2.5)); }
 /* 护送页通栏：章节头/场景/里程碑/编队条/底部 CTA 各自带内边距，页面本身不留走廊 */
 /* 左右不留走廊：稿里 .stage 是通栏，两侧快捷列 left/right 3px 才是贴边的；留 10px 会让列位内缩、场景压到列上 */
-#homeUi .screen.sStage { padding: 0 0 calc(10px * var(--pw,2.5)); }
+#homeUi .screen.sStage { padding: 0; }
 #homeUi .screen.on { display: block; }
 #homeUi .screen.sStage.on { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 #homeUi .panel { background: linear-gradient(#fcfdfe, #eaf1f5); border: 1px solid #b5c8d5;
@@ -1632,7 +1632,7 @@ export const HOME_UI_CSS = `
 #homeUi .chapter-head .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5)); border: 0; border-radius: 0;
   background: none; color: #6b7f8b; font-size: calc(25px * var(--pw,2.5)); }
 #homeUi .difficulty { width: calc(224px * var(--pw,2.5)); height: calc(32px * var(--pw,2.5)); border-radius: 0;
-  border: 1px solid #a9a9a9; background: #cecece; margin: calc(6px * var(--pw,2.5)) 0; }
+  border: 1px solid #a9a9a9; background: #cecece; margin: 0; }
 #homeUi .difficulty .diffSeg { font-size: calc(12px * var(--pw,2.5)); font-weight: 400; color: #35505f; border-left-color: #b9b9b9; }
 #homeUi .difficulty .diffSeg.on { background: #aaa; color: #1f333e; font-weight: 700; }
 #homeUi .difficulty .diffSeg.off { color: #7b8d97; }
@@ -2724,8 +2724,8 @@ export const HOME_UI_CSS = `
   min-height: calc(30px * var(--pw,2.5)); font-size: calc(11px * var(--pw,2.5)); color: #243e4d; }
 #homeUi .hero-tools .hot .ic { width: calc(23px * var(--pw,2.5)); height: calc(23px * var(--pw,2.5)); font-size: calc(21px * var(--pw,2.5));
   line-height: calc(23px * var(--pw,2.5)); }
-#homeUi .screen.sHeroes .bagBar { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #dcdcdc;
-  margin: 0; padding: 0; border-radius: 0; border: none; position: static; height: auto; }
+#homeUi .screen.sHeroes .bagBar { flex: 1 1 0%; min-height: 0; display: flex; flex-direction: column; background: #dcdcdc;
+  margin: 0; padding: 0; border-radius: 0; border: none; position: static; height: auto; max-height: none; }
 #homeUi .screen.sHeroes .bag-head { flex: none; height: calc(30px * var(--pw,2.5)); display: flex; align-items: center;
   justify-content: space-between; padding: 0 calc(10px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); color: #243e4d; }
 #homeUi .screen.sHeroes .bag-head small { font-size: calc(10px * var(--pw,2.5)); color: #4a6270; }
@@ -2975,5 +2975,30 @@ export const HOME_UI_CSS = `
 #homeUi .screen.sStage .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); margin-top: 0; }
 #homeUi .screen.sStage .chapter-head .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5)); font-size: calc(25px * var(--pw,2.5)); }
 /* 关卡场景：两侧快捷列在 3px 贴边占 49px，场景左右让出 56px，列与场景不再互压 */
-#homeUi .screen.sStage .stage-scene { inset: 6% calc(56px * var(--pw,2.5)) 0; }`;
+#homeUi .screen.sStage .stage-scene { inset: 6% calc(56px * var(--pw,2.5)) 0; }
+
+/* ---- 英雄页逐条对齐布局稿 ----
+   稿里 .hero-roster/.hero-stage/.hero-tools/.bag-section 都是 .screen 的直接子元素，
+   .hero-stage 的 38% 是按整屏算的（257）；游戏多包了一层 .hero-body，% 变成按 641 算（243）会矮 15px。
+   display:contents 让这层包壳不产生盒子，子元素回到整屏的 flex 流里，比例基准与稿一致。 */
+#homeUi .screen.sHeroes .hero-body { display: contents; }
+/* 英雄条：稿 .hero-roster button 是横向（图标在左、名字在右，gap 3），图标 26×28 不被压 */
+#homeUi .screen.sHeroes .hero-roster .hpick { flex-direction: row; }
+#homeUi .screen.sHeroes .hero-roster .hpick .pic { flex: none; width: calc(26px * var(--pw,2.5)); height: calc(28px * var(--pw,2.5)); }
+/* 装备槽主图标：稿 .equip-slot > .ic 占 65%×(100%-24px)、上限 47 —— 表情图标按字号对齐这个体量 */
+#homeUi .screen.sHeroes .equipment .slot > span:not(.sname):not(.slv):not(.tier) { font-size: calc(30px * var(--pw,2.5)); line-height: 1; }
+/* 背包头右侧：稿 select / .hot 都是 28 高（不掉出 30 的头部条） */
+#homeUi .screen.sHeroes .bag-head-right { align-items: center; height: calc(28px * var(--pw,2.5)); }
+#homeUi .screen.sHeroes .bag-head .hot { height: calc(28px * var(--pw,2.5)); min-height: calc(28px * var(--pw,2.5)); }
+#homeUi .screen.sHeroes .bag-head select { height: calc(28px * var(--pw,2.5)); }
+/* 背包页签：稿 .flat-tabs button 撑满 34 的条带，容器无外边距（贴底导航） */
+#homeUi .screen.sHeroes .bagTabs { margin: 0; gap: 0; }
+#homeUi .screen.sHeroes .bagTabs button { height: calc(34px * var(--pw,2.5)); }
+/* 编队席：稿 .loadouts button 是 29×28 的小方块（标签 + 一排四席） */
+#homeUi .screen.sHeroes .hero-tools .loadouts { height: calc(30px * var(--pw,2.5)); }
+#homeUi .screen.sHeroes .hero-tools .loadouts b { flex: none; white-space: nowrap; }
+#homeUi .screen.sHeroes .hero-tools .loadouts b small { font-size: calc(9px * var(--pw,2.5)); font-weight: 400;
+  color: #4a6270; margin-left: calc(3px * var(--pw,2.5)); }
+#homeUi .screen.sHeroes .hero-tools .loadouts .squadEntry { flex: none; min-width: calc(29px * var(--pw,2.5));
+  height: calc(28px * var(--pw,2.5)); padding: 0 calc(4px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); }`;
 

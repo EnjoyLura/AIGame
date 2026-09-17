@@ -518,13 +518,13 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 el.appendChild(ic);
                 const slv = document.createElement('span');
                 slv.className = 'slv';
-                slv.textContent = `+${cur.lv}`;
+                slv.textContent = `Lv.${cur.lv}`;
                 slv.style.borderColor = EQUIP_TIER_COLORS[tier - 1];
                 el.appendChild(slv);
-                // 品阶贴左下角（布局稿 .equip-slot .tier）：槽位内一眼看清品阶/强化级
+                // 品阶贴左下角（布局稿 .equip-slot .tier：◆ 数量即品阶），强化级贴右下角 Lv.N
                 const tierEl = document.createElement('span');
                 tierEl.className = 'tier';
-                tierEl.textContent = EQUIP_TIER_NAMES[tier - 1];
+                tierEl.textContent = '◆'.repeat(Math.max(1, Math.min(6, tier)));
                 el.appendChild(tierEl);
                 el.title = `${bagItemName({ slot, tier, lv: cur.lv })}`;
             } else {
@@ -568,7 +568,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             const st = rs.stars(def.id);
             hName.appendChild(document.createTextNode(def.name));
             const sub = document.createElement('small');
-            sub.textContent = `${def.role} · ${'★'.repeat(st)}${'☆'.repeat(HERO_STAR_MAX - st)}`;
+            // 星级用实心星（稿 .hero-name small = ★★）；0 阶不挂空星，避免出现悬空的“· ”
+            sub.textContent = st > 0 ? `${def.role} · ${'★'.repeat(st)}` : def.role;
             sub.title = st >= HERO_STAR_MAX
                 ? '已满星'
                 : `升星进度 ${rs.shards(def.id)} / ${rs.starCost(def.id)} 碎片`;
@@ -639,10 +640,10 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             SoundFx.play('ui');
             this._openHeroGrowModal(def.id, 0);
         };
-        // 升星入口（参考主流卡牌「1阶」角标）：碎片进度与升星操作收进弹窗
+        // 升星入口（参考主流卡牌「1阶」角标）：碎片进度与升星操作收进弹窗；未升过星时回落成稿的「升星」
         const starBtn = document.createElement('button');
         starBtn.className = 'btn blue hot starEntry';
-        starBtn.innerHTML = `⭐<span>${owned ? rs.stars(def.id) + '阶' : '升星'}</span>`;
+        starBtn.innerHTML = `⭐<span>${owned && rs.stars(def.id) > 0 ? rs.stars(def.id) + '阶' : '升星'}</span>`;
         starBtn.title = '升星（碎片进度与升星操作）';
         starBtn.disabled = !owned;
         starBtn.onclick = (e) => {
@@ -672,24 +673,31 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         stage.appendChild(colR);
         body.appendChild(stage);
 
-        // 工具行：编队状态/入口 + 招募 / 工坊两个快捷
+        // 工具行：编队四席 + 招募 / 工坊两个快捷（稿 .loadouts = 标签 + 一排小方块）
         const tools = document.createElement('div');
         tools.className = 'hero-tools';
         const loadouts = document.createElement('div');
         loadouts.className = 'loadouts';
         const loLabel = document.createElement('b');
         loLabel.textContent = '编队';
-        const loState = document.createElement('button');
-        loState.className = 'squadEntry';
-        loState.textContent = `${inLineup ? '已上阵' : '未上阵'} ${gm.lineup.length}/${GameManager.LINEUP_MAX}`;
-        loState.title = '调整护送编队（上阵/下阵）';
-        loState.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._openSquadModal();
-        };
+        const loNum = document.createElement('small');
+        loNum.textContent = `${gm.lineup.length}/${GameManager.LINEUP_MAX}`;
+        loLabel.appendChild(loNum);
         loadouts.appendChild(loLabel);
-        loadouts.appendChild(loState);
+        for (let i = 0; i < GameManager.LINEUP_MAX; i++) {
+            const heroId = gm.lineup[i];
+            const slotDef = heroId ? HERO_DEFS.find(h => h.id === heroId) : undefined;
+            const chip = document.createElement('button');
+            chip.className = 'squadEntry' + (slotDef ? ' on' : '') + (heroId && heroId === def.id && inLineup ? ' active' : '');
+            chip.textContent = String(i + 1);
+            chip.title = slotDef ? `编队 ${i + 1} 号位 · ${slotDef.name}` : `编队 ${i + 1} 号位 · 空位，点击编队`;
+            chip.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                this._openSquadModal();
+            };
+            loadouts.appendChild(chip);
+        }
         tools.appendChild(loadouts);
         const recruitHot = document.createElement('button');
         recruitHot.className = 'hot';
@@ -842,8 +850,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const hint = document.createElement('b');
         hint.className = 'bagHint';
         hint.textContent = this._heroBagTab === 'equip'
-            ? '长按装备拖到左侧槽位即可穿戴 · 点击看详情'
-            : '物品按分类展示 · 点击看详情';
+            ? '装备 · 未选择物品　长按装备拖到左侧槽位即可穿戴'
+            : `${this._heroBagTab === 'gem' ? '宝石' : this._heroBagTab === 'mat' ? '材料' : '道具'} · 物品已按分类展示`;
         detail.appendChild(hint);
         bar.appendChild(detail);
         const tabs = document.createElement('div');
