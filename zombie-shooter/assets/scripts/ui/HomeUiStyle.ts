@@ -1403,11 +1403,12 @@ export const HOME_UI_CSS = `
 #homeUi .stRow .stInfo span { font-size: calc(10px * var(--pw,2.5)); margin-top: calc(2px * var(--pw,2.5)); }
 
 /* --- HUD 通栏（青瓷浅色变体：64px = 头像 43×52 绝对定位 + 资源 31 + 身份 27） --- */
+/* 信息栏回到壳层首位，安全区上边距也交回它（走马灯在它之下，不再占顶部条位） */
 #homeUi .topbar { position: relative; display: block; flex-direction: initial; box-sizing: border-box;
-  height: calc(64px * var(--pw,2.5));
-  padding: 0 calc(8px * var(--pw,2.5)) 0 calc(58px * var(--pw,2.5));
+  height: calc(64px * var(--pw,2.5) + max(var(--sat,0px), env(safe-area-inset-top,0px)));
+  padding: max(var(--sat,0px), env(safe-area-inset-top,0px)) calc(8px * var(--pw,2.5)) 0 calc(58px * var(--pw,2.5));
   background: #dedede; background-image: none; border-bottom: 1px solid #bbb; color: #243e4d; white-space: nowrap; }
-#homeUi .pAvatar { position: absolute; top: calc(4px * var(--pw,2.5)); left: calc(9px * var(--pw,2.5));
+#homeUi .pAvatar { position: absolute; top: calc(4px * var(--pw,2.5) + max(var(--sat,0px), env(safe-area-inset-top,0px))); left: calc(9px * var(--pw,2.5));
   width: calc(43px * var(--pw,2.5)); height: calc(52px * var(--pw,2.5)); padding: 0; border-radius: 0; background: none; }
 #homeUi .pAvatar > div { width: 100%; height: 100%; border-radius: 0; background-color: #c2c2c2; font-size: 0;
   clip-path: polygon(12% 0, 88% 0, 100% 14%, 100% 87%, 88% 100%, 12% 100%, 0 87%, 0 14%); }
@@ -2954,12 +2955,9 @@ export const HOME_UI_CSS = `
 #homeUi .screen.sShop, #homeUi .screen.sShop *, #homeUi .screen.sHeroes, #homeUi .screen.sHeroes *,
 #homeUi .screen.sStage, #homeUi .screen.sStage *, #homeUi .screen.sAction, #homeUi .screen.sAction *,
 #homeUi .screen.sBase, #homeUi .screen.sBase * { box-sizing: border-box; }
-/* 公告条＝稿顶部 32px 状态条位（稿手机版是 30 + 状态栏安全区）：条带恒定占位，
-   无公告只收起走马灯内容，HUD 与页面起始位置始终与稿一致。 */
-#homeUi .noticeBar { flex: none; box-sizing: border-box; align-items: flex-end;
-  height: max(calc(32px * var(--pw,2.5)), calc(30px * var(--pw,2.5) + var(--sat,0px)), calc(30px * var(--pw,2.5) + env(safe-area-inset-top,0px)));
-  margin: 0 calc(10px * var(--pw,2.5)); padding: 0 calc(10px * var(--pw,2.5)) calc(2px * var(--pw,2.5)); }
-#homeUi .noticeBar.off { visibility: hidden; }
+/* 公告走马灯（游戏自有，稿里没有这一行）：挂在信息栏之下、页面之上，
+   有内容时按自身高度占一条，无内容整条 display:none，缺口由页面自己吃掉。 */
+#homeUi .noticeBar { margin: calc(2px * var(--pw,2.5)) calc(10px * var(--pw,2.5)) 0; }
 /* 底导：稿 .nav 70px（含 2px 上边线 + 4px 下内边距），此前按 430 基准写大了 */
 #homeUi .tabbar { height: calc(66px * var(--pw,2.5) + var(--sab,0px)); min-height: 0;
   padding-bottom: calc(2px * var(--pw,2.5) + var(--sab,0px)); }

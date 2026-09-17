@@ -1516,9 +1516,9 @@ export abstract class HomeUiCore extends Component {
         root.id = 'homeUi';
         this._root = root;
 
-        // 布局稿壳层顺序：顶部 32 系统条（游戏里放公告走马灯）→ 信息栏 64 → 页面 → 底导 70
-        this._buildNoticeBar(root);
+        // 壳层顺序：信息栏 64 → 公告走马灯（有内容才占位）→ 页面 → 底导 70
         this._buildTopbar(root);
+        this._buildNoticeBar(root);
 
         const viewport = document.createElement('div');
         viewport.className = 'viewport';
@@ -1627,11 +1627,11 @@ export abstract class HomeUiCore extends Component {
         this._refreshNoticeBar();
     }
 
-    /** 公告条刷新：按轮播游标取当前消息（双拼便于无缝循环）+ 未读公告红点；无内容时只收起走马灯、条带高度保留 */
+    /** 公告条刷新：按轮播游标取当前消息（双拼便于无缝循环）+ 未读公告红点；无内容时整条收起 */
     protected _refreshNoticeBar(): void {
         const q = this._buildTickerQueue();
         if (this._noticeBarEl) {
-            this._noticeBarEl.classList.toggle('off', q.length === 0);
+            this._noticeBarEl.style.display = q.length ? '' : 'none';
         }
         if (q.length === 0) {
             this._tickerIdx = 0;
