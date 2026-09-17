@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>护送计划 · 二级浮窗 布局交互稿</title>
+<style>
+*{box-sizing:border-box} :root{font-family:Arial,"Microsoft YaHei",sans-serif;font-size:12px;color:#292929;background:#ddd;letter-spacing:0}
+body{margin:0}button,select{font:inherit;color:inherit}button{cursor:pointer;border:0;padding:0;background:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible,select:focus-visible{outline:2px solid #222;outline-offset:2px}h1,h2,h3,p{margin:0}
+svg{display:block;width:100%;height:100%;pointer-events:none}small{font-size:10px;color:#666}b{font-weight:700}
+
+/* ============================ 评审外壳 ============================ */
+.review{--phone-w:390px;display:grid;grid-template-columns:236px var(--phone-w) 236px;gap:30px;justify-content:center;padding:24px 16px;align-items:start}
+.rail{padding-top:16px;font-size:12px;line-height:1.9;color:#555}
+.rail h1{font-size:22px;line-height:1.5;color:#222;margin:8px 0 16px}
+.rail h2{font-size:13px;color:#222;margin:16px 0 7px}
+.rail .kicker{font-size:10px;color:#666}
+.rail hr{border:0;border-top:1px solid #bbb;margin:18px 0}
+.rail p{margin:9px 0}.rail select{width:100%;height:34px;background:#eee;border:1px solid #aaa;padding:0 8px;margin:5px 0 10px}
+.rail label{display:block;font-size:11px}
+.rail .group{margin:11px 0 3px;font-size:10px;font-weight:700;color:#333;letter-spacing:.5px}
+.review-nav{display:flex;flex-direction:column;gap:2px}
+.review-nav button{text-align:left;padding:8px 10px;border-bottom:1px solid #bfbfbf;display:flex;align-items:center;gap:7px}
+.review-nav button[aria-current="page"]{background:#c9c9c9;font-weight:bold;color:#222}
+.review-nav .tag{font-size:9px;background:#b5b5b5;color:#fff;padding:1px 4px;margin-left:auto;flex:none}
+.review-nav .tag.L2{background:#6f6f6f}.review-nav .tag.L5{background:#4a4a4a}
+.rail .number{display:inline-block;width:20px;color:#777}
+.rail li{margin:9px 0}.rail ol{padding-left:18px}
+.note{border-left:2px solid #888;padding-left:10px;margin-top:16px}
+.metric{display:flex;justify-content:space-between;border-bottom:1px solid #c4c4c4;padding:6px 0;font-size:11px}
+.metric b{color:#222}
+.review-reset{margin-top:9px;text-decoration:underline;min-height:32px;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.legend span{font-size:10px;border:1px solid #aaa;padding:2px 6px;background:#e6e6e6}
+
+/* ============================ 手机画框 ============================ */
+.phone{width:var(--phone-w);height:844px;position:relative;display:flex;flex-direction:column;overflow:hidden;isolation:isolate;
+  border:1px solid #aaa;background:#e6e6e6;user-select:none;-webkit-user-select:none}
+.safe{flex:none;height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:10px;background:#ddd}
+.capsule{display:flex;align-items:center;justify-content:space-evenly;width:90px;height:26px;border:1px solid #aaa;border-radius:18px;font-size:17px}
+.capsule i{height:14px;border-left:1px solid #b4b4b4}
+.hud{height:64px;flex:none;position:relative;padding:0 8px 0 58px;border-bottom:1px solid #bbb;background:#dedede}
+.hud .portrait{position:absolute;top:4px;left:9px;width:43px;height:52px}
+.hud .portrait .ic{height:43px;background:#c2c2c2;clip-path:polygon(12% 0,88% 0,100% 14%,100% 87%,88% 100%,12% 100%,0 87%,0 14%)}
+.hud .portrait strong{position:absolute;left:-3px;top:-2px;font-size:10px;background:#555;color:#fff;padding:1px 4px}
+.hud .resources{height:31px;display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:3px;align-items:center}
+.hud .currency{min-height:31px;display:flex;align-items:center;justify-content:center;gap:3px;font-size:12px;position:relative}
+.hud .currency:before{content:"";position:absolute;inset:5px 0;background:#c9c9c9;z-index:-1;transform:skewX(-12deg)}
+.hud .currency .ic{width:20px;height:20px}
+.hud .identity{height:27px;display:flex;align-items:center;justify-content:space-between}
+.hud .identity-name{font-size:11px;font-weight:700}
+.main{flex:1;min-height:0;position:relative;overflow:hidden;background:#d7d7d7}
+.nav{height:70px;flex:none;display:grid;grid-template-columns:repeat(5,1fr);background:#c6c6c6;border-top:2px solid #969696;padding:0 3px 4px}
+.nav button{display:flex;position:relative;flex-direction:column;align-items:center;justify-content:center;min-width:0;gap:1px;font-size:12px;font-weight:700}
+.nav button .ic{width:37px;height:37px}
+.nav button[aria-current="page"]{background:#ededed;box-shadow:inset 0 3px #555}
+.nav .dot{top:7px;right:16px}
+.ic{display:block;flex-shrink:0;width:30px;height:30px;aspect-ratio:1}
+.dot{position:absolute;width:6px;height:6px;background:#333;border:1px solid #eee;border-radius:50%}
+.hidden{display:none!important}
+
+/* 被压暗的一级页（弹层下方的上下文，非本稿评审对象） */
+.backdrop{position:absolute;inset:0;display:flex;flex-direction:column;background:#d7d7d7}
+.backdrop .bd-head{height:45px;flex:none;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700}
+.backdrop .bd-stage{flex:1;min-height:0;margin:6px 14px;background:#c4c4c4;border:1px solid #a5a5a5}
+.backdrop .bd-caption{margin:0 14px 8px;display:flex;justify-content:space-between;font-size:10px;color:#4a4a4a}
+.backdrop .bd-row{height:62px;flex:none;display:flex;margin:0 14px 8px;border-bottom:1px solid #aaa}
+.backdrop .bd-row span{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px}
+.backdrop .bd-cta{margin:0 14px 10px;height:44px;display:flex;align-items:center;justify-content:center;background:#777;color:#fff;font-weight:700}
+
+/* ============================ 弹层：遮罩与尺寸档 ============================ */
+/* 遮罩覆盖整个 844 画框（含信息栏与底导），与正式项目 .protoMask inset:0 同口径；
+   弹层百分比定位因此按整屏计算，信息栏与底导一并压暗。 */
+.dim{position:absolute;inset:0;background:rgba(20,20,20,.55);z-index:20}
+.dim.l5{background:rgba(10,10,10,.82)}
+.pop{position:absolute;z-index:30;display:flex;flex-direction:column;overflow:hidden;background:#e6e6e6;
+  border:2px solid #8b8b8b;box-shadow:0 14px 34px rgba(0,0,0,.4);color:#292929}
+/* 四档尺寸：与正式项目同口径 —— M/L 用视口比例定位（跨长宽比稳），S 居中偏上，XL 满屏 */
+.pop.M{position:absolute;left:23px;right:23px;top:18%;bottom:18%}
+.pop.L{position:absolute;left:17px;right:17px;top:14%;bottom:13%}
+.pop.S{position:absolute;left:50%;transform:translateX(-50%);top:30%;width:287px;max-width:86%}
+.pop.XL{position:absolute;inset:0;border:0;box-shadow:none}
+
+/* ============================ 五段式骨架（①②③④⑤） ============================ */
+/* ① 头部：横幅（列表型）/ 细标题条 / 品质头（详情型）/ 展示台（XL）
+   每个头部块都是 position:relative —— 关闭/返回键锚在头部内沿，
+   否则会以整个 .pop 为包含块落到面板垂直中央、压住内容。 */
+.popBanner{position:relative;flex:none;display:flex;align-items:center;gap:9px;padding:11px 46px 11px 13px;
+  background:#c6c6c6;border-bottom:2px solid #8b8b8b}
+.popBanner h2{font-size:16px;font-weight:700;letter-spacing:1px}
+.popBanner .count{margin-left:auto;font-size:11px;color:#4a4a4a;background:#b8b8b8;padding:2px 8px;border-radius:9px}
+.popBanner .art{width:66px;height:30px;border:1px dashed #9a9a9a;display:flex;align-items:center;justify-content:center;font-size:9px;color:#777;flex:none}
+.popTop{position:relative;flex:none;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 46px;
+  background:#d3d3d3;border-bottom:2px solid #8b8b8b;font-size:15px;font-weight:700}
+.popQ{position:relative;flex:none;display:flex;align-items:center;gap:11px;padding:11px 13px;color:#fff}
+.popQ.q1{background:#c2c2c2;color:#292929}.popQ.q2{background:#adadad;color:#292929}
+.popQ.q3{background:#8d8d8d}.popQ.q4{background:#6e6e6e}
+.popQ .qi{position:relative;width:56px;height:56px;flex:none;border:2px solid rgba(255,255,255,.65);background:rgba(0,0,0,.2);
+  display:grid;place-items:center}
+.popQ.q1 .qi,.popQ.q2 .qi{border-color:rgba(0,0,0,.3);background:rgba(255,255,255,.5)}
+.popQ .qi .ic{width:38px;height:38px}
+.popQ .qi .tier{position:absolute;left:2px;top:1px;font-size:9px;background:#555;color:#fff;padding:0 3px}
+.popQ .qm{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start}
+.popQ .qm b{display:block;font-size:16px}
+.popQ .qm .ql{display:inline-block;font-size:10px;font-weight:700;border:1px solid currentColor;padding:0 5px;margin-bottom:3px}
+.popQ .qm .qsub{display:flex;gap:12px;font-size:11px;margin-top:3px;opacity:.9}
+.popShow{position:relative;flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;padding:16px 13px 10px}
+.popShow .stand{position:relative;width:104px;height:104px;border:2px solid #8b8b8b;background:#cfcfcf;
+  box-shadow:inset 0 0 0 3px #e8e8e8;display:grid;place-items:center}
+.popShow .stand .ic{width:72px;height:72px}
+.popShow .stand .tier{position:absolute;left:3px;top:2px;font-size:10px;font-weight:700}
+.popShow .nm{font-size:16px;font-weight:700;background:#c6c6c6;padding:2px 18px;border:1px solid #a5a5a5}
+.popShow .sb{font-size:10px;color:#5f5f5f}
+
+/* ② 说明行 / 页签：固定不滚 */
+.popMeta{flex:none;display:flex;align-items:center;justify-content:center;gap:7px;padding:8px 13px;font-size:12px;
+  color:#5f5f5f;background:#e0e0e0;border-bottom:1px solid #bbb}
+.popMeta.gap{border-bottom:0;padding-bottom:2px}
+.popMeta .q{width:17px;height:17px;flex:none;border-radius:50%;border:1px solid #a5a5a5;display:flex;align-items:center;
+  justify-content:center;font-size:10px;color:#666;cursor:pointer}
+.popMeta .q:hover{background:#cfcfcf}
+.popTabs{flex:none;display:flex;background:#d8d8d8;border-bottom:1px solid #b0b0b0}
+.popTabs button{flex:1;min-width:0;position:relative;text-align:center;font-size:13px;padding:10px 4px;color:#5f5f5f}
+.popTabs button.on{color:#222;font-weight:700;background:#ededed}
+.popTabs button.on:after{content:"";position:absolute;left:12%;right:12%;bottom:-1px;height:3px;background:#555}
+.popFixBar{flex:none;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 12px;background:#dcdcdc;border-bottom:1px solid #b8b8b8}
+.popChip{font-size:11.5px;color:#4a4a4a;border:1px solid #a5a5a5;border-radius:99px;padding:3px 11px;background:#e6e6e6}
+.popChip.on{background:#8b8b8b;color:#fff;border-color:#6f6f6f;font-weight:700}
+
+/* ③ 内容滚动区：全稿唯一滚动轴 */
+.popScroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:9px 12px;display:flex;flex-direction:column;gap:7px}
+.popScroll::-webkit-scrollbar{width:6px}
+.popScroll::-webkit-scrollbar-thumb{background:#a5a5a5;border-radius:3px}
+.popSec{flex:none;font-size:11.5px;color:#5f5f5f;border-left:3px solid #8b8b8b;padding-left:7px;margin-top:3px}
+
+/* 列表行卡（母版 A） */
+.popRow{flex:none;position:relative;display:flex;align-items:center;gap:10px;padding:9px 10px;
+  background:#dcdcdc;border:1px solid #a5a5a5}
+.popRow.read{background:#e9e9e9;border-color:#c4c4c4}
+.popRow .ic{width:44px;height:44px;flex:none;border:1px solid #999;background:#cfcfcf;padding:4px}
+.popRow .rm{flex:1;min-width:0}
+.popRow .rm b{display:block;font-size:13px}
+.popRow .rm .rs{display:flex;gap:9px;font-size:10px;color:#5f5f5f;margin-top:2px}
+.popRow .rm .rs .label{font-size:9px;border:1px solid #a5a5a5;padding:0 4px;color:#4a4a4a}
+.popRow .ract{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.popRow .rdot{position:absolute;right:-3px;top:-3px;width:8px;height:8px;background:#333;border:2px solid #dcdcdc;border-radius:50%}
+.popRow .exp{font-size:10px;font-weight:700;color:#333}
+.popRow .exp.urgent{text-decoration:underline}
+
+/* 属性行（母版 B） */
+.popAttr{flex:none;display:flex;align-items:center;gap:10px;padding:8px 10px;background:#dcdcdc;border:1px solid #a5a5a5}
+.popAttr .ai{width:42px;height:42px;flex:none;border:1px solid #999;background:#c9c9c9;display:grid;place-items:center}
+.popAttr .ai .ic{width:30px;height:30px}
+.popAttr .at{flex:1;min-width:0;font-size:12px;line-height:1.45}
+.popAttr .at em{font-style:normal;font-weight:700}
+.popAttr .at small{color:#5c5c5c;font-size:11px}
+.popAttr .av{flex:none;font-size:12px;font-weight:700;margin-right:2px}
+.popAttr .av em{font-style:normal}
+
+/* 格子（母版 C）：正方形 + 四角角标，角标不参与格高 */
+.popGrid{display:grid;gap:6px}
+.popGrid.c5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.popGrid.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.popGrid.c6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.cell{position:relative;aspect-ratio:1;min-width:0;display:grid;place-items:center;background:#ccc;border:2px solid #999;padding:5px}
+/* 进度宝箱行：四格均分一行，格高由行给（不取正方），grid 保证不被折行 */
+.chestRow{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.chestRow .cell{aspect-ratio:auto;height:42px;padding:2px}
+/* 格子本身是正方（aspect-ratio 给出确定高度），所以这里的百分比能正常解析 */
+.cell .ic{width:68%;height:68%}
+.cell.q2{background:#d5d5d5;border-color:#8b8b8b;box-shadow:inset 0 0 0 2px #ececec}
+.cell.q3{background:#bdbdbd;border-color:#6f6f6f}
+.cell.q4{background:#a5a5a5;border-color:#555}
+.cell .tier{position:absolute;left:1px;top:0;font-size:8px;color:#333;background:#e6e6e6b3;padding:0 2px}
+.cell .num{position:absolute;right:1px;bottom:0;font-size:9px;font-weight:700;background:#e6e6e6cc;padding:0 2px}
+.cell .pick{position:absolute;left:0;top:0;width:13px;height:13px;background:#555;color:#fff;font-size:9px;
+  display:none;align-items:center;justify-content:center}
+.cell.selected{outline:3px solid #333;outline-offset:-3px;background:#f0f0f0}
+.cell.selected .pick{display:flex}
+.cell.disabled{opacity:.4}
+.cell .lock{position:absolute;right:1px;top:1px;width:12px;height:12px}
+
+/* 槽位条（固定） */
+.popSlots{flex:none;display:flex;gap:6px;padding:8px 12px;border-top:1px solid #b0b0b0;background:#d8d8d8}
+.popSlots .sc{flex:1;min-width:0;position:relative;height:50px;border:1px solid #999;background:#ccc;
+  display:flex;align-items:center;justify-content:center;font-size:19px}
+.popSlots .sc .ic{width:30px;height:30px}
+.popSlots .sc.on{border:2px solid #333;background:#e8e8e8}
+.popSlots .sc .tg{position:absolute;left:2px;top:1px;font-size:8.5px;color:#555;background:#e6e6e6;padding:0 3px}
+.popSlots .sc .rd{position:absolute;right:-2px;top:-2px;width:7px;height:7px;background:#333;border:1px solid #eee;border-radius:50%}
+
+/* ④ 消耗行 + ⑤ 命令区（固定） */
+.popCost{flex:none;display:flex;gap:16px;justify-content:center;align-items:flex-start;padding:8px 12px 0}
+.popCost .c{display:flex;flex-direction:column;align-items:center;gap:3px}
+.popCost .c .ci{width:38px;height:38px;border:1px solid #999;background:#cfcfcf;display:grid;place-items:center}
+.popCost .c .ci .ic{width:28px;height:28px}
+.popCost .c .cv{font-size:12px;white-space:nowrap;font-weight:700}
+.popCost .c .cv.lack{text-decoration:underline;text-decoration-thickness:2px}
+.popCost .c .cv.ok{color:#3a3a3a}
+.popCost .c .cl{font-size:9px;color:#666}
+.popCTA{flex:none;display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px 12px 10px;
+  background:#dcdcdc;border-top:1px solid #b0b0b0}
+.popCTA .row{display:flex;gap:9px;width:100%}
+.popCTA .note{font-size:10.5px;color:#666;text-align:center}
+.popBtn{position:relative;height:44px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 20px;
+  font-size:15px;font-weight:700;border:2px solid #8b8b8b;background:#c5c5c5;color:#292929;
+  box-shadow:inset 0 2px #eee,inset 0 -2px #b1b1b1}
+.popBtn:active{filter:brightness(.9)}
+.popBtn.major{background:#777;color:#fff;border-color:#555;box-shadow:inset 0 2px #999,inset 0 -3px #555}
+.popBtn.wide{flex:1}
+.popBtn.grey{border-width:1px;background:none;color:#5f5f5f;font-weight:400;box-shadow:none}
+/* 不可用不禁用：视觉降透明度，点击仍会说明原因（无死键） */
+.popBtn.off{opacity:.5;background:none;border-color:#a5a5a5;color:#5f5f5f;font-weight:400;box-shadow:none}
+.popRed{position:absolute;right:-4px;top:-4px;width:12px;height:12px;background:#333;border:2px solid #dcdcdc;border-radius:50%}
+
+/* 底部操作栏（XL 二级页：左返回 + 右模式页签） */
+.popBar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;
+  border-top:2px solid #8b8b8b;background:#c6c6c6}
+.popBar .pt{display:flex;gap:6px}
+.popBar .pt button{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:54px;gap:1px;
+  font-size:10px;font-weight:700;padding:4px 8px;border:1px solid #a5a5a5;background:#d8d8d8}
+.popBar .pt button.on{background:#8b8b8b;color:#fff;border-color:#6f6f6f}
+.popBar .pt button .ic{width:26px;height:26px}
+.popBar .bk{display:flex;align-items:center;justify-content:center;width:46px;height:38px;border:1px solid #a5a5a5;background:#e6e6e6;font-size:19px}
+
+/* 关闭 / 返回：贴面板内沿，不压内容 */
+.popClose,.popBack{position:absolute;top:50%;transform:translateY(-50%);width:30px;height:30px;display:flex;
+  align-items:center;justify-content:center;border:1px solid #8b8b8b;background:#e6e6e6;font-size:14px;font-weight:700;z-index:2}
+.popClose{right:8px}.popBack{left:8px}
+.popClose.corner{top:-14px;right:-12px;transform:none;width:34px;height:34px;background:#555;color:#fff;border-color:#333;
+  box-shadow:0 2px 6px rgba(0,0,0,.3)}
+
+/* 对比块（强化台） */
+.cmp{flex:none;display:flex;align-items:center;justify-content:space-around;padding:11px;background:#d0d0d0;border:1px solid #a5a5a5}
+.cmp b{font-size:15px}.cmp .gap{font-size:10px;color:#555}
+.cmp .arrow{font-size:20px;color:#4a4a4a}
+.cmpWrap{display:flex;flex-direction:column;gap:0;border:1px solid #a5a5a5}
+.cmpWrap .hd{background:#c6c6c6;text-align:center;font-size:11px;font-weight:700;padding:3px}
+.cmpWrap .bd{background:#dcdcdc;display:flex;align-items:center;justify-content:space-around;padding:11px}
+
+/* 空态 / 提示条 */
+.popEmpty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:#777;font-size:12px}
+.popEmpty .ic{width:52px;height:52px;opacity:.5}
+.popWarn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px dashed #8b8b8b;background:#e2e2e2;font-size:11.5px}
+.popInfo{flex:none;display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid #a5a5a5;background:#d5d5d5}
+.popInfo .ic{width:34px;height:34px;flex:none}
+.popInfo b{font-size:12.5px}.popInfo small{display:block;font-size:10px;color:#555;margin-top:1px}
+.popKV{flex:none;display:flex;align-items:center;justify-content:space-between;gap:9px;padding:6px 2px;
+  border-bottom:1px solid #c4c4c4;font-size:12px}
+.popKV b{font-weight:700}
+.popKV.total{border-bottom:0;border-top:1px solid #b0b0b0;margin-top:2px;padding-top:8px}
+.popKV.total b{font-size:15px}
+.popDesc{font-size:12px;line-height:1.6;color:#4a4a4a;text-align:center}
+.popHL{font-weight:700;text-decoration:underline}
+
+/* 分段标注：把五段骨架显式画出来 */
+.segOn [data-seg]{outline:1px dashed #8888;position:relative}
+.segOn [data-seg]:before{content:attr(data-seg);position:absolute;left:0;top:0;font-size:9px;font-weight:700;
+  background:#555;color:#fff;padding:0 4px;z-index:6;letter-spacing:.5px}
+.targetsOn .pop button{outline:1px dashed #9996}
+/* 提示条沿用正式项目 .toastEl 的口径：left:50%、top: calc(50% + 13px)、translate(-50%,-50%)，
+   即屏幕中央略偏下。正式项目的 toast 也是一次性浮层、不接管指针，会短暂压在内容之上，
+   所以这里同样只保证「不拦截点击」，不为它让出固定槽位。 */
+.feedback{position:absolute;z-index:60;left:50%;top:calc(50% + 13px);transform:translate(-50%,-50%);max-width:92%;padding:7px 13px;
+  background:#444;color:#fff;font-size:11px;text-align:center;pointer-events:none;opacity:0;transition:opacity .12s}
+.feedback.visible{opacity:1}
+
+/* 尺寸档对照 */
+.sizeSpec{display:flex;flex-wrap:wrap;gap:8px;padding:10px}
+.sizeSpec .sf{position:relative;height:190px;background:#c4c4c4;border:1px solid #8b8b8b;color:#555;font-size:10px}
+.sizeSpec .sf i{position:absolute;background:#8b8b8b;display:block}
+.sizeSpec .cap{width:100%;font-size:10px;color:#555;text-align:center}
+</style>
+</head>
+<body>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs>
+<symbol id="a-head" viewBox="0 0 64 64"><path fill="#b0b0b0" stroke="#666" stroke-width="2" d="M10 39V28C10 4 54 4 54 28v11l-8 13-14 5-14-5Z"/><path fill="#e5e5e5" stroke="#666" stroke-width="2" d="m14 31 18 4 18-4-3 11-15 7-15-7Z"/></symbol>
+<symbol id="a-body" viewBox="0 0 64 64"><path fill="#c4c4c4" stroke="#666" stroke-width="2" d="m20 7-13 7 3 18 7-2 2 28h26l2-28 7 2 3-18-13-7-4 9H24Z"/></symbol>
+<symbol id="a-legs" viewBox="0 0 64 64"><path fill="#b9b9b9" stroke="#666" stroke-width="2" d="M15 7h34l-3 49H34l-2-27-2 27H18Z"/></symbol>
+<symbol id="a-gloves" viewBox="0 0 64 64"><path fill="#bbb" stroke="#666" stroke-width="2" d="m17 12 20-5 8 26 8 5-3 11-23 9-17-22 3-7 11 9Z"/></symbol>
+<symbol id="a-wrist" viewBox="0 0 64 64"><path fill="#b5b5b5" stroke="#666" stroke-width="2" d="m9 20 10-9 35 19-7 24-13 3Z"/></symbol>
+<symbol id="a-shoes" viewBox="0 0 64 64"><path fill="#b7b7b7" stroke="#666" stroke-width="2" d="M23 7h25l-3 28 11 10-2 10H9L7 43l16-12Z"/></symbol>
+<symbol id="a-person" viewBox="0 0 64 64"><path fill="#aaa" stroke="#666" stroke-width="2" d="M9 60V44l14-9h18l14 9v16Z"/><path fill="#d4d4d4" stroke="#666" stroke-width="2" d="M19 15h26v17l-8 12H27l-8-12Z"/><path fill="#999" stroke="#666" stroke-width="2" d="M15 23V14C16 0 48 0 49 14v9H15Z"/></symbol>
+<symbol id="a-box" viewBox="0 0 64 64"><path fill="#aaa" stroke="#666" stroke-width="2" d="m5 21 8-12h39l7 12v30l-9 8H14l-9-8Z"/><path fill="#d1d1d1" stroke="#777" stroke-width="2" d="M5 25h54v12H5Z"/><path fill="#eee" stroke="#666" stroke-width="2" d="M26 28h13v15H26Z"/></symbol>
+<symbol id="a-gem" viewBox="0 0 64 64"><path fill="#b5b5b5" stroke="#666" stroke-width="2" d="m16 7 32 0 12 18-28 34L4 25Z"/><path fill="#e2e2e2" d="m16 9 16 0-9 16H6Z"/></symbol>
+<symbol id="a-coin" viewBox="0 0 64 64"><ellipse fill="#aaa" stroke="#666" stroke-width="2" cx="32" cy="35" rx="24" ry="25"/><ellipse fill="#ddd" stroke="#777" stroke-width="2" cx="30" cy="28" rx="24" ry="25"/><path fill="none" stroke="#888" stroke-width="4" d="M38 16H23v11h13v12H22m7-28v32"/></symbol>
+<symbol id="a-energy" viewBox="0 0 64 64"><path fill="#aaa" stroke="#666" stroke-width="2" d="M36 4 11 36h20l-3 24 25-36H34Z"/></symbol>
+<symbol id="a-gun" viewBox="0 0 64 64"><path fill="#999" stroke="#666" stroke-width="2" d="m3 21 11-7 34 8 13 1v8H43l-9 8 2 17-11-3-3-19H12L7 44H2Z"/></symbol>
+<symbol id="a-truck" viewBox="0 0 100 70"><path fill="#bbb" stroke="#666" stroke-width="2" d="m7 19 45-9 5 8 21-4 15 20v22l-32 8L7 48Z"/><ellipse fill="#777" stroke="#555" stroke-width="2" cx="25" cy="51" rx="8" ry="10"/><ellipse fill="#777" stroke="#555" stroke-width="2" cx="74" cy="58" rx="8" ry="9"/></symbol>
+<symbol id="a-base" viewBox="0 0 100 90"><path fill="#aaa" stroke="#777" stroke-width="2" d="m4 64 45-18 47 19v15L49 89 4 78Z"/><path fill="#bbb" stroke="#666" stroke-width="2" d="M19 64V29l31-15 31 15v35L50 77Z"/><path fill="#ddd" stroke="#777" stroke-width="2" d="m14 30 36-18 37 18-37 18Z"/></symbol>
+<symbol id="a-lab" viewBox="0 0 100 90"><path fill="#aaa" stroke="#666" stroke-width="2" d="m5 63 46-21 44 21v16L51 88 5 79Z"/><path fill="#bbb" stroke="#777" stroke-width="2" d="M20 64V39h60v25L50 78Z"/><ellipse fill="#ddd" stroke="#666" stroke-width="2" cx="50" cy="39" rx="35" ry="22"/></symbol>
+<symbol id="a-tower" viewBox="0 0 100 100"><path fill="#aaa" stroke="#666" stroke-width="2" d="M18 89V58l14-9V27L50 4l18 23v22l14 9v31l-32 9Z"/><path fill="#d7d7d7" stroke="#777" d="m32 27 18 8 18-8-18-23Z"/><path fill="#777" d="M44 43h12v18H44Z"/></symbol>
+<symbol id="a-portal" viewBox="0 0 100 100"><path fill="#aaa" stroke="#666" stroke-width="3" d="m8 86 11-68L50 5l31 13 11 68-42 12Z"/><path fill="#ddd" stroke="#777" stroke-width="3" d="m25 81 5-54 20-10 20 10 5 54-25 10Z"/></symbol>
+<symbol id="a-shop" viewBox="0 0 64 64"><path fill="#bbb" stroke="#666" stroke-width="2" d="M9 28h46v31H9Z"/><path fill="#ddd" stroke="#666" stroke-width="2" d="m5 27 9-17h36l9 17v9l-9 3-9-3-9 3-9-3-9 3-9-3Z"/></symbol>
+<symbol id="a-scroll" viewBox="0 0 64 64"><path fill="#ccc" stroke="#666" stroke-width="2" d="M12 9h41v43l-5 6H8l5-7V16H6V9Z"/><path fill="#999" d="M8 51h34l-2 7H8Z"/><path stroke="#777" stroke-width="3" d="M22 20h21M22 29h21M22 38h15"/></symbol>
+<symbol id="a-medal" viewBox="0 0 64 64"><path fill="#aaa" stroke="#666" stroke-width="2" d="m17 34-5 25 13-5 7 5 7-5 13 5-5-25Z"/><circle fill="#ccc" stroke="#666" stroke-width="2" cx="32" cy="24" r="21"/><path fill="#888" d="m32 9 4 10 12 1-9 7 3 12-10-6-10 6 3-12-9-7 12-1Z"/></symbol>
+<symbol id="a-tool" viewBox="0 0 64 64"><path fill="#aaa" stroke="#666" stroke-width="2" d="M39 7c-17-4-22 10-18 19L5 45l1 10 11 3 20-23c16 3 23-11 19-21L43 26l-9-10Z"/></symbol>
+<symbol id="a-mail" viewBox="0 0 64 64"><path fill="#ccc" stroke="#666" stroke-width="3" d="M6 13h52v40H6Z"/><path fill="#eee" stroke="#777" stroke-width="2" d="m6 13 26 24 26-24Z"/></symbol>
+<symbol id="a-flag" viewBox="0 0 64 64"><path fill="none" stroke="#666" stroke-width="4" d="M15 60V6"/><path fill="#bbb" stroke="#666" stroke-width="2" d="M16 8h39l-9 12 9 13H16Z"/></symbol>
+<symbol id="a-clock" viewBox="0 0 64 64"><circle fill="#ddd" stroke="#777" stroke-width="3" cx="32" cy="34" r="25"/><path stroke="#777" stroke-width="4" fill="none" d="M32 17v19h15M24 3h16M32 3v6"/></symbol>
+<symbol id="a-lock" viewBox="0 0 64 64"><path fill="#aaa" stroke="#666" stroke-width="2" d="M14 28h36v30H14Z"/><path fill="none" stroke="#666" stroke-width="5" d="M22 28V19a10 10 0 0 1 20 0v9"/><circle fill="#666" cx="32" cy="42" r="5"/></symbol>
+<symbol id="a-close" viewBox="0 0 64 64"><path stroke="currentColor" stroke-width="7" fill="none" d="M16 16l32 32M48 16L16 48"/></symbol>
+<symbol id="a-star" viewBox="0 0 64 64"><path fill="#ccc" stroke="#666" stroke-width="2" d="m32 6 8 18 20 2-15 14 4 20-17-11-17 11 4-20L4 26l20-2Z"/></symbol>
+<symbol id="a-hammer" viewBox="0 0 64 64"><path fill="#aaa" stroke="#666" stroke-width="2" d="M28 4h20l4 22-20 4Z"/><path fill="#888" stroke="#555" stroke-width="2" d="m30 30 8-1 4 31H31Z"/></symbol>
+</defs></svg>
+
+<div class="review">
+<aside class="rail left">
+<div class="kicker">UX LAYOUT / L2-L5 / 二级浮窗</div>
+<h1>浮窗是操作台<br>不是网页信息流</h1>
+<div id="review-nav"></div><hr>
+<label for="size">评审尺寸</label>
+<select id="size">
+<option value="390,844">390 × 844 · 标准屏</option>
+<option value="360,640">360 × 640 · 短屏</option>
+<option value="430,932">430 × 932 · 长屏</option>
+</select>
+<label><input type="checkbox" id="seg"> 显示五段骨架标注</label>
+<label><input type="checkbox" id="targets"> 显示透明点击热区</label>
+<button class="review-reset" id="reset">重置本稿状态（领取 / 选择）</button>
+<div class="legend"><span>① 头部</span><span>② 说明·页签</span><span>③ 滚动区</span><span>④ 消耗·槽位</span><span>⑤ 命令区</span></div>
+<div class="note">图标、物品、角色均为灰阶体块占位，不代表美术方案。品质用 4 级灰阶代替颜色。</div>
+<p>四档尺寸：<b>S</b> 287 定宽居中偏上、<b>M/L</b> 视口比例定位、<b>XL</b> 满屏二级页。</p>
+</aside>
+
+<section class="phone" id="phone" aria-label="二级浮窗布局交互稿">
+<div class="safe"><span>9:41</span><span class="capsule" aria-label="微信胶囊预留区">···<i></i>◎</span></div>
+<header class="hud" id="hud"></header>
+<main class="main" id="main"></main>
+<nav class="nav" id="nav" aria-label="主导航"></nav>
+</section>
+
+<aside class="rail right">
+<div class="kicker" id="note-index"></div>
+<h1 id="note-title"></h1>
+<p id="note-desc"></p>
+<ol id="note-list"></ol><hr>
+<h2>本稿范围</h2>
+<div class="metric"><span>层级</span><b>L2 / L3 / L4 / L5</b></div>
+<div class="metric"><span>尺寸档</span><b>S / M / L / XL</b></div>
+<div class="metric"><span>骨架</span><b>固定五段</b></div>
+<div class="metric"><span>母版</span><b>4 类</b></div>
+<div class="metric"><span>滚动轴</span><b>仅 ③ 内容区</b></div>
+<div class="metric"><span>不可用键</span><b>可点 + 说明</b></div>
+<div class="note" id="review-status" aria-live="polite">领取、选择等状态记录显示在此，不占用游戏画面。</div>
+</aside>
+</div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const art = n => `<span class="ic"><svg aria-hidden="true"><use href="#a-${n}"/></svg></span>`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ===================== 状态 ===================== */
+let view = 'mail', vp = '390,844', showSeg = false, showTargets = false, fbTimer, fbMsg = '', fbActive = false;
+/* 每面自己的轻量状态：领取记录、当前页签、已选集合、滚动位 */
+let claimed = {}, tab = {}, picked = {}, scrollMem = {};
+const resetState = () => { claimed = {}; tab = {}; picked = {}; scrollMem = {}; };
+
+/* ===================== 目录：四类母版 × 真实浮窗 ===================== */
+const CATALOG = [
+  ['母版 A · 列表领取', 'list', [
+    ['mail',     '邮箱',        'L3', '一行一封：图标 + 标题 + 来源日期 + 尾部动作，右上角未读点'],
+    ['notice',   '公告',        'L3', '页签分公告 / 活动；长正文在行内折叠，不跳网页'],
+    ['quest',    '任务',        'L3', '顶部活跃度固定块（进度条 + 四档宝箱），下方任务行滚动'],
+    ['signin',   '签到',        'L3', '月历格 + 连签奖励行，已领格压暗'],
+  ]],
+  ['母版 B · 详情强化', 'detail', [
+    ['equip',    '装备详情',    'L3', '品质色头 + 宝石/装备双页签 + 属性行尾部「卸下」'],
+    ['building', '建筑详情',    'L3', '功能介绍 + 等级进度 + 当前/下一级对比'],
+    ['ability',  '技能详情',    'L3', '等级里程碑 + 升级前后数值对比'],
+    ['forge',    '强化台',      'L2', '满屏锻造台：装备上台 + 等级/属性双对比 + 双命令'],
+  ]],
+  ['母版 C · 选择确认', 'pick', [
+    ['synth',    '一键合成',    'L3', '材料格网格 + 已选汇总 + 合成命令；不足格压暗'],
+    ['gempick',  '宝石挑选',    'L3', '待镶嵌宝石网格 + 选中摘要 + 镶嵌命令'],
+    ['workshop', '装备工坊',    'L2', '品质筛选条 + 五列网格 + 已选/产出汇总，满屏挑选'],
+    ['squad',    '编队',        'L3', '候选英雄网格 + 四席槽位条 + 出战命令'],
+    ['confirm',  '二次确认',    'L3', 'S 档：一句后果 + 双出路，默认停在取消'],
+  ]],
+  ['母版 D · 结果演出', 'result', [
+    ['recruit',  '招募结果',    'L5', '逐项揭示：稀有度光效位 + 名称/碎片，不可遮罩关闭'],
+    ['settle',   '战斗结算',    'L4', '统计条 + 掉落行 + 再战/返回'],
+  ]],
+  ['分层与尺寸', 'spec', [
+    ['stack',    '钻取分层',    'L2→L3', 'L2 满屏页上再开 L3 弹窗，左上返回逐级回退'],
+    ['sizes',    '四档尺寸',    '—',      '同一内容在 S/M/L/XL 下的定位与留白口径'],
+    ['states',   '状态与红线',  '—',      '不可用不禁用、缺量标红、空态、锁定'],
+  ]],
+];
+
+const NOTE = {
+  mail: ['邮件与附件领取', '附件有过期时间，未读与可领都靠行右上角标点，不用另做筛选条。', [
+    '行卡 = 图标格 + 标题 + 来源/日期副行 + 尾部动作；动作位是行内唯一命令，不另设行内链接。',
+    '未读 / 可领在行右上角标点；已读行整卡降对比，不再重复「已读」标签。',
+    '底部只保留一条「一键领取」主命令 + 过期说明；列表再长也不把命令卷走。']],
+  notice: ['公告与活动', '页签分栏，正文在行内展开，不把玩家推去网页。', [
+    '页签固定在说明行下方，不随正文滚动。',
+    '展开项在行内展开，展开时只重排该行，不新开一层。']],
+  quest: ['任务与活跃度', '活跃度是固定块，任务行在其下独立滚动。', [
+    '进度条 + 四档宝箱组成固定块，始终可见，避免玩家反复上下找进度。',
+    '任务行尾部动作区分 领取 / 前往 / 已领 三态。']],
+  signin: ['签到', '月历格承担位置记忆，连签奖励作为独立结算行。', [
+    '已领格压暗且不可再点；今日格加粗描边。',
+    '补签与领取分列两条命令，避免误触。']],
+  equip: ['装备详情', '品质头给出身份，属性行的尾部命令就地装卸。', [
+    '品质头用 4 级灰阶 + 品阶标签表达品质，插画位在头部右侧留空。',
+    '页签切换宝石属性 / 装备属性，切换只换 ③ 滚动区内容，头尾固定。',
+    '属性行尾部「卸下」是行内命令；底部「装备锻造」是页面级命令，两者不混。']],
+  building: ['建筑详情', '当前效果与下一级预览同屏对比，升级代价写在按钮上。', [
+    '等级进度条 + 当前/下一级对比块，避免玩家心算。',
+    '未达门槛时按钮压暗但可点，点了说明差什么。']],
+  ability: ['技能详情', '升级前后数值对比 + 里程碑解锁。', [
+    '数值对比块左右对齐，变化项加粗。',
+    '里程碑等级未达时压暗并标注所需等级。']],
+  forge: ['强化台（L2 满屏）', '把装备放上台座，前后对比与代价同屏。', [
+    'XL 满屏：顶部展示台、中部对比、下部代价与双命令、底部槽位条与模式栏。',
+    '「强化」与「一键强化」并列，主次分明；不足量标红并给出差值。']],
+  synth: ['一键合成', '先看要吃掉哪些材料，再看产出，最后才落命令。', [
+    '材料格用网格摊开，格角标数量；数量不足的格压暗并标注缺多少。',
+    '已选汇总行给出产出预览，命令按钮上的红点提示可用。']],
+  gempick: ['宝石挑选', '从网格里挑一件，摘要行确认，再落镶嵌。', [
+    '选中格加粗描边并显示勾选角标；摘要行同步名称与属性增量。',
+    '未选时命令压暗但可点，点了说明「先选一颗宝石」。']],
+  workshop: ['装备工坊（L2 满屏）', '筛选条固定，五列网格承担挑选，汇总条固定。', [
+    '品质筛选条固定在页签下方，不随网格滚动。',
+    '五列网格：格子保持正方，角标不参与格高；已选格描边。',
+    '汇总条固定在命令区上方，随时可见已选与产出。']],
+  squad: ['编队', '候选网格 + 四席槽位条，槽位条固定。', [
+    '槽位条固定在命令区上方，点已上阵位可下阵（先确认）。',
+    '候选行区分 已上阵 / 可上阵 / 未解锁 三态。']],
+  confirm: ['二次确认（S 档）', '小档位只回答一件事：点下去会发生什么，然后给两条出路。', [
+    'S 档 = 287 定宽、居中偏上，不做滚动，全部内容一屏读完。',
+    '一句后果（数值加粗下划线）+ 两条出路：取消在左、确认在右。',
+    '不引入第三个选项，也不放预览图；需要对比就升到 M/L 档，不塞进 S。']],
+  recruit: ['招募结果（L5）', '演出层：逐项揭开，不允许误触关闭。', [
+    'L5 遮罩更暗且不可点关闭，只能走底部确认，避免误触跳过演出。',
+    '稀有度用灰阶等级位 + 品阶标签表达，不依赖颜色也能读。']],
+  settle: ['战斗结算（L4）', '统计与掉落一次给全，再战与返回并列。', [
+    '半屏抽屉：统计条在上，掉落行在中，命令在下。',
+    '掉落逐项揭示；再战为主命令，返回为次。']],
+  stack: ['钻取分层', 'L2 页上再开 L3，返回逐级回退，最多保留两跳。', [
+    '层级靠遮罩深度区分：L2 满屏、L3 弹窗、L5 演出。',
+    '子层左上角出现返回键，返回回到父层而不是直接关到主城。']],
+  sizes: ['四档尺寸', '同一份内容在四档下的定位规则一致：宽按档位，高按内容。', [
+    'S：287 定宽居中偏上，用于确认与短提示。',
+    'M / L：按视口比例定位，跨长宽比稳定，内容区吃剩余高度。',
+    'XL：满屏二级页，头部用展示台，底部加模式栏。']],
+  states: ['状态与红线', '不可用不禁用：按钮始终可点，点了解释原因。', [
+    '缺量：数值加粗加下划线并标差值，按钮压暗但可点。',
+    '锁定：加锁角标 + 解锁条件文案，不做哑键。',
+    '空态：给出去处（前往关卡 / 去商店），不留白页。']],
+};
+
+/* ===================== 组件 ===================== */
+const segA = (t) => `data-seg="${t}"`;
+function popClose(corner) { return `<button class="popClose${corner ? ' corner' : ''}" data-act="close" aria-label="关闭"><svg aria-hidden="true"><use href="#a-close"/></svg></button>`; }
+function popBack() { return `<button class="popBack" data-act="back" aria-label="返回">‹</button>`; }
+function banner(title, count, artSlot) {
+  return `<div class="popBanner" ${segA('①头部')}>${art(artSlot || 'mail')}<h2>${esc(title)}</h2>`
+    + (count ? `<span class="count">${esc(count)}</span>` : '')
+    + `<span class="art">横幅美术位</span>${popClose()}</div>`;
+}
+function topbar(title) { return `<div class="popTop" ${segA('①头部')}>${esc(title)}${popClose()}</div>`; }
+function quality(q, name, icon, tier, level) {
+  return `<div class="popQ q${q}" ${segA('①头部')}>`
+    + `<div class="qi">${art(icon)}<span class="tier">${esc(tier)}</span></div>`
+    + `<div class="qm"><span class="ql">${q} 级品质</span><b>${esc(name)}</b>`
+    + `<div class="qsub"><span>品阶：${esc(tier)}</span><span>等级：${level}</span></div></div>`
+    + popClose() + `</div>`;
+}
+function meta(text, help) {
+  return `<div class="popMeta" ${segA('②说明·页签')}>${esc(text)}`
+    + (help ? `<button class="q" data-act="help" title="说明">?</button>` : '') + `</div>`;
+}
+function tabsOf(list, cur) {
+  return `<div class="popTabs" ${segA('②说明·页签')}>${list.map((t, i) =>
+    `<button data-act="tab" data-i="${i}" class="${i === cur ? 'on' : ''}" aria-pressed="${i === cur}">${esc(t)}</button>`).join('')}</div>`;
+}
+function fixbar(chips) {
+  return `<div class="popFixBar" ${segA('②说明·页签')}>${chips.map((c, i) =>
+    `<button class="popChip${i === 0 ? ' on' : ''}" data-act="chip" data-i="${i}">${esc(c)}</button>`).join('')}</div>`;
+}
+function rowCard(o) {
+  return `<div class="popRow${o.read ? ' read' : ''}">`
+    + `<span class="ic">${o.icon}</span>`
+    + `<div class="rm"><b>${esc(o.title)}</b><div class="rs">${o.tags.map(t => `<span class="label">${esc(t)}</span>`).join('')}<span>${esc(o.sub)}</span></div></div>`
+    + `<div class="ract">${o.right}</div>`
+    + (o.dot ? `<i class="rdot"></i>` : '') + `</div>`;
+}
+/* 一行属性 = 图标 | 名称 | 数值 | 尾部动作。数值走 .av 右对齐，不塞进名称串里，
+   否则同一列里数值会贴着各自名称尾巴，纵向对不齐（竞品强化台是数值成列）。 */
+function attrRow(o) {
+  return `<div class="popAttr"><span class="ai">${o.icon}</span>`
+    + `<div class="at">${esc(o.text)}${o.note ? `<small>${esc(o.note)}</small>` : ''}</div>`
+    + (o.val ? `<span class="av"><em>${esc(o.val)}</em></span>` : '')
+    + (o.act ? `<button class="popBtn grey" data-act="${o.act}" data-id="${esc(o.id)}" style="height:32px;font-size:12px;padding:0 12px">${esc(o.actLabel)}</button>` : '')
+    + `</div>`;
+}
+function cell(o) {
+  const on = o.on ? ' selected' : '';
+  const dis = o.disabled ? ' disabled' : '';
+  return `<button class="cell q${o.q || 1}${on}${dis}" data-act="${o.disabled ? 'why' : 'pick'}" data-id="${esc(o.id)}"`
+    + (o.disabled ? ` data-why="${esc(o.why || '材料不足')}"` : '') + `>`
+    + (o.tier ? `<span class="tier">${esc(o.tier)}</span>` : '')
+    + art(o.icon)
+    + (o.num !== undefined ? `<span class="num">×${o.num}</span>` : '')
+    + `<span class="pick">✓</span>`
+    + (o.locked ? `<span class="lock"><svg aria-hidden="true"><use href="#a-lock"/></svg></span>` : '')
+    + `</button>`;
+}
+/* 消耗行的 icon 收的是已构建好的 art(...) 片段（与 rowCard/cell 同口径），
+   这里再包一层 art() 会把 <svg> 当图标名，产出字面量 "/>2/9 强化石"。 */
+/* 进度宝箱行：四档固定一行，达标的可开、未达的压暗并说明门槛。
+   格子必须 flex:1 均分，否则宽度随内容涨落，被 .popFixBar 的 wrap 折成两行遮住命令区。 */
+function chestRow(items, prefix) {
+  return `<div class="chestRow">${items.map((c, i) =>
+    `<button class="cell q${c.ok ? 2 : 1}" data-act="${c.ok ? 'chest' : 'why'}" data-id="${esc(prefix)}${i}"`
+    + (c.ok ? '' : ` data-why="${esc(c.why)}"`) + `>`
+    + art(c.icon || 'box') + `<span class="num">${esc(c.label)}</span></button>`).join('')}</div>`;
+}
+function costRow(items) {
+  return `<div class="popCost" ${segA('④消耗·槽位')}>${items.map(c =>
+    `<div class="c"><span class="ci">${c.icon}</span>`
+    + `<span class="cv${c.have >= c.need ? ' ok' : ' lack'}">${c.have}/${c.need}</span>`
+    + `<span class="cl">${esc(c.name)}</span></div>`).join('')}</div>`;
+}
+function ctaBar(btns, note) {
+  return `<div class="popCTA" ${segA('⑤命令区')}><div class="row">${btns.join('')}</div>`
+    + (note ? `<div class="note">${esc(note)}</div>` : '') + `</div>`;
+}
+function btn(o) {
+  return `<button class="popBtn${o.kind ? ' ' + o.kind : ''}" data-act="cta" data-id="${esc(o.id || '')}"`
+    + (o.why ? ` data-why="${esc(o.why)}"` : '') + `>${esc(o.label)}`
+    + (o.red ? `<i class="popRed"></i>` : '') + `</button>`;
+}
+function ctaGuarded(label, ok, cls, id) {
+  return `<button class="popBtn ${ok ? cls : 'off'}" data-act="cta" data-id="${esc(id || '')}"`
+    + (ok ? ` data-ok="1"` : ` data-why="条件未满足"`) + `>${esc(label)}</button>`;
+}
+
+/* ===================== 各面内容 ===================== */
+const MAIL = [
+  { id: 'm1', t: '欢迎来到末日航线', tags: ['系统'], sub: '方舟指挥部 · 2026-09-15', read: true, gift: false },
+  { id: 'm2', t: '每日福利提醒',     tags: ['系统'], sub: '后勤官玛姬 · 2026-09-15', read: false, gift: false, exp: '2 天后过期' },
+  { id: 'm3', t: '新人补给包',       tags: ['附件'], sub: '后勤官玛姬 · 2026-09-14', read: false, gift: true, exp: '2 天后过期' },
+  { id: 'm4', t: '强化材料支援',     tags: ['附件'], sub: '军械库·老周 · 2026-09-14', read: false, gift: true, exp: '2 天后过期' },
+  { id: 'm5', t: '英雄核心实验件',   tags: ['附件'], sub: '研究所·艾娃 · 2026-09-13', read: false, gift: true, exp: '19:54:54 后过期', urgent: true },
+];
+function mailBody() {
+  const rows = MAIL.map(m => {
+    const got = claimed[m.id];
+    const right = m.gift
+      ? `<button class="popBtn ${got ? 'grey' : ''}" data-act="claim" data-id="${m.id}" style="height:30px;font-size:12px;padding:0 11px">${got ? '已领' : '领取'}</button>`
+      : `<small>${m.read ? '已读' : '未读'}</small>`;
+    return rowCard({ icon: art(m.gift ? 'box' : 'mail'), title: m.t, tags: m.tags, sub: m.sub, right, read: got || (m.read && !m.gift), dot: !got && (m.gift || !m.read) });
+  }).join('');
+  const left = MAIL.filter(m => m.gift && !claimed[m.id]).length;
+  const count = left ? `${left} 封可领` : '无待领';
+  return { html: banner('邮件', count, 'mail') + `<div class="popScroll" ${segA('③滚动区')}>${rows}</div>`
+    + ctaBar([btn({ label: left ? `一键领取（${left}）` : '全部已领', kind: left ? 'major wide' : 'off wide', id: 'all' }),
+              btn({ label: '清理已读', kind: 'grey' }) ], '过期邮件自动删除') };
+}
+function noticeBody() {
+  const t = tab.notice || 0;
+  const list = t === 0
+    ? [['0.9.0 版本更新公告', '2026-09-15', '新增巡逻玩法：已通关关卡可挂机产出与扫荡；无尽入口移入场景右侧栏。'],
+       ['停服维护补偿',       '2026-09-13', '补偿已发放至邮箱，请于 24 小时内领取。']]
+    : [['限时特惠 · 钻石直购', '2026-09-15', '活动期间钻石礼包八折，每日限购一次。'],
+       ['周末双倍掉落',       '2026-09-12', '周末全天资源副本掉落翻倍。']];
+  return { html: topbar('公告与活动')
+    + tabsOf(['公告', '活动'], t)
+    + `<div class="popScroll" ${segA('③滚动区')}>` + list.map((n, i) =>
+      rowCard({ icon: art('scroll'), title: n[0], tags: [t === 0 ? '公告' : '活动'], sub: n[2].slice(0, 22) + '…',
+        right: `<small>${n[1]}</small>`, dot: i === 0 && t === 0 }) +
+      (i === 0 ? `<div class="popInfo">${art('scroll')}<div><b>${esc(n[0])}</b><small>${esc(n[2])}</small></div></div>` : '')
+    ).join('') + `</div>` + ctaBar([btn({ label: '知道了', kind: 'major wide' })], '公告按发布时间倒序') };
+}
+function questBody() {
+  const t = tab.quest || 0;
+  const chs = [[20, '宝箱'], [40, '宝箱'], [60, '宝箱'], [100, '宝箱']];
+  const fixed = `<div class="popFixBar" ${segA('②说明·页签')} style="display:block">`
+    + `<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><b>今日活跃 40 / 100</b><span style="color:#5f5f5f">每日 05:00 重置</span></div>`
+    + `<div style="height:9px;background:#bdbdbd;border:1px solid #a5a5a5"><i style="display:block;height:100%;width:40%;background:#777"></i></div>`
+    + chestRow(chs.map((c, i) => ({ ok: i < 2, label: c[0], why: '活跃度未达 ' + c[0] })), 'ch')
+    + `</div>`;
+  const rows = (t === 0
+    ? [['击败 300 个怪物', '进度 180/300', '前往', false], ['通关护送 2 次', '进度 1/2', '前往', false], ['领取 1 次免费补给', '已完成', '领取', true]]
+    : [['累计击杀 1,000', '进度 1,000/1,000', '领取', true], ['招募 10 次英雄', '进度 6/10', '前往', false], ['强化装备 5 次', '已完成', '已领', false, true]]
+  ).map(q => rowCard({ icon: art('medal'), title: q[0], tags: [t === 0 ? '每日' : '成就'], sub: q[1],
+    right: q[3] ? `<small>已领</small>`
+      : `<button class="popBtn ${q[2] === '领取' ? '' : 'grey'}" data-act="${q[2] === '领取' ? 'claim' : 'goto'}" data-id="${esc(q[0])}" style="height:30px;font-size:12px;padding:0 11px">${q[2]}</button>`,
+    read: !!q[4], dot: q[2] === '领取' })).join('');
+  return { html: topbar('任务与成就') + tabsOf(['每日', '成就'], t) + fixed + `<div class="popScroll" ${segA('③滚动区')}>${rows}</div>`
+    + ctaBar([btn({ label: '一键领取', kind: 'major wide', red: true })], '活跃度奖励每日重置') };
+}
+function signinBody() {
+  const days = Array.from({ length: 30 }, (_, i) => i + 1);
+  return { html: topbar('每日签到') + meta('本月已签 12 天 · 连续签到奖励翻倍', true)
+    + `<div class="popScroll" ${segA('③滚动区')}><div class="popGrid c6">${days.map(d =>
+      cell({ id: 'd' + d, icon: d <= 12 ? 'medal' : 'box', q: d % 7 === 0 ? 3 : 1, tier: d <= 12 ? '' : undefined,
+        on: d === 13, disabled: d > 13, why: '未到该日' })).join('')}</div>`
+    + `<div class="popSec">连签奖励</div>`
+    + `<div class="popInfo">${art('box')}<div><b>第 15 天 · 英雄核心 ×2</b><small>再签 2 天可领</small></div></div></div>`
+    + ctaBar([btn({ label: '领取今日奖励', kind: 'major wide', red: true }), btn({ label: '补签', kind: 'grey' })], '漏签可用补签卡追回') };
+}
+function equipBody() {
+  const t = tab.equip || 0;
+  const gems = [['gem', '物理系伤害', '+12%'], ['gem', '前 5 级攻击造成伤害', '+48%'],
+    ['gem', '对血量高于 70% 怪物伤害', '+20%'], ['gem', '技能弹道与行进速度', '+24%'],
+    ['gem', '电柱伤害', '+24%', '，持续时间不变']];
+  const attrs = [['基础攻击', '+16'], ['护甲穿透', '+4'], ['暴击率', '+2.5%']];
+  const body = t === 0
+    ? gems.map((g, i) => attrRow({ icon: art(g[0]), text: g[1], val: g[2], note: g[3], act: 'unequip', actLabel: '卸下', id: 'g' + i })).join('')
+    : attrs.map(a => attrRow({ icon: art('gun'), text: a[0], val: a[1], act: 'upgrade', actLabel: '强化', id: a[0] })).join('');
+  return { html: quality(2, '普通 · 足具', 'shoes', '1 阶', 7)
+    + tabsOf(['宝石属性', '装备属性'], t)
+    + meta(t === 0 ? '已镶嵌 5 / 6 颗宝石' : '装备基础属性', false)
+    + `<div class="popScroll" ${segA('③滚动区')}>${body}</div>`
+    + costRow([{ icon: art('coin'), have: 22984, need: 200, name: '金币' }])
+    + ctaBar([btn({ label: '装备锻造', kind: 'major wide' })], '锻造可重铸附加属性') };
+}
+function buildingBody() {
+  return { html: topbar('指挥中心')
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + `<div class="popInfo">${art('base')}<div><b>Lv.2 · 营地中枢</b><small>提升全队攻击与耐久</small></div></div>`
+    + `<div class="popSec">等级进度</div>`
+    + `<div style="height:10px;background:#bdbdbd;border:1px solid #a5a5a5"><i style="display:block;height:100%;width:62%;background:#777"></i></div>`
+    + `<div class="popKV"><span>当前进度</span><b>1,240 / 2,000</b></div>`
+    + `<div class="popSec">效果对比</div>`
+    + `<div class="cmpWrap"><div class="hd">全队攻击</div><div class="bd"><span>+10%</span><span class="arrow">➜</span><b>+14%</b></div></div>`
+    + `<div class="cmpWrap"><div class="hd">全队耐久</div><div class="bd"><span>+5%</span><span class="arrow">➜</span><b>+8%</b></div></div>`
+    + `<div class="popWarn">达到 Lv.3 后解锁 加油站 / 雷达站</div></div>`
+    + costRow([{ icon: art('coin'), have: 22984, need: 800, name: '金币' }, { icon: art('box'), have: 3, need: 4, name: '建材' }])
+    + ctaBar([btn({ label: '升级到 Lv.3', kind: 'major wide' })], '建材不足时前往资源副本') };
+}
+function abilityBody() {
+  const milestones = [[3, '弹道 +1'], [5, '伤害 +20%'], [8, '穿透 +1'], [10, '冷却 -15%']];
+  return { html: topbar('技能详情 · 精准射击')
+    + meta('基础攻击 · 自动释放', true)
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + `<div class="popSec">升级对比</div>`
+    + `<div class="cmpWrap"><div class="hd">等级 4 ➜ 5</div><div class="bd">`
+    + `<div><small class="gap">当前</small><b>伤害 120</b></div><span class="arrow">➜</span>`
+    + `<div><small class="gap">升级后</small><b>伤害 144</b></div></div></div>`
+    + `<div class="popSec">等级里程碑</div>`
+    + milestones.map(m => `<div class="popKV"><span>Lv.${m[0]} · ${m[1]}</span><b>${m[0] <= 4 ? '已解锁' : '未解锁'}</b></div>`).join('')
+    + `</div>`
+    + costRow([{ icon: art('coin'), have: 22984, need: 1500, name: '金币' }, { icon: art('gem'), have: 2, need: 5, name: '英雄核心' }])
+    + ctaBar([btn({ label: '升级到 Lv.5', kind: 'major wide' })], '核心不足时前往英雄招募') };
+}
+function synthBody() {
+  const need = [['gem', 9, 0], ['gem', 7, 0], ['gem', 3, 0], ['gem', 1, 0], ['box', 2, 0], ['box', 1, 0], ['scroll', 1, 0], ['coin', 1, 0]];
+  const sel = picked.synth || new Set();
+  const grid = need.map((n, i) => cell({ id: 's' + i, icon: n[0], q: 1 + (i % 3), num: n[1], on: sel.has('s' + i), tier: '1阶' })).join('');
+  const n = sel.size;
+  return { html: topbar('一键合成') + meta('以下物品将合成新物品', true)
+    + `<div class="popScroll" ${segA('③滚动区')}><div class="popGrid c5">${grid}</div>`
+    + (n === 0 ? `<div class="popWarn">点选要投入的材料，至少 1 件才能合成</div>` : '')
+    + `</div>`
+    + `<div class="popFixBar" ${segA('④消耗·槽位')} style="justify-content:space-between;border-top:1px solid #b8b8b8;border-bottom:0">`
+    + `<span>已选 <b>${n}</b> 件</span><span>预计产出 <b>随机品质 ×${Math.max(1, Math.floor(n / 3))}</b></span></div>`
+    + ctaBar([btn({ label: n ? '合成' : '选择材料', kind: n ? 'major wide' : 'off wide', id: 'do', why: n ? '' : '未选择任何材料' })], '合成后材料不可找回') };
+}
+function gempickBody() {
+  const gems = Array.from({ length: 10 }, (_, i) => ({ id: 'gm' + i, q: 1 + (i % 3), icon: 'gem', num: i % 3 === 0 ? 2 : 1 }));
+  const sel = picked.gempick || new Set();
+  const cur = [...sel][0];
+  return { html: topbar('宝石挑选 · 足具')
+    + meta('点选一颗宝石镶嵌到该槽位', false)
+    + `<div class="popScroll" ${segA('③滚动区')}><div class="popGrid c5">${gems.map(g =>
+      cell({ id: g.id, icon: g.icon, q: g.q, num: g.num, on: sel.has(g.id), tier: '1阶' })).join('')}</div></div>`
+    + (cur ? `<div class="popInfo">${art('gem')}<div><b>物理系伤害 +12%</b><small>替换后将退回原宝石</small></div></div>` : '')
+    + ctaBar([btn({ label: cur ? '镶嵌' : '先选一颗宝石', kind: cur ? 'major wide' : 'off wide', id: 'do', why: cur ? '' : '未选择宝石' })], '同一槽位只能镶嵌一颗') };
+}
+function workshopBody() {
+  const mk = (i) => ({ id: 'w' + i, icon: ['head', 'body', 'legs', 'gloves', 'wrist'][i % 5], q: 1 + (i % 3), num: 1, tier: '1阶' });
+  const sel = picked.workshop || new Set();
+  const items = Array.from({ length: 15 }, (_, i) => mk(i));
+  return { html: topbar('装备工坊')
+    + tabsOf(['装备', '宝石'], 0)
+    + fixbar(['全部', '普通', '精良', '稀有', '史诗'])
+    + `<div class="popScroll" ${segA('③滚动区')}><div class="popGrid c5">${items.map(o =>
+      cell({ id: o.id, icon: o.icon, q: o.q, num: o.num, tier: o.tier, on: sel.has(o.id) })).join('')}</div></div>`
+    + `<div class="popSlots" ${segA('④消耗·槽位')}>${['head', 'body', 'legs', 'gloves', 'wrist'].map((s, i) =>
+      `<button class="sc${i === 0 ? ' on' : ''}" data-act="slot" data-id="${s}">`
+      + art(s) + `<span class="tg">槽位 ${i + 1}</span></button>`).join('')}</div>`
+    + `<div class="popFixBar" ${segA('④消耗·槽位')} style="justify-content:space-between;border-top:1px solid #b8b8b8;border-bottom:0">`
+    + `<span>已选 <b>${sel.size}</b> 件</span><span>产出 <b>${sel.size ? Math.ceil(sel.size / 2) : 0}</b> 件</span></div>`
+    + ctaBar([btn({ label: sel.size ? '投 入 生 产' : '选择材料', kind: sel.size ? 'major wide' : 'off wide', id: 'do', why: sel.size ? '' : '未选择材料' })], '生产需要时间，可离线等待') };
+}
+function confirmBody() {
+  /* S 档：一句后果 + 双出路。默认焦点停在取消，确认键带后果文案。 */
+  return { html: `<div class="popTop" ${segA('①头部')}>下阵确认${popClose()}</div>`
+    + `<div class="popScroll" ${segA('③滚动区')} style="flex:none">`
+    + `<div class="popInfo">${art('person')}<div><b>步枪手·凯</b><small>当前战力 3,180 · 编队 1</small></div></div>`
+    + `<div class="popDesc">下阵后战力降至 <span class="popHL">2,556</span>，该英雄的宝石不会被卸下，随时可重新上阵。</div>`
+    + `</div>`
+    + ctaBar([btn({ label: '取 消', kind: 'grey wide' }), btn({ label: '确认下阵', kind: 'major wide' })],
+             'S 档只承载一个后果与两条出路，不放第三个选项') };
+}
+function squadBody() {
+  const cands = [['步枪手·凯', '已上阵', true], ['狙击手·苍鹭', '可上阵', false], ['激光手·棱镜', '可上阵', false], ['辐射枪手·芮', '未解锁', false, true]];
+  const sel = picked.squad || new Set();
+  return { html: topbar('编队')
+    + meta('1 / 4 已上阵 · 点空席补位', false)
+    + `<div class="popScroll" ${segA('③滚动区')}>` + cands.map((c, i) =>
+      rowCard({ icon: art('person'), title: c[0], tags: ['英雄'], sub: c[1], read: c[3],
+        right: c[3] ? `<small>通关第 3 章解锁</small>`
+          : `<button class="popBtn ${c[2] ? 'grey' : ''}" data-act="${c[2] ? 'off' : 'pick'}" data-id="${esc(c[0])}" style="height:30px;font-size:12px;padding:0 11px">${c[2] ? '下阵' : '上阵'}</button>`,
+        dot: !c[2] && !c[3] })).join('') + `</div>`
+    + `<div class="popSlots" ${segA('④消耗·槽位')}>${[0, 1, 2, 3].map(i =>
+      `<button class="sc${i === 0 ? ' on' : ''}" data-act="seat" data-id="${i}">${i === 0 ? art('gun') : '＋'}<span class="tg">${i === 0 ? '已上阵' : '空席'}</span></button>`).join('')}</div>`
+    + ctaBar([btn({ label: '保存编队', kind: 'major wide' })], '下阵前会先确认') };
+}
+function forgeBody() {
+  const sel = picked.forge || new Set();
+  return { html: `<div class="popShow" ${segA('①头部')}>`
+    + popBack()
+    + `<div class="stand">${art('head')}<span class="tier">1 阶</span></div>`
+    + `<div class="nm">头盔</div><div class="sb">点击切换装备</div></div>`
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + `<div class="cmpWrap"><div class="hd">等级</div><div class="bd">`
+    + `<b>8 级</b><span class="arrow">➜</span><b>9 级</b></div></div>`
+    + `<div class="cmpWrap"><div class="hd">基础属性</div><div class="bd">`
+    + `<div><small class="gap">当前</small><b>攻击 +16</b></div><span class="arrow">➜</span>`
+    + `<div><small class="gap">强化后</small><b>攻击 +18</b></div></div></div>`
+    + `<div class="popSlots" ${segA('④消耗·槽位')} style="margin-top:auto">${['shoes', 'head', 'body', 'legs', 'gloves', 'wrist'].map((s, i) =>
+      `<button class="sc${i === 1 ? ' on' : ''}" data-act="slot" data-id="${s}">${art(s)}`
+      + `<span class="tg">1 阶</span>${i === 1 || i === 3 || i === 5 ? '<span class="rd"></span>' : ''}</button>`).join('')}</div>`
+    + `</div>`
+    + costRow([{ icon: art('scroll'), have: 2, need: 9, name: '强化石' }, { icon: art('coin'), have: 22984, need: 222, name: '金币' }])
+    + ctaBar([btn({ label: '强 化', kind: 'off wide', id: 'one', why: '强化石不足（缺 7）' }),
+              btn({ label: '一键强化', kind: 'major wide', id: 'all', why: '强化石不足，无法一键强化' })])
+    + `<div class="popBar" ${segA('⑤命令区')}><button class="bk" data-act="back" aria-label="返回">‹</button>`
+    + `<div class="pt"><button class="on" data-act="tab" data-i="0">${art('hammer')}<span>强化</span></button>`
+    + `<button data-act="tab" data-i="1">${art('star')}<span>升品</span></button></div></div>` };
+}
+function recruitBody() {
+  const res = [['狙击手·苍鹭', 3, '本体'], ['激光手·棱镜', 2, '碎片 ×20'], ['步枪手·凯', 1, '碎片 ×10']];
+  return { html: `<div class="popShow" ${segA('①头部')}><div class="sb">招募结果</div>`
+    + `<div class="popGrid c4" style="width:100%">${res.map(r =>
+      `<div class="cell q${r[1]}">${art('person')}<span class="tier">${r[1]} 级</span><span class="num">${esc(r[2])}</span></div>`).join('')}</div></div>`
+    + `<div class="popScroll" ${segA('③滚动区')} style="flex:none">`
+    + res.map(r => `<div class="popInfo">${art('person')}<div><b>${esc(r[0])}</b><small>获得 ${esc(r[2])}</small></div></div>`).join('')
+    + `</div>` + ctaBar([btn({ label: '确 认', kind: 'major wide' })], '本层不可点外部关闭，避免误触跳过演出') };
+}
+function settleBody() {
+  const stats = [['击杀', '128'], ['波次', '12'], ['耐久', '82%']];
+  const drops = [['coin', '金币 ×2,640'], ['scroll', '强化石 ×4'], ['gem', '英雄核心 ×1']];
+  return { html: topbar('护送完成')
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + `<div class="popFixBar" style="border:1px solid #a5a5a5;border-bottom:0;justify-content:space-around;background:#d0d0d0">`
+    + stats.map(s => `<div style="text-align:center"><div style="font-size:15px;font-weight:700">${s[1]}</div><small>${s[0]}</small></div>`).join('') + `</div>`
+    + `<div class="popSec">掉落</div>`
+    + drops.map(d => rowCard({ icon: art(d[0]), title: d[1], tags: ['掉落'], sub: '第 3 章 · 末日公路', right: '<small>已入包</small>' })).join('')
+    + `<div class="popSec">本章进度</div>`
+    + `<div class="popKV"><span>第 3 章 · 末日公路</span><b>已通关 6 / 8</b></div>`
+    + `<div style="height:9px;background:#bdbdbd;border:1px solid #a5a5a5"><i style="display:block;height:100%;width:75%;background:#777"></i></div>`
+    + chestRow([20, 40, 60, 80].map((p, i) => ({ ok: i < 3, label: p + '%', why: '本章进度未达 ' + p + '%' })), 'ms')
+    + `<div class="popKV total"><span>本章首通奖励</span><b>英雄核心 ×2</b></div>`
+    + `</div>` + ctaBar([btn({ label: '再 来 一 次', kind: 'major wide' }), btn({ label: '返回主城', kind: 'grey' })], '重复通关不再发放首通奖励') };
+}
+function stackBody() {
+  /* L2 满屏页 + 其上再开一层 L3，演示钻取与返回 */
+  const child = !!picked.stackChild;
+  const layer2 = `<div class="pop XL" >`
+    + `<div class="popShow" ${segA('①头部')}>` + popBack()
+    + `<div class="stand">${art('tower')}<span class="tier">第 6 层</span></div>`
+    + `<div class="nm">试炼之塔</div><div class="sb">推荐战力 9,000</div></div>`
+    + `<div class="popFixBar" ${segA('②说明·页签')}>${[1, 2, 3, 4, 5, 6, 7].map(i =>
+      `<button class="popChip${i === 6 ? ' on' : ''}" data-act="why" data-why="需先通关第 ${i - 1} 层">第 ${i} 层</button>`).join('')}</div>`
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + `<div class="popKV"><span>层段参数</span><b>怪物等级 12</b></div>`
+    + `<div class="popKV"><span>本层奖励</span><b>强化石 ×6</b></div>`
+    + `<div class="popKV total"><span>首通奖励</span><b>英雄核心 ×2</b></div>`
+    + `<div class="popWarn">点击「查看怪物池」会在本层之上再开一层 L3</div></div>`
+    + ctaBar([btn({ label: '查看怪物池', kind: 'grey wide', id: 'openChild' }), btn({ label: '挑战', kind: 'major wide' })])
+    + `<div class="popBar" ${segA('⑤命令区')}><button class="bk" data-act="close" aria-label="返回">‹</button>`
+    + `<div class="pt"><button class="on">${art('tower')}<span>挑战</span></button><button>${art('medal')}<span>排行</span></button></div></div></div>`;
+  const childLayer = child ? `<div class="dim" style="background:rgba(10,10,10,.5)"><div class="pop S">`
+    + topbar('本层怪物池')
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + [['石猿', '高护甲 · 近战'], ['猎犬', '高速 · 群体'], ['秃鹰', '远程 · 俯冲']].map(m =>
+      rowCard({ icon: art('person'), title: m[0], tags: ['威胁 3'], sub: m[1], right: '<small>已收录</small>' })).join('')
+    + `</div>` + ctaBar([btn({ label: '返 回 试 炼', kind: 'major wide', id: 'closeChild' })], '返回第 6 层，不退出试炼') + `</div></div>` : '';
+  return { html: `<div class="dim">${layer2}</div>` + childLayer, count: child ? 'L2 + L3' : 'L2' };
+}
+function sizesBody() {
+  const frames = [
+    ['S · 287 定宽居中偏上', 'left:calc(50% - 76px);top:26%;width:152px;height:64px'],
+    ['M · 左右 23 / 上下 18%', 'left:12px;right:12px;top:16%;bottom:16%'],
+    ['L · 左右 17 / 上下 14%·13%', 'left:8px;right:8px;top:13%;bottom:12%'],
+    ['XL · 满屏二级页', 'left:0;right:0;top:0;bottom:0'],
+  ];
+  return { html: `<div class="pop XL" style="background:#d7d7d7">`
+    + `<div class="popTop" ${segA('①头部')}>四档尺寸定位口径${popClose()}</div>`
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + `<div class="popDesc">同一内容换档位只改外框定位与留白，不改内部五段顺序。</div>`
+    + `<div class="popGrid c6" style="grid-auto-rows:1fr">${frames.map(f =>
+      `<div style="position:relative;grid-column:span 6;height:104px;background:#c4c4c4;border:1px solid #8b8b8b">`
+      + `<div style="position:absolute;${f[1]};background:#8b8b8b;border:1px solid #555"></div>`
+      + `<small style="position:absolute;left:6px;bottom:4px;color:#333">${esc(f[0])}</small></div>`).join('')}</div>`
+    + `</div>` + ctaBar([btn({ label: '知道了', kind: 'major wide' })], '档位由内容量决定：确认类用 S，列表用到 L，挑选类用 XL') };
+}
+function statesBody() {
+  return { html: topbar('状态与红线')
+    + `<div class="popScroll" ${segA('③滚动区')}>`
+    + `<div class="popSec">不可用：压暗但仍可点</div>`
+    + `<div class="popCost" style="padding:0">${[{ icon: art('scroll'), have: 2, need: 9, name: '强化石' }, { icon: art('coin'), have: 22984, need: 222, name: '金币' }].map(c =>
+      `<div class="c"><span class="ci">${c.icon}</span><span class="cv${c.have >= c.need ? ' ok' : ' lack'}">${c.have}/${c.need}</span><span class="cl">${c.name}</span></div>`).join('')}</div>`
+    + `<button class="popBtn off wide" data-act="why" data-why="强化石不足（缺 7），先去资源副本" style="margin-top:6px">强 化</button>`
+    + `<div class="popSec">锁定：加锁角标 + 解锁条件</div>`
+    + `<div class="popGrid c5">${[0, 1, 2, 3, 4].map(i =>
+      cell({ id: 'lk' + i, icon: i > 1 ? 'box' : 'person', q: 1, locked: i > 1, disabled: i > 1, why: '通关第 3 章后解锁' })).join('')}</div>`
+    + `<div class="popSec">空态：给出去处</div>`
+    + `<div class="popEmpty">${art('box')}<div>暂无可用材料</div>`
+    + `<small>前往资源副本获取</small></div>`
+    + `<button class="popBtn wide" data-act="goto" data-id="资源副本" style="margin-top:6px">前 往 资 源 副 本</button>`
+    + `</div>` + ctaBar([btn({ label: '返回', kind: 'grey wide', id: 'back2' })], '本页只演示状态，不承载命令') };
+}
+
+/* ===================== 渲染 ===================== */
+const BODY = { mail: mailBody, notice: noticeBody, quest: questBody, signin: signinBody, equip: equipBody,
+  building: buildingBody, ability: abilityBody, synth: synthBody, gempick: gempickBody, workshop: workshopBody,
+  squad: squadBody, confirm: confirmBody, forge: forgeBody, recruit: recruitBody, settle: settleBody,
+  stack: stackBody, sizes: sizesBody, states: statesBody };
+const META = {
+  mail: { size: 'M', layer: 'L3' }, notice: { size: 'M', layer: 'L3' }, quest: { size: 'L', layer: 'L3' },
+  signin: { size: 'M', layer: 'L3' }, equip: { size: 'L', layer: 'L3' }, building: { size: 'M', layer: 'L3' },
+  ability: { size: 'M', layer: 'L3' }, synth: { size: 'M', layer: 'L3' }, gempick: { size: 'M', layer: 'L3' },
+  squad: { size: 'M', layer: 'L3' }, confirm: { size: 'S', layer: 'L3' }, forge: { size: 'XL', layer: 'L2' },
+  workshop: { size: 'XL', layer: 'L2' }, recruit: { size: 'XL', layer: 'L5' },
+  settle: { size: 'L', layer: 'L4' }, stack: { size: 'XL', layer: 'L2' }, sizes: { size: 'XL', layer: '—' },
+  states: { size: 'M', layer: 'L3' },
+};
+
+function backdropHTML() {
+  return `<div class="backdrop"><div class="bd-head">1.末日公路</div><div class="bd-stage"></div>`
+    + `<div class="bd-caption"><span>战力 969</span><span>推荐 9,000</span></div>`
+    + `<div class="bd-row"><span>首次通关</span><span>耐久过半</span><span>完美护送</span></div>`
+    + `<div class="bd-cta">开始护送 · 体力 5</div></div>`;
+}
+function safeHTML() {
+  return `<div class="safe"><span>9:41</span><span class="capsule" aria-label="微信胶囊预留区">···<i></i>◎</span></div>`;
+}
+function hudHTML() {
+  return `<header class="hud">`
+    + `<button class="portrait" data-act="why" data-why="个人资料：本例开 L3 属性详情" aria-label="个人资料">${art('person')}<strong>15</strong></button>`
+    + `<div class="resources">${[['gem', '1,680'], ['coin', '12,800'], ['energy', '25/30']].map(r =>
+      `<button class="currency" data-act="why" data-why="资源来源：本例开 L3 说明">${art(r[0])}<b>${r[1]}</b><span class="plus">+</span></button>`).join('')}</div>`
+    + `<div class="identity"><div><span class="identity-name">护送队长</span></div>`
+    + `<div class="hud-tools"><button class="tiny-icon" data-act="why" data-why="邮件：本例开 L3 弹窗">${art('mail')}<i class="dot"></i></button>`
+    + `<button class="tiny-icon" data-act="why" data-why="设置：本例开 S 档弹窗">${art('tool')}</button></div></div></header>`;
+}
+function navHTML() {
+  return `<nav class="nav">${[['mall', '商店', 'shop'], ['heroes', '英雄', 'person'], ['battle', '护送', 'gun'], ['core', '行动', 'portal'], ['base', '基地', 'base']]
+    .map((t, i) => `<button data-act="why" data-why="一级页导航不在本稿范围" aria-current="${i === 2 ? 'page' : 'false'}">${art(t[2])}<span>${t[1]}</span></button>`).join('')}</nav>`;
+}
+/* 提示条是 .phone 的子节点，必须随每次重绘一起产出，否则首次 render 会把它清掉，
+   之后 feedback() 拿到 null 抛错，命令区在 render() 之前调用的分支会整条失效。 */
+function feedbackHTML() {
+  return `<div class="feedback${fbActive ? ' visible' : ''}" id="feedback" role="status" aria-live="polite">${esc(fbMsg)}</div>`;
+}
+function render() {
+  const phone = $('#phone');
+  const m = META[view] || { size: 'M', layer: 'L3' };
+  const body = (BODY[view] || mailBody)();
+  /* 分层与尺寸两面自带遮罩与外框；其余按档位在遮罩里装配。
+     遮罩是 .phone 的直接子元素（正式项目 .protoMask inset:0 覆盖整屏 844，
+     含信息栏与底导），四档定位百分比因此按整屏而非内容区计算。 */
+  const selfMasked = view === 'stack' || view === 'sizes';
+  const content = selfMasked ? body.html
+    : `<div class="dim${m.layer === 'L5' ? ' l5' : ''}"><div class="pop ${m.size}">${body.html}</div></div>`;
+  phone.innerHTML = safeHTML() + hudHTML()
+    + `<main class="main">${backdropHTML()}</main>` + navHTML() + content + feedbackHTML();
+  /* 事件委托挂在 .phone 上：遮罩与弹层都是它的子节点，点击覆盖层也能收到 */
+  wire();
+  renderRails(m, body);
+  restoreScroll();
+}
+function restoreScroll() {
+  const sc = $('#phone .popScroll');
+  if (!sc) return;
+  const key = view;
+  sc.scrollTop = scrollMem[key] || 0;
+  sc.addEventListener('scroll', () => { scrollMem[key] = sc.scrollTop; });
+}
+function renderRails(m, body) {
+  const nav = $('#review-nav');
+  if (!nav.dataset.built) {
+    nav.innerHTML = CATALOG.map(([group, key, items]) =>
+      `<div class="group">${esc(group)}</div>` + items.map(([id, name, layer]) =>
+        `<button data-nav="${id}"><span class="number">·</span>${esc(name)}<span class="tag ${layer.replace('→', '')}">${esc(layer)}</span></button>`).join('')
+    ).join('');
+    nav.dataset.built = '1';
+  }
+  nav.querySelectorAll('[data-nav]').forEach(b =>
+    b.setAttribute('aria-current', b.dataset.nav === view ? 'page' : 'false'));
+  const n = NOTE[view] || NOTE.mail;
+  const idx = Object.keys(META).indexOf(view) + 1;
+  $('#note-index').textContent = `浮窗 ${String(idx).padStart(2, '0')} / ${Object.keys(META).length} · ${m.layer} · ${m.size} 档`;
+  $('#note-title').textContent = n[0];
+  $('#note-desc').textContent = n[1];
+  $('#note-list').innerHTML = n[2].map(x => `<li>${esc(x)}</li>`).join('');
+}
+
+/* ===================== 交互（事件委托：任何按钮都必须有出路） ===================== */
+function feedback(text) {
+  clearTimeout(fbTimer);
+  fbMsg = text; fbActive = true;
+  const el = $('#feedback');
+  if (el) { el.textContent = text; el.classList.add('visible'); }
+  $('#review-status').textContent = text;
+  fbTimer = setTimeout(() => {
+    fbActive = false;
+    const cur = $('#feedback');
+    if (cur) cur.classList.remove('visible');
+  }, 2200);
+}
+function pick(id) { (picked[view] = picked[view] || new Set()).has(id) ? picked[view].delete(id) : picked[view].add(id); render(); }
+function wire() {
+  const phone = $('#phone');
+  phone.classList.toggle('segOn', showSeg);
+  phone.classList.toggle('targetsOn', showTargets);
+  /* 用 onclick 属性而非 addEventListener：.phone 元素跨 render 复用，
+     addEventListener 会在每次重绘时叠加一层监听。 */
+  phone.onclick = e => {
+    const b = e.target.closest('[data-act]');
+    if (!b) {
+      /* 遮罩：L3/L4 可点关，L5 与 XL 不可关（避免误触跳过演出/退出二级页） */
+      if (e.target.classList.contains('dim')) {
+        const m = META[view];
+        if (m.layer === 'L3' || m.layer === 'L4') { feedback('已关闭弹窗'); }
+        else { feedback('本层需用底部命令关闭，避免误触中断'); }
+      }
+      return;
+    }
+    const act = b.dataset.act, id = b.dataset.id || '';
+    switch (act) {
+      case 'claim': {
+        claimed[id] = true;
+        const got = Object.keys(claimed).filter(k => /^m[0-9]+$/.test(k)).length;
+        feedback(got >= MAIL.filter(m => m.gift).length ? '全部附件已领取' : '已领取该附件');
+        render(); break;
+      }
+      case 'cta': {
+        if (b.dataset.why) { feedback(b.dataset.why); return; }
+        const label = b.textContent.trim();
+        if (id === 'openChild') { picked.stackChild = true; render(); feedback('已在试炼层之上再开一层 L3'); break; }
+        if (id === 'closeChild' || id === 'back2') { picked.stackChild = false; render(); feedback('返回上一层'); break; }
+        if (view === 'mail' && label.includes('一键领取')) {
+          MAIL.filter(m => m.gift).forEach(m => claimed[m.id] = true);
+          feedback('一键领取完成，附件已入包'); render(); break;
+        }
+        feedback(`已执行「${label}」`); break;
+      }
+      case 'tab': { tab[view] = +b.dataset.i; render(); feedback('已切换页签'); break; }
+      case 'chip': {
+        const bar = b.parentElement;
+        bar.querySelectorAll('.popChip').forEach(c => c.classList.remove('on'));
+        b.classList.add('on'); feedback(`筛选：${b.textContent.trim()}`); break;
+      }
+      case 'pick': pick(id); break;
+      case 'seat': feedback('空席：从下方候选上阵'); break;
+      case 'slot': feedback('已切换目标槽位'); break;
+      case 'unequip': feedback('已卸下该宝石，退回背包'); break;
+      case 'upgrade': feedback('该属性需在强化台操作'); break;
+      case 'chest': feedback('宝箱已开启，奖励入包'); break;
+      case 'help': feedback('说明：数值随关卡难度提升'); break;
+      case 'goto': feedback(`前往「${id}」`); break;
+      case 'off': feedback('该英雄已上阵，下阵前会先确认'); break;
+      case 'close': case 'back': closeTo('已关闭'); break;
+      case 'why': feedback(b.dataset.why || '当前不可用'); break;
+      default: feedback('已执行');
+    }
+  };
+  $('#review-nav').onclick = e => {
+    const b = e.target.closest('[data-nav]');
+    if (!b) return;
+    view = b.dataset.nav; picked.stackChild = false; render();
+  };
+}
+function closeTo(msg) {
+  const m = META[view];
+  if (m.layer === 'L2') { feedback('L2 为满屏二级页，用左上返回退出'); return; }
+  feedback(msg);
+}
+
+/* ===================== 外壳控件 ===================== */
+$('#size').onchange = e => {
+  const [w, h] = e.target.value.split(',');
+  $('.review').style.setProperty('--phone-w', w + 'px');
+  $('.phone').style.height = h + 'px';
+  vp = e.target.value; render();
+};
+$('#seg').onchange = e => { showSeg = e.target.checked; render(); };
+$('#targets').onchange = e => { showTargets = e.target.checked; render(); };
+$('#reset').onclick = () => { resetState(); render(); feedback('本稿状态已重置'); };
+
+render();
+</script>
+</body>
+</html>
