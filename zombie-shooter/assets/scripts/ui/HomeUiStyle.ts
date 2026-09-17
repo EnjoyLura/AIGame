@@ -888,18 +888,9 @@ export const HOME_UI_CSS = `
 #homeUi .sLv { font-size: calc(24px * var(--hs,1)); font-weight: 900; color: #5cc8ff; margin-bottom: calc(10px * var(--hs,1)); }
 #homeUi .skillHint { font-size: calc(20px * var(--hs,1)); color: #8ba3c7; text-align: center; margin-top: calc(8px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
 
-/* ===== 公告条（topbar 下全局常驻） ===== */
-#homeUi .noticeBar { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); margin: calc(12px * var(--hs,1)) calc(16px * var(--hs,1)) 0;
-  padding: calc(8px * var(--hs,1)) calc(18px * var(--hs,1)); background: linear-gradient(90deg, #1c2f55, #243a66);
-  border: 1px solid #3a5687; border-radius: calc(14px * var(--hs,1)); position: relative; overflow: hidden; }
-#homeUi .noticeBar .nIc { flex: none; font-size: calc(26px * var(--hs,1)); }
-#homeUi .noticeBar .nClip { flex: 1; min-width: 0; overflow: hidden; }
-#homeUi .noticeText { white-space: nowrap; display: inline-block; padding-left: 100%; font-size: calc(21px * var(--hs,1)); color: #cfe3ff;
-  animation: noticeScroll 16s linear infinite; }
-#homeUi .noticeBar .nRed { display: none; position: absolute; top: calc(4px * var(--hs,1)); right: calc(10px * var(--hs,1));
-  width: calc(14px * var(--hs,1)); height: calc(14px * var(--hs,1)); border-radius: 50%; background: #ff4d4f; border: 1px solid #fff; }
-#homeUi .noticeBar .nRed.on { display: block; }
-@keyframes noticeScroll { to { transform: translateX(-100%); } }
+/* ===== 顶部刘海/胶囊安全区条（布局稿 .safe；静态留白，系统状态栏画在其上） ===== */
+#homeUi .safeBand { flex: none; height: calc(32px * var(--hs,1)); }
+/* ===== 公告列表弹窗 ===== */
 #homeUi .noticeBox .nItem { padding: calc(16px * var(--hs,1)); margin-bottom: calc(14px * var(--hs,1)); }
 #homeUi .noticeBox .nHead { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); }
 #homeUi .noticeBox .nTitle { font-size: calc(26px * var(--hs,1)); flex: 1; min-width: 0; }
@@ -1380,15 +1371,11 @@ export const HOME_UI_CSS = `
 #homeUi .actChest.ready .acIc { animation: huiChest .9s ease-in-out infinite; }
 /* 里程碑可领时的脉冲：同上——箱子图标呼吸，提示就地领取 */
 #homeUi .milestones .milestone.ready .ic { animation: huiChest .9s ease-in-out infinite; }
-/* 公告条跑马灯：同上——在 animation:none 白名单之后重声明，保证浅色主题下滚动不被清掉 */
-#homeUi .noticeText { animation: noticeScroll 16s linear infinite; }
-
-/* --- 公告条与公告弹窗（青瓷浅色变体） --- */
-#homeUi .noticeBar { margin: calc(5px * var(--pw,2.5)) calc(10px * var(--pw,2.5)) 0; padding: calc(4px * var(--pw,2.5)) calc(10px * var(--pw,2.5));
-  background: #eef5f9; border: 1px solid #bdced8; border-radius: calc(6px * var(--pw,2.5)); gap: calc(6px * var(--pw,2.5)); }
-#homeUi .noticeBar .nIc { font-size: calc(14px * var(--pw,2.5)); }
-#homeUi .noticeText { font-size: calc(12px * var(--pw,2.5)); color: #527085; }
-#homeUi .noticeBar .nRed { top: calc(2px * var(--pw,2.5)); right: calc(6px * var(--pw,2.5)); width: calc(8px * var(--pw,2.5)); height: calc(8px * var(--pw,2.5)); border: none; }
+/* --- 顶部安全区条与公告弹窗（青瓷浅色变体） --- */
+/* 稿手机版：.safe{height:calc(30px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}。
+   桌面/常规机没有状态栏，取稿的 32 基准保持与画框一致；有安全区时按 30 + 安全区撑开。 */
+#homeUi .safeBand { height: max(calc(32px * var(--pw,2.5)), calc(30px * var(--pw,2.5) + var(--sat,0px)));
+  background: #ddd; }
 #homeUi .noticeBox .nItem { padding: calc(9px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
 #homeUi .noticeBox .nTitle { font-size: calc(14px * var(--pw,2.5)); }
 #homeUi .noticeBox .nDate { font-size: calc(10px * var(--pw,2.5)); color: #7a93a8; }
@@ -1404,11 +1391,12 @@ export const HOME_UI_CSS = `
 
 /* --- HUD 通栏（青瓷浅色变体：64px = 头像 43×52 绝对定位 + 资源 31 + 身份 27） --- */
 /* 信息栏回到壳层首位，安全区上边距也交回它（走马灯在它之下，不再占顶部条位） */
+/* 安全区上边距已由 .safeBand 承担，信息栏不再自己加（否则刘海机上会重复让位） */
 #homeUi .topbar { position: relative; display: block; flex-direction: initial; box-sizing: border-box;
-  height: calc(64px * var(--pw,2.5) + max(var(--sat,0px), env(safe-area-inset-top,0px)));
-  padding: max(var(--sat,0px), env(safe-area-inset-top,0px)) calc(8px * var(--pw,2.5)) 0 calc(58px * var(--pw,2.5));
+  height: calc(64px * var(--pw,2.5));
+  padding: 0 calc(8px * var(--pw,2.5)) 0 calc(58px * var(--pw,2.5));
   background: #dedede; background-image: none; border-bottom: 1px solid #bbb; color: #243e4d; white-space: nowrap; }
-#homeUi .pAvatar { position: absolute; top: calc(4px * var(--pw,2.5) + max(var(--sat,0px), env(safe-area-inset-top,0px))); left: calc(9px * var(--pw,2.5));
+#homeUi .pAvatar { position: absolute; top: calc(4px * var(--pw,2.5)); left: calc(9px * var(--pw,2.5));
   width: calc(43px * var(--pw,2.5)); height: calc(52px * var(--pw,2.5)); padding: 0; border-radius: 0; background: none; }
 #homeUi .pAvatar > div { width: 100%; height: 100%; border-radius: 0; background-color: #c2c2c2; font-size: 0;
   clip-path: polygon(12% 0, 88% 0, 100% 14%, 100% 87%, 88% 100%, 12% 100%, 0 87%, 0 14%); }
@@ -2951,13 +2939,13 @@ export const HOME_UI_CSS = `
 /* ---- 与布局稿对齐（补齐稿的全局盒模型 + 底导高度）----
    布局稿用 *{box-sizing:border-box} 且以 390 画框等比；游戏历史样式是 content-box，
    单独给五页与通栏补上 border-box，否则 height + padding 会把每条条带撑高 10px 左右。 */
-#homeUi .topbar *, #homeUi .tabbar, #homeUi .tabbar *,
+#homeUi .topbar *, #homeUi .tabbar, #homeUi .tabbar *, #homeUi .safeBand,
 #homeUi .screen.sShop, #homeUi .screen.sShop *, #homeUi .screen.sHeroes, #homeUi .screen.sHeroes *,
 #homeUi .screen.sStage, #homeUi .screen.sStage *, #homeUi .screen.sAction, #homeUi .screen.sAction *,
 #homeUi .screen.sBase, #homeUi .screen.sBase * { box-sizing: border-box; }
-/* 公告走马灯（游戏自有，稿里没有这一行）：挂在信息栏之下、页面之上，
-   有内容时按自身高度占一条，无内容整条 display:none，缺口由页面自己吃掉。 */
-#homeUi .noticeBar { margin: calc(2px * var(--pw,2.5)) calc(10px * var(--pw,2.5)) 0; }
+/* 顶部安全区条：稿 .safe 32（手机版 30 + 状态栏安全区），信息栏内容随之下移，
+   刘海/胶囊不再压住头像与资源行。桌面无安全区，条带仍按稿占 32。 */
+#homeUi .safeBand { margin: 0; }
 /* 底导：稿 .nav 70px（含 2px 上边线 + 4px 下内边距），此前按 430 基准写大了 */
 #homeUi .tabbar { height: calc(66px * var(--pw,2.5) + var(--sab,0px)); min-height: 0;
   padding-bottom: calc(2px * var(--pw,2.5) + var(--sab,0px)); }

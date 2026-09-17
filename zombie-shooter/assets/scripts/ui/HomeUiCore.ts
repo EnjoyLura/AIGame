@@ -22,7 +22,7 @@ import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRI
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
 import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
-import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
+import { ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES, NoticeKind } from '../core/NoticeData';
@@ -160,22 +160,14 @@ export abstract class HomeUiCore extends Component {
 
     protected _expNum: HTMLDivElement | null = null;
 
-    /** 公告条跑马灯文字与未读红点 */
-    protected _noticeTextEl: HTMLDivElement | null = null;
-
-    protected _noticeRedEl: HTMLElement | null = null;
-
     /** 顶栏邮箱按钮（未读红点驱动） */
     protected _homeMailBtn: HTMLButtonElement | null = null;
 
-    /** 公告条本体（走马灯按需显示：无内容整条收起） */
-    protected _noticeBarEl: HTMLDivElement | null = null;
+    /** 顶栏公告按钮（未读红点驱动） */
+    protected _homeNoticeBtn: HTMLButtonElement | null = null;
 
-    /** 走马灯：当前消息的点击目标（公告/邮箱/远征/玩法页/出战） */
-    protected _tickerTap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' = 'notice';
-
-    /** 走马灯轮播游标（每次动画一轮推进一条，循环） */
-    protected _tickerIdx = 0;
+    /** 顶部刘海/胶囊安全区条（静态留白，只占位不画内容） */
+    protected _safeBandEl: HTMLDivElement | null = null;
 
     /** 本次会话是否已自动弹过公告（每次启动至多自动弹一次） */
     protected _autoNoticeShown = false;
@@ -287,18 +279,11 @@ export abstract class HomeUiCore extends Component {
             }
         }, this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
-        // 新邮件到达（投放器/运营接口触发）：toast 提醒 + 顶栏红点实时亮起 + 走马灯立即切到新邮件消息
+        // 新邮件到达（投放器/运营接口触发）：toast 提醒 + 顶栏红点实时亮起
         eventCenter.on(GameEvent.MAIL_NEW, (def: MailDef) => {
             if (this._root) {
                 this._toast(`📬 新邮件：${def.title}`);
                 this._refreshTop();
-                this._advanceTicker();
-            }
-        }, this);
-        // 远征倒计时归零：走马灯播报「队伍归来」，入口红点由既有轮询兜底
-        eventCenter.on(GameEvent.EXPEDITION_READY, () => {
-            if (this._root) {
-                this._advanceTicker();
             }
         }, this);
         // 远征倒计时归零没有事件源（时间自己走），靠这个低频轮询兜底补亮红点：
@@ -349,7 +334,6 @@ export abstract class HomeUiCore extends Component {
         this._refreshHeroes();
         this._refreshPlayPage();
         this._refreshBase();
-        this._refreshNoticeBar();
         this._applyPendingTex();
     }
 
@@ -1365,6 +1349,17 @@ export abstract class HomeUiCore extends Component {
         };
         util.appendChild(mailBtn);
         this._homeMailBtn = mailBtn;
+        const noticeBtn = document.createElement('button');
+        noticeBtn.className = 'tinyIcon homeNoticeBtn';
+        noticeBtn.textContent = '📣';
+        noticeBtn.title = '游戏公告';
+        noticeBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openNoticeModal();
+        };
+        util.appendChild(noticeBtn);
+        this._homeNoticeBtn = noticeBtn;
         const gear = document.createElement('button');
         gear.className = 'tinyIcon';
         gear.textContent = '⚙️';
@@ -1397,6 +1392,7 @@ export abstract class HomeUiCore extends Component {
         }
         // 邮箱未读红点（新邮件到达/已读实时同步）
         this._homeMailBtn?.classList.toggle('unread', MailSystem.instance.hasUnread());
+        this._homeNoticeBtn?.classList.toggle('unread', NoticeSystem.instance.hasUnread());
         // 经验条（占位口径：最远波次 / 100）
         if (this._expFill) {
             const pct = Math.min(100, Math.round(gm.bestWave));
@@ -1516,9 +1512,9 @@ export abstract class HomeUiCore extends Component {
         root.id = 'homeUi';
         this._root = root;
 
-        // 壳层顺序：信息栏 64 → 公告走马灯（有内容才占位）→ 页面 → 底导 70
+        // 壳层顺序＝布局稿：顶部刘海/胶囊安全区 32（手机版 30 + 状态栏安全区）→ 信息栏 64 → 页面 → 底导 70
+        this._buildSafeBand(root);
         this._buildTopbar(root);
-        this._buildNoticeBar(root);
 
         const viewport = document.createElement('div');
         viewport.className = 'viewport';
@@ -1543,117 +1539,28 @@ export abstract class HomeUiCore extends Component {
     }
 
 
-    // ================= 公告条与公告弹窗 =================
+    // ================= 顶部安全区与公告弹窗 =================
 
     /**
-     * 主城顶部公告条（topbar 之下全局常驻位）：走马灯轮播——未读公告（新→旧）
-     * 与动态消息（新邮件/远征归来/签到/任务/体力满）混合成队列，
-     * 每轮滚动动画结束切下一条；点击按当前消息类型分发到对应面板。
-     * 按需显示：已读公告不滚，队列空时整条收起，有新内容自动回归。
+     * 手机刘海/胶囊安全区条（布局稿 .safe 32；手机版 30 + 状态栏安全区）。
+     * 微信小游戏在刘海机上是沉浸式全屏，顶部这块必须留空，否则信息栏会被
+     * 状态栏与右侧胶囊盖住。稿里这条是系统状态栏内容占位（时间/胶囊），
+     * 游戏里交给系统绘制，所以这里只做一块静态留白，不画任何元素。
      */
-    protected _buildNoticeBar(root: HTMLDivElement): void {
-        const bar = document.createElement('div');
-        bar.className = 'noticeBar';
-        bar.title = '查看全部公告';
-        const ic = document.createElement('span');
-        ic.className = 'nIc';
-        ic.textContent = '📣';
-        const clip = document.createElement('div');
-        clip.className = 'nClip';
-        const text = document.createElement('div');
-        text.className = 'noticeText';
-        clip.appendChild(text);
-        const red = document.createElement('i');
-        red.className = 'nRed';
-        bar.appendChild(ic);
-        bar.appendChild(clip);
-        bar.appendChild(red);
-        bar.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            // 按当前滚到的消息分发：公告开列表，动态消息直达对应面板
-            if (this._tickerTap === 'mail') {
-                this._openMailModal();
-            } else if (this._tickerTap === 'expedition' || this._tickerTap === 'play') {
-                this._switchPage('play');
-            } else if (this._tickerTap === 'battle') {
-                this._switchPage('battle');
-            } else {
-                this._openNoticeModal();
-            }
-        };
-        // 每轮滚动动画结束推进下一条（noticeScroll 16s/轮）；队列在推进时重建以吸收最新事件
-        text.addEventListener('animationiteration', () => {
-            this._advanceTicker();
-        });
-        root.appendChild(bar);
-        this._noticeBarEl = bar;
-        this._noticeTextEl = text;
-        this._noticeRedEl = red;
-        this._refreshNoticeBar();
+    protected _buildSafeBand(root: HTMLDivElement): void {
+        const band = document.createElement('div');
+        band.className = 'safeBand';
+        root.appendChild(band);
+        this._safeBandEl = band;
     }
 
-    /**
-     * 走马灯消息队列：未读公告（新→旧，已读不再占屏）+ 动态事件消息（现查现拼，永远反映最新状态）。
-     * 队列为空 → 公告条整条收起（公告不用一直显示）；有内容才滚。
-     */
-    protected _buildTickerQueue(): Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> {
-        const q: Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> = [];
-        for (const n of NoticeSystem.instance.unreadList()) {
-            q.push({ text: `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看`, tap: 'notice' });
-        }
-        const gm = GameManager.instance;
-        if (MailSystem.instance.hasUnread()) {
-            q.push({ text: '📬 邮箱有未读邮件，附件待领取　→ 点击查看邮箱', tap: 'mail' });
-        }
-        if (ExpeditionSystem.instance.hasClaimable()) {
-            q.push({ text: '🚚 远征队伍归来，奖励待领取　→ 前往玩法页', tap: 'expedition' });
-        }
-        if (SigninSystem.instance.canClaimToday()) {
-            q.push({ text: '📅 今日签到奖励待领取　→ 前往玩法页', tap: 'play' });
-        }
-        if (QuestSystem.instance.hasClaimable()) {
-            q.push({ text: '✅ 有任务/成就奖励可领取　→ 前往玩法页', tap: 'play' });
-        }
-        if (gm.stamina() >= gm.staminaMax()) {
-            q.push({ text: '⚡ 体力已满，立即出战！', tap: 'battle' });
-        }
-        return q;
-    }
-
-    /** 走马灯推进：游标 +1（循环），重建队列吸收最新事件，刷新滚动文案与点击目标 */
-    protected _advanceTicker(): void {
-        this._tickerIdx++;
-        this._refreshNoticeBar();
-    }
-
-    /** 公告条刷新：按轮播游标取当前消息（双拼便于无缝循环）+ 未读公告红点；无内容时整条收起 */
-    protected _refreshNoticeBar(): void {
-        const q = this._buildTickerQueue();
-        if (this._noticeBarEl) {
-            this._noticeBarEl.style.display = q.length ? '' : 'none';
-        }
-        if (q.length === 0) {
-            this._tickerIdx = 0;
-            this._tickerTap = 'notice';
-            return;
-        }
-        const cur = q[this._tickerIdx % q.length];
-        this._tickerTap = cur.tap;
-        if (this._noticeTextEl) {
-            this._noticeTextEl.textContent = cur.text + '　　' + cur.text + '　　';
-        }
-        if (this._noticeRedEl) {
-            this._noticeRedEl.classList.toggle('on', NoticeSystem.instance.hasUnread());
-        }
-    }
 
 
     /** 公告列表弹窗（新→旧全量展示）；打开即全部标记已读：红点熄灭、下次进主城不再自动弹 */
     /** 游戏公告（UX 布局稿 1-B · L3·L）：分类页签 + 列表（标题/日期/摘要）+ 点行就地展开全文 */
     protected _openNoticeModal(tab = 0, expand = -1): void {
         NoticeSystem.instance.markAllRead();
-        this._refreshNoticeBar();
+        this._refreshTop();
         const filters: Array<{ label: string; kind: NoticeKind | null }> = [
             { label: '全部', kind: null },
             { label: '更新', kind: 'update' },
@@ -1700,7 +1607,7 @@ export abstract class HomeUiCore extends Component {
                         }
                     }
                 },
-                note: '公告按发布时间倒序 · 新公告会出现在主城顶部公告条'
+                note: '公告按发布时间倒序 · 新公告在信息栏 📣 上亮红点'
             };
         };
         this._openPop(opt());

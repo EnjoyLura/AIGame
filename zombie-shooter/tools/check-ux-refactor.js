@@ -173,6 +173,14 @@ ok('运营/快捷栏收进护送页场景内侧（不再挂 viewport 悬浮）',
 ok('胶囊禁入区：viewport-fit=cover', /viewport-fit=cover/.test(require('fs').readFileSync('build-templates/web-mobile/index.html', 'utf8')));
 ok('胶囊禁入区：_applySafeArea 探针填令牌', /_applySafeArea/.test(src) && /setProperty\('--sat'/.test(src) && /setProperty\('--sab'/.test(src));
 ok('胶囊禁入区：CSS 挂令牌（顶栏/CTA/底栏/悬浮栏/toast/弹窗）', (src.match(/var\(--sat,0px\)|var\(--sab,0px\)/g) || []).length >= 10);
+// 稿 .safe 32（手机版 30 + 状态栏安全区）= 顶部刘海/胶囊留白条；壳层首位，信息栏不再自加上边距
+const style = readUi('HomeUiStyle.ts');
+ok('顶部刘海/胶囊安全区条（稿 .safe，壳层首位）', /protected _buildSafeBand\(root: HTMLDivElement\): void \{[\s\S]{0,200}className = 'safeBand'/.test(src)
+  && /_buildSafeBand\(root\);[\s\S]{0,120}_buildTopbar\(root\);/.test(src)
+  && /#homeUi \.safeBand \{[^}]*height: max\(calc\(32px \* var\(--pw,2\.5\)\), calc\(30px \* var\(--pw,2\.5\) \+ var\(--sat,0px\)\)\)/.test(style));
+ok('公告走马灯已下线（无残留字段/构建/队列）', !/_noticeBarEl|_noticeTextEl|_noticeRedEl|_tickerIdx|_tickerTap|_buildTickerQueue|_advanceTicker|_refreshNoticeBar|_buildNoticeBar|noticeScroll/.test(clsSrc)
+  && /#homeUi \.noticeBar/.test(style) === false);
+ok('公告入口收进信息栏 📣（删除走马灯后仍可达）', /noticeBtn\.className = 'tinyIcon homeNoticeBtn'/.test(src) && /this\._openNoticeModal\(\);/.test(src));
 ok('底部导航关卡→护送', /key: 'battle', icon: '🚚', name: '护送'/.test(src));
 ok('五签等分（布局稿 R2 去掉居中凸起主钮）', /grid-template-columns: repeat\(5, 1fr\)/.test(src) && !/\.tab\.main \{/.test(src));
 ok('编队升级为 L4 半屏抽屉弹层', /protected _openSquadModal\(\): void \{[\s\S]{0,1600}?tier: 4,\s*\n\s*size: 'M',/.test(src) && /protected _openSquadModal\(\): void \{[\s\S]{0,8600}?this\._openPop\(opt\(\)\);/.test(src));
