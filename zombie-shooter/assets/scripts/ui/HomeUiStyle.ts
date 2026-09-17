@@ -752,10 +752,16 @@ export const HOME_UI_CSS = `
 #homeUi .chapter-head { height: calc(125px * var(--hs,1)); display: flex; align-items: center; justify-content: center; gap: calc(44px * var(--hs,1)); }
 #homeUi .chapter-head h1 { font-size: calc(53px * var(--hs,1)); font-weight: 900; color: #ffe9a8; letter-spacing: calc(2px * var(--hs,1)); }
 #homeUi .chapter-head small { display: block; margin-top: calc(4px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); color: #8ba3c7; text-align: center; }
-#homeUi .chapter-head .arrow { position: static; flex: none; width: calc(122px * var(--hs,1)); height: calc(116px * var(--hs,1));
+/* 翻页器：挂在场景内侧左右边缘的垂直中线上（章节头只留章节名） */
+#homeUi .stage > .arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  width: calc(122px * var(--hs,1)); height: calc(116px * var(--hs,1));
   border-radius: calc(16px * var(--hs,1)); background: rgba(10,20,38,.6); border: 1px solid #4f7ab8; color: #ffe9a8;
   font-size: calc(50px * var(--hs,1)); font-weight: 900; cursor: pointer; }
-#homeUi .chapter-head .arrow:disabled { opacity: .35; cursor: default; }
+#homeUi .stage > .arrow.l { left: calc(60px * var(--hs,1)); }
+#homeUi .stage > .arrow.r { right: calc(60px * var(--hs,1)); }
+/* 走不动时只降透明、不吞点击：点了由 _stageStepBlocked 给出原因 */
+#homeUi .stage > .arrow.dim { opacity: .35; }
 #homeUi .difficulty { align-self: center; flex: none; display: flex; width: calc(620px * var(--hs,1)); height: calc(89px * var(--hs,1));
   border: 1px solid #4f7ab8; border-radius: calc(10px * var(--hs,1)); overflow: hidden; background: #101d38; }
 #homeUi .difficulty .diffSeg { flex: 1; min-width: 0; height: auto; padding: 0; font-family: inherit; font-size: calc(33px * var(--hs,1));
@@ -1621,8 +1627,13 @@ export const HOME_UI_CSS = `
 #homeUi .chapter-head { height: calc(50px * var(--pw,2.5)); gap: calc(18px * var(--pw,2.5)); }
 #homeUi .chapter-head h1 { font-size: calc(19px * var(--pw,2.5)); color: #264756; letter-spacing: 0; text-align: center; line-height: calc(23px * var(--pw,2.5)); }
 #homeUi .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); color: #536f7f; margin-top: 0; }
-#homeUi .chapter-head .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5)); border: 0; border-radius: 0;
-  background: none; color: #6b7f8b; font-size: calc(25px * var(--pw,2.5)); }
+/* 翻页器在场景内侧：压在场景照片上，给一层浅底芯片保证 ‹ › 可辨 */
+#homeUi .stage > .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5));
+  border: 1px solid #9fb6c2; border-radius: calc(6px * var(--pw,2.5));
+  background: rgba(246,250,252,.72); color: #264756; font-size: calc(25px * var(--pw,2.5)); }
+#homeUi .stage > .arrow.l { left: calc(60px * var(--pw,2.5)); }
+#homeUi .stage > .arrow.r { right: calc(60px * var(--pw,2.5)); }
+#homeUi .stage > .arrow.dim { opacity: .38; }
 #homeUi .difficulty { width: calc(224px * var(--pw,2.5)); height: calc(32px * var(--pw,2.5)); border-radius: 0;
   border: 1px solid #a9a9a9; background: #cecece; margin: 0; }
 #homeUi .difficulty .diffSeg { font-size: calc(12px * var(--pw,2.5)); font-weight: 400; color: #35505f; border-left-color: #b9b9b9; }
@@ -2961,13 +2972,17 @@ export const HOME_UI_CSS = `
 #homeUi .screen.sShop .good .gName { font-size: calc(10px * var(--pw,2.5)); line-height: calc(12px * var(--pw,2.5)); }
 #homeUi .screen.sShop .good .gTag { font-size: calc(9px * var(--pw,2.5)); line-height: calc(11px * var(--pw,2.5)); margin: 0; min-height: 0; }
 #homeUi .screen.sShop .good .gBuy { min-height: calc(27px * var(--pw,2.5)); height: calc(27px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); }
-/* 护送页章头条：稿 45px（h1 19/23 + small 10/13，箭头 44×42） */
+/* 护送页章头条：只留章节名（45px，h1 19/23 + small 10/13），翻页箭头已移入场景 */
 #homeUi .screen.sStage .chapter-head { height: calc(45px * var(--pw,2.5)); gap: calc(16px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head h1 { font-size: calc(19px * var(--pw,2.5)); line-height: calc(23px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); margin-top: 0; }
-#homeUi .screen.sStage .chapter-head .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5)); font-size: calc(25px * var(--pw,2.5)); }
 /* 关卡场景：两侧快捷列在 3px 贴边占 49px，场景左右让出 56px，列与场景不再互压 */
 #homeUi .screen.sStage .stage-scene { inset: 6% calc(56px * var(--pw,2.5)) 0; }
+/* 翻页器落在场景内 4px：场景左沿 56px → 箭头 60px 起 44px 宽 */
+#homeUi .screen.sStage .stage > .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5));
+  font-size: calc(25px * var(--pw,2.5)); }
+#homeUi .screen.sStage .stage > .arrow.l { left: calc(60px * var(--pw,2.5)); }
+#homeUi .screen.sStage .stage > .arrow.r { right: calc(60px * var(--pw,2.5)); }
 
 /* ---- 英雄页逐条对齐布局稿 ----
    稿里 .hero-roster/.hero-stage/.hero-tools/.bag-section 都是 .screen 的直接子元素，

@@ -126,16 +126,38 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     }
 
 
-    /** 关卡页关卡切换：只在已解锁范围（1 ~ stageCleared+1）内移动 */
-    protected _switchStage(dir: number): void {
+    /**
+     * 关卡页关卡切换：只在已解锁范围（1 ~ stageCleared+1）内移动。
+     * 返回是否真的动了——不动时调用方据此给玩家一句说明，而不是把按钮做成死键。
+     */
+    protected _switchStage(dir: number): boolean {
         const gm = GameManager.instance;
         const maxUnlocked = Math.min(FINAL_STAGE_ID, gm.stageCleared + 1);
         const next = Math.min(maxUnlocked, Math.max(1, gm.currentStage + dir));
-        if (next !== gm.currentStage) {
-            gm.currentStage = next;
-            gm.save();
-            this._refreshStagePage();
+        if (next === gm.currentStage) {
+            return false;
         }
+        gm.currentStage = next;
+        gm.save();
+        this._refreshStagePage();
+        return true;
+    }
+
+
+    /** 翻页器某一方向为什么走不动（null = 可以走）：边界不置灰吞点击，点了由调用方 toast 这句 */
+    protected _stageStepBlocked(dir: number): string | null {
+        const gm = GameManager.instance;
+        const stageId = Math.min(Math.max(1, gm.currentStage), FINAL_STAGE_ID);
+        if (dir < 0) {
+            return stageId <= 1 ? '已是第一章' : null;
+        }
+        if (stageId >= FINAL_STAGE_ID) {
+            return '已是最后一章';
+        }
+        if (stageId >= gm.stageCleared + 1) {
+            return `通关第 ${stageId} 章后解锁第 ${stageId + 1} 章`;
+        }
+        return null;
     }
 
 
@@ -150,17 +172,9 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         page.className = 'screen sStage';
         this._pages.battle = page;
 
-        // 章节头：‹ 章节名 + 副标 ›
+        // 章节头：章节名 + 副标（翻页器改挂场景内侧，见下方 mkArrow）
         const head = document.createElement('div');
         head.className = 'chapter-head';
-        const hl = document.createElement('button');
-        hl.className = 'arrow l';
-        hl.textContent = '‹';
-        hl.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._switchStage(-1);
-        };
         const hBox = document.createElement('div');
         hBox.className = 'chBox';
         const hName = document.createElement('h1');
@@ -169,22 +183,10 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         hSub.className = 'chSub';
         hBox.appendChild(hName);
         hBox.appendChild(hSub);
-        const hr = document.createElement('button');
-        hr.className = 'arrow r';
-        hr.textContent = '›';
-        hr.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            this._switchStage(1);
-        };
-        head.appendChild(hl);
         head.appendChild(hBox);
-        head.appendChild(hr);
         page.appendChild(head);
         this._chNameEl = hName;
         this._chSubEl = hSub;
-        this._chArrowL = hl;
-        this._chArrowR = hr;
 
         // 难度段：居中定宽三档（普通/精英/噩梦），无尽入口移到底部左快捷
         const diff = document.createElement('div');
@@ -215,7 +217,32 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         stage.appendChild(railL);
         stage.appendChild(railR);
         stage.appendChild(cap);
+        // 翻页器：章节切换箭头挂在场景内侧左右边缘的垂直中线上（不再占顶部一行，
+        // 顶部只留章节名）。左右各距场景边 4px，落在两侧快捷列（贴边 3px 起 49px）之外。
+        const mkArrow = (dir: number): HTMLButtonElement => {
+            const b = document.createElement('button');
+            b.className = 'arrow ' + (dir < 0 ? 'l' : 'r');
+            b.textContent = dir < 0 ? '‹' : '›';
+            b.title = dir < 0 ? '上一章' : '下一章';
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                const why = this._stageStepBlocked(dir);
+                if (why) {
+                    this._toast(why);
+                } else {
+                    this._switchStage(dir);
+                }
+            };
+            return b;
+        };
+        const hl = mkArrow(-1);
+        const hr = mkArrow(1);
+        stage.appendChild(hl);
+        stage.appendChild(hr);
         page.appendChild(stage);
+        this._chArrowL = hl;
+        this._chArrowR = hr;
         this._sceneEl = scene;
         this._capPowEl = cap.querySelector('.capPow');
         this._capRecEl = cap.querySelector('.capRec');
@@ -366,10 +393,14 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             this._chSubEl.textContent = `${open ? '护送主线' : '尚未解锁'} · ${stageId}/${FINAL_STAGE_ID}`;
         }
         if (this._chArrowL) {
-            this._chArrowL.disabled = stageId <= 1;
+            const whyL = this._stageStepBlocked(-1);
+            this._chArrowL.classList.toggle('dim', whyL !== null);
+            this._chArrowL.title = whyL ?? '上一章';
         }
         if (this._chArrowR) {
-            this._chArrowR.disabled = !(stageId < FINAL_STAGE_ID && stageId < gm.stageCleared + 1);
+            const whyR = this._stageStepBlocked(1);
+            this._chArrowR.classList.toggle('dim', whyR !== null);
+            this._chArrowR.title = whyR ?? '下一章';
         }
 
         // 场景内容

@@ -5,6 +5,8 @@ const readUi = (f) => fs.readFileSync('assets/scripts/ui/' + f, 'utf8');
 const src = UI_FILES.map(readUi).join('\n');
 // 仅拼接 TS 类文件（排除样式表）：用于断言"旧 DOM 结构已消失"这类会在 CSS 里留死样式的情况
 const clsSrc = UI_FILES.filter((f) => f !== 'HomeUiStyle.ts').map(readUi).join('\n');
+// 样式表单独取，供"某条 CSS 必须存在/必须消失"的断言使用
+const style = readUi('HomeUiStyle.ts');
 // 资源与体力时间戳兜底检查需要读核心层
 const resSrc = fs.readFileSync('assets/scripts/core/PlayerResources.ts', 'utf8');
 // 装备存档校验兜底检查需要读核心层
@@ -41,6 +43,18 @@ ok('_refreshStagePage 页面不再构建 lootPrev', !/page\.appendChild\(lootPre
 ok('护送页六段骨架齐备', /'chapter-head'/.test(src) && /'difficulty'/.test(src) && /'stage'/.test(src)
   && /'milestones'/.test(src) && /'team-strip'/.test(src) && /'battle-bottom'/.test(src));
 ok('章节头含副标（护送主线 · n/5）', /'chSub'/.test(src) && /护送主线[\s\S]{0,80}\$\{stageId\}\/\$\{FINAL_STAGE_ID\}/.test(src));
+// 翻页器从章节头搬进场景内侧左右边缘（垂直居中），章节头只留章节名
+ok('翻页器挂场景内侧左右边缘（不再占章节头一行）', /stage\.appendChild\(hl\);[\s\S]{0,80}stage\.appendChild\(hr\);/.test(src)
+  && /'arrow ' \+ \(dir < 0 \? 'l' : 'r'\)/.test(src)
+  && !/head\.appendChild\(hl\)/.test(src)
+  && /#homeUi \.screen\.sStage \.stage > \.arrow\.l \{ left: calc\(60px \* var\(--pw,2\.5\)\)/.test(style)
+  && /#homeUi \.screen\.sStage \.stage > \.arrow\.r \{ right: calc\(60px \* var\(--pw,2\.5\)\)/.test(style)
+  && /#homeUi \.stage > \.arrow \{ position: absolute; top: 50%; transform: translateY\(-50%\)/.test(style));
+ok('翻页边界不留死键（dim 降透明 + 点击说明原因）', /protected _stageStepBlocked\(dir: number\): string \| null \{/.test(src)
+  && /classList\.toggle\('dim', whyL !== null\)/.test(src)
+  && /const why = this\._stageStepBlocked\(dir\);[\s\S]{0,160}this\._toast\(why\)/.test(src)
+  && !/_chArrowL\.disabled/.test(src) && !/_chArrowR\.disabled/.test(src)
+  && /#homeUi \.stage > \.arrow\.dim \{ opacity: \.38; \}/.test(style));
 ok('难度段三档居中定宽（去掉行头与行尾无尽 chip）', /className = 'diffSeg'/.test(src) && !/diffHead|endChip/.test(src));
 ok('难度锁定档不禁用·点击给解锁条件', /未解锁 · \$\{d\.unlockNote\}/.test(src) && !/b\.disabled = true/.test(src));
 ok('场景内侧左右快捷栏（左运营带红点 / 右图鉴·排行·试炼）',
@@ -174,7 +188,6 @@ ok('胶囊禁入区：viewport-fit=cover', /viewport-fit=cover/.test(require('fs
 ok('胶囊禁入区：_applySafeArea 探针填令牌', /_applySafeArea/.test(src) && /setProperty\('--sat'/.test(src) && /setProperty\('--sab'/.test(src));
 ok('胶囊禁入区：CSS 挂令牌（顶栏/CTA/底栏/悬浮栏/toast/弹窗）', (src.match(/var\(--sat,0px\)|var\(--sab,0px\)/g) || []).length >= 10);
 // 稿 .safe 32（手机版 30 + 状态栏安全区）= 顶部刘海/胶囊留白条；壳层首位，信息栏不再自加上边距
-const style = readUi('HomeUiStyle.ts');
 ok('顶部刘海/胶囊安全区条（稿 .safe，壳层首位）', /protected _buildSafeBand\(root: HTMLDivElement\): void \{[\s\S]{0,200}className = 'safeBand'/.test(src)
   && /_buildSafeBand\(root\);[\s\S]{0,120}_buildTopbar\(root\);/.test(src)
   && /#homeUi \.safeBand \{[^}]*height: max\(calc\(32px \* var\(--pw,2\.5\)\), calc\(30px \* var\(--pw,2\.5\) \+ var\(--sat,0px\)\)\)/.test(style));
