@@ -95,6 +95,17 @@ ok('巡逻持久化 + 每日次数懒重置 + 8 小时封顶', /SAVE_KEY = 'zomb
 ok('巡逻入口双层红点 CSS', (style.match(/#homeUi \.battle-bottom \.hot \.questRed \{/g) || []).length >= 2
   && /#homeUi \.battle-bottom \.hot \.questRed\.on \{ display: block; \}/.test(style)
   && (style.match(/#homeUi \.side-tools \.hot\.off \{ opacity: \.45; \}/g) || []).length >= 2);
+
+// HUD 排版对齐（宿主页 style.css 的 body{text-align:center} 会被通栏文字继承）
+ok('HUD 通栏显式左对齐（昵称不再比经验条多缩进）', (style.match(/#homeUi \.topbar \{[^}]*text-align: left;/g) || []).length >= 2
+  && !/#homeUi \.pname \{[^}]*text-align: center/.test(style));
+ok('头像美术区取正方（稿 .portrait svg height:43，不再被拉成 43×52）',
+  (style.match(/#homeUi \.pAvatar > div \{[^}]*height: calc\(43px \* var\(--(?:hs|pw),/g) || []).length >= 2);
+// 商店页签：按钮必须撑满 .flat-tabs 条带（稿里 flex 拉伸；此前 44 会溢出条带下沿，文字看着偏下）
+ok('商店页签按钮随条带同高（撑满，不再 44 溢出）',
+  (style.match(/#homeUi \.shopTabs button \{[^}]*height: 100%;/g) || []).length >= 2
+  && !/#homeUi \.shopTabs button \{[^}]*height: calc\(44px/.test(style)
+  && (style.match(/#homeUi \.shopTabs button \{[^}]*display: flex; align-items: center; justify-content: center;/g) || []).length >= 2);
 ok('旧关卡信息三格/场景 chip/耐久 chip 已删', !/_siLvlEl|_siPowEl|_siStEl|_siChipEl|_missionTitleEl|_sceneChipEl/.test(src));
 ok('护送页骨架两层 CSS 齐备', ['chapter-head', 'difficulty', 'stage', 'stage-scene', 'side-tools', 'stage-caption',
   'milestones', 'team-strip', 'slot-avatar', 'battle-bottom'].every(c =>

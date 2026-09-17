@@ -12,12 +12,17 @@ export const HOME_UI_CSS = `
   color: #dce8f7; user-select: none; overflow: hidden; }
 
 /* ===== HUD 通栏（布局稿：头像绝对定位 + 上排资源 + 下排昵称/经验/工具） ===== */
+/* 显式左对齐：宿主页 style.css 的 body{text-align:center} 会被通栏文字继承。
+   昵称盒与下方经验条同为 195 宽，居中会让名字比经验条多缩进 70px（实测 x128 vs x58）；
+   资源格/工具图标各自用 flex·grid 居中，不受这里影响。 */
 #homeUi .topbar { position: relative; flex: none; display: flex; flex-direction: column; justify-content: center;
-  height: calc(64px * var(--hs,1)); padding: 0 calc(8px * var(--hs,1)) 0 calc(58px * var(--hs,1));
+  height: calc(64px * var(--hs,1)); padding: 0 calc(8px * var(--hs,1)) 0 calc(58px * var(--hs,1)); text-align: left;
   background: linear-gradient(180deg, #1e3054, #141f38); border-bottom: 1px solid #33507a; }
 #homeUi .pAvatar { position: absolute; top: calc(4px * var(--hs,1)); left: calc(9px * var(--hs,1));
   width: calc(43px * var(--hs,1)); height: calc(52px * var(--hs,1)); flex: none; padding: 0; border-radius: 0; background: none; }
-#homeUi .pAvatar > div { width: 100%; height: 100%; border-radius: 0; background: radial-gradient(circle at 35% 30%, #2a4470, #0d1626);
+/* 头像美术区是正方（43×43），槽位仍是 43×52（下方 9px 为稿里的名字条，游戏名字在 .identity）。
+   此前美术区取 height:100% 被拉成 43×52，比例 0.83 比稿偏窄长。 */
+#homeUi .pAvatar > div { width: 100%; height: calc(43px * var(--hs,1)); border-radius: 0; background: radial-gradient(circle at 35% 30%, #2a4470, #0d1626);
   display: flex; align-items: center; justify-content: center; font-size: calc(22px * var(--hs,1));
   clip-path: polygon(12% 0, 88% 0, 100% 14%, 100% 87%, 88% 100%, 12% 100%, 0 87%, 0 14%); }
 #homeUi .lvtag { position: absolute; left: calc(-3px * var(--hs,1)); top: calc(-2px * var(--hs,1));
@@ -113,7 +118,11 @@ export const HOME_UI_CSS = `
 #homeUi .sbTime { position: absolute; right: calc(24px * var(--hs,1)); bottom: calc(14px * var(--hs,1)); z-index: 2;
   font-size: calc(20px * var(--hs,1)); color: #ffd9b0; background: rgba(0,0,0,.35); padding: calc(4px * var(--hs,1)) calc(16px * var(--hs,1)); border-radius: 99px; }
 #homeUi .shopTabs { display: flex; gap: calc(12px * var(--hs,1)); margin: calc(24px * var(--hs,1)) 0; }
-#homeUi .shopTabs button { flex: 1; height: calc(60px * var(--hs,1)); border-radius: calc(16px * var(--hs,1)); border: 1px solid #33507a;
+/* 商店页签已并入底部 .flat-tabs 条带（34 高），按钮必须随条带同高：
+   稿里 .flat-tabs button 不写 height，靠 flex 拉伸正好撑满 34。
+   此前两层分别写 60/44 的独立页签行高度，按钮会溢出条带下沿（实测 10.6px），文字看着偏下。 */
+#homeUi .shopTabs button { flex: 1; height: 100%; border-radius: calc(16px * var(--hs,1)); border: 1px solid #33507a;
+  display: flex; align-items: center; justify-content: center; text-align: center;
   background: #101d38; color: #8ba3c7; font-family: inherit; font-size: calc(26px * var(--hs,1)); font-weight: 700; cursor: pointer; }
 #homeUi .shopTabs button.on { background: linear-gradient(180deg, #3a567f, #243a63); color: #ffe9a8; border-color: #6a8ab8;
   box-shadow: 0 0 10px rgba(92,150,255,.25); }
@@ -1407,12 +1416,12 @@ export const HOME_UI_CSS = `
 /* 信息栏回到壳层首位，安全区上边距也交回它（走马灯在它之下，不再占顶部条位） */
 /* 安全区上边距已由 .safeBand 承担，信息栏不再自己加（否则刘海机上会重复让位） */
 #homeUi .topbar { position: relative; display: block; flex-direction: initial; box-sizing: border-box;
-  height: calc(64px * var(--pw,2.5));
+  height: calc(64px * var(--pw,2.5)); text-align: left;
   padding: 0 calc(8px * var(--pw,2.5)) 0 calc(58px * var(--pw,2.5));
   background: #dedede; background-image: none; border-bottom: 1px solid #bbb; color: #243e4d; white-space: nowrap; }
 #homeUi .pAvatar { position: absolute; top: calc(4px * var(--pw,2.5)); left: calc(9px * var(--pw,2.5));
   width: calc(43px * var(--pw,2.5)); height: calc(52px * var(--pw,2.5)); padding: 0; border-radius: 0; background: none; }
-#homeUi .pAvatar > div { width: 100%; height: 100%; border-radius: 0; background-color: #c2c2c2; font-size: 0;
+#homeUi .pAvatar > div { width: 100%; height: calc(43px * var(--pw,2.5)); border-radius: 0; background-color: #c2c2c2; font-size: 0;
   clip-path: polygon(12% 0, 88% 0, 100% 14%, 100% 87%, 88% 100%, 12% 100%, 0 87%, 0 14%); }
 #homeUi .lvtag { position: absolute; left: calc(-3px * var(--pw,2.5)); top: calc(-2px * var(--pw,2.5));
   font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); padding: 0 calc(4px * var(--pw,2.5));
@@ -1532,7 +1541,8 @@ export const HOME_UI_CSS = `
 #homeUi .sbGift { font-size: 0; }
 #homeUi .sbTime { font-size: calc(10px * var(--pw,2.5)); }
 #homeUi .shopTabs { margin: calc(14px * var(--pw,2.5)) 0; gap: calc(5px * var(--pw,2.5)); }
-#homeUi .shopTabs button { height: calc(44px * var(--pw,2.5)); background: #d7e4ed; color: #526d7d; border-color: #b1c6d5;
+#homeUi .shopTabs button { height: 100%; background: #d7e4ed; color: #526d7d; border-color: #b1c6d5;
+  display: flex; align-items: center; justify-content: center; text-align: center;
   border-radius: calc(5px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
 #homeUi .shopTabs button.on { background: #fff8e9; color: #8c5927; border-color: #d8ad74; box-shadow: inset 0 -2px #e9ab5c; }
 #homeUi .good { padding: calc(10px * var(--pw,2.5)); }
