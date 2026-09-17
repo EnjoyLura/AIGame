@@ -89,11 +89,13 @@ export const HOME_UI_CSS = `
 #homeUi .goldT { color: #ffe9a8; }
 
 /* ===== Toast ===== */
-#homeUi .toastEl { position: absolute; left: 50%; bottom: calc(220px * var(--hs,1) + var(--sab,0px)); transform: translateX(-50%) translateY(10px);
+/* 常规游戏提示位＝屏幕中央（+13px 落到页区 96~774 的中线上）。此前贴底导上沿，
+   既不常规，握持时也容易被手指压住；自顶锚定后天然避开底部安全区。 */
+#homeUi .toastEl { position: absolute; left: 50%; top: calc(50% + 13px * var(--pw,2.5)); transform: translate(-50%, calc(-50% + 10px));
   background: rgba(13,25,48,.93); border: 1px solid #f5c451; color: #ffe9a8; font-size: calc(24px * var(--hs,1)); font-weight: 700;
   padding: calc(14px * var(--hs,1)) calc(32px * var(--hs,1)); border-radius: 99px; opacity: 0; transition: .25s;
   z-index: 300; white-space: nowrap; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
-#homeUi .toastEl.show { opacity: 1; }
+#homeUi .toastEl.show { opacity: 1; transform: translate(-50%, -50%); }
 
 /* ===== 商店页 ===== */
 #homeUi .shopBanner { height: calc(168px * var(--hs,1)); border-radius: calc(24px * var(--hs,1)); overflow: hidden; position: relative; cursor: pointer;
@@ -1472,7 +1474,7 @@ export const HOME_UI_CSS = `
 /* --- Toast / 弹窗 --- */
 #homeUi .toastEl { background: #244b60; color: #fff; border: 1px solid #89abbf; border-radius: calc(7px * var(--pw,2.5));
   white-space: normal; text-align: center; max-width: calc(100% - 32px); width: max-content; line-height: 1.6;
-  bottom: calc(95px * var(--pw,2.5) + var(--sab,0px)); font-size: calc(12px * var(--pw,2.5)); font-weight: 700;
+  top: calc(50% + 13px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); font-weight: 700;
   padding: calc(9px * var(--pw,2.5)) calc(18px * var(--pw,2.5)); }
 #homeUi .protoMask { background: #183b50b8; backdrop-filter: blur(4px);
   padding: var(--sat,0px) calc(16px * var(--pw,2.5)) var(--sab,0px); }
