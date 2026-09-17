@@ -24,6 +24,7 @@ import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/Equipm
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
 import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
+import { PatrolSystem } from '../core/PatrolSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiHeroes } from './HomeUiHeroes';
@@ -92,8 +93,14 @@ export abstract class HomeUiStage extends HomeUiHeroes {
 
     protected _sideGiftRed: HTMLElement | null = null;
 
-    /** 底部左·无尽入口（锁定态只降透明不禁用，点击落进 3-C 未解锁拦截） */
+    /** 无尽入口（已从底部左槽收进场景右侧栏；锁定态只降透明不禁用，点击落进未解锁拦截） */
     protected _endlessHot: HTMLButtonElement | null = null;
+
+    /** 底部左·巡逻入口（挂机收益 + 扫荡；未通关第 1 关时点击进未解锁拦截） */
+    protected _patrolHot: HTMLButtonElement | null = null;
+
+    /** 巡逻入口红点（有挂机产出可收时亮） */
+    protected _patrolRed: HTMLElement | null = null;
 
 
     // ---- 场景侧栏弹层分发（实现在链下游 HomeUiPlay；此处只声明入口供 _buildSideTools 接线） ----
@@ -102,6 +109,8 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     protected abstract _openTrialModal(): void;
     protected abstract _openBestiaryModal(): void;
     protected abstract _openLeaderboardModal(): void;
+    /** 巡逻页（实现在链下游 HomeUiPlay） */
+    protected abstract _openPatrolModal(): void;
 
 
     protected _startBattle(endless = false, _diff?: StageDifficulty): void {
@@ -284,19 +293,25 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         team.appendChild(squad);
         page.appendChild(team);
 
-        // 底部：无尽（左）+ 开始护送主 CTA（中）+ 宝箱奖励详情（右）
+        // 底部：巡逻（左）+ 开始护送主 CTA（中）+ 宝箱奖励详情（右）
+        // 无尽让出这个位置，收进场景右侧栏（与图鉴/排行/试炼同列）
         const bottom = document.createElement('div');
         bottom.className = 'battle-bottom';
-        const endless = document.createElement('button');
-        endless.className = 'hot endlessHot';
-        endless.innerHTML = `<span class="ic">♾️</span><span>无尽</span>`;
-        endless.onclick = (e) => {
+        const patrol = document.createElement('button');
+        patrol.className = 'hot patrolHot';
+        patrol.innerHTML = `<span class="ic">🛡️</span><span>巡逻</span><i class="questRed"></i>`;
+        patrol.onclick = (e) => {
             e.stopPropagation();
-            SoundFx.unlock();
-            this._startBattle(true);
+            SoundFx.play('ui');
+            if (!PatrolSystem.instance.unlocked()) {
+                this._openUnlockGate('巡逻未解锁', '🛡️', '通关第 1 关后解锁：派巡逻队驻扎已通关关卡，离线攒收益并支持扫荡');
+                return;
+            }
+            this._openPatrolModal();
         };
-        bottom.appendChild(endless);
-        this._endlessHot = endless;
+        bottom.appendChild(patrol);
+        this._patrolHot = patrol;
+        this._patrolRed = patrol.querySelector('.questRed');
         const go = document.createElement('button');
         go.className = 'game-button major start go';
         go.innerHTML = `开始护送<small><span class="ic">⚡</span><span class="goCost"></span></small>`;
@@ -357,6 +372,14 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         mkBtn('📖', '图鉴', false, () => this._openBestiaryModal());
         mkBtn('🏆', '排行', false, () => this._openLeaderboardModal());
         mkBtn('🗼', '试炼', false, () => this._openTrialModal());
+        // 无尽从底部左槽收进侧栏：锁定态只降透明不禁用，点击落进未解锁拦截
+        const endlessBtn = mkBtn('♾️', '无尽', false, () => {
+            SoundFx.unlock();
+            this._startBattle(true);
+        });
+        endlessBtn.classList.add('endlessHot');
+        endlessBtn.title = '波次无限 · 每 5 波里程碑奖励';
+        this._endlessHot = endlessBtn;
     }
 
     /** 关卡难度选择（0 普通/1 精英/2 噩梦；跨关卡切换时重置为可解锁的最高档） */
@@ -524,6 +547,20 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         if (this._endlessHot) {
             this._endlessHot.classList.toggle('off', !endlessOk);
             this._endlessHot.title = endlessOk ? '波次无限 · 每 5 波里程碑奖励' : '通关全部章节后解锁';
+        }
+        // 巡逻：已通关关卡可驻扎挂机；红点在有产出可收时亮
+        if (this._patrolHot) {
+            const ps = PatrolSystem.instance;
+            const unlocked = ps.unlocked();
+            this._patrolHot.classList.toggle('off', !unlocked);
+            this._patrolHot.title = !unlocked
+                ? '通关第 1 关后解锁巡逻'
+                : ps.isPatrolling
+                    ? `巡逻中 · 第 ${ps.stageId} 关 · 已累积 ${ps.accruedText()}`
+                    : `巡逻队待命 · 已通关 ${gm.stageCleared} 关，可驻扎挂机与扫荡`;
+            if (this._patrolRed) {
+                this._patrolRed.classList.toggle('on', unlocked && ps.hasClaimable());
+            }
         }
 
         // 里程碑三档（就地在主界面领取）

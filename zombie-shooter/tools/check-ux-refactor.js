@@ -7,6 +7,8 @@ const src = UI_FILES.map(readUi).join('\n');
 const clsSrc = UI_FILES.filter((f) => f !== 'HomeUiStyle.ts').map(readUi).join('\n');
 // 样式表单独取，供"某条 CSS 必须存在/必须消失"的断言使用
 const style = readUi('HomeUiStyle.ts');
+// 巡逻系统核心层
+const patrolSrc = fs.readFileSync('assets/scripts/core/PatrolSystem.ts', 'utf8');
 // 资源与体力时间戳兜底检查需要读核心层
 const resSrc = fs.readFileSync('assets/scripts/core/PlayerResources.ts', 'utf8');
 // 装备存档校验兜底检查需要读核心层
@@ -71,6 +73,28 @@ ok('编队条四席头像 + 空席占位 + 进编队抽屉', /'team-slots'/.test
 ok('底部 CTA 网格 56/1fr/56 + 主钮含体力消耗', /grid-template-columns: calc\(56px \* var\(--pw,2\.5\)\) 1fr calc\(56px \* var\(--pw,2\.5\)\)/.test(src)
   && /\.goCost/.test(src) && /BattleConfig\.RUN_STAMINA_COST/.test(src));
 ok('无尽入口移到 CTA 左快捷（锁定只降透明）', /_endlessHot[\s\S]{0,400}classList\.toggle\('off', !endlessOk\)/.test(src) && !/endChip/.test(src));
+// 巡逻队：底左槽换巡逻，无尽收进右侧栏；收益随已通关关数增长
+ok('战斗底栏左槽改巡逻入口（🛡️ + 可收红点）', /patrol\.className = 'hot patrolHot'/.test(src)
+  && /bottom\.appendChild\(patrol\)/.test(src) && /this\._patrolRed = patrol\.querySelector\('\.questRed'\)/.test(src)
+  && !/bottom\.appendChild\(endless\)/.test(src));
+ok('无尽收进场景右侧栏（与图鉴/排行/试炼同列）', /mkBtn\('♾️', '无尽', false/.test(src)
+  && /endlessBtn\.classList\.add\('endlessHot'\)/.test(src) && /this\._endlessHot = endlessBtn/.test(src));
+ok('巡逻页 XL 二级页（驻扎选择 + 挂机收取 + 扫荡）', /protected _openPatrolModal\(\): void \{/.test(src)
+  && /title: '🛡️ 巡逻队'/.test(src) && /size: 'XL'/.test(src)
+  && /ps\.claim\(\)/.test(src) && /ps\.sweep\(sel\)/.test(src) && /ps\.setStage\(sel\)/.test(src));
+ok('巡逻收益随已通关关数增长（核心公式在 PatrolSystem）', /PATROL_GOLD_PER_STAGE_HOUR = 400/.test(patrolSrc)
+  && /Math\.round\(cleared \* PATROL_GOLD_PER_STAGE_HOUR \* \(1 \+ \(id - 1\) \* PATROL_STAGE_BONUS\)\)/.test(patrolSrc)
+  && /PATROL_SWEEP_BASE \+ Math\.floor\(_cleared\(\) \* PATROL_SWEEP_PER_CLEARED\)/.test(patrolSrc)
+  && /function isPatrolStage\(stageId: number\): boolean \{[\s\S]{0,200}id <= _cleared\(\)/.test(patrolSrc));
+ok('巡逻只服务已通关关卡（未通关不可驻扎/扫荡）', /!isPatrolStage\(stageId\)[\s\S]{0,120}尚未通关，无法扫荡/.test(patrolSrc)
+  && /stageId: isPatrolStage\(stageId\) \? stageId : 0/.test(patrolSrc)
+  && /disabled: sel > cleared/.test(src));
+ok('巡逻持久化 + 每日次数懒重置 + 8 小时封顶', /SAVE_KEY = 'zombie-shooter-patrol'/.test(patrolSrc)
+  && /PATROL_MAX_HOURS = 8/.test(patrolSrc) && /Math\.min\(PATROL_MAX_HOURS \* 3600, elapsed\)/.test(patrolSrc)
+  && /this\._data\.date !== today/.test(patrolSrc) && /private _sanitize|carry/.test(patrolSrc));
+ok('巡逻入口双层红点 CSS', (style.match(/#homeUi \.battle-bottom \.hot \.questRed \{/g) || []).length >= 2
+  && /#homeUi \.battle-bottom \.hot \.questRed\.on \{ display: block; \}/.test(style)
+  && (style.match(/#homeUi \.side-tools \.hot\.off \{ opacity: \.45; \}/g) || []).length >= 2);
 ok('旧关卡信息三格/场景 chip/耐久 chip 已删', !/_siLvlEl|_siPowEl|_siStEl|_siChipEl|_missionTitleEl|_sceneChipEl/.test(src));
 ok('护送页骨架两层 CSS 齐备', ['chapter-head', 'difficulty', 'stage', 'stage-scene', 'side-tools', 'stage-caption',
   'milestones', 'team-strip', 'slot-avatar', 'battle-bottom'].every(c =>
@@ -126,7 +150,7 @@ ok('页脚三快捷（图鉴/排行/载具改装）', /'action-footer'/.test(src
   && /mkFoot\('🏆', '排行榜'/.test(src) && /mkFoot\('🔧', '载具改装'/.test(src));
 ok('行动页仍走 _pureEntryDesc/_enterPureEntry', /this\._pureEntryDesc\('expedition'\)/.test(src)
   && /this\._enterPureEntry\('expedition'\)/.test(src));
-ok('行动页红点 _refreshPureEntryRed', /_refreshEntryReds[\s\S]{0,400}_refreshPureEntryRed\(card\.dataset\.entry/.test(src));
+ok('行动页红点 _refreshPureEntryRed', /_refreshEntryReds[\s\S]{0,700}_refreshPureEntryRed\(card\.dataset\.entry/.test(src));
 ok('行动页骨架两层 CSS 齐备', ['action-title', 'action-daily', 'challenge-ground', 'entry', 'dungeons',
   'section-label', 'dungeon-row', 'expedition', 'expedition-text', 'action-footer'].every(c =>
   (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2));

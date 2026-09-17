@@ -577,8 +577,10 @@ export const HOME_UI_CSS = `
 #homeUi .fQuick { width: 100%; margin-top: calc(6px * var(--hs,1)); }
 #homeUi .fNote { text-align: center; }
 
-/* ===== 无尽模式入口（护送页底部左快捷，全通关解锁） ===== */
-#homeUi .battle-bottom .hot.endlessHot { color: #bfe0ff; }
+/* ===== 巡逻入口（护送页底部左快捷，通关第 1 关解锁；无尽已移入右侧栏） ===== */
+#homeUi .battle-bottom .hot.patrolHot { color: #bfe0ff; }
+/* 无尽收进侧栏：与图鉴/排行/试炼同尺寸，仅保留配色以区分模式入口 */
+#homeUi .side-tools .hot.endlessHot { color: #8fd6ff; }
 
 /* ===== 设置（顶栏齿轮 + 弹窗） ===== */
 #homeUi .setGear { flex: none; width: calc(56px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(26px * var(--hs,1));
@@ -814,6 +816,12 @@ export const HOME_UI_CSS = `
 #homeUi .side-tools .hot .questRed { display: none; position: absolute; top: calc(16px * var(--hs,1)); right: calc(14px * var(--hs,1));
   width: calc(20px * var(--hs,1)); height: calc(20px * var(--hs,1)); border-radius: 50%; background: #ff4d4d; border: 1px solid #fff; }
 #homeUi .side-tools .hot .questRed.on, #homeUi .side-tools .hot .questRed.dotOn { display: block; }
+/* 无尽收进侧栏后仍需「锁定只降透明」：原 .off 规则只覆盖底栏与编队条 */
+#homeUi .side-tools .hot.off { opacity: .45; }
+/* 巡逻入口红点（底部左槽，有挂机产出可收时亮） */
+#homeUi .battle-bottom .hot .questRed { display: none; position: absolute; top: calc(2px * var(--hs,1)); right: calc(6px * var(--hs,1));
+  width: calc(9px * var(--hs,1)); height: calc(9px * var(--hs,1)); border-radius: 50%; background: #ff4d4f; border: 1px solid #fff; }
+#homeUi .battle-bottom .hot .questRed.on { display: block; }
 #homeUi .stage-caption { position: absolute; bottom: calc(22px * var(--hs,1)); left: calc(166px * var(--hs,1)); right: calc(166px * var(--hs,1));
   z-index: 3; display: flex; align-items: center; justify-content: space-between; pointer-events: none;
   font-size: calc(28px * var(--hs,1)); color: #dce8f7; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
@@ -1654,6 +1662,12 @@ export const HOME_UI_CSS = `
 #homeUi .side-tools .hot .ic { font-size: calc(24px * var(--pw,2.5)); }
 #homeUi .side-tools .hot .questRed { top: calc(-2px * var(--pw,2.5)); right: calc(5px * var(--pw,2.5));
   width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); background: #d9534f; border: 1px solid #fff; }
+/* 无尽收进侧栏后仍需「锁定只降透明」：.off 规则原本只覆盖底栏与编队条 */
+#homeUi .side-tools .hot.off { opacity: .45; }
+/* 巡逻入口红点（底部左槽，有挂机产出可收时亮） */
+#homeUi .battle-bottom .hot .questRed { display: none; position: absolute; top: calc(2px * var(--pw,2.5)); right: calc(6px * var(--pw,2.5));
+  width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); border-radius: 50%; background: #d9534f; border: 1px solid #fff; }
+#homeUi .battle-bottom .hot .questRed.on { display: block; }
 #homeUi .stage-caption { bottom: calc(8px * var(--pw,2.5)); left: calc(60px * var(--pw,2.5)); right: calc(60px * var(--pw,2.5));
   font-size: calc(10px * var(--pw,2.5)); color: #e8f1f5; text-shadow: 0 1px 3px #153c50; }
 #homeUi .stage-caption b { font-size: calc(12px * var(--pw,2.5)); color: #ffe0a8; }
@@ -1683,7 +1697,7 @@ export const HOME_UI_CSS = `
   gap: calc(12px * var(--pw,2.5)); padding: calc(2px * var(--pw,2.5)) calc(16px * var(--pw,2.5)) calc(8px * var(--pw,2.5) + var(--sab,0px)); }
 #homeUi .battle-bottom .hot { color: #2c4a59; font-size: calc(10px * var(--pw,2.5)); }
 #homeUi .battle-bottom .hot .ic { font-size: calc(28px * var(--pw,2.5)); }
-#homeUi .battle-bottom .hot.endlessHot { color: #2c4a59; }
+#homeUi .battle-bottom .hot.patrolHot { color: #2c4a59; }
 #homeUi .game-button { border: 1px solid #9aa9b2; border-radius: 0; color: #243e4d;
   background: #e4edf2; box-shadow: inset 0 2px #fff, inset 0 -2px #b9cad4; }
 #homeUi .game-button.major { background: #35505f; border-color: #26485b; color: #fff; box-shadow: inset 0 2px #5a7c8d, inset 0 -3px #1f3b48; }
@@ -2453,6 +2467,8 @@ export const HOME_UI_CSS = `
   border-radius: calc(9px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
   display: flex; align-items: center; justify-content: center; font-size: calc(20px * var(--pu,1)); cursor: pointer; }
 #homeUi .popSlots .sc.on { border-color: var(--pk); box-shadow: inset 0 0 0 1px rgba(200,134,47,.45); }
+/* 未解锁槽位（如巡逻里未通关的关卡）：降饱和表示不可选，但仍可点开原因说明 */
+#homeUi .popSlots .sc.lock { opacity: .5; }
 #homeUi .popSlots .sc .tg { position: absolute; left: calc(2px * var(--pu,1)); top: calc(2px * var(--pu,1));
   font-size: calc(8.5px * var(--pu,1)); color: var(--pdim); background: var(--pbg); line-height: 1.25;
   border-radius: calc(3px * var(--pu,1)); padding: 0 calc(3px * var(--pu,1)); }

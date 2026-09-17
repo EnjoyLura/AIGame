@@ -24,6 +24,7 @@ import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/Equipm
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
 import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
+import { PatrolSystem, PATROL_MAX_HOURS, patrolGoldPerHour, patrolMiscPerHour, patrolSweepPerDay, patrolSweepReward, isPatrolStage } from '../core/PatrolSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiStage } from './HomeUiStage';
@@ -72,6 +73,11 @@ export abstract class HomeUiPlay extends HomeUiStage {
      * _refreshPlayPage 重建卡片时会刷一遍；进度变动后由 _refreshTop 走这里增量补刷。
      */
     protected _refreshEntryReds(): void {
+        // 巡逻红点：挂机产出随时间涨，凡是走 _refreshTop 的时机都顺带校准一次
+        if (this._patrolRed) {
+            const ps = PatrolSystem.instance;
+            this._patrolRed.classList.toggle('on', ps.unlocked() && ps.hasClaimable());
+        }
         const grid = this._playGridEl;
         if (!grid) {
             return;
@@ -684,9 +690,214 @@ export abstract class HomeUiPlay extends HomeUiStage {
 
 
 
+    // ================= 巡逻队（挂机收益 + 扫荡） =================
+
+    /** 巡逻页当前选中的驻扎关卡（0 = 用系统里已驻扎的 / 默认最后一关） */
+    protected _patrolSel = 0;
+
+    /**
+     * 巡逻队（XL 二级页）：驻扎关卡选择（只在已通关关卡里挑）+ 挂机产出累积
+     * （真实时间计时，8 小时封顶）+ 一键收取 + 扫荡（花体力瞬时再清一遍）。
+     *
+     * 收益口径全在 PatrolSystem：金币按「已通关关数 × 400/小时 ×（1 + 关卡加成）」，
+     * 所以推得越远、驻扎关卡越靠后，收益越高——这是「打过的关卡越多越有收益」的落点。
+     */
+    protected _openPatrolModal(): void {
+        const ps = PatrolSystem.instance;
+        const gm = GameManager.instance;
+        const cleared = Math.max(0, Math.min(FINAL_STAGE_ID, gm.stageCleared));
+        const opt = (): PopOpts => {
+            // 默认驻扎：已驻扎的关卡优先，否则停在「最新通关的那一关」（收益最好的已通关关）
+            const fallback = Math.max(1, cleared);
+            let sel = this._patrolSel || ps.stageId || fallback;
+            sel = Math.min(Math.max(1, sel), Math.max(1, cleared));
+            this._patrolSel = sel;
+            const def = stageInfo(sel);
+            const stationed = ps.stageId === sel;
+            const pending = stationed ? ps.pendingYield() : { gold: 0, misc: [] };
+            const goldRate = patrolGoldPerHour(sel);
+            const miscRate = patrolMiscPerHour(sel);
+            const md = miscDef(miscRate.id);
+            const sweep = ps.canSweep(sel);
+            const left = ps.sweepLeft();
+            const perDay = patrolSweepPerDay();
+            const preview = patrolSweepReward(sel);
+            const previewMd = miscDef(preview.misc[0]?.id ?? '');
+            const pick = (id: number): void => {
+                this._patrolSel = id;
+                SoundFx.play('ui');
+                this._popRebuild(opt());
+            };
+            const progress = Math.min(100, Math.round(ps.accruedSecs() / (PATROL_MAX_HOURS * 3600) * 100));
+            return {
+                tier: 2,
+                size: 'XL',
+                title: '🛡️ 巡逻队',
+                barBack: true,
+                show: {
+                    icon: '🛡️',
+                    tier: stationed ? (ps.isCapped() ? '已满仓' : '巡逻中') : '待命',
+                    name: stationed ? `第 ${sel} 关 · ${def.name}` : '尚未派出巡逻队',
+                    sub: `已通关 ${cleared} 关 · 挂机 🪙${goldRate.toLocaleString()}/小时`
+                },
+                subtitle: `驻扎已通关关卡离线攒收益（${PATROL_MAX_HOURS} 小时封顶）· 扫荡今日剩余 ${left}/${perDay} 次`,
+                // 驻扎关卡只能挑打过的：这里列全 5 关，未通关的置灰并用 status 说明
+                slots: sb => {
+                    for (let id = 1; id <= FINAL_STAGE_ID; id++) {
+                        const open = id <= cleared;
+                        const cap = ps.accruedSecs() >= PATROL_MAX_HOURS * 3600;
+                        const cell = this._popSlot({
+                            icon: open ? (id === sel ? '🛡️' : '🚩') : '🔒',
+                            tier: `第${id}关`,
+                            on: id === sel,
+                            // 红点：正在驻扎且已攒够（或顶到上限）时提示可收
+                            red: open && ps.stageId === id && (cap || ps.hasClaimable()),
+                            // 未通关的格子不是死键：点了说明为什么不能选（不留「看着能点却没反应」）
+                            onClick: open
+                                ? () => pick(id)
+                                : () => this._openUnlockGate('无法驻扎', '🔒', `第 ${id} 关尚未通关，巡逻只服务已通关的关卡`)
+                        });
+                        if (!open) {
+                            cell.classList.add('lock');
+                        }
+                        sb.appendChild(cell);
+                    }
+                },
+                build: c => {
+                    // 正在别处巡逻时先说清队伍在哪：否则「未驻扎」会让人以为收益停了
+                    if (ps.isPatrolling && !stationed) {
+                        c.appendChild(this._popKV('巡逻队位置', `第 ${ps.stageId} 关 · 已累积 ${ps.accruedText()}（点该关可回去收取）`, 'total'));
+                    }
+                    c.appendChild(this._popSec(`🚩 第 ${sel} 关 · ${def.name}`));
+                    c.appendChild(this._popKV('关卡状态', sel <= cleared ? '已通关 · 可驻扎 / 可扫荡' : '未通关 · 通关后才能巡逻'));
+                    c.appendChild(this._popKV('挂机产出', `🪙 ${goldRate.toLocaleString()}/小时 · ${md ? md.ic : '📦'}${md ? md.name : miscRate.id} ${miscRate.n}/小时`, 'total'));
+                    c.appendChild(this._popKV('累积进度', stationed ? `${ps.accruedText()} / ${PATROL_MAX_HOURS} 小时` : '未驻扎', stationed && ps.isCapped() ? 'total' : 'free'));
+                    if (stationed) {
+                        const yieldText = [`🪙 ${pending.gold.toLocaleString()} 金币`];
+                        for (const m of pending.misc) {
+                            const pmd = miscDef(m.id);
+                            yieldText.push(`${pmd ? pmd.ic : '📦'} ${pmd ? pmd.name : m.id}×${m.n}`);
+                        }
+                        c.appendChild(this._popKV('待领取', yieldText.join(' · '), 'total'));
+                    }
+                    c.appendChild(this._popAttr({
+                        icon: '📈',
+                        text: `收益随进度增长：每通关 1 关，挂机金币 +${(400).toLocaleString()}/小时；驻扎关卡越靠后另有最高 +32% 加成`
+                    }));
+                    if (stationed && ps.isCapped()) {
+                        c.appendChild(this._popWarn(`⚠️ 已顶到 ${PATROL_MAX_HOURS} 小时上限，超出部分不再累积，请尽快收取`));
+                    } else if (stationed) {
+                        c.appendChild(this._popWarn(`⏳ 已在第 ${ps.stageId} 关巡逻 · 随时可收取，收取后重新计时`));
+                    } else if (ps.isPatrolling) {
+                        c.appendChild(this._popWarn(`🚩 巡逻队正在第 ${ps.stageId} 关：点「派驻第 ${sel} 关」会先自动收取，再转驻本关`));
+                    } else {
+                        c.appendChild(this._popWarn('🚩 当前未驻扎：选好关卡后点「派驻巡逻队」开始计时'));
+                    }
+                    c.appendChild(this._popSec('⚔️ 扫荡 · 花体力立刻再清一遍'));
+                    c.appendChild(this._popKV('扫荡对象', `第 ${sel} 关 · ${def.name}`));
+                    c.appendChild(this._popKV('预计产出', `🪙 ${preview.gold.toLocaleString()} · ${previewMd ? previewMd.ic : '📦'}${previewMd ? previewMd.name : ''}×${preview.misc[0]?.n ?? 0}`, 'total'));
+                    c.appendChild(this._popKV('今日剩余', `${left}/${perDay} 次`, left <= 0 ? 'total' : 'free'));
+                    c.appendChild(this._popKV('消耗', `⚡ ${BattleConfig.RUN_STAMINA_COST} 体力 / 次`));
+                    if (!sweep.ok) {
+                        c.appendChild(this._popWarn(`🔒 ${sweep.reason ?? '不可扫荡'}`));
+                    }
+                    c.appendChild(this._popSec('其余已通关关卡'));
+                    let listed = 0;
+                    for (let id = cleared; id >= 1; id--) {
+                        if (id === sel) {
+                            continue;
+                        }
+                        listed++;
+                        const d = stageInfo(id);
+                        const gr = patrolGoldPerHour(id);
+                        c.appendChild(this._popRow({
+                            icon: ps.stageId === id ? '🛡️' : '🚩',
+                            title: `第 ${id} 关 · ${d.name}`,
+                            tag: ps.stageId === id ? '巡逻中' : undefined,
+                            lines: [`🪙 ${gr.toLocaleString()}/小时`, '已通关 · 可驻扎/扫荡'],
+                            on: ps.stageId === id,
+                            action: { label: '选 中', kind: 'gold', onClick: () => pick(id) }
+                        }));
+                    }
+                    if (listed === 0) {
+                        c.appendChild(this._popEmpty('暂无其他已通关关卡', '继续推进主线可解锁更多巡逻点', '🚩'));
+                    }
+                },
+                ctas: stationed
+                    ? [
+                        {
+                            label: pending.gold > 0 || pending.misc.length > 0 ? `🪙 收 取 ${pending.gold.toLocaleString()}` : '暂 无 产 出',
+                            kind: 'gold',
+                            disabled: !(pending.gold > 0 || pending.misc.length > 0),
+                            onDisabled: () => this._toast('还没攒够产出 · 巡逻中会持续累积'),
+                            red: pending.gold > 0,
+                            onClick: () => {
+                                SoundFx.play('coin');
+                                const y = ps.claim();
+                                if (y) {
+                                    this._toast(`巡逻收取：🪙 ${y.gold.toLocaleString()}${y.misc.length ? ` · ${md ? md.name : ''}×${y.misc[0].n}` : ''}`);
+                                }
+                                this._refreshTop();
+                                this._popRebuild(opt());
+                            }
+                        },
+                        {
+                            label: sweep.ok ? `⚔️ 扫 荡 ⚡${BattleConfig.RUN_STAMINA_COST}` : sweep.reason ?? '不可扫荡',
+                            kind: 'green',
+                            disabled: !sweep.ok,
+                            // 禁用不是死键：按缺口给拦截弹窗或差额说明
+                            onDisabled: () => {
+                                if (!sweep.ok) {
+                                    if (ps.sweepLeft() <= 0) {
+                                        this._toast(sweep.reason ?? '今日扫荡次数已用完');
+                                    } else if (!isPatrolStage(sel)) {
+                                        this._openUnlockGate('无法扫荡', '🚩', sweep.reason ?? '该关尚未通关');
+                                    } else {
+                                        this._openStaminaGate(BattleConfig.RUN_STAMINA_COST, () => this._openPatrolModal());
+                                    }
+                                }
+                            },
+                            onClick: () => {
+                                SoundFx.unlock();
+                                const r = ps.sweep(sel);
+                                if (r) {
+                                    SoundFx.play('coin');
+                                    const rmd = miscDef(r.misc[0]?.id ?? '');
+                                    this._toast(`扫荡 ${r.stageName}：🪙 ${r.gold.toLocaleString()}${rmd ? ` · ${rmd.name}×${r.misc[0].n}` : ''}`);
+                                } else {
+                                    this._toast(ps.canSweep(sel).reason ?? '扫荡失败');
+                                }
+                                this._refreshTop();
+                                this._popRebuild(opt());
+                            }
+                        }
+                    ]
+                    : [{
+                        label: `🚩 派 驻 第 ${sel} 关`,
+                        kind: 'gold',
+                        disabled: sel > cleared,
+                        onDisabled: () => this._openUnlockGate('无法驻扎', '🚩', `第 ${sel} 关尚未通关，巡逻只服务已通关的关卡`),
+                        onClick: () => {
+                            SoundFx.unlock();
+                            const auto = ps.setStage(sel);
+                            if (auto && (auto.gold > 0 || auto.misc.length > 0)) {
+                                this._toast(`已转驻 · 上次产出自动收取 🪙 ${auto.gold.toLocaleString()}`);
+                            } else {
+                                this._toast(`巡逻队已派驻第 ${sel} 关`);
+                            }
+                            this._refreshTop();
+                            this._popRebuild(opt());
+                        }
+                    }],
+                note: '离线也计时 · 8 小时封顶 · 扫荡次数每日 00:00 重置 · 通关越多收益越高'
+            };
+        };
+        this._openPop(opt());
+    }
+
+
     /** 进入资源副本：走流程状态机（内部校验次数/体力/档位，失败给出具体原因） */
-    protected _startDungeon(id: DungeonId, tier: number): void {
-        if (!this._root) {
+    protected _startDungeon(id: DungeonId, tier: number): void {        if (!this._root) {
             return;
         }
         const def = dungeonDef(id);
