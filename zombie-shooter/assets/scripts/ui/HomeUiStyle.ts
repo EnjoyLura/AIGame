@@ -1437,7 +1437,8 @@ export const HOME_UI_CSS = `
 #homeUi .viewport { background: #e6eef3; background-image: none; }
 #homeUi .screen { padding: calc(16px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) calc(20px * var(--pw,2.5)); }
 /* 护送页通栏：章节头/场景/里程碑/编队条/底部 CTA 各自带内边距，页面本身不留走廊 */
-#homeUi .screen.sStage { padding: 0 calc(10px * var(--pw,2.5)) calc(10px * var(--pw,2.5)); }
+/* 左右不留走廊：稿里 .stage 是通栏，两侧快捷列 left/right 3px 才是贴边的；留 10px 会让列位内缩、场景压到列上 */
+#homeUi .screen.sStage { padding: 0 0 calc(10px * var(--pw,2.5)); }
 #homeUi .screen.on { display: block; }
 #homeUi .screen.sStage.on { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 #homeUi .panel { background: linear-gradient(#fcfdfe, #eaf1f5); border: 1px solid #b5c8d5;
@@ -2659,7 +2660,7 @@ export const HOME_UI_CSS = `
 #homeUi .hot small { font-weight: 400; line-height: calc(13px * var(--pw,2.5)); }
 #homeUi .hot:active { filter: brightness(.85); }
 #homeUi .screen.sHeroes { display: none; flex-direction: column; height: 100%; overflow: hidden;
-  padding: 0 calc(3px * var(--pw,2.5)) 0; }
+  padding: 0; }
 #homeUi .screen.sHeroes.on { display: flex; }
 #homeUi .hero-roster { flex: none; height: calc(38px * var(--pw,2.5)); display: flex; align-items: center; justify-content: center;
   gap: calc(8px * var(--pw,2.5)); background: #d8d8d8; border-bottom: 1px solid #bbb; }
@@ -2972,5 +2973,7 @@ export const HOME_UI_CSS = `
 #homeUi .screen.sStage .chapter-head { height: calc(45px * var(--pw,2.5)); gap: calc(16px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head h1 { font-size: calc(19px * var(--pw,2.5)); line-height: calc(23px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); margin-top: 0; }
-#homeUi .screen.sStage .chapter-head .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5)); font-size: calc(25px * var(--pw,2.5)); }`;
+#homeUi .screen.sStage .chapter-head .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5)); font-size: calc(25px * var(--pw,2.5)); }
+/* 关卡场景：两侧快捷列在 3px 贴边占 49px，场景左右让出 56px，列与场景不再互压 */
+#homeUi .screen.sStage .stage-scene { inset: 6% calc(56px * var(--pw,2.5)) 0; }`;
 
