@@ -424,5 +424,50 @@ ok('背包件穿戴后能过存档校验（虚拟 id bag:slot:tier 不再被当�
   && /if \(!id\.startsWith\('bag:'\)\) \{/.test(gmSrc) && /isEquipTier\(Number\(parts\[2\]\)\)/.test(gmSrc)
   && /this\._equipIdOk\(st\.id, slot\)/.test(gmSrc));
 
+// ================= 16. 战斗局内布局（对照 ux-layout-review/battle.html，除车尾区外） =================
+const domHudSrc = fs.readFileSync('assets/scripts/ui/DomHud.ts', 'utf8');
+const luSrc = fs.readFileSync('assets/scripts/ui/LevelUpPanel.ts', 'utf8');
+const battleMgrSrc = fs.readFileSync('assets/scripts/battle/BattleManager.ts', 'utf8');
+// ① 顶栏：122 设计像素高 + 大触点按钮 + 菜单宽按钮压制基类 + chip 上下两行 + 经验区入流
+ok('顶栏高 122 设计像素（交互稿 ①，390 屏显示 44px）', /height: calc\(122px \* var\(--s, 1\)\)/.test(domHudSrc));
+ok('顶栏按钮 105×94 大触点（62×62 旧尺寸已弃用）', /width: calc\(105px \* var\(--s,1\)\); height: calc\(94px \* var\(--s,1\)\)/.test(domHudSrc));
+ok('顶栏菜单宽按钮压制 .menuBtn 基类（基类 min-width:440 会把经验区挤成 0 宽）',
+  /#domHud \.hudBtn\.menuBtn \{ position: relative; width: calc\(127px \* var\(--s,1\)\); min-width: 0; padding: 0;/.test(domHudSrc));
+ok('波次/击杀 chip 上下两行 + border-box（页面无全局盒模型重置，div 定尺寸必须显式声明）',
+  /#domHud \.chip \{ box-sizing: border-box; display: flex; flex-direction: column;/.test(domHudSrc)
+  && /min-width: calc\(122px \* var\(--s,1\)\)/.test(domHudSrc));
+ok('经验区入流：xpWrap flex:1 + 等级徽章在左（不再绝对居中叠轨道）',
+  /#domHud \.topbar \.xpWrap \{ flex: 1 1 auto; min-width: 0;/.test(domHudSrc)
+  && /#domHud \.levelBadge \{ flex: none; box-sizing: border-box;/.test(domHudSrc));
+// ② BOSS 条与波次弹报
+ok('BOSS 条贴顶栏下沿 + 加宽（139 设计像素 + 692 宽）',
+  /top: calc\(var\(--sat, 0px\) \+ 139px \* var\(--s,1\)\)/.test(domHudSrc)
+  && /width: calc\(692px \* var\(--s,1\)\)/.test(domHudSrc));
+ok('波次弹报 = 主行 + 副行结构（popupMain/popupSub，居中 44%）',
+  /#domHud \.popup \{ position: absolute; top: 44%;/.test(domHudSrc)
+  && /#domHud \.popupMain \{/.test(domHudSrc) && /#domHud \.popupSub \{/.test(domHudSrc)
+  && /popMain\.className = 'popupMain'/.test(domHudSrc) && /popSub\.className = 'popupSub'/.test(domHudSrc));
+ok('弹报副行 = 本波数量（WAVE_START 第三参带上行总量）',
+  /_flashPopup\(`第 \$\{wave\} 波`, count \? `本波 \$\{count\} 只` : ''\)/.test(domHudSrc)
+  && /eventCenter\.emit\(GameEvent\.WAVE_START, waveNumber, table\.length, this\._currentWave\.count\)/.test(battleMgrSrc));
+// H2 打断层：暂停 chip + 互斥说明 + 大标题按 --s 缩放
+ok('暂停层顶部状态 chip + 三出路互斥说明（交互稿 H2 暂停面）',
+  /pauseChip\.textContent = '时间轴已冻结 · 延时回调全部挂起'/.test(domHudSrc)
+  && /pauseNote\.textContent = '升级三选一期间，暂停键不响应'/.test(domHudSrc)
+  && /_bigLabel\('已 暂 停', 66\)/.test(domHudSrc));
+ok('结算大标题按设计像素随 --s 缩放（旧实现写死 raw px，390 屏上放大近 3 倍）',
+  /el\.style\.fontSize = `calc\(\$\{size\.toFixed\(0\)\}px \* var\(--s,1\)\)`/.test(domHudSrc)
+  && /_bigLabel\('护 送 失 败', 84\)/.test(domHudSrc));
+ok('失败标题按模式变体（副本局「副本失败」补齐）',
+  /trialFloor > 0 \? '试 炼 失 败' : dungeon \? '副 本 失 败' : '护 送 失 败'/.test(domHudSrc));
+ok('结算双倍广告按钮文案 = 收益金额（通关/失败分口径，交互稿口径）',
+  /掉落双倍（\+\$\{amt\} 金币）/.test(domHudSrc) && /金币翻倍（\+\$\{amt\}）/.test(domHudSrc)
+  && !/今日 \$\{3 - left\}\/3/.test(domHudSrc));
+// H2 升级三选一：横幅两行 + 暂停 chip 锚可视区顶部（写死画布 y 在横屏裁切时飘出屏外）
+ok('升级面 = 横幅「团队升级」+ 副题「点卡即选，无撤销」',
+  /_makeLabel\('团 队 升 级', 0, 42\)/.test(luSrc)
+  && /_makeLabel\('选择一项强化（点卡即选，无撤销）', 0, 28/.test(luSrc));
+ok('升级面暂停 chip 锚可视区顶部（visH/2 - 194 设计像素）',
+  /view\.getVisibleSize\(\)\.height \/ 2 - 194/.test(luSrc));
 
 process.exit(fail ? 1 : 0);

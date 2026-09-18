@@ -1640,7 +1640,8 @@ export class BattleManager extends Component {
         this._waveCleared = false;
 
         GameManager.instance.wave = waveNumber;
-        eventCenter.emit(GameEvent.WAVE_START, waveNumber, table.length);
+        // 第三参 = 本波怪物总量：DOM HUD 波次弹报副行「本波 N 只」用（交互稿 battle.html ②）
+        eventCenter.emit(GameEvent.WAVE_START, waveNumber, table.length, this._currentWave.count);
     }
 
     private _hpScale = 1;

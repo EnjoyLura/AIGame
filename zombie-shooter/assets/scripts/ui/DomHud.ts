@@ -49,6 +49,8 @@ export class DomHud extends Component {
     /** 低耐久红色边缘晕（危险预警） */
     private _vignette: HTMLDivElement | null = null;
     private _popupEl: HTMLDivElement | null = null;
+    /** 弹报副行（本波数量等上下文，交互稿 battle.html ②） */
+    private _popupSubEl: HTMLDivElement | null = null;
     private _pauseMenu: HTMLDivElement | null = null;
     /** 战斗页菜单浮窗（设置/邮件入口） */
     private _battleMenu: HTMLDivElement | null = null;
@@ -148,7 +150,7 @@ export class DomHud extends Component {
 
     // ================= 事件响应 =================
 
-    private _onWaveStart(wave: number, total: number): void {
+    private _onWaveStart(wave: number, total: number, count?: number): void {
         if (this._waveEl) {
             this._waveEl.textContent = wave > total ? '无尽' : `${wave} / ${total}`;
         }
@@ -163,13 +165,20 @@ export class DomHud extends Component {
             this._clearPanel.style.display = 'none';
         }
         this._root?.classList.remove('paused');
-        this._flashPopup(`第 ${wave} 波`);
+        this._flashPopup(`第 ${wave} 波`, count ? `本波 ${count} 只` : '');
     }
 
-    /** 中央弹报（波次/BOSS 提示共用）：重排强制重播 CSS 动画 */
-    private _flashPopup(text: string): void {
+    /** 中央弹报（波次/BOSS 提示共用）：主行 + 可选副行；重排强制重播 CSS 动画 */
+    private _flashPopup(text: string, sub = ''): void {
         if (this._popupEl) {
-            this._popupEl.textContent = text;
+            const main = this._popupEl.querySelector('.popupMain') as HTMLDivElement | null;
+            if (main) {
+                main.textContent = text;
+            }
+            if (this._popupSubEl) {
+                this._popupSubEl.textContent = sub;
+                this._popupSubEl.style.display = sub ? '' : 'none';
+            }
             this._popupEl.classList.remove('play');
             void (this._popupEl as HTMLElement & { offsetWidth: number }).offsetWidth;
             this._popupEl.classList.add('play');
@@ -265,8 +274,8 @@ export class DomHud extends Component {
         this.scheduleOnce(() => el.remove(), 3);
     }
 
-    /** 结算双倍广告按钮：文案=本次收益金额，限次用完/无收益时隐藏 */
-    private _syncAdButton(btn: HTMLButtonElement | null): void {
+    /** 结算双倍广告按钮：文案=本次收益金额（交互稿口径），限次用完/无收益时隐藏 */
+    private _syncAdButton(btn: HTMLButtonElement | null, kind: 'clear' | 'fail' = 'fail'): void {
         if (!btn) {
             return;
         }
@@ -274,8 +283,10 @@ export class DomHud extends Component {
         const can = earned > 0 && AdService.instance.canShow('doubleSettle');
         btn.style.display = can ? '' : 'none';
         if (can) {
-            const left = AdService.instance.remaining('doubleSettle');
-            btn.textContent = `▶ 看广告 金币×2（今日 ${3 - left}/3）`;
+            const amt = earned.toLocaleString();
+            btn.textContent = kind === 'clear'
+                ? `▶ 看广告 · 掉落双倍（+${amt} 金币）`
+                : `▶ 看广告 · 金币翻倍（+${amt}）`;
         }
     }
 
@@ -290,8 +301,8 @@ export class DomHud extends Component {
             SoundFx.play('coin');
             // 已翻倍：清零缓存防重复领取，按钮收起
             this._lastGoldEarned = 0;
-            this._syncAdButton(this._failAdBtn);
-            this._syncAdButton(this._clearAdBtn);
+            this._syncAdButton(this._failAdBtn, 'fail');
+            this._syncAdButton(this._clearAdBtn, 'clear');
             void btn;
         });
     }
@@ -313,7 +324,6 @@ export class DomHud extends Component {
         }
         this._fillClearBody(bonus, drops, firstClear);
     }
-
     /**
      * 资源副本通关（DUNGEON_CLEAR）：复用关卡通关卡片，标题改副本文案，
      * 掉落区展示本次副本产出（金币/钻石/材料统一转成 LootDrop 形状以便复用渲染）。
@@ -397,7 +407,7 @@ export class DomHud extends Component {
             loot.appendChild(grid);
             body.appendChild(loot);
         }
-        this._syncAdButton(this._clearAdBtn);
+        this._syncAdButton(this._clearAdBtn, 'clear');
         if (this._clearPanel) {
             this._clearPanel.style.display = 'flex';
         }
@@ -419,8 +429,10 @@ export class DomHud extends Component {
         const bm = BattleManager.instance;
         const endless = bm?.isEndless ?? false;
         const trialFloor = bm?.isTrial ? bm.trialFloor : 0;
+        const dungeon = bm?.isDungeon ?? false;
         if (this._failTitle) {
-            this._failTitle.textContent = trialFloor > 0 ? '试 炼 失 败' : '护 送 失 败';
+            // 标题按模式变体（交互稿 battle.html H4）：副本局「副本失败」、试炼局「试炼失败」
+            this._failTitle.textContent = trialFloor > 0 ? '试 炼 失 败' : dungeon ? '副 本 失 败' : '护 送 失 败';
         }
         if (this._failWave) {
             this._failWave.textContent = trialFloor > 0 ? `试炼层数：第 ${trialFloor} 层`
@@ -965,8 +977,8 @@ export class DomHud extends Component {
         stamp.textContent = BUILD_STAMP + (bt ? '·' + bt : '');
         root.appendChild(stamp);
 
-        // 顶部窄条 HUD（参考主流竖屏射击单行布局）：左按钮组 / 中央等级+经验条 / 右波次·击杀。
-        // 高度压到最小给战斗区让位；战斗时长不占 HUD（统计面板已有）。
+        // 顶部条 HUD（交互稿 battle.html ①）：左按钮组 / 中 等级徽章+经验条(flex:1) / 右 波次·击杀(上下两行)。
+        // 高度 122 设计像素，触点与字号按稿放大；战斗时长不占 HUD（统计面板已有）。
         const top = document.createElement('div');
         top.className = 'topbar';
         root.appendChild(top);
@@ -975,15 +987,18 @@ export class DomHud extends Component {
         top.appendChild(topLeft);
         topLeft.appendChild(this._button('❚❚', () => this._togglePause(), 'pauseBtn'));
         topLeft.appendChild(this._button('📊', () => this._toggleStats(), 'statsBtn'));
-        // 经验条并入顶栏中央：等级徽章 + 渐变发光条
+        // 经验区：等级徽章在左、经验条 flex:1 撑满按钮与右侧 chip 之间
+        const xpWrap = document.createElement('div');
+        xpWrap.className = 'xpWrap';
+        top.appendChild(xpWrap);
+        this._levelEl = this._label(xpWrap, 'levelBadge', 'Lv.1');
         const xpBar = document.createElement('div');
         xpBar.className = 'xpBar';
         this._xpFill = document.createElement('div');
         this._xpFill.className = 'xpFill';
         this._xpFill.style.width = '0%';
         xpBar.appendChild(this._xpFill);
-        top.appendChild(xpBar);
-        this._levelEl = this._label(xpBar, 'levelBadge', 'Lv.1');
+        xpWrap.appendChild(xpBar);
         const topRight = document.createElement('div');
         topRight.className = 'topRight';
         top.appendChild(topRight);
@@ -1023,9 +1038,17 @@ export class DomHud extends Component {
         root.appendChild(vig);
         this._vignette = vig;
 
-        // 中央波次提示
+        // 中央波次提示（交互稿 battle.html ②）：主行金字 + 副行上下文
         this._popupEl = document.createElement('div');
         this._popupEl.className = 'popup';
+        const popMain = document.createElement('div');
+        popMain.className = 'popupMain';
+        this._popupEl.appendChild(popMain);
+        const popSub = document.createElement('div');
+        popSub.className = 'popupSub';
+        popSub.style.display = 'none';
+        this._popupEl.appendChild(popSub);
+        this._popupSubEl = popSub;
         root.appendChild(this._popupEl);
 
         // BOSS 血条：顶部中央，WAVE_BOSS 显示 / BOSS_DEAD 收起
@@ -1046,11 +1069,15 @@ export class DomHud extends Component {
         this._bossBarEl = bossBar;
         this._bossNameEl = bossName;
 
-        // 暂停菜单
+        // 暂停菜单（交互稿 battle.html H2）：顶部状态 chip + 标题 + 三条出路 + 互斥说明
         const pm = document.createElement('div');
         pm.className = 'menuOverlay';
         pm.style.display = 'none';
-        pm.appendChild(this._bigLabel('已暂停', 84));
+        const pauseChip = document.createElement('div');
+        pauseChip.className = 'pauseChip';
+        pauseChip.textContent = '时间轴已冻结 · 延时回调全部挂起';
+        pm.appendChild(pauseChip);
+        pm.appendChild(this._bigLabel('已 暂 停', 66));
         pm.appendChild(this._menuButton('继 续 游 戏', '#4dd0e9', () => this._togglePause()));
         pm.appendChild(this._menuButton('重 新 挑 战', '#ffa726', () => this._restart()));
         pm.appendChild(this._menuButton('退 出 关 卡', '#ef5350', () => {
@@ -1059,6 +1086,10 @@ export class DomHud extends Component {
             }
             BattleManager.instance?.exitRun();
         }));
+        const pauseNote = document.createElement('div');
+        pauseNote.className = 'menuNote';
+        pauseNote.textContent = '升级三选一期间，暂停键不响应';
+        pm.appendChild(pauseNote);
         root.appendChild(pm);
         this._pauseMenu = pm;
 
@@ -1267,8 +1298,8 @@ export class DomHud extends Component {
         fp.style.display = 'none';
         const card = document.createElement('div');
         card.className = 'failCard';
-        // 标题复用（试炼局显示「试炼失败」，普通局「护送失败」），_fillGameOver 按模式改文案
-        this._failTitle = this._bigLabel('护 送 失 败', 72);
+        // 标题复用（试炼局显示「试炼失败」，副本局「副本失败」，普通局「护送失败」），_fillGameOver 按模式改文案
+        this._failTitle = this._bigLabel('护 送 失 败', 84);
         card.appendChild(this._failTitle);
         this._failWave = this._label(card, 'failLine', '');
         this._failKill = this._label(card, 'failLine', '');
@@ -1354,7 +1385,8 @@ export class DomHud extends Component {
         const el = document.createElement('div');
         el.className = 'bigLabel';
         el.textContent = text;
-        el.style.fontSize = `${size.toFixed(0)}px`;
+        // 尺寸按设计像素标注、随画布缩放（--s），与交互稿 30px 级结算标题口径一致
+        el.style.fontSize = `calc(${size.toFixed(0)}px * var(--s,1))`;
         return el;
     }
 
@@ -1399,43 +1431,46 @@ export class DomHud extends Component {
 #domHud button { pointer-events: auto; cursor: pointer; font: inherit;
   transition: transform .06s ease, filter .06s ease; }
 #domHud button:active { transform: translateY(calc(4px * var(--s,1))) scale(.98); filter: brightness(.92); }
-/* 顶部窄条 HUD：高 88 设计像素 + 安全区避让（刘海屏不遮挡），单行布局 */
-#domHud .topbar { position: absolute; top: var(--sat, 0px); left: 0; right: 0; height: calc(88px * var(--s, 1));
-  display: flex; align-items: center; justify-content: space-between; gap: calc(12px * var(--s,1));
-  padding: 0 calc(12px * var(--s,1));
+/* 顶部条 HUD：高 122 设计像素 + 安全区避让（刘海屏不遮挡），单行布局（交互稿 battle.html ①） */
+#domHud .topbar { position: absolute; top: var(--sat, 0px); left: 0; right: 0; height: calc(122px * var(--s, 1));
+  display: flex; align-items: center; justify-content: space-between; gap: calc(17px * var(--s,1));
+  padding: 0 calc(22px * var(--s,1));
   background: linear-gradient(180deg, rgba(9,14,20,.92) 0%, rgba(13,22,31,.68) 62%, rgba(13,22,31,0) 100%); }
-#domHud .topLeft { flex: none; display: flex; gap: calc(12px * var(--s,1)); }
-#domHud .topRight { flex: none; display: flex; align-items: center; gap: calc(12px * var(--s,1)); }
-#domHud .chip { display: flex; align-items: baseline; gap: calc(6px * var(--s,1)); padding: calc(6px * var(--s,1)) calc(16px * var(--s,1));
-  border-radius: calc(999px * var(--s,1)); background: rgba(10,18,26,.62);
+#domHud .topLeft { flex: none; display: flex; gap: calc(17px * var(--s,1)); }
+#domHud .topRight { flex: none; display: flex; align-items: center; gap: calc(17px * var(--s,1)); }
+/* 波次/击杀 chip：标签在上、数值在下（交互稿口径），加宽保证三位数字不换行。
+   页面无全局 border-box 重置，div 类定尺寸元素必须显式声明，否则边框内补全撑出一圈 */
+#domHud .chip { box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: calc(3px * var(--s,1));
+  min-width: calc(122px * var(--s,1)); padding: calc(6px * var(--s,1)) calc(19px * var(--s,1));
+  border-radius: calc(19px * var(--s,1)); background: rgba(10,18,26,.62);
   border: calc(2px * var(--s,1)) solid rgba(128,222,228,.25);
   box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.4); }
-#domHud .chipLab { font-size: calc(19px * var(--s,1)); color: #8fa0ab; letter-spacing: 1px; }
-#domHud .chipVal { font-size: calc(26px * var(--s,1)); color: #ecf1f1; font-variant-numeric: tabular-nums; }
+#domHud .chipLab { font-size: calc(24px * var(--s,1)); color: #8fa0ab; letter-spacing: 1px; }
+#domHud .chipVal { font-size: calc(30px * var(--s,1)); color: #ecf1f1; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #domHud .waveChip { border-color: rgba(255,204,85,.4); }
 #domHud .waveChip .chipVal { color: #ffd76a; font-weight: 800; }
-/* 经验条居中占位：等级徽章叠在轨道左端 */
-#domHud .topbar .xpBar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: calc(360px * var(--s,1)); height: calc(22px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+/* 经验区并入顶栏中段：等级徽章在左、经验条 flex:1 撑满按钮与 chip 之间 */
+#domHud .topbar .xpWrap { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: calc(14px * var(--s,1)); }
+#domHud .topbar .xpBar { position: relative; flex: 1; min-width: 0; height: calc(25px * var(--s,1)); border-radius: calc(14px * var(--s,1));
+  box-sizing: border-box;
   background: rgba(8,14,20,.8); border: calc(2px * var(--s,1)) solid rgba(128,222,228,.28);
-  overflow: visible; box-shadow: inset 0 calc(3px * var(--s,1)) calc(6px * var(--s,1)) rgba(0,0,0,.5); }
+  overflow: hidden; box-shadow: inset 0 calc(3px * var(--s,1)) calc(6px * var(--s,1)) rgba(0,0,0,.5); }
 #domHud .topbar .xpFill { position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
   background: linear-gradient(90deg, #1e88a8, #4dd0e9 60%, #a5f3ff);
   box-shadow: 0 0 calc(12px * var(--s,1)) rgba(77,208,233,.55); transition: width .25s ease; }
-#domHud .levelBadge { position: absolute; left: calc(-8px * var(--s,1)); top: 50%;
-  transform: translateY(-50%); z-index: 1; min-width: calc(84px * var(--s,1)); height: calc(40px * var(--s,1));
-  padding: 0 calc(14px * var(--s,1)); border-radius: calc(999px * var(--s,1));
-  display: flex; align-items: center; justify-content: center; font-size: calc(26px * var(--s,1)); font-weight: 800;
+#domHud .levelBadge { flex: none; box-sizing: border-box; min-width: calc(94px * var(--s,1)); height: calc(55px * var(--s,1));
+  padding: 0 calc(14px * var(--s,1)); border-radius: calc(28px * var(--s,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(28px * var(--s,1)); font-weight: 800;
   color: #ffffff; background: linear-gradient(180deg, #2aa7cc, #1e88a8);
   border: calc(3px * var(--s,1)) solid #9be7ff; box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
 #domHud .killChip .chipVal { color: #ff8f9a; font-weight: 800; }
 #domHud .buildStamp { position: absolute; left: calc(16px * var(--s,1)); bottom: calc(10px * var(--s,1));
   font-size: calc(22px * var(--s,1)); color: #c3ced5; letter-spacing: .5px;
   padding: 2px 4px; border-radius: 3px; background: rgba(15,22,30,.75); }
-#domHud .hudBtn { border-radius: calc(18px * var(--s,1)); border: calc(2px * var(--s,1)) solid #80dee4;
-  width: calc(62px * var(--s,1)); height: calc(62px * var(--s,1)); padding: 0;
+#domHud .hudBtn { border-radius: calc(22px * var(--s,1)); border: calc(2px * var(--s,1)) solid #80dee4;
+  width: calc(105px * var(--s,1)); height: calc(94px * var(--s,1)); padding: 0;
   background: linear-gradient(180deg, #344652 0%, #26343f 55%, #1b2630 100%);
-  color: #ecf1f1; font-size: calc(24px * var(--s,1)); line-height: 1;
+  color: #ecf1f1; font-size: calc(39px * var(--s,1)); line-height: 1;
   box-shadow: 0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.45), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.28); }
 #domHud .vehicleBar { position: absolute; left: 50%;
   transform: translateX(-50%); width: calc(480px * var(--s,1)); height: calc(40px * var(--s,1));
@@ -1449,14 +1484,14 @@ export class DomHud extends Component {
   background: linear-gradient(90deg, #8a5a1e, #d99b42 60%, #ffcf7d); transition: width .25s ease; }
 #domHud .vehicleBar.warn .vehicleFill { background: linear-gradient(90deg, #a05a12, #ff8f3d 60%, #ffc37d); }
 #domHud .vehicleBar.danger .vehicleFill { background: linear-gradient(90deg, #8f1d1d, #ff4d4d 60%, #ff9d9d); }
-#domHud .bossBar { position: absolute; left: 50%; top: calc(var(--sat, 0px) + 104px * var(--s,1));
-  transform: translateX(-50%); width: calc(640px * var(--s,1)); display: flex; flex-direction: column;
+#domHud .bossBar { position: absolute; left: 50%; top: calc(var(--sat, 0px) + 139px * var(--s,1));
+  transform: translateX(-50%); width: calc(692px * var(--s,1)); display: flex; flex-direction: column;
   align-items: center; gap: calc(6px * var(--s,1)); padding: calc(10px * var(--s,1)) calc(24px * var(--s,1));
   border-radius: calc(16px * var(--s,1)); background: rgba(8,12,18,.72);
   border: calc(2px * var(--s,1)) solid rgba(255,193,7,.45); }
-#domHud .bossName { font-size: calc(26px * var(--s,1)); color: #ffd75e; letter-spacing: 2px;
+#domHud .bossName { font-size: calc(30px * var(--s,1)); color: #ffd75e; letter-spacing: 2px;
   text-shadow: 0 1px 3px rgba(0,0,0,.85); }
-#domHud .bossTrack { width: 100%; height: calc(18px * var(--s,1)); border-radius: calc(999px * var(--s,1));
+#domHud .bossTrack { width: 100%; height: calc(28px * var(--s,1)); border-radius: calc(999px * var(--s,1));
   background: rgba(0,0,0,.5); overflow: hidden; box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5); }
 #domHud .bossFill { height: 100%; border-radius: inherit;
   background: linear-gradient(90deg, #a3271d, #ef5350 55%, #ff9d7d); transition: width .2s ease; }
@@ -1472,11 +1507,15 @@ export class DomHud extends Component {
 @keyframes vinPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 #domHud .vehicleText { position: absolute; inset: 0; text-align: center;
   font-size: calc(23px * var(--s,1)); line-height: calc(40px * var(--s,1)); font-variant-numeric: tabular-nums; }
-#domHud .popup { position: absolute; top: 16%; left: 50%; transform: translateX(-50%); opacity: 0;
-  font-size: calc(88px * var(--s,1)); font-weight: 800;
+/* 中央弹报（交互稿 battle.html ②）：主行金字 + 副行上下文（本波数量等），居中偏下 */
+#domHud .popup { position: absolute; top: 44%; left: 50%; transform: translateX(-50%); opacity: 0;
+  text-align: center; }
+#domHud .popupMain { font-size: calc(62px * var(--s,1)); font-weight: 800; letter-spacing: calc(8px * var(--s,1));
   background: linear-gradient(180deg, #ffe9a8 0%, #ffcc55 52%, #e8a027 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.6)) drop-shadow(0 0 calc(18px * var(--s,1)) rgba(255,204,85,.35)); }
+#domHud .popupSub { margin-top: calc(17px * var(--s,1)); font-size: calc(28px * var(--s,1)); font-weight: 500;
+  color: #aab4c2; text-shadow: 0 1px 3px rgba(0,0,0,.85); white-space: nowrap; }
 #domHud .popup.play { animation: domPop 1.2s ease-out forwards; }
 @keyframes domPop { 0% { opacity: 0; transform: translateX(-50%) scale(.6); }
   15% { opacity: 1; transform: translateX(-50%) scale(1); }
@@ -1495,6 +1534,12 @@ export class DomHud extends Component {
 #domHud .menuOverlay { position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: calc(40px * var(--s,1));
   background: rgba(0,0,0,.66); pointer-events: auto; }
+/* 暂停层顶部状态 chip + 底部互斥说明（交互稿 battle.html H2 暂停面） */
+#domHud .pauseChip { position: absolute; top: calc(var(--sat, 0px) + 106px * var(--s,1)); left: 50%; transform: translateX(-50%);
+  font-size: calc(28px * var(--s,1)); font-weight: 500; color: #aab4c2; letter-spacing: 1px; white-space: nowrap;
+  border: calc(2px * var(--s,1)) solid rgba(128,222,228,.35); border-radius: calc(999px * var(--s,1));
+  padding: calc(6px * var(--s,1)) calc(28px * var(--s,1)); background: rgba(20,26,34,.72); }
+#domHud .menuNote { font-size: calc(26px * var(--s,1)); color: #8fa0ab; font-weight: 500; }
 #domHud .bigLabel { font-weight: 800; }
 #domHud .menuBtn { min-width: calc(440px * var(--s,1)); padding: calc(26px * var(--s,1)) calc(60px * var(--s,1));
   border: none; border-radius: calc(66px * var(--s,1)); color: #1b262e; font-size: calc(44px * var(--s,1));
@@ -1526,7 +1571,10 @@ export class DomHud extends Component {
   box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.2); }
 
 /* ===== 战斗页菜单 / 邮箱 / 设置浮窗 ===== */
-#domHud .hudBtn.menuBtn { position: relative; }
+/* 顶栏「菜单」宽按钮：压过 .menuBtn 基类的 min-width:440 与 26/60 内补，否则文字竖排溢出、
+   经验区被挤成 0 宽 */
+#domHud .hudBtn.menuBtn { position: relative; width: calc(127px * var(--s,1)); min-width: 0; padding: 0;
+  font-size: calc(33px * var(--s,1)); }
 #domHud .mailRed { display: none; position: absolute; top: calc(-4px * var(--s,1)); right: calc(-4px * var(--s,1));
   width: calc(20px * var(--s,1)); height: calc(20px * var(--s,1)); border-radius: 50%; background: #ff5252;
   border: calc(2px * var(--s,1)) solid #ffd5d5; box-shadow: 0 0 calc(8px * var(--s,1)) rgba(255,82,82,.8); }
