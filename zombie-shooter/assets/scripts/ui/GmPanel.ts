@@ -150,7 +150,7 @@ export class GmPanel extends Component {
 
         const status = document.createElement('div');
         status.style.cssText =
-            'padding:2px 6px;background:rgba(20,30,40,.75);color:#9be7ff;' +
+            'padding:2px 6px;background:rgba(20,30,40,.75);color:var(--c-cyan-hi);' +
             'border-radius:4px;max-width:220px;text-align:right;';
         gSlot.appendChild(status);
         this._status = status;

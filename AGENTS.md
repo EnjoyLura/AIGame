@@ -27,6 +27,19 @@ node check-popups.mjs                # 二级浮窗交互稿
 
 构建：`"/c/ProgramData/cocos/editors/Creator/3.8.8/CocosCreator.exe" --project "D:\qoder workspace\AIG\zombie-shooter" --build "platform=web-mobile;debug=true"`
 
+## 美术规范（art-spec）
+
+美术风格基准与资源契约在 `zombie-shooter/art-spec/`：基准图 `game_art_benchmark.png`、
+生图规范 `STYLE-SPEC.md`（色板/prompt 模板/验收清单）、槽位清单 `ASSET-MANIFEST.md`。
+
+- **换图不换 key**：图片路径即契约（`assets/resources/textures/<key>.png`），同名覆盖全游戏生效；
+  新槽位先登记 `AssetLib.ts` 的 MANIFEST，文件可以后到（缺图自动回退占位）。
+- **颜色只走 token**：DOM 层一律 `var(--c-*)`（`assets/scripts/ui/UiTheme.ts` 是唯一色值来源，
+  主城/局内/登录三处样式共用）；禁止在新代码里散落 hex。换肤 = 改 UiTheme 值 + 换图，不动布局。
+- 历史散落 hex 用 `python tools/tokenize_colors.py --apply` 迁移；引号内色值
+  （canvas `Color('#…')`、颜色数学入参）不走 CSS 变量，按其输出的未迁移清单人工同步。
+- 每轮美术替换收尾必跑 `node tools/check-art-manifest.mjs`（清单↔磁盘↔代码引用三方对账）。
+
 ## 设计稿约定
 
 - `ux-redesign/` 下的旧版 HTML 设计稿**禁止读取**，交互稿一律从零设计。

@@ -11,6 +11,7 @@ import { SoundFx } from '../core/SoundFx';
 import { FINAL_STAGE_ID } from '../battle/StageData';
 import { LootDrop, lootDropColor, tierRank, miscDef } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
+import { UI_TOKENS_CSS } from './UiTheme';
 import { MailSystem, MailState, mailTimeText, mailExpiringSoon } from '../core/MailSystem';
 import { DungeonReward, dungeonDef, DUNGEON_TIER_NAMES } from '../core/DungeonSystem';
 
@@ -659,7 +660,7 @@ export class DomHud extends Component {
             attach.appendChild(items);
             const btn = document.createElement('button');
             btn.className = 'menuBtn mailClaimBtn';
-            btn.style.background = 'linear-gradient(180deg, #c5e1a5 0%, #9ccc65 52%, #7cb342 100%)';
+            btn.style.background = 'linear-gradient(180deg, #c5e1a5 0%, var(--c-ok-mid) 52%, #7cb342 100%)';
             if (m.claimed) {
                 btn.textContent = '已领取';
                 btn.disabled = true;
@@ -1423,10 +1424,10 @@ export class DomHud extends Component {
         }
         DomHud._styleInjected = true;
         const style = document.createElement('style');
-        style.textContent = `
+        style.textContent = `${UI_TOKENS_CSS}
 #domHud { position: fixed; inset: 0; z-index: 8000; pointer-events: none;
   font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  font-weight: 700; color: #ecf1f1; user-select: none; }
+  font-weight: 700; color: var(--c-ice-2); user-select: none; }
 #domHud .hudLabel, #domHud .bigLabel { text-shadow: 0 1px 2px rgba(0,0,0,.85); white-space: nowrap; }
 #domHud button { pointer-events: auto; cursor: pointer; font: inherit;
   transition: transform .06s ease, filter .06s ease; }
@@ -1445,10 +1446,10 @@ export class DomHud extends Component {
   border-radius: calc(19px * var(--s,1)); background: rgba(10,18,26,.62);
   border: calc(2px * var(--s,1)) solid rgba(128,222,228,.25);
   box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.4); }
-#domHud .chipLab { font-size: calc(24px * var(--s,1)); color: #8fa0ab; letter-spacing: 1px; }
-#domHud .chipVal { font-size: calc(30px * var(--s,1)); color: #ecf1f1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#domHud .chipLab { font-size: calc(24px * var(--s,1)); color: var(--c-dim-1); letter-spacing: 1px; }
+#domHud .chipVal { font-size: calc(30px * var(--s,1)); color: var(--c-ice-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #domHud .waveChip { border-color: rgba(255,204,85,.4); }
-#domHud .waveChip .chipVal { color: #ffd76a; font-weight: 800; }
+#domHud .waveChip .chipVal { color: var(--c-gold-bright); font-weight: 800; }
 /* 经验区并入顶栏中段：等级徽章在左、经验条 flex:1 撑满按钮与 chip 之间 */
 #domHud .topbar .xpWrap { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: calc(14px * var(--s,1)); }
 #domHud .topbar .xpBar { position: relative; flex: 1; min-width: 0; height: calc(25px * var(--s,1)); border-radius: calc(14px * var(--s,1));
@@ -1456,21 +1457,21 @@ export class DomHud extends Component {
   background: rgba(8,14,20,.8); border: calc(2px * var(--s,1)) solid rgba(128,222,228,.28);
   overflow: hidden; box-shadow: inset 0 calc(3px * var(--s,1)) calc(6px * var(--s,1)) rgba(0,0,0,.5); }
 #domHud .topbar .xpFill { position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
-  background: linear-gradient(90deg, #1e88a8, #4dd0e9 60%, #a5f3ff);
+  background: linear-gradient(90deg, #1e88a8, var(--c-xp) 60%, #a5f3ff);
   box-shadow: 0 0 calc(12px * var(--s,1)) rgba(77,208,233,.55); transition: width .25s ease; }
 #domHud .levelBadge { flex: none; box-sizing: border-box; min-width: calc(94px * var(--s,1)); height: calc(55px * var(--s,1));
   padding: 0 calc(14px * var(--s,1)); border-radius: calc(28px * var(--s,1));
   display: flex; align-items: center; justify-content: center; font-size: calc(28px * var(--s,1)); font-weight: 800;
-  color: #ffffff; background: linear-gradient(180deg, #2aa7cc, #1e88a8);
-  border: calc(3px * var(--s,1)) solid #9be7ff; box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
+  color: var(--c-white); background: linear-gradient(180deg, #2aa7cc, #1e88a8);
+  border: calc(3px * var(--s,1)) solid var(--c-cyan-hi); box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
 #domHud .killChip .chipVal { color: #ff8f9a; font-weight: 800; }
 #domHud .buildStamp { position: absolute; left: calc(16px * var(--s,1)); bottom: calc(10px * var(--s,1));
   font-size: calc(22px * var(--s,1)); color: #c3ced5; letter-spacing: .5px;
   padding: 2px 4px; border-radius: 3px; background: rgba(15,22,30,.75); }
-#domHud .hudBtn { border-radius: calc(22px * var(--s,1)); border: calc(2px * var(--s,1)) solid #80dee4;
+#domHud .hudBtn { border-radius: calc(22px * var(--s,1)); border: calc(2px * var(--s,1)) solid var(--c-cyan-soft);
   width: calc(105px * var(--s,1)); height: calc(94px * var(--s,1)); padding: 0;
-  background: linear-gradient(180deg, #344652 0%, #26343f 55%, #1b2630 100%);
-  color: #ecf1f1; font-size: calc(39px * var(--s,1)); line-height: 1;
+  background: linear-gradient(180deg, #344652 0%, var(--c-navy-9) 55%, #1b2630 100%);
+  color: var(--c-ice-2); font-size: calc(39px * var(--s,1)); line-height: 1;
   box-shadow: 0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.45), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.28); }
 #domHud .vehicleBar { position: absolute; left: 50%;
   transform: translateX(-50%); width: calc(480px * var(--s,1)); height: calc(40px * var(--s,1));
@@ -1489,7 +1490,7 @@ export class DomHud extends Component {
   align-items: center; gap: calc(6px * var(--s,1)); padding: calc(10px * var(--s,1)) calc(24px * var(--s,1));
   border-radius: calc(16px * var(--s,1)); background: rgba(8,12,18,.72);
   border: calc(2px * var(--s,1)) solid rgba(255,193,7,.45); }
-#domHud .bossName { font-size: calc(30px * var(--s,1)); color: #ffd75e; letter-spacing: 2px;
+#domHud .bossName { font-size: calc(30px * var(--s,1)); color: var(--c-coin); letter-spacing: 2px;
   text-shadow: 0 1px 3px rgba(0,0,0,.85); }
 #domHud .bossTrack { width: 100%; height: calc(28px * var(--s,1)); border-radius: calc(999px * var(--s,1));
   background: rgba(0,0,0,.5); overflow: hidden; box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5); }
@@ -1511,7 +1512,7 @@ export class DomHud extends Component {
 #domHud .popup { position: absolute; top: 44%; left: 50%; transform: translateX(-50%); opacity: 0;
   text-align: center; }
 #domHud .popupMain { font-size: calc(62px * var(--s,1)); font-weight: 800; letter-spacing: calc(8px * var(--s,1));
-  background: linear-gradient(180deg, #ffe9a8 0%, #ffcc55 52%, #e8a027 100%);
+  background: linear-gradient(180deg, var(--c-gold-hi) 0%, #ffcc55 52%, #e8a027 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.6)) drop-shadow(0 0 calc(18px * var(--s,1)) rgba(255,204,85,.35)); }
 #domHud .popupSub { margin-top: calc(17px * var(--s,1)); font-size: calc(28px * var(--s,1)); font-weight: 500;
@@ -1524,7 +1525,7 @@ export class DomHud extends Component {
 #domHud .dmg { position: absolute; transform: translate(-50%, -50%); font-weight: 800; line-height: 1;
   animation-name: dmgNorm, dmgFade; animation-timing-function: ease-out, linear;
   animation-fill-mode: forwards, forwards; will-change: transform, opacity; }
-#domHud .dmgNorm { color: #ffffff; }
+#domHud .dmgNorm { color: var(--c-white); }
 #domHud .dmgCrit { color: #ff3a3a; }
 @keyframes dmgNorm { 0% { transform: translate(-50%,-50%) scale(.25); }
   18% { transform: translate(-50%,-64%) scale(1.16); } 30% { transform: translate(-50%,-70%) scale(1); }
@@ -1539,10 +1540,10 @@ export class DomHud extends Component {
   font-size: calc(28px * var(--s,1)); font-weight: 500; color: #aab4c2; letter-spacing: 1px; white-space: nowrap;
   border: calc(2px * var(--s,1)) solid rgba(128,222,228,.35); border-radius: calc(999px * var(--s,1));
   padding: calc(6px * var(--s,1)) calc(28px * var(--s,1)); background: rgba(20,26,34,.72); }
-#domHud .menuNote { font-size: calc(26px * var(--s,1)); color: #8fa0ab; font-weight: 500; }
+#domHud .menuNote { font-size: calc(26px * var(--s,1)); color: var(--c-dim-1); font-weight: 500; }
 #domHud .bigLabel { font-weight: 800; }
 #domHud .menuBtn { min-width: calc(440px * var(--s,1)); padding: calc(26px * var(--s,1)) calc(60px * var(--s,1));
-  border: none; border-radius: calc(66px * var(--s,1)); color: #1b262e; font-size: calc(44px * var(--s,1));
+  border: none; border-radius: calc(66px * var(--s,1)); color: var(--c-navy-8); font-size: calc(44px * var(--s,1));
   box-shadow: 0 calc(6px * var(--s,1)) 0 rgba(0,0,0,.4), inset 0 calc(3px * var(--s,1)) 0 rgba(255,255,255,.4),
     0 calc(10px * var(--s,1)) calc(24px * var(--s,1)) rgba(0,0,0,.45);
   text-shadow: 0 1px 0 rgba(255,255,255,.35); }
@@ -1561,13 +1562,13 @@ export class DomHud extends Component {
 #domHud .statsHead { position: relative; width: 100%; text-align: center; }
 #domHud .statsTitle { display: inline-block; font-size: calc(52px * var(--s,1)); font-weight: 800;
   letter-spacing: calc(8px * var(--s,1));
-  background: linear-gradient(180deg, #ffe9a8 0%, #ffcc55 48%, #e8a027 100%);
+  background: linear-gradient(180deg, var(--c-gold-hi) 0%, #ffcc55 48%, #e8a027 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.55)); }
 #domHud .statsClose { position: absolute; top: calc(-6px * var(--s,1)); right: 0;
   width: calc(64px * var(--s,1)); height: calc(64px * var(--s,1)); border-radius: 50%;
-  border: calc(3px * var(--s,1)) solid #62808f; color: #cfe2ea; font-size: calc(30px * var(--s,1)); line-height: 1;
-  background: linear-gradient(180deg, #3a4e5c 0%, #26343f 100%);
+  border: calc(3px * var(--s,1)) solid #62808f; color: var(--c-ice-1); font-size: calc(30px * var(--s,1)); line-height: 1;
+  background: linear-gradient(180deg, #3a4e5c 0%, var(--c-navy-9) 100%);
   box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.2); }
 
 /* ===== 战斗页菜单 / 邮箱 / 设置浮窗 ===== */
@@ -1576,7 +1577,7 @@ export class DomHud extends Component {
 #domHud .hudBtn.menuBtn { position: relative; width: calc(127px * var(--s,1)); min-width: 0; padding: 0;
   font-size: calc(33px * var(--s,1)); }
 #domHud .mailRed { display: none; position: absolute; top: calc(-4px * var(--s,1)); right: calc(-4px * var(--s,1));
-  width: calc(20px * var(--s,1)); height: calc(20px * var(--s,1)); border-radius: 50%; background: #ff5252;
+  width: calc(20px * var(--s,1)); height: calc(20px * var(--s,1)); border-radius: 50%; background: var(--c-danger);
   border: calc(2px * var(--s,1)) solid #ffd5d5; box-shadow: 0 0 calc(8px * var(--s,1)) rgba(255,82,82,.8); }
 #domHud .mailRed.on { display: block; }
 #domHud .battleMenuPanel { gap: calc(24px * var(--s,1)); width: calc(640px * var(--s,1)); }
@@ -1597,45 +1598,45 @@ export class DomHud extends Component {
   border-radius: calc(14px * var(--s,1)); background: rgba(10,18,26,.6);
   border: calc(2px * var(--s,1)) solid rgba(255,255,255,.12); }
 #domHud .mailMid { flex: 1; min-width: 0; }
-#domHud .mailTitle { font-size: calc(30px * var(--s,1)); color: #ffe9a8; }
-#domHud .mailRow.unread .mailTitle { color: #ffd76a; }
-#domHud .mailFrom { font-size: calc(22px * var(--s,1)); color: #8fa0ab; margin-top: calc(6px * var(--s,1)); }
-#domHud .mailTag { flex: none; font-size: calc(22px * var(--s,1)); color: #8fa0ab; }
-#domHud .mailRow.unread .mailTag { color: #ffd76a; }
+#domHud .mailTitle { font-size: calc(30px * var(--s,1)); color: var(--c-gold-hi); }
+#domHud .mailRow.unread .mailTitle { color: var(--c-gold-bright); }
+#domHud .mailFrom { font-size: calc(22px * var(--s,1)); color: var(--c-dim-1); margin-top: calc(6px * var(--s,1)); }
+#domHud .mailTag { flex: none; font-size: calc(22px * var(--s,1)); color: var(--c-dim-1); }
+#domHud .mailRow.unread .mailTag { color: var(--c-gold-bright); }
 #domHud .mailTag.expiring { color: #ffb74d; font-weight: 700; }
 #domHud .mailClaimBar { display: flex; justify-content: center; }
 #domHud .mailClaimBar .mailClaimBtn { margin-top: 0; min-width: calc(480px * var(--s,1)); }
-#domHud .mailEmpty { padding: calc(60px * var(--s,1)) 0; text-align: center; font-size: calc(30px * var(--s,1)); color: #8fa0ab; }
+#domHud .mailEmpty { padding: calc(60px * var(--s,1)) 0; text-align: center; font-size: calc(30px * var(--s,1)); color: var(--c-dim-1); }
 #domHud .mailBody { width: 100%; margin-top: calc(20px * var(--s,1)); text-align: left; }
-#domHud .mailBodyTitle { font-size: calc(38px * var(--s,1)); color: #ffe9a8; font-weight: 800; }
+#domHud .mailBodyTitle { font-size: calc(38px * var(--s,1)); color: var(--c-gold-hi); font-weight: 800; }
 #domHud .mailText { margin-top: calc(18px * var(--s,1)); padding: calc(20px * var(--s,1));
   border-radius: calc(14px * var(--s,1)); background: rgba(0,0,0,.25); }
 #domHud .mailText p { margin: 0 0 calc(10px * var(--s,1)); font-size: calc(26px * var(--s,1)); line-height: 1.7;
-  color: #cfe2ea; font-weight: 500; }
+  color: var(--c-ice-1); font-weight: 500; }
 #domHud .mailAttach { width: 100%; margin-top: calc(24px * var(--s,1)); padding: calc(18px * var(--s,1)) calc(20px * var(--s,1));
   border-radius: calc(14px * var(--s,1)); background: rgba(156,204,101,.08);
   border: calc(2px * var(--s,1)) dashed rgba(156,204,101,.45); display: flex; flex-direction: column;
   align-items: center; gap: calc(14px * var(--s,1)); }
 #domHud .mailAttachHead { align-self: flex-start; font-size: calc(26px * var(--s,1)); color: #c5e1a5; }
-#domHud .mailAttachItems { font-size: calc(28px * var(--s,1)); color: #ffffff; font-weight: 700; }
+#domHud .mailAttachItems { font-size: calc(28px * var(--s,1)); color: var(--c-white); font-weight: 700; }
 #domHud .mailClaimBtn { min-width: calc(320px * var(--s,1)); margin-top: calc(20px * var(--s,1));
   font-size: calc(30px * var(--s,1)); padding: calc(16px * var(--s,1)) calc(30px * var(--s,1)); }
 #domHud .mailClaimBtn:disabled { filter: grayscale(.6); }
-#domHud .bSetHead { width: 100%; text-align: left; font-size: calc(30px * var(--s,1)); color: #ffe9a8;
+#domHud .bSetHead { width: 100%; text-align: left; font-size: calc(30px * var(--s,1)); color: var(--c-gold-hi);
   margin: calc(20px * var(--s,1)) 0 calc(10px * var(--s,1)); }
 #domHud .bSetRow { display: flex; align-items: center; justify-content: space-between; width: 100%;
-  padding: calc(14px * var(--s,1)) calc(4px * var(--s,1)); font-size: calc(26px * var(--s,1)); color: #cfe2ea; }
+  padding: calc(14px * var(--s,1)) calc(4px * var(--s,1)); font-size: calc(26px * var(--s,1)); color: var(--c-ice-1); }
 #domHud .bSetRow.col { flex-direction: column; align-items: stretch; gap: calc(10px * var(--s,1)); }
 #domHud .bSetLine { display: flex; justify-content: space-between; }
-#domHud .bSetLine b { color: #ffe9a8; }
+#domHud .bSetLine b { color: var(--c-gold-hi); }
 #domHud .bSetBtn { min-width: calc(220px * var(--s,1)); height: calc(64px * var(--s,1)); border-radius: calc(32px * var(--s,1));
-  border: calc(2px * var(--s,1)) solid #80dee4; color: #ecf1f1; font-size: calc(26px * var(--s,1));
-  background: linear-gradient(180deg, #344652 0%, #26343f 100%);
+  border: calc(2px * var(--s,1)) solid var(--c-cyan-soft); color: var(--c-ice-2); font-size: calc(26px * var(--s,1));
+  background: linear-gradient(180deg, #344652 0%, var(--c-navy-9) 100%);
   box-shadow: 0 calc(3px * var(--s,1)) 0 rgba(0,0,0,.4); }
 #domHud .bSetBtn.reset { border-color: #ff8f9a; color: #ffb3bb; }
 #domHud .bSetVol { display: flex; align-items: center; gap: calc(14px * var(--s,1)); flex: 1; margin-left: calc(20px * var(--s,1)); }
 #domHud .bSetVol input[type="range"] { flex: 1; }
-#domHud .bSetVol b { min-width: calc(80px * var(--s,1)); text-align: right; color: #9be7ff; }
+#domHud .bSetVol b { min-width: calc(80px * var(--s,1)); text-align: right; color: var(--c-cyan-hi); }
 
 #domHud .statsDivider { width: calc(560px * var(--s,1)); height: calc(4px * var(--s,1));
   margin: calc(18px * var(--s,1)) 0 calc(26px * var(--s,1)); border-radius: calc(2px * var(--s,1));
@@ -1645,8 +1646,8 @@ export class DomHud extends Component {
   min-width: calc(240px * var(--s,1)); padding: calc(18px * var(--s,1)) calc(24px * var(--s,1));
   border-radius: calc(18px * var(--s,1)); background: rgba(10,18,26,.55);
   border: calc(2px * var(--s,1)) solid rgba(128,222,228,.22); }
-#domHud .statChipVal { font-size: calc(44px * var(--s,1)); color: #9be7ff; font-variant-numeric: tabular-nums; }
-#domHud .statChipLab { font-size: calc(26px * var(--s,1)); color: #8fa0ab; letter-spacing: 2px; }
+#domHud .statChipVal { font-size: calc(44px * var(--s,1)); color: var(--c-cyan-hi); font-variant-numeric: tabular-nums; }
+#domHud .statChipLab { font-size: calc(26px * var(--s,1)); color: var(--c-dim-1); letter-spacing: 2px; }
 #domHud .statRow { display: flex; align-items: center; gap: calc(22px * var(--s,1));
   width: calc(850px * var(--s,1)); padding: calc(18px * var(--s,1)) calc(22px * var(--s,1));
   border-radius: calc(20px * var(--s,1)); background: rgba(255,255,255,.035); margin-bottom: calc(16px * var(--s,1)); }
@@ -1654,20 +1655,20 @@ export class DomHud extends Component {
 #domHud .statRank { flex: none; width: calc(56px * var(--s,1)); height: calc(56px * var(--s,1));
   border-radius: calc(16px * var(--s,1)); display: flex; align-items: center; justify-content: center;
   font-size: calc(34px * var(--s,1)); font-weight: 800;
-  background: rgba(10,18,26,.6); color: #8fa0ab; border: calc(2px * var(--s,1)) solid rgba(255,255,255,.12); }
-#domHud .statRank.rank1 { color: #1b262e; background: linear-gradient(180deg, #ffe08a, #f0a72c); border-color: #ffd76a; }
-#domHud .statRank.rank2 { color: #1b262e; background: linear-gradient(180deg, #eef3f5, #a9b8c1); border-color: #d7e2e8; }
-#domHud .statRank.rank3 { color: #1b262e; background: linear-gradient(180deg, #f0c08a, #c07a35); border-color: #e8a86a; }
+  background: rgba(10,18,26,.6); color: var(--c-dim-1); border: calc(2px * var(--s,1)) solid rgba(255,255,255,.12); }
+#domHud .statRank.rank1 { color: var(--c-navy-8); background: linear-gradient(180deg, #ffe08a, #f0a72c); border-color: var(--c-gold-bright); }
+#domHud .statRank.rank2 { color: var(--c-navy-8); background: linear-gradient(180deg, #eef3f5, #a9b8c1); border-color: #d7e2e8; }
+#domHud .statRank.rank3 { color: var(--c-navy-8); background: linear-gradient(180deg, #f0c08a, #c07a35); border-color: #e8a86a; }
 #domHud .statAvatar { flex: none; width: calc(92px * var(--s,1)); height: calc(92px * var(--s,1));
   border-radius: calc(20px * var(--s,1)); background-color: rgba(10,18,26,.6);
   background-size: cover; background-position: 50% 18%;
-  border: calc(3px * var(--s,1)) solid #4dd0e9;
+  border: calc(3px * var(--s,1)) solid var(--c-xp);
   display: flex; align-items: center; justify-content: center;
-  font-size: calc(44px * var(--s,1)); color: #ecf1f1; }
+  font-size: calc(44px * var(--s,1)); color: var(--c-ice-2); }
 #domHud .statInfo { flex: 1; min-width: 0; }
 #domHud .statLine { display: flex; align-items: baseline; gap: calc(14px * var(--s,1)); }
 #domHud .statName { font-size: calc(34px * var(--s,1)); color: #dbe6ec; }
-#domHud .statDmg { flex: 1; text-align: right; font-size: calc(40px * var(--s,1)); color: #ffffff;
+#domHud .statDmg { flex: 1; text-align: right; font-size: calc(40px * var(--s,1)); color: var(--c-white);
   font-variant-numeric: tabular-nums; }
 #domHud .statPct { font-size: calc(34px * var(--s,1)); font-variant-numeric: tabular-nums; }
 #domHud .statBar { height: calc(20px * var(--s,1)); margin: calc(10px * var(--s,1)) 0 calc(8px * var(--s,1));
@@ -1679,29 +1680,29 @@ export class DomHud extends Component {
   font-size: calc(24px * var(--s,1)); font-weight: 500; color: #9aa7b0; }
 #domHud .slotChip b { color: #dbe6ec; font-weight: 700; font-variant-numeric: tabular-nums; }
 #domHud .slotDot { width: calc(14px * var(--s,1)); height: calc(14px * var(--s,1)); border-radius: 50%; }
-#domHud .slotChip:nth-child(1) .slotDot { background: #4dd0e9; }
+#domHud .slotChip:nth-child(1) .slotDot { background: var(--c-xp); }
 #domHud .slotChip:nth-child(2) .slotDot { background: #ffb74d; }
 #domHud .slotChip:nth-child(3) .slotDot { background: #ff6b81; }
 #domHud .failCard { display: flex; flex-direction: column; align-items: center; gap: calc(30px * var(--s,1));
   width: calc(820px * var(--s,1)); padding: calc(60px * var(--s,1)) 0; border-radius: 16px;
   background: linear-gradient(180deg, #31414d 0%, #222d36 100%);
-  border: 3px solid #80dee4;
+  border: 3px solid var(--c-cyan-soft);
   box-shadow: 0 0 0 calc(3px * var(--s,1)) rgba(0,0,0,.55), 0 calc(16px * var(--s,1)) calc(48px * var(--s,1)) rgba(0,0,0,.6),
     inset 0 0 calc(80px * var(--s,1)) rgba(255,167,38,.06); }
 #domHud .failLine { font-size: calc(42px * var(--s,1)); }
-#domHud .failGold { font-size: calc(42px * var(--s,1)); color: #ffd76a; }
+#domHud .failGold { font-size: calc(42px * var(--s,1)); color: var(--c-gold-bright); }
 /* --- 通关结算重设计 --- */
 #domHud .clearOverlay { background: radial-gradient(ellipse at center, rgba(24,52,38,.78) 0%, rgba(0,0,0,.82) 100%); }
 #domHud .clearCard { display: flex; flex-direction: column; align-items: center; gap: calc(30px * var(--s,1));
   width: calc(880px * var(--s,1)); padding: calc(48px * var(--s,1)) calc(30px * var(--s,1)) calc(44px * var(--s,1));
   border-radius: calc(24px * var(--s,1)); background: linear-gradient(180deg, #2c4438 0%, #1e2f27 58%, #17241e 100%);
-  border: calc(3px * var(--s,1)) solid #7bdc7b;
+  border: calc(3px * var(--s,1)) solid var(--c-ok);
   box-shadow: 0 0 0 calc(3px * var(--s,1)) rgba(0,0,0,.55), 0 calc(16px * var(--s,1)) calc(48px * var(--s,1)) rgba(0,0,0,.6),
     inset 0 0 calc(110px * var(--s,1)) rgba(123,220,123,.08);
   animation: clCardIn .38s cubic-bezier(.34,1.56,.64,1); }
 @keyframes clCardIn { from { opacity: 0; transform: scale(.86) translateY(calc(30px * var(--s,1))); } }
 #domHud .clTitle { font-size: calc(84px * var(--s,1)); letter-spacing: calc(12px * var(--s,1));
-  background: linear-gradient(180deg, #eaffea 0%, #7bdc7b 55%, #3f9f4f 100%);
+  background: linear-gradient(180deg, #eaffea 0%, var(--c-ok) 55%, #3f9f4f 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.55));
   animation: clTitleBounce .5s cubic-bezier(.34,1.8,.64,1) .1s both; }
@@ -1712,8 +1713,8 @@ export class DomHud extends Component {
 
 /* ===== 无尽模式（里程碑弹幕） ===== */
 #domHud .endlessBanner { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); z-index: 320;
-  font-size: calc(26px * var(--s,1)); font-weight: 800; color: #ffe9a8; white-space: nowrap;
-  background: rgba(10,18,34,.82); border: 1px solid #8a6a20; border-radius: 99px;
+  font-size: calc(26px * var(--s,1)); font-weight: 800; color: var(--c-gold-hi); white-space: nowrap;
+  background: rgba(10,18,34,.82); border: 1px solid var(--c-gold-dk2); border-radius: 99px;
   padding: calc(10px * var(--s,1)) calc(28px * var(--s,1)); box-shadow: 0 0 16px rgba(240,177,62,.3);
   animation: endlessBan 3s ease-out both; pointer-events: none; }
 @keyframes endlessBan { 0% { opacity: 0; transform: translateX(-50%) translateY(18px); }
@@ -1725,7 +1726,7 @@ export class DomHud extends Component {
   border-radius: calc(16px * var(--s,1)); background: rgba(10,18,14,.55);
   border: calc(2px * var(--s,1)) solid rgba(123,220,123,.25); }
 #domHud .clChip b { font-size: calc(42px * var(--s,1)); color: #dff5e4; font-variant-numeric: tabular-nums; }
-#domHud .clChip.gold b { color: #ffd76a; }
+#domHud .clChip.gold b { color: var(--c-gold-bright); }
 #domHud .clChip span { font-size: calc(24px * var(--s,1)); color: #8fa898; letter-spacing: calc(3px * var(--s,1)); }
 #domHud .clLoot { display: flex; flex-direction: column; align-items: center; gap: calc(16px * var(--s,1));
   width: calc(780px * var(--s,1)); padding: calc(18px * var(--s,1)) 0; border-radius: calc(16px * var(--s,1));
@@ -1741,8 +1742,8 @@ export class DomHud extends Component {
   opacity: 0; animation: clDropIn .45s cubic-bezier(.34,1.56,.64,1) both; }
 #domHud .clDrop.r3 { border-color: #5ab0f0; }
 #domHud .clDrop.r4 { border-color: #c07ef5; }
-#domHud .clDrop.r5 { border-color: #ff9d45; box-shadow: 0 0 calc(20px * var(--s,1)) rgba(255,157,69,.35); }
-#domHud .clDrop.r6 { border-color: #ff5252; box-shadow: 0 0 calc(28px * var(--s,1)) rgba(255,82,82,.5); animation: clDropIn .45s cubic-bezier(.34,1.56,.64,1) both, clRedPulse 1.4s ease-in-out infinite; }
+#domHud .clDrop.r5 { border-color: var(--c-amber-hi); box-shadow: 0 0 calc(20px * var(--s,1)) rgba(255,157,69,.35); }
+#domHud .clDrop.r6 { border-color: var(--c-danger); box-shadow: 0 0 calc(28px * var(--s,1)) rgba(255,82,82,.5); animation: clDropIn .45s cubic-bezier(.34,1.56,.64,1) both, clRedPulse 1.4s ease-in-out infinite; }
 @keyframes clRedPulse { 0%, 100% { box-shadow: 0 0 calc(18px * var(--s,1)) rgba(255,82,82,.4); } 50% { box-shadow: 0 0 calc(38px * var(--s,1)) rgba(255,82,82,.75); } }
 #domHud .clDropIc { font-size: calc(58px * var(--s,1)); line-height: 1; filter: drop-shadow(0 calc(3px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5)); }
 #domHud .clDropNm { font-size: calc(27px * var(--s,1)); text-shadow: 0 calc(2px * var(--s,1)) calc(3px * var(--s,1)) rgba(0,0,0,.6); }
