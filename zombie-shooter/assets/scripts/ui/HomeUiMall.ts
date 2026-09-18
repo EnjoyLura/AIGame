@@ -678,6 +678,7 @@ export abstract class HomeUiMall extends HomeUiCore {
                                 label: soldOut ? '今日已购' : free ? '领 取' : `💎${def.price.amount.toLocaleString()}`,
                                 kind: free ? 'green' : 'gold',
                                 disabled: soldOut,
+                                onDisabled: () => this._toast(`今日购买次数已用完 · 明日 0 点重置`),
                                 onClick: () => {
                                     SoundFx.unlock();
                                     const r = this._giftSvc.buy(def);
@@ -711,6 +712,7 @@ export abstract class HomeUiMall extends HomeUiCore {
             size: 'M',
             banner: `🎉 ${def.name}`,
             art: `${drops.length} 项掉落`,
+            // 奖励已入账，演出只是回顾：允许点遮罩快速收起，不必强迫看完动画
             maskClose: true,
             build: c => {
                 c.appendChild(this._popSec('获得以下物品'));

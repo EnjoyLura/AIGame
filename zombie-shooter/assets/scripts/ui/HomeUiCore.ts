@@ -595,9 +595,16 @@ export abstract class HomeUiCore extends Component {
         const maskClose = opts.maskClose ?? (tier !== 5 && size !== 'XL');
         mask.onclick = (e) => {
             e.stopPropagation();
-            if (e.target === mask && maskClose) {
-                this._closePop();
+            if (e.target !== mask) {
+                return;
             }
+            if (maskClose) {
+                this._closePop();
+                return;
+            }
+            // 不可关的层级（L5 演出 / XL 满屏）也要给出口：静默无反应等于死键（UX 0-4）。
+            // XL 铺满整屏本就点不到遮罩，这里实际服务 L5。
+            this._toast('本层需用底部命令关闭，避免误触中断');
         };
         const pop = this._el('div', `pop ${size} L${tier}`);
         pop.onclick = (e) => e.stopPropagation();
@@ -1652,6 +1659,7 @@ export abstract class HomeUiCore extends Component {
                             label: '观 看',
                             kind: 'green',
                             disabled: left <= 0 || full,
+                            onDisabled: () => this._toast(full ? '体力已满，先消耗一些再来领' : '今日广告额度已用完 · 隔日重置'),
                             onClick: () => {
                                 SoundFx.unlock();
                                 AdService.instance.claimReward('stamina', () => {
@@ -1674,6 +1682,7 @@ export abstract class HomeUiCore extends Component {
                             label: `💎 ${STAMINA_BUY_COST}`,
                             kind: 'gold',
                             disabled: diamonds < STAMINA_BUY_COST,
+                            onDisabled: () => this._toast(`钻石不足 · 还差 💎 ${STAMINA_BUY_COST - diamonds}`),
                             onClick: () => {
                                 SoundFx.unlock();
                                 if (gm.buyStamina(STAMINA_BUY_N, STAMINA_BUY_COST)) {
@@ -1839,6 +1848,7 @@ export abstract class HomeUiCore extends Component {
                 ctas.push({
                     label: m.claimed ? '已领取' : '领取附件',
                     disabled: m.claimed,
+                    onDisabled: () => this._toast('该附件已领取过了'),
                     onClick: () => {
                         SoundFx.unlock();
                         if (ms.claim(openId)) {

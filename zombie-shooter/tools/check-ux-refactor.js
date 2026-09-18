@@ -273,7 +273,22 @@ ok('任务双页签 + 一键领取', /tabs: \['每日任务', '成就'\]/.test(s
 ok('装备详情品质头 + 装备/宝石双页签', /protected _openEquipDetail\(heroId: string, it: BagItem, tab = 0\): void \{/.test(src) && /tabs: \['装备属性', '宝石属性'\]/.test(src) && /q: Math\.min\(4, Math\.max\(1, it\.tier\)\)/.test(src));
 ok('材料详情 2-B + 使用按钮', /protected _openMiscDetail\(md: MiscItemDef\): void \{/.test(src) && /该材料用于合成\/强化消耗/.test(src));
 ok('宝石镶嵌钻取层 + 费用行 + 空态', /banner: '💎 镶嵌宝石'/.test(src) && /onBack: \(\) => this\._openEquipSlotPanel\(heroId, slot\)/.test(src) && /背包中没有宝石/.test(src));
-ok('工坊升 L2·XL 二级页：合成/分解双页签 + 展示台 + 底栏返回', /protected _openForgeModal\(tab = 0\): void \{[\s\S]{0,7200}?tier: 2,\n\s+size: 'XL',\n\s+title: '⚒️ 装备工坊',\n\s+barBack: true,/.test(src) && /tabs: \['合成', '分解'\]/.test(src));
+// 取方法体（花括号配平）再断言：写死字符数窗口会随方法内新增行而失效，
+// 断言的是结构，不应被无关编辑挤破。
+const methodBody = (text, sig) => {
+  const i = text.indexOf(sig);
+  if (i < 0) return '';
+  let j = text.indexOf('{', i + sig.length - 1), depth = 0;
+  for (let k = j; k < text.length; k++) {
+    if (text[k] === '{') depth++;
+    else if (text[k] === '}') { depth--; if (depth === 0) return text.slice(j, k + 1); }
+  }
+  return '';
+};
+const forgeBody = methodBody(clsSrc, 'protected _openForgeModal(');
+ok('工坊升 L2·XL 二级页：合成/分解双页签 + 展示台 + 底栏返回',
+  /tier: 2,\s*\n\s+size: 'XL',\s*\n\s+title: '⚒️ 装备工坊',\s*\n\s+barBack: true,/.test(forgeBody)
+  && /tabs: \['合成', '分解'\]/.test(forgeBody));
 ok('工坊品质筛选固定条 + 5 列网格 + 选中态汇总条', /fixed: bar => \{[\s\S]{0,900}?_popChip\(label, qFilter === q,/.test(src) && /_popGrid\(cells, 5, k => \{/.test(src) && /const selLine = g/.test(src) && /const ctas: PopCta\[\] = \[\];/.test(src));
 ok('工坊危险操作用确认模板', /title: '分解装备'/.test(src) && /title: '一键分解'/.test(src) && /danger: true/.test(src));
 ok('装备养成 XL 页(4-A)：展示台+双CTA+六槽位条+底栏页签', /养成 · \$\{heroName\}`/.test(src) && /label: '一键强化',/.test(src) && /slots: sb => \{[\s\S]{0,200}EQUIP_SLOTS/.test(src) && /barTabs: \[[\s\S]{0,800}label: '穿戴'/.test(src));

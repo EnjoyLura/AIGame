@@ -2425,7 +2425,9 @@ export const HOME_UI_CSS = `
   font-size: calc(13px * var(--pu,1)); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 #homeUi .popClose { right: calc(8px * var(--pu,1)); }
 #homeUi .popBack { left: calc(8px * var(--pu,1)); }
-#homeUi .popQ { flex: none; display: flex; align-items: center; gap: calc(12px * var(--pu,1));
+/* position:relative 必须有：✕/‹ 是绝对定位且 top:50%，若以整块 .pop 为参照
+   会落在面板垂直中心压住正文（交互稿实测过 y431 压住第三行属性）。 */
+#homeUi .popQ { flex: none; position: relative; display: flex; align-items: center; gap: calc(12px * var(--pu,1));
   padding: calc(12px * var(--pu,1)); border-bottom: 1px solid var(--pline); color: #fff;
   background: linear-gradient(120deg,#33532f,#26401f); }
 #homeUi .popQ.q2 { background: linear-gradient(120deg,#2f4a63,#22354a); }

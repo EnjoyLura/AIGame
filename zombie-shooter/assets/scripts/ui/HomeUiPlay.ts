@@ -351,6 +351,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                                 label: '选 中',
                                 kind: 'gold',
                                 disabled: d.id === selId,
+                                onDisabled: () => this._toast(`已在查看「${d.name}」`),
                                 onClick: () => {
                                     this._dungeonSel = d.id;
                                     this._openDungeonModal(selTier);
@@ -631,6 +632,9 @@ export abstract class HomeUiPlay extends HomeUiStage {
                                     label: isPicked ? '取消' : '选择',
                                     kind: isPicked ? 'gold' : 'green',
                                     disabled: locked || inLineup || busy,
+                                    onDisabled: () => this._toast(locked
+                                        ? `${hdef.name} 尚未解锁，无法派遣`
+                                        : inLineup ? `${hdef.name} 已在上阵编队中` : `${hdef.name} 正在远征中`),
                                     onClick: () => pickHero(o.hid)
                                 }
                             }));
@@ -1064,6 +1068,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 ctas: [{
                     label: claimed ? '今日已签到' : '签 到',
                     disabled: claimed,
+                    onDisabled: () => this._toast('今日已签到 · 明天再来'),
                     onClick: () => {
                         SoundFx.unlock();
                         const got = ss.claim();

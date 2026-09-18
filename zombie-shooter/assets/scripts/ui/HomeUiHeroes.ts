@@ -168,6 +168,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                         label: maxed ? '已 满 级' : `🌟 加 点（${sel.pointCost} 点）`,
                         kind: 'gold',
                         disabled: !can,
+                        onDisabled: () => this._toast(hint || '当前不可加点'),
                         onClick: () => {
                             SoundFx.unlock();
                             const lvNow = ts.upgrade(sel.id);
@@ -187,6 +188,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                         label: '🔄 洗 点',
                         kind: 'grey',
                         disabled: ts.spent <= 0,
+                        onDisabled: () => this._toast('还没有投入任何天赋点'),
                         onClick: () => this._popConfirm({
                             title: '洗点确认',
                             icon: '🔄',
@@ -297,6 +299,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                             label: adLeft > 0 ? '免费' : '已用完',
                             kind: 'green',
                             disabled: adLeft <= 0,
+                            onDisabled: () => this._toast('今日免费招募额度已用完 · 隔日重置'),
                             onClick: () => {
                                 SoundFx.unlock();
                                 AdService.instance.claimReward('recruit', () => {
@@ -337,6 +340,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             size: 'M',
             banner: hasHero ? '🎖️ 招 募 大 成 功' : '🎖️ 招 募 结 果',
             art: many ? `十连 · ${results.length} 项` : '单抽',
+            // 招募已结算，演出只是回顾：允许点遮罩快速收起（关闭同样走 onClose 刷新英雄）
             maskClose: true,
             build: c => {
                 const row = this._popCardRow(results.map(r => ({
@@ -1215,6 +1219,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     label: g ? `🔮 合 成（🪙 ${g.cost}）` : '请 先 选 择 一 组',
                     kind: 'gold',
                     disabled: !enough,
+                    onDisabled: () => this._toast(!g ? '请先在上方点选一组装备' : `金币不足 · 还差 🪙 ${(g.cost - gm.gold).toLocaleString()}`),
                     onClick: () => {
                         if (!g) {
                             return;
@@ -1281,6 +1286,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                         label: '请 先 选 择 装 备',
                         kind: 'grey',
                         disabled: true,
+                        onDisabled: () => this._toast('请先在上方点选一件装备'),
                         onClick: () => undefined
                     });
                 }
@@ -1546,6 +1552,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 ctas: md.use ? [{
                     label: usable ? '使 用' : '数量不足',
                     disabled: !usable,
+                    onDisabled: () => this._toast(`「${md.name}」数量为 0，无法使用`),
                     onClick: () => {
                         if (hs.useMisc(md.id)) {
                             SoundFx.play('buy');
@@ -1602,6 +1609,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                             action: {
                                 label: '镶 嵌',
                                 disabled: !enough,
+                                onDisabled: () => this._toast(`金币不足 · 镶嵌需 🪙 ${cost.toLocaleString()}，还差 ${(cost - gm.gold).toLocaleString()}`),
                                 onClick: () => {
                                     if (hs.socketGem(heroId, slot, g.miscId)) {
                                         SoundFx.play('buy');
@@ -1647,6 +1655,10 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             const stoneLeft = hs.miscCount('mat_stone');
             const core = hs.weaponCore(heroId);
             const wEnough = !wMax && gm.gold >= wCost && stoneLeft >= wStone;
+            /** 强化不可用时的原因（两个按钮共用，避免各自复制判断） */
+            const wWhy = (): string => stoneLeft < wStone
+                ? `强化石不足 · 需要 🧱 ${wStone}，还差 ${wStone - stoneLeft}`
+                : `金币不足 · 需要 🪙 ${wCost.toLocaleString()}，还差 ${(wCost - gm.gold).toLocaleString()}`;
             const upWeapon = (n: number): number => {
                 let done = 0;
                 while (done < n) {
@@ -1721,6 +1733,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                                 action: {
                                     label: `🪙 ${cd.baseCost}`,
                                     disabled: !afford,
+                                    onDisabled: () => this._toast(`金币不足 · 还差 🪙 ${(cd.baseCost - gm.gold).toLocaleString()}`),
                                     onClick: () => {
                                         if (hs.buyCore(heroId, cd.id)) {
                                             SoundFx.play('buy');
@@ -1781,6 +1794,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 ctas: tab === 3 && !wMax ? [{
                     label: '强 化',
                     disabled: !wEnough,
+                    onDisabled: () => this._toast(wWhy()),
                     onClick: () => {
                         if (upWeapon(1) > 0) {
                             SoundFx.play('buy');
@@ -1795,6 +1809,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     label: '一键强化',
                     kind: 'green',
                     disabled: !wEnough,
+                    onDisabled: () => this._toast(wWhy()),
                     onClick: () => {
                         const n = upWeapon(20);
                         if (n > 0) {
@@ -1869,6 +1884,14 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             const alloy = cur ? hs.equipUpgradeAlloy(cur) : 0;
             const alloyLeft = hs.miscCount('mat_alloy');
             const enough = !!cur && !maxed && gm.gold >= cost && alloyLeft >= alloy;
+            /** 强化不可用时的原因（两个按钮共用） */
+            const upWhy = (): string => !cur
+                ? '该槽位还没有装备'
+                : maxed
+                    ? '该装备已满级'
+                    : alloyLeft < alloy
+                        ? `精炼合金不足 · 需要 🔩 ${alloy}，还差 ${alloy - alloyLeft}`
+                        : `金币不足 · 需要 🪙 ${cost.toLocaleString()}，还差 ${(cost - gm.gold).toLocaleString()}`;
             const bar = tab === 0 ? '强化' : tab === 1 ? '宝石' : '穿戴';
             const doUpgrade = (n: number): number => {
                 let done = 0;
@@ -2086,6 +2109,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     {
                         label: maxed ? '已满级' : '强 化',
                         disabled: !enough,
+                        onDisabled: () => this._toast(upWhy()),
                         onClick: () => {
                             const n = doUpgrade(1);
                             if (n > 0) {
@@ -2102,6 +2126,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                         label: '一键强化',
                         kind: 'green',
                         disabled: !enough,
+                        onDisabled: () => this._toast(upWhy()),
                         onClick: () => {
                             const n = doUpgrade(20);
                             if (n > 0) {
@@ -2227,6 +2252,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 ctas: [{
                     label: maxed ? '已 满 星' : can ? `⭐ 升 星（−${cost} 碎片）` : `还差 ${cost - have} 片`,
                     disabled: !can,
+                    onDisabled: () => this._toast(maxed ? '该英雄已满星' : `碎片不足 · 还差 ${cost - have} 片`),
                     onClick: () => {
                         SoundFx.unlock();
                         const next = rs.starUp(def.id);
@@ -2428,6 +2454,13 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 ctas: [{
                     label: locked ? '局 内 解 锁' : maxed ? '已 满 级' : '升 级',
                     disabled: !can,
+                    onDisabled: () => this._toast(locked
+                        ? '该技能尚未解锁 · 出战时升级三选一随机刷出「解锁卡」'
+                        : maxed
+                            ? '技能已达当前上限 · 研究所可提升上限'
+                            : coreLeft < core
+                                ? `英雄核心不足 · 需要 ${core}，还差 ${core - coreLeft}`
+                                : `金币不足 · 需要 🪙 ${cost.toLocaleString()}，还差 ${(cost - gm.gold).toLocaleString()}`),
                     onClick: () => {
                         SoundFx.unlock();
                         if (hs.upgradeAbility(heroId, slot)) {

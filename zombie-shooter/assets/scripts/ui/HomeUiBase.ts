@@ -244,6 +244,9 @@ export abstract class HomeUiBase extends HomeUiPlay {
                     label: maxed ? '已 满 级' : `🔧 改 装（LV.${lv + 1}）`,
                     kind: 'gold',
                     disabled: maxed || !gate.ok,
+                    onDisabled: () => this._toast(maxed
+                        ? `${def.name} 已满级`
+                        : gate.reason ?? `图纸不足 · 还差 ${Math.max(0, cost.blueprint - bp)}`),
                     onClick: () => {
                         SoundFx.unlock();
                         if (vt.upgrade(def.id)) {
