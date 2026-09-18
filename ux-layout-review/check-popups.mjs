@@ -153,15 +153,20 @@ ok('组件命名沿用正式项目（popBanner/popQ/popMeta/popTabs/popFixBar/po
     ['popBanner', 'popQ', 'popMeta', 'popTabs', 'popFixBar', 'popScroll', 'popCost', 'popCTA', 'popBtn', 'popSlots', 'popClose']
         .every((c) => html.includes('.' + c)));
 ok('四档定位口径与项目一致（M 左右 23、L 左右 17、S 287 定宽、XL 满屏）',
-    /\.pop\.M\{position:absolute;left:23px;right:23px;top:4%;bottom:4%/.test(html)
-    && /\.pop\.L\{position:absolute;left:17px;right:17px;top:4%;bottom:4%/.test(html)
+    /\.pop\.M\{position:absolute;left:23px;right:23px;top:18%;bottom:18%/.test(html)
+    && /\.pop\.L\{position:absolute;left:17px;right:17px;top:14%;bottom:13%/.test(html)
     && /\.pop\.S\{position:absolute;left:50%;transform:translateX\(-50%\);top:30%;width:287px/.test(html)
     && /\.pop\.XL\{position:absolute;inset:0;border:0/.test(html));
 // 高度必须由内容决定：top/bottom 同时钉死等于把每面高度固定住，短内容也硬占满、白出一条滚动条。
-ok('四档高度按内容自适应且带上限（短内容不出滚动条）',
-    (html.match(/height:max-content;margin-top:auto;margin-bottom:auto;max-height:92%/g) || []).length >= 2
+// 上限必须留在本档定位框内（M 64% / L 73%）：抬高度迁就内容会让 M/L 长到和 XL 满屏页没区别。
+ok('四档高度按内容自适应且封在本档框内（不靠抬高度迁就内容）',
+    (html.match(/height:max-content;margin-top:auto;margin-bottom:auto;max-height:64%/g) || []).length >= 1
+    && (html.match(/height:max-content;margin-top:auto;margin-bottom:auto;max-height:73%/g) || []).length >= 1
     && /\.pop\.S\{[^}]*max-height:68%/.test(html)
     && /宽按档位，高按内容/.test(html));
+// 渐隐条不占流内高度：占流高时内容恰好装满的面会被顶出一条幻影滚动条。
+ok('渐隐条绝对定位不占流高（游戏侧 .popFade 同口径）',
+    /\.popScroll \.popFade\{position:absolute;bottom:0/.test(html));
 ok('灰阶占位声明：不引入美术方案', /品质用 4 级灰阶代替颜色/.test(html) && /不代表美术方案/.test(html));
 
 /* ---------- 7. 可执行性 ---------- */

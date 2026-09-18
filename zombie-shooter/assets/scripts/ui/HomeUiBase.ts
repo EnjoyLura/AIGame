@@ -56,7 +56,9 @@ export abstract class HomeUiBase extends HomeUiPlay {
             const can = gm.canUpgradeBuilding(b.id);
             return {
                 tier: 3,
-                size: 'M',
+                // 档位由内容量决定（交互稿口径）：详情主体 + 关联功能区在 M 档装不下
+                //（实测溢出 ~100px），按规则升 L 档，而不是把 M 拉高到接近满屏。
+                size: 'L',
                 banner: `${b.ic} ${b.name}`,
                 art: `LV.${lv} / ${b.maxLevel}`,
                 subtitle: b.intro,
@@ -70,7 +72,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
                         c.appendChild(this._popAttr({ icon: '⬆️', text: `升到 LV.${lv + 1}：**${b.desc(lv + 1)}**` }));
                     }
                     c.appendChild(this._popSec('升级'));
-                    c.appendChild(this._popKV('当前等级', `LV.${lv} / ${b.maxLevel}`));
+                    // 「当前等级」与横幅 LV.x/max 重复，删行不减信息
                     c.appendChild(this._popKV('指挥中心', `LV.${gm.hqLevel()} · 本建筑上限 LV.${gm.hqLevel() + 1}`));
                     if (!maxed) {
                         c.appendChild(this._popKV('升级费用', `🪙 ${cost.toLocaleString()}`, 'total'));

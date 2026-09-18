@@ -253,7 +253,9 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             const adLeft = AdService.instance.remaining('recruit');
             return {
                 tier: 3,
-                size: 'M',
+                // 档位由内容量决定（列表用到 L）：保底进度 + 概率 + 库存列表 + 免费招募
+                // 在 M 档装不下（实测溢出 ~85px），升 L 档。
+                size: 'L',
                 banner: '🎖️ 英雄招募',
                 art: `💎 ${diam.toLocaleString()}`,
                 subtitle: `${RECRUIT_PITY} 抽内必出英雄本体 · 十连必出稀有以上`,
@@ -273,11 +275,9 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     bar.appendChild(box);
                 },
                 build: c => {
-                    c.appendChild(this._popSec('概率表'));
-                    c.appendChild(this._popAttr({ icon: '🎖️', text: '英雄本体（未获得优先） **6%**' }));
-                    c.appendChild(this._popAttr({ icon: '⭐', text: '传说碎片 **×10** · 14%' }));
-                    c.appendChild(this._popAttr({ icon: '🔷', text: '稀有碎片 **×5** · 40%' }));
-                    c.appendChild(this._popAttr({ icon: '🔹', text: '普通碎片 **×2** · 40%' }));
+                    // 概率是查询信息不是操作对象，压成一行摘要；小节头省掉——KV 行自说明，
+                    // 碎片库存与免费招募才是本面的主体。
+                    c.appendChild(this._popKV('概率：英雄 6% · 传说碎片 14%', '稀有 40% · 普通 40%', 'free'));
                     c.appendChild(this._popSec('碎片库存'));
                     HERO_DEFS.forEach((d, i) => {
                         const own = gm.isHeroOwned(d.id);

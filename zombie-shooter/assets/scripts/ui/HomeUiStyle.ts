@@ -2396,19 +2396,18 @@ export const HOME_UI_CSS = `
 @keyframes popIn { from { opacity: 0; transform: translateY(calc(8px * var(--pu,1))); } to { opacity: 1; transform: none; } }
 
 /* --- 尺寸档：M/L 用视口比例定位（跨长宽比稳），S 居中偏上，XL 满屏 --- */
-/* 高度由内容决定，不再拉满：top+bottom 同时给出且 height:auto 时会被当成撑满，
-   于是短内容也硬占满一屏高、中间白白多出一条滚动条（实测：邮箱内容 549px 拿 540px 面板，
-   差 9px 就出滚动条；建筑面板内容 638px 拿 540px，多出 165px 空白）。
-   现在 top/bottom 只负责留遮罩可见边距，真正的上限是 max-height；
-   内容不足时由 auto 外边距居中（居中效果与原固定高度档一致）。 */
+/* 高度取「内容高，但不超过本档定位框」：内容少时收窄到内容高（不空留白、不多一条滚动条），
+   内容多时封在本档高度内由 ③ 区滚动。严禁把上限抬高去迁就内容——M/L 一旦长到接近满屏，
+   就和 XL 二级页没有区别，档位也就失去意义（M 上限 64vh / L 73vh / XL 100vh 必须拉得开）。
+   够不着的溢出属于内容密度问题：收紧行高/间距，或按「档位由内容量决定」升到下一档。 */
 #homeUi .pop.M { position: absolute; left: calc(23px * var(--pu,1)); right: calc(23px * var(--pu,1));
-  top: calc(4vh + var(--sat,0px)); bottom: calc(4vh + var(--sab,0px));
+  top: calc(18vh + var(--sat,0px)); bottom: calc(18vh + var(--sab,0px));
   height: max-content; margin-top: auto; margin-bottom: auto;
-  max-height: calc(92vh - var(--sat,0px) - var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
+  max-height: calc(64vh - var(--sat,0px) - var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
 #homeUi .pop.L { position: absolute; left: calc(17px * var(--pu,1)); right: calc(17px * var(--pu,1));
-  top: calc(4vh + var(--sat,0px)); bottom: calc(4vh + var(--sab,0px));
+  top: calc(14vh + var(--sat,0px)); bottom: calc(13vh + var(--sab,0px));
   height: max-content; margin-top: auto; margin-bottom: auto;
-  max-height: calc(92vh - var(--sat,0px) - var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
+  max-height: calc(73vh - var(--sat,0px) - var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
 #homeUi .pop.S { position: absolute; left: 50%; transform: translateX(-50%); top: 30vh;
   width: calc(287px * var(--pu,1)); max-width: 86vw;
   max-height: calc(68vh - var(--sab,0px)); border-radius: calc(12px * var(--pu,1)); }
@@ -2419,7 +2418,7 @@ export const HOME_UI_CSS = `
 
 /* --- 头部区（固定）--- */
 #homeUi .popBanner { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1));
-  padding: calc(12px * var(--pu,1)) calc(48px * var(--pu,1)) calc(12px * var(--pu,1)) calc(14px * var(--pu,1));
+  padding: calc(8px * var(--pu,1)) calc(48px * var(--pu,1)) calc(8px * var(--pu,1)) calc(14px * var(--pu,1));
   background: linear-gradient(90deg, rgba(200,134,47,.16), rgba(200,134,47,.04));
   border-bottom: 1px solid var(--pline); position: relative; }
 #homeUi .popBanner b { font-size: calc(16px * var(--pu,1)); color: var(--pks); letter-spacing: calc(1px * var(--pu,1)); }
@@ -2455,14 +2454,14 @@ export const HOME_UI_CSS = `
 
 /* --- 说明行 / 页签（固定）--- */
 #homeUi .popMeta { flex: none; display: flex; align-items: center; justify-content: center; gap: calc(7px * var(--pu,1));
-  padding: calc(9px * var(--pu,1)) calc(14px * var(--pu,1)); font-size: calc(12px * var(--pu,1));
+  padding: calc(7px * var(--pu,1)) calc(14px * var(--pu,1)); font-size: calc(12px * var(--pu,1));
   color: var(--pdim); border-bottom: 1px solid var(--pline2); }
 #homeUi .popMeta .q { width: calc(17px * var(--pu,1)); height: calc(17px * var(--pu,1)); flex: none;
   border-radius: 50%; border: 1px solid var(--pline); display: flex; align-items: center; justify-content: center;
   font-size: calc(10px * var(--pu,1)); color: var(--pdim2); cursor: pointer; }
 #homeUi .popTabs { flex: none; display: flex; border-bottom: 1px solid var(--pline); background: var(--pbg3); }
 #homeUi .popTabs div { flex: 1; text-align: center; font-size: calc(13px * var(--pu,1));
-  padding: calc(10px * var(--pu,1)) calc(4px * var(--pu,1)); color: var(--pdim); cursor: pointer; position: relative; }
+  padding: calc(8px * var(--pu,1)) calc(4px * var(--pu,1)); color: var(--pdim); cursor: pointer; position: relative; }
 #homeUi .popTabs div.on { color: var(--pks); font-weight: 700; }
 #homeUi .popTabs div.on::after { content: ''; position: absolute; left: 14%; right: 14%; bottom: -1px;
   height: calc(2px * var(--pu,1)); background: var(--pk); border-radius: calc(2px * var(--pu,1)); }
@@ -2476,10 +2475,12 @@ export const HOME_UI_CSS = `
 /* flex:1 的 flex-basis:0 只在「面板被拉满、有富余高度」时才对；面板改内容自适应后
    必须以内容高度为基准（flex:1 1 auto），否则滚动区会被压成 0 高、整块内容看不见。 */
 #homeUi .popScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  padding: calc(10px * var(--pu,1)) calc(12px * var(--pu,1)); display: flex; flex-direction: column;
-  gap: calc(8px * var(--pu,1)); -webkit-overflow-scrolling: touch; }
-#homeUi .popScroll > .popFade { position: sticky; bottom: -1px; flex: none; height: calc(20px * var(--pu,1));
-  margin-top: auto; pointer-events: none;
+  position: relative; padding: calc(7px * var(--pu,1)) calc(12px * var(--pu,1)); display: flex; flex-direction: column;
+  gap: calc(7px * var(--pu,1)); -webkit-overflow-scrolling: touch; }
+/* 渐隐条不参与布局：绝对定位贴滚动区可见底部，不占流内高度。占流高时
+   内容恰好装满的面会被这 20px 顶出一条幻影滚动条（提示「能滚」的东西自己制造滚动）。 */
+#homeUi .popScroll > .popFade { position: absolute; bottom: 0; left: 0; right: 0; flex: none;
+  height: calc(20px * var(--pu,1)); pointer-events: none;
   background: linear-gradient(180deg, rgba(255,255,255,0), var(--pbg)); opacity: .96; }
 #homeUi .popSec { flex: none; font-size: calc(11.5px * var(--pu,1)); color: var(--pdim2);
   letter-spacing: calc(1px * var(--pu,1)); border-left: 2px solid var(--pline); padding-left: calc(8px * var(--pu,1)); }
@@ -2526,11 +2527,11 @@ export const HOME_UI_CSS = `
 #homeUi .popCost .c .cv.lack { color: var(--pred2); font-weight: 700; }
 #homeUi .popCost .c .cv.ok { color: var(--pgreen); }
 #homeUi .popCTA { flex: none; border-top: 1px solid var(--pline); background: var(--pbg2);
-  padding: calc(10px * var(--pu,1)) calc(12px * var(--pu,1)) calc(11px * var(--pu,1));
-  display: flex; flex-direction: column; align-items: center; gap: calc(6px * var(--pu,1)); }
+  padding: calc(7px * var(--pu,1)) calc(12px * var(--pu,1)) calc(8px * var(--pu,1));
+  display: flex; flex-direction: column; align-items: center; gap: calc(5px * var(--pu,1)); }
 #homeUi .popCTA .row { display: flex; gap: calc(10px * var(--pu,1)); width: 100%; }
 #homeUi .popCTA .row.justify { justify-content: center; }
-#homeUi .popBtn { height: calc(44px * var(--pu,1)); border-radius: calc(9px * var(--pu,1));
+#homeUi .popBtn { height: calc(40px * var(--pu,1)); border-radius: calc(9px * var(--pu,1));
   display: flex; align-items: center; justify-content: center; gap: calc(6px * var(--pu,1));
   font-size: calc(15px * var(--pu,1)); font-weight: 700; cursor: pointer; position: relative;
   padding: 0 calc(22px * var(--pu,1)); border: 2px solid var(--pk); color: var(--pks);
@@ -2565,10 +2566,10 @@ export const HOME_UI_CSS = `
 /* --- 组件：列表行（图标 + 两行文本 + 状态列 + 行内动作 + 红点）--- */
 #homeUi .popRow { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1)); position: relative;
   border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--prow);
-  padding: calc(9px * var(--pu,1)) calc(11px * var(--pu,1)); cursor: pointer; }
-#homeUi .popRow .ic { width: calc(44px * var(--pu,1)); height: calc(44px * var(--pu,1)); flex: none;
+  padding: calc(7px * var(--pu,1)) calc(11px * var(--pu,1)); cursor: pointer; }
+#homeUi .popRow .ic { width: calc(40px * var(--pu,1)); height: calc(40px * var(--pu,1)); flex: none;
   border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
-  display: flex; align-items: center; justify-content: center; font-size: calc(22px * var(--pu,1)); }
+  display: flex; align-items: center; justify-content: center; font-size: calc(21px * var(--pu,1)); }
 #homeUi .popRow .m { flex: 1; min-width: 0; }
 #homeUi .popRow .m b { display: block; font-size: calc(14px * var(--pu,1)); font-weight: 600; color: var(--ptx);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2594,8 +2595,8 @@ export const HOME_UI_CSS = `
 /* --- 组件：属性行 / 对比块 / KV --- */
 #homeUi .popAttr { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1));
   border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--prow);
-  padding: calc(8px * var(--pu,1)) calc(10px * var(--pu,1)); }
-#homeUi .popAttr .ai { width: calc(38px * var(--pu,1)); height: calc(38px * var(--pu,1)); flex: none;
+  padding: calc(6px * var(--pu,1)) calc(10px * var(--pu,1)); }
+#homeUi .popAttr .ai { width: calc(34px * var(--pu,1)); height: calc(34px * var(--pu,1)); flex: none;
   border-radius: calc(8px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
   display: flex; align-items: center; justify-content: center; font-size: calc(19px * var(--pu,1)); }
 #homeUi .popAttr .at { flex: 1; min-width: 0; font-size: calc(12.5px * var(--pu,1)); line-height: 1.4; color: var(--ptx); }
@@ -2621,7 +2622,7 @@ export const HOME_UI_CSS = `
 #homeUi .popCmp .cl .new { color: var(--pks); font-weight: 700; }
 #homeUi .popCmp .cl .arrow { color: var(--pgreen); font-size: calc(16px * var(--pu,1)); }
 #homeUi .popKV { flex: none; display: flex; align-items: center; justify-content: space-between;
-  gap: calc(10px * var(--pu,1)); padding: calc(6px * var(--pu,1)) calc(3px * var(--pu,1));
+  gap: calc(10px * var(--pu,1)); padding: calc(3px * var(--pu,1)) calc(3px * var(--pu,1));
   font-size: calc(12.5px * var(--pu,1)); color: var(--pdim); border-bottom: 1px dashed var(--pline2); }
 #homeUi .popKV b { color: var(--ptx); font-weight: 600; }
 #homeUi .popKV.total { border-bottom: 0; padding-top: calc(9px * var(--pu,1)); }
@@ -2664,7 +2665,7 @@ export const HOME_UI_CSS = `
 #homeUi .popBody .sub { font-size: calc(11px * var(--pu,1)); color: var(--pdim); }
 #homeUi .popWarn { flex: none; font-size: calc(11.5px * var(--pu,1)); color: var(--pred2);
   border: 1px dashed var(--pred); border-radius: calc(8px * var(--pu,1));
-  padding: calc(7px * var(--pu,1)) calc(10px * var(--pu,1)); background: rgba(192,72,63,.06); }
+  padding: calc(5px * var(--pu,1)) calc(10px * var(--pu,1)); background: rgba(192,72,63,.06); }
 #homeUi .popCenter { flex: none; display: flex; flex-direction: column; align-items: center;
   gap: calc(8px * var(--pu,1)); padding: calc(2px * var(--pu,1)) 0; }
 #homeUi .popIcBig { width: calc(62px * var(--pu,1)); height: calc(62px * var(--pu,1));

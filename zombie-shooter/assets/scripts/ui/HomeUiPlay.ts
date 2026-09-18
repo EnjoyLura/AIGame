@@ -1110,7 +1110,9 @@ export abstract class HomeUiPlay extends HomeUiStage {
             };
             return {
                 tier: 3,
-                size: 'M',
+                // 档位由内容量决定（交互稿口径，稿里本面即 L3）：活跃度固定块 + 双页签列表
+                // 在 M 档装不下（实测溢出 ~100px），升 L 档。
+                size: 'L',
                 banner: '📋 任务 · 成就',
                 art: `活跃 ${qs.activity}/${ACTIVITY_MAX}`,
                 tabs: ['每日任务', '成就'],
@@ -1202,7 +1204,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         this._popRebuild(opt());
                     }
                 }] : undefined,
-                note: '完成每日任务获得活跃度 · 活跃宝箱领完当日封顶'
+                // 说明行与固定活跃度块（每日 0 点重置）重复，省一行高度让列表一屏多读一行
             };
         };
         this._openPop(opt());

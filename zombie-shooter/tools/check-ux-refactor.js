@@ -176,7 +176,7 @@ ok('_refreshEntryReds 不再查基地 grid', !/const grid = this\._baseGridEl;\s
 ok('_refreshBase 跳过 pureEntry', /for \(const b of BUILDINGS\) \{\s*\n\s*if \(b\.pureEntry\) \{\s*\n\s*continue;\s*\n\s*\}/.test(src));
 ok('基地页挂 _baseMapEl 地图', /this\._baseMapEl = map/.test(src));
 ok('基地地图节点点击开详情抽屉', /node\.onclick[\s\S]{0,160}_openBuildingInfoModal\(b\.id\)/.test(src));
-ok('建筑详情升级为 L3·M 弹层', /protected _openBuildingInfoModal\(id: string\): void \{[\s\S]{0,700}?tier: 3,\s*\n\s*size: 'M',/.test(src));
+ok('建筑详情为 L3·L 弹层（含关联功能区，M 装不下按内容量升档）', /protected _openBuildingInfoModal\(id: string\): void \{[\s\S]{0,1200}?size: 'L',/.test(src));
 ok('建筑升级在抽屉内接线', /gm\.upgradeBuilding\(b\.id\)[\s\S]{0,300}this\._refreshBase\(\)/.test(src));
 ok('META 局外强化升为 L2·XL 二级页（不再占基地页中段）', !/className = 'base-meta'/.test(src)
   && /protected _openMetaUpgradeModal\(onBack\?: \(\) => void\): void \{/.test(src)
@@ -321,7 +321,7 @@ ok('玩法页四玩法已全部改走 _openPop（试炼/副本/远征为 XL 二�
 
 
 // 10. 招募 / 礼包迁移（含两处 L5 结果演出层）
-ok('招募 L3·M：保底进度固定块 + 概率表 + 碎片库存', /banner: '🎖️ 英雄招募'/.test(src) && /距保底还差 \$\{rs\.pityLeft\} 抽/.test(src) && /c\.appendChild\(this\._popSec\('概率表'\)\);/.test(src) && /c\.appendChild\(this\._popSec\('碎片库存'\)\);/.test(src));
+ok('招募 L3·L：保底进度固定块 + 概率一行摘要 + 碎片库存（列表型按内容量升档）', /banner: '🎖️ 英雄招募'/.test(src) && /距保底还差 \$\{rs\.pityLeft\} 抽/.test(src) && /_popKV\('概率：英雄 6% · 传说碎片 14%'/.test(src) && /c\.appendChild\(this\._popSec\('碎片库存'\)\);/.test(src));
 ok('招募单抽/十连双 CTA（钻石不足点击提示差额）', /label: `单 抽（💎 \$\{RECRUIT_PRICE_1\.toLocaleString\(\)\}）`, kind: 'grey'/.test(src) && /钻石不足：还差 💎\$\{\(cost - gm\.res\.get\('diamond'\)\)\.toLocaleString\(\)\}/.test(src));
 ok('招募免费次数收进行内动作', /title: '看广告免费招募 1 次',/.test(src) && /AdService\.instance\.claimReward\('recruit', \(\) => \{/.test(src));
 ok('招募结果走 L5 结果演出层 + 卡片错峰揭示', /tier: 5,\s*\n\s*size: 'M',\s*\n\s*banner: hasHero \? '🎖️ 招 募 大 成 功'/.test(src) && /style\.animationDelay = `\$\{\(0\.1 \+ i \* 0\.15\)\.toFixed\(2\)\}s`/.test(src) && /弹窗卡片错峰|this\.scheduleOnce\(\(\) => \{/.test(src));

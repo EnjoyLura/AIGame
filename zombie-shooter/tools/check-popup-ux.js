@@ -37,9 +37,10 @@ ok('四档尺寸齐备且用视口比例定位（跨长宽比稳）',
   && /\.pop\.S \{ position: absolute; left: 50%/.test(style)
   && /\.pop\.XL \{ position: absolute; inset: 0/.test(style));
 // 高度不能靠 top+bottom 钉死：那样每面高度固定，短内容也硬占满整块并白出滚动条。
-ok('M/L 高度按内容自适应 + 上限（短内容不出滚动条、长列表才滚）',
+ok('M/L 高度按内容自适应 + 本档上限（短内容收窄、长内容封顶滚动，不靠抬高度迁就内容）',
   (style.match(/height: max-content; margin-top: auto; margin-bottom: auto;/g) || []).length >= 2
-  && (style.match(/max-height: calc\(92vh - var\(--sat,0px\) - var\(--sab,0px\)\)/g) || []).length >= 2
+  && (style.match(/max-height: calc\(64vh - var\(--sat,0px\) - var\(--sab,0px\)\)/g) || []).length >= 1
+  && (style.match(/max-height: calc\(73vh - var\(--sat,0px\) - var\(--sab,0px\)\)/g) || []).length >= 1
   && /\.pop\.S \{[^}]*max-height: calc\(68vh/.test(style));
 // 面板改内容自适应后，滚动区若还写 flex:1（basis 0）会被压成 0 高，内容整块看不见。
 ok('滚动区以内容高为基准（flex:1 1 auto，不被压成 0 高）',
