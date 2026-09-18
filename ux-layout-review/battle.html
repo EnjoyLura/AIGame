@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>护送计划 · 战斗局内 布局交互稿</title>
+<style>
+*{box-sizing:border-box} :root{font-family:Arial,"Microsoft YaHei",sans-serif;font-size:12px;color:#292929;background:#ddd;letter-spacing:0}
+body{margin:0}button,select{font:inherit;color:inherit}button{cursor:pointer;border:0;padding:0;background:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible,select:focus-visible{outline:2px solid #222;outline-offset:2px}h1,h2,h3,p{margin:0}
+small{font-size:10px;color:#666}b{font-weight:700}
+
+/* ============================ 评审外壳 ============================ */
+.review{--phone-w:390px;display:grid;grid-template-columns:236px var(--phone-w) 236px;gap:30px;justify-content:center;padding:24px 16px;align-items:start}
+.rail{padding-top:16px;font-size:12px;line-height:1.9;color:#555}
+.rail h1{font-size:22px;line-height:1.5;color:#222;margin:8px 0 16px}
+.rail h2{font-size:13px;color:#222;margin:16px 0 7px}
+.rail .kicker{font-size:10px;color:#666}
+.rail hr{border:0;border-top:1px solid #bbb;margin:18px 0}
+.rail p{margin:9px 0}.rail select{width:100%;height:34px;background:#eee;border:1px solid #aaa;padding:0 8px;margin:5px 0 10px}
+.rail label{display:block;font-size:11px}
+.rail .group{margin:11px 0 3px;font-size:10px;font-weight:700;color:#333;letter-spacing:.5px}
+.review-nav{display:flex;flex-direction:column;gap:2px}
+.review-nav button{text-align:left;padding:8px 10px;border-bottom:1px solid #bfbfbf;display:flex;align-items:center;gap:7px}
+.review-nav button[aria-current="page"]{background:#c9c9c9;font-weight:bold;color:#222}
+.review-nav .tag{font-size:9px;background:#b5b5b5;color:#fff;padding:1px 4px;margin-left:auto;flex:none}
+.review-nav .tag.常驻{background:#6f6f6f}.review-nav .tag.打断{background:#4a4a4a}
+.review-nav .tag.结算{background:#333}.review-nav .tag.浮窗{background:#8a8a8a}
+.rail .number{display:inline-block;width:20px;color:#777}
+.rail li{margin:9px 0}.rail ol{padding-left:18px}
+.note{border-left:2px solid #888;padding-left:10px;margin-top:16px}
+.metric{display:flex;justify-content:space-between;border-bottom:1px solid #c4c4c4;padding:6px 0;font-size:11px}
+.metric b{color:#222}
+.review-reset{margin-top:9px;text-decoration:underline;min-height:32px;font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.legend span{font-size:10px;border:1px solid #aaa;padding:2px 6px;background:#e6e6e6}
+
+/* ============================ 手机画框 ============================ */
+.phone{width:var(--phone-w);height:844px;position:relative;overflow:hidden;isolation:isolate;
+  border:1px solid #aaa;background:#2c3138;user-select:none;-webkit-user-select:none;color:#dbe2ef}
+.safe{height:32px}
+.buildStamp{position:absolute;left:6px;bottom:4px;font-size:9px;color:rgba(255,255,255,.35);z-index:5}
+
+/* —— ① 顶栏（常驻，压最薄让位战斗区）—— */
+.btop{position:absolute;top:32px;left:0;right:0;height:44px;display:flex;align-items:center;gap:6px;
+  padding:0 8px;z-index:8}
+.btBtn{width:38px;height:34px;border-radius:8px;background:rgba(20,26,34,.72);border:1px solid #5a6472;
+  color:#dbe2ef;font-size:14px;display:flex;align-items:center;justify-content:center;position:relative}
+.btBtn.wide{width:46px;font-size:12px}
+.xpWrap{flex:1;display:flex;align-items:center;gap:5px;min-width:0}
+.lvBadge{flex:none;min-width:34px;height:20px;border-radius:10px;background:#1b2130;border:1px solid #5a6472;
+  color:#ffd98f;font-size:10px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.xpTrack{flex:1;height:9px;border-radius:5px;background:#1b2130;border:1px solid #5a6472;overflow:hidden;position:relative}
+.xpFill{height:100%;background:#8a9aab}
+.chip{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;background:rgba(20,26,34,.72);
+  border:1px solid #5a6472;border-radius:7px;padding:2px 7px;min-width:44px}
+.chipLab{font-size:8.5px;color:#8d97ab}
+.chipVal{font-size:11px;font-weight:700;color:#fff;white-space:nowrap}
+
+/* —— ② BOSS 条 / 波次提示 —— */
+.bossBar{position:absolute;top:82px;left:50%;transform:translateX(-50%);width:250px;z-index:8}
+.bossName{font-size:11px;color:#ffd98f;text-align:center;letter-spacing:1px;margin-bottom:3px}
+.bossTrack{height:10px;border-radius:5px;background:#1b2130;border:1px solid #6e5a3a;overflow:hidden}
+.bossFill{height:100%;background:#8a7a5a;width:100%}
+.bPop{position:absolute;left:0;right:0;top:44%;text-align:center;font-size:22px;font-weight:800;
+  letter-spacing:3px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8);z-index:7}
+.bPop small{display:block;font-size:10px;letter-spacing:1px;color:#aab4c2;margin-top:6px;text-shadow:none}
+
+/* —— ③ 战斗区（路面占位：车道线 / 怪物 / 弹道 / 经验晶体）—— */
+.road{position:absolute;top:32px;bottom:0;left:0;right:0;background:#3a3f46;overflow:hidden}
+.lane{position:absolute;left:0;right:0;height:0;border-top:2px dashed #565b63}
+.mob{position:absolute;width:34px;height:34px;border-radius:50%;background:#565b63;border:2px solid #6e7681;
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:#c3cad2}
+.mob i{position:absolute;top:-8px;left:0;right:0;height:4px;background:#3f454d;border-radius:2px}
+.mob i b{display:block;height:100%;background:#9aa4ae;border-radius:2px}
+.bult{position:absolute;width:10px;height:4px;background:#c3cad2;border-radius:2px}
+.gem{position:absolute;width:9px;height:9px;background:#8a9aab;transform:rotate(45deg);border-radius:2px}
+.vehBar{position:absolute;left:10px;right:10px;bottom:104px;display:flex;align-items:center;gap:7px;z-index:5;
+  background:rgba(20,26,34,.55);border:1px solid #5a6472;border-radius:8px;padding:4px 9px}
+.vehLab{font-size:10px;color:#8d97ab;flex:none}
+.vehTrack{flex:1;height:8px;border-radius:4px;background:#1b2130;border:1px solid #5a6472;overflow:hidden}
+.vehFill{display:block;height:100%;background:#8a9aab}
+.vehTxt{font-size:10px;color:#dbe2ef;flex:none}
+.vehBody{position:absolute;left:0;right:0;bottom:0;height:98px;background:#454b53;display:flex;
+  align-items:flex-end;justify-content:center;gap:4px;padding-bottom:10px}
+.vehBody .car{width:64px;height:70px;background:#565b63;border:2px solid #6e7681;border-radius:10px;position:relative}
+.vehBody .car i{position:absolute;top:8px;left:8px;right:8px;height:20px;background:#6e7681;border-radius:4px}
+.vehHero{width:22px;height:26px;background:#6e7681;border:1px solid #8a9aab;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:#dbe2ef}
+.vig{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 46px 14px rgba(0,0,0,.85);z-index:6}
+.vig small{position:absolute;top:126px;left:50%;transform:translateX(-50%);color:#aab4c2;font-size:9px}
+
+/* —— ④ 技能列（贴两侧边、避开车尾与顶栏）—— */
+.abCol{position:absolute;top:0;bottom:98px;width:44px;z-index:9}
+.abCol.l{left:3px}.abCol.r{right:3px}
+.abSlot{position:absolute;left:50%;transform:translateX(-50%);width:33px;height:33px;border-radius:50%;
+  background:#3a4356;border:2px solid #8a9aab;display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:#dbe2ef;position:absolute}
+.abSlot b{position:absolute;font-weight:400}
+.abSlot .cd{position:absolute;inset:0;border-radius:50%;background:rgba(10,16,22,.55)}
+.abSlot .cdTxt{position:absolute;font-size:9px;color:#fff}
+.abSlot .chg{position:absolute;left:0;right:0;bottom:0;border-radius:0 0 20px 20px;background:rgba(138,154,171,.55)}
+.abSlot .lv{position:absolute;top:-4px;right:-4px;min-width:13px;height:13px;border-radius:7px;background:#1b2130;
+  border:1px solid #8a9aab;color:#dbe2ef;font-size:8px;display:flex;align-items:center;justify-content:center}
+.abSlot.ult{border-color:#a5a5a5}
+.abSlot.ult.full{border-style:double;border-width:4px}
+.x2{position:absolute;left:50%;transform:translateX(-50%);width:33px;height:22px;border-radius:7px;
+  background:#1b2130;border:1px solid #5a6472;color:#8d97ab;font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+.x2.on{color:#dbe2ef;border-color:#8a9aab;background:#3a4356}
+.abTip{position:absolute;left:50%;transform:translateX(-50%);bottom:118px;width:186px;background:#1b2130;
+  border:1px solid #8a9aab;border-radius:9px;padding:7px 9px;z-index:10;font-size:10px;color:#dbe2ef}
+.abTip b{display:block;font-size:11px;color:#ffd98f;margin-bottom:2px}
+.abTip small{color:#8d97ab}
+
+/* —— 打断层 / 浮窗 / 结算（遮罩 + 卡）—— */
+.fDim{position:absolute;inset:0;background:rgba(10,14,20,.78);z-index:20;display:flex;align-items:center;justify-content:center}
+.fDim .pauseChip{position:absolute;top:70px;left:50%;transform:translateX(-50%);font-size:10px;color:#aab4c2;
+  border:1px solid #5a6472;border-radius:99px;padding:2px 10px;background:rgba(20,26,34,.72)}
+.luWrap{width:100%;text-align:center}
+.luBanner{width:210px;height:44px;margin:0 auto 4px;background:#565b63;border:2px solid #8a9aab;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;letter-spacing:2px;color:#fff}
+.luTitle{font-size:13px;color:#c3cad2;margin-bottom:12px}
+.luCards{display:flex;justify-content:center;gap:8px;padding:0 14px}
+.luCard{flex:1;min-width:0;background:#1b2130;border:1px solid #8a9aab;border-radius:10px;padding:10px 8px;text-align:center}
+.luCard .av{width:38px;height:38px;border-radius:50%;background:#565b63;border:2px solid #8a9aab;margin:0 auto 6px;
+  display:flex;align-items:center;justify-content:center;font-size:12px}
+.luCard .hero{font-size:11px;font-weight:700;color:#fff;line-height:1.3}
+.luCard .type{display:inline-block;font-size:9px;border:1px solid #8a9aab;border-radius:4px;padding:0 5px;
+  color:#c3cad2;margin:5px 0}
+.luCard .desc{font-size:9.5px;color:#8d97ab;line-height:1.5}
+.luCard .lv{font-size:9px;color:#6e7681;margin-top:5px}
+.endTitle{font-size:30px;font-weight:800;letter-spacing:8px;color:#fff;text-align:center}
+.endCard{width:300px;background:#1b2130;border:1px solid #5a6472;border-radius:14px;padding:20px 16px;text-align:center}
+.endLine{display:flex;justify-content:space-between;font-size:12px;color:#8d97ab;padding:4px 2px}
+.endLine b{color:#dbe2ef}
+.endGold{font-size:15px;font-weight:700;color:#ffd98f;margin:6px 0 12px}
+.endBtns{display:flex;flex-direction:column;gap:8px}
+.endBtn{height:40px;border-radius:9px;font-size:14px;font-weight:700;border:2px solid;background:rgba(255,255,255,.04)}
+.endBtn.cyan{border-color:#7bdc7b;color:#bff0d5}
+.endBtn.orange{border-color:#e0a04a;color:#ffd98f}
+.endBtn.red{border-color:#c0483f;color:#ff8d86}
+.endBtn.green{border-color:#7b9e4a;color:#c9e0a5}
+.clChips{display:flex;gap:6px;margin:10px 0 12px}
+.clChip{flex:1;background:#3a4356;border:1px solid #5a6472;border-radius:8px;padding:6px 2px}
+.clChip b{display:block;font-size:13px;color:#fff}
+.clChip span{font-size:8.5px;color:#8d97ab}
+.clChip.gold b{color:#ffd98f}
+.clLootHead{font-size:11px;color:#c3cad2;letter-spacing:2px;margin-bottom:8px}
+.clLootGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.clDrop{border:1px solid #5a6472;border-radius:8px;padding:7px 2px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.clDrop.r2{border-color:#8a9aab}.clDrop.r3{border-color:#a5a5a5;border-width:2px}
+.clDrop .ic{font-size:16px}
+.clDrop .nm{font-size:8.5px;color:#c3cad2}
+.statsPanel{width:330px;max-height:600px;background:#1b2130;border:1px solid #5a6472;border-radius:14px;
+  padding:14px 12px;text-align:left}
+.statsHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.statsTitle{font-size:14px;font-weight:800;letter-spacing:2px;color:#ffd98f}
+.statsClose{width:28px;height:28px;border-radius:8px;border:1px solid #5a6472;color:#8d97ab;font-size:12px}
+.statsSummary{display:flex;gap:6px;margin-bottom:10px}
+.statChip{flex:1;background:#3a4356;border:1px solid #5a6472;border-radius:8px;padding:6px 2px;text-align:center}
+.statChipVal{font-size:12px;font-weight:700;color:#fff}
+.statChipLab{font-size:8.5px;color:#8d97ab}
+.statRow{display:flex;gap:7px;align-items:flex-start;padding:7px 0;border-top:1px dashed #3a4356}
+.statRank{flex:none;width:20px;height:20px;border-radius:6px;background:#3a4356;color:#c3cad2;font-size:11px;
+  display:flex;align-items:center;justify-content:center}
+.statAvatar{flex:none;width:32px;height:32px;border-radius:8px;background:#565b63;border:1px solid #8a9aab;
+  display:flex;align-items:center;justify-content:center;font-size:11px}
+.statInfo{flex:1;min-width:0}
+.statLine{display:flex;justify-content:space-between;font-size:11px}
+.statLine .nm{font-weight:700;color:#dbe2ef}
+.statLine .dmg{color:#8d97ab}
+.statLine .pct{color:#ffd98f;font-weight:700}
+.statBar{height:5px;background:#3a4356;border-radius:3px;margin:4px 0;overflow:hidden}
+.statBarFill{height:100%;background:#8a9aab}
+.statSlots{display:flex;gap:5px}
+.slotChip{font-size:8.5px;color:#8d97ab;border:1px solid #3a4356;border-radius:4px;padding:1px 5px}
+.menuPanel{width:220px;background:#1b2130;border:1px solid #5a6472;border-radius:14px;padding:14px 12px;
+  display:flex;flex-direction:column;gap:8px;text-align:center}
+.menuBtn{height:40px;border-radius:9px;font-size:13px;font-weight:700;border:2px solid #5a6472;
+  color:#dbe2ef;background:rgba(255,255,255,.04);position:relative}
+.menuBtn.cyan{border-color:#7bdc7b}.menuBtn.red{border-color:#c0483f}
+.mailRed{position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;border-radius:8px;background:#c0483f;
+  border:2px solid #1b2130;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center}
+
+/* 提示条（同 popups 口径：居中，不占布局） */
+.feedback{position:absolute;z-index:60;left:50%;top:calc(50% + 120px);transform:translate(-50%,0);
+  max-width:82%;background:#244b60;color:#fff;border:1px solid #89abbf;border-radius:8px;padding:8px 14px;
+  font-size:11px;font-weight:700;text-align:center;opacity:0;transition:opacity .18s;pointer-events:none}
+.feedback.visible{opacity:1}
+
+/* 分段标注 / 点击热区 */
+[data-seg]::after{content:attr(data-seg);position:absolute;z-index:15;font-size:9px;color:#fff;
+  background:rgba(20,26,34,.82);border:1px solid #8a9aab;border-radius:4px;padding:1px 5px;
+  pointer-events:none;display:none;white-space:nowrap}
+.phone.segOn [data-seg]::after{display:block;top:0;left:0}
+.targetsOn [data-act]{outline:1px dashed rgba(255,255,255,.5);outline-offset:1px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="review">
+<aside class="rail left">
+  <div class="kicker">护送计划 · UX 布局交互稿 · 第三篇</div>
+  <h1>战斗局内布局</h1>
+  <div id="review-nav"></div><hr>
+  <h2>视口</h2>
+  <select id="size">
+    <option value="390,844">390 × 844 · 标准屏</option>
+    <option value="360,640">360 × 640 · 短屏</option>
+    <option value="430,932">430 × 932 · 长屏</option>
+  </select>
+  <label><input type="checkbox" id="seg"> 显示分区标注</label>
+  <label><input type="checkbox" id="targets"> 显示点击热区</label>
+  <button class="review-reset" id="reset">重置本稿状态（倍速/选择/红点）</button>
+  <div class="legend"><span>① 顶栏</span><span>② BOSS/提示</span><span>③ 战斗区</span><span>④ 技能列</span><span>⑤ 车尾区</span></div>
+  <div class="note">图标、怪物、车辆均为灰阶体块占位，不代表美术方案；元素属性（火/雷/水/毒）以文字占位。</div>
+  <p>模式对照：<b>普通关卡</b> 波次 3/10；<b>无尽</b> 波次 chip 变「无尽」+ 里程碑；<b>试炼</b> 失败标题变「试炼失败」；<b>副本</b> 结算口径同通关。</p>
+</aside>
+
+<section class="phone" id="phone" aria-label="战斗局内布局交互稿">
+  <div class="safe"></div>
+</section>
+
+<aside class="rail right">
+  <div class="kicker" id="note-index"></div>
+  <h1 id="note-title"></h1>
+  <p id="note-desc"></p>
+  <ol id="note-list"></ol><hr>
+  <h2>本稿范围</h2>
+  <div class="metric"><span>层级</span><b>H1 常驻 / H2 打断 / H3 浮窗 / H4 结算</b></div>
+  <div class="metric"><span>布局原则</span><b>信息贴边 · 画面让给战斗</b></div>
+  <div class="metric"><span>打断层</span><b>一律暂停战斗</b></div>
+  <div class="metric"><span>滚动条</span><b>局内零滚动</b></div>
+  <div class="metric"><span>技能浮窗</span><b>点按数值 · 长按范围圈</b></div>
+  <div class="note" id="review-status" aria-live="polite">操作反馈显示在此，不占用战斗画面。</div>
+</aside>
+</div>
+
+<script>
+/* ===================== 工具 ===================== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ===================== 真实数据（与 HeroDef/DomHud 同口径） ===================== */
+const HEROES = [
+  { id: 'rifle',     name: '步枪手·凯',   role: '持续输出', el: '火', basic: '普攻·连射',
+    skill: { name: '穿透齐射',  desc: '齐射 5 枚可穿透的子弹', cd: 14 },
+    ult:   { name: '榴弹炮击',  desc: '发射榴弹炮，轰击落点范围敌人', cd: 16, charge: 62 } },
+  { id: 'sniper',    name: '狙击手·苍鹭', role: '单体爆发', el: '雷', basic: '普攻·齐射',
+    skill: { name: '护卫无人机', desc: '召唤无人机环绕自身射击 5 秒', cd: 0 },
+    ult:   { name: '猎杀锁定',  desc: '准星锁定 8 个血量最高的敌人', cd: 18, charge: 100 } },
+  { id: 'laser',     name: '激光手·棱镜', role: '跟踪持续', el: '水', basic: '普攻·贯穿',
+    skill: { name: '过载光束',  desc: '过载普攻 4.2 秒：每跳伤害 ×2.2', cd: 9 },
+    ult:   { name: '贯穿光束',  desc: '穿透全屏的激光束，持续 5 秒', cd: 17, charge: 30 } },
+  { id: 'radiation', name: '辐射枪手·芮', role: '群体伤害', el: '毒', basic: '普攻·裂变',
+    skill: { name: '裂变齐射',  desc: '自动连发 3 枚穿透弹', cd: 0 },
+    ult:   { name: '辐射禁区',  desc: '对目标周围敌人造成范围伤害', cd: 15, charge: 0 } },
+];
+/* 每列 2 英雄 × 3 槽（普攻/技能/大招 自上而下），槽位纵坐标为本稿 844 画框实测；
+   x2 倍速在左列顶部、1 号位普攻上方（与正式项目 AbilityBar 同口径）。 */
+const COLS = [
+  { side: 'l', x: 25, heroes: [0, 1], xs: [165, 205, 241, 277, 335, 371, 408] },
+  { side: 'r', x: 365, heroes: [2, 3] },
+];
+const LU_CARDS = [
+  { hero: '步枪手·凯', type: '普攻·连射', desc: '每条弹道额外发射 2 颗同向子弹，伤害 -20%', lv: 'Lv.2 / 5' },
+  { hero: '狙击手·苍鹭', type: '普攻·齐射', desc: '增加 1 条小角度偏移弹道，弹数与主弹道相同', lv: '新获得' },
+  { hero: '激光手·棱镜', type: '攻击强化', desc: '攻击力 +25%（团队增益，全体生效）', lv: 'Lv.1 / 5' },
+];
+const DROPS = [
+  { ic: '🛡️', nm: '钢制护甲', r: 'r2' }, { ic: '🧬', nm: '英雄核心', r: 'r3' },
+  { ic: '📦', nm: '建材包', r: 'r2' }, { ic: '🔩', nm: '精炼合金', r: 'r2' },
+];
+
+/* ===================== 状态 ===================== */
+let view = 'hud', speed = 1, abTip = null, picked = null, mailRed = true;
+let vp = '390,844', showSeg = false, showTargets = false;
+let fbTimer, fbMsg = '', fbActive = false;
+const resetState = () => { view = 'hud'; speed = 1; abTip = null; picked = null; mailRed = true; };
+
+/* ===================== 组件 ===================== */
+const segA = t => `data-seg="${t}"`;
+function stageHTML(o) {
+  const mobs = [[60, 160, 1], [180, 200, .8], [300, 140, 1], [120, 268, .6], [250, 320, .9], [40, 356, .5]];
+  return `<div class="road" ${segA('③ 战斗区')}>
+      <div class="lane" style="top:24%"></div><div class="lane" style="top:44%"></div><div class="lane" style="top:64%"></div>
+      ${mobs.map(m => `<div class="mob" style="left:${m[0]}px;top:${m[1]}px;transform:scale(${m[2]})"><i><b style="width:${30 + m[1] % 50}%"></b></i>👾</div>`).join('')}
+      <div class="bult" style="left:190px;top:560px"></div><div class="bult" style="left:196px;top:540px"></div>
+      <div class="gem" style="left:96px;top:470px"></div><div class="gem" style="left:290px;top:500px"></div>
+      ${o.vig ? `<div class="vig"><small>低耐久红晕（美术：红色渐晕 · warn/danger 两档）</small></div>` : ''}
+      <div class="vehBar" data-act="why" data-why="载具耐久：低于 35% 转 warn（黄）· 低于 15% 转 danger（红）并出红晕">
+        <span class="vehLab">载具</span><span class="vehTrack"><span class="vehFill" style="width:82%"></span></span><span class="vehTxt">820 / 1000</span>
+      </div>
+      <div class="vehBody" ${segA('⑤ 车尾区')}>${['凯', '苍', '棱', '芮'].map(n => `<div class="vehHero">${n}</div>`).join('')}<div class="car"><i></i></div></div>
+    </div>`;
+}
+function topHTML() {
+  return `<div class="btop" ${segA('① 顶栏')}>
+      <button class="btBtn" data-act="bPause" aria-label="暂停">❚❚</button>
+      <button class="btBtn" data-act="bStats" aria-label="伤害统计">📊</button>
+      <button class="btBtn wide" data-act="bMenu" aria-label="菜单">菜单${mailRed ? '<i class="mailRed">1</i>' : ''}</button>
+      <div class="xpWrap"><span class="lvBadge">Lv.7</span><div class="xpTrack"><div class="xpFill" style="width:62%"></div></div></div>
+      <div class="chip"><span class="chipLab">波次</span><span class="chipVal">${view === 'endless' ? '无尽' : '3 / 10'}</span></div>
+      <div class="chip"><span class="chipLab">击杀</span><span class="chipVal">214</span></div>
+    </div>`;
+}
+function abilityHTML() {
+  const slot = (h, kind, y, cd, chg) => {
+    const tip = `data-act="abTip" data-h="${h}" data-k="${kind}"`;
+    const letter = kind === 'basic' ? '普' : kind === 'skill' ? '技' : '大';
+    const lvl = kind === 'basic' ? 5 : kind === 'skill' ? 3 : 2;
+    const cdTxt = cd > 0 ? `<div class="cd"></div><div class="cdTxt">${cd.toFixed(1)}</div>` : '';
+    const chgTxt = kind === 'ult' && chg < 100 ? `<div class="chg" style="height:${chg}%"></div>` : '';
+    return `<button class="abSlot${kind === 'ult' ? ' ult' : ''}${kind === 'ult' && chg >= 100 ? ' full' : ''}"
+      style="top:${y - 16}px" ${tip} aria-label="${HEROES[h].name} ${kind}"><b>${letter}</b>${chgTxt}${cdTxt}<span class="lv">${lvl}</span></button>`;
+  };
+  const col = (side) => {
+    const def = COLS.find(c => c.side === side);
+    const hs = def.heroes;
+    let inner = '';
+    if (side === 'l') inner += `<button class="x2${speed === 2 ? ' on' : ''}" data-act="x2" style="top:${165 - 11}px" aria-label="倍速">x${speed === 2 ? 2 : 1}</button>`;
+    inner += slot(hs[0], 'basic', 205, 0, 0) + slot(hs[0], 'skill', 241, side === 'l' ? 3.2 : 0, 0) + slot(hs[0], 'ult', 277, 0, hs === COLS[0].heroes ? 62 : 100);
+    inner += slot(hs[1], 'basic', 335, 0, 0) + slot(hs[1], 'skill', 371, side === 'r' ? 2.4 : 0, 0) + slot(hs[1], 'ult', 408, 0, side === 'l' ? 30 : 0);
+    return `<div class="abCol ${side}" ${segA('④ 技能列')}>${inner}</div>`;
+  };
+  return col('l') + col('r');
+}
+function stageHTMLWith(o) {
+  let html = topHTML() + stageHTML(o) + abilityHTML();
+  if (o.boss) html += `<div class="bossBar" ${segA('② BOSS')}><div class="bossName">👑 巨石猿王</div><div class="bossTrack"><div class="bossFill" style="width:72%"></div></div></div>`;
+  if (o.pop) html += `<div class="bPop" ${segA('② 波次提示')}>${o.pop}<small>${o.popSub || ''}</small></div>`;
+  html += `<div class="buildStamp">版B0831-1</div>`;
+  return html;
+}
+
+/* ===================== 各面 ===================== */
+function hudBody() {
+  return stageHTMLWith({ pop: '第 3 波', popSub: '剩余 32 只 · 下波 12 秒' });
+}
+function bossBody() {
+  return stageHTMLWith({ boss: true, pop: '⚠ BOSS 来袭 · 巨石猿王', popSub: '击破奖励 🪙 500 · 团队大招已充满', vig: true });
+}
+function endlessBody() {
+  return stageHTMLWith({ pop: '♾️ 第 12 波里程碑', popSub: '金币 +500 已入账 · 战斗不暂停' });
+}
+function levelupBody() {
+  return stageHTMLWith({}) + `<div class="fDim" data-act="luDim">
+      <div class="pauseChip">战斗已暂停 · 选卡后恢复</div>
+      <div class="luWrap">
+        <div class="luBanner">团 队 升 级</div>
+        <div class="luTitle">选择一项强化（点卡即选，无撤销）</div>
+        <div class="luCards">${LU_CARDS.map((c, i) =>
+          `<button class="luCard" data-act="luPick" data-i="${i}"><div class="av">${c.hero.slice(-1)}</div>
+            <div class="hero">${esc(c.hero)}</div><div class="type">${esc(c.type)}</div>
+            <div class="desc">${esc(c.desc)}</div><div class="lv">${esc(c.lv)}</div></button>`).join('')}</div>
+      </div></div>`;
+}
+function pauseBody() {
+  return stageHTMLWith({}) + `<div class="fDim" data-act="pDim">
+      <div class="pauseChip">时间轴已冻结 · 延时回调全部挂起</div>
+      <div class="endCard"><div class="endTitle" style="letter-spacing:6px;font-size:24px">已 暂 停</div>
+        <div style="height:12px"></div>
+        <div class="endBtns">
+          <button class="endBtn cyan" data-act="pResume">继 续 游 戏</button>
+          <button class="endBtn orange" data-act="pRetry">重 新 挑 战</button>
+          <button class="endBtn red" data-act="pExit">退 出 关 卡</button>
+        </div>
+        <small style="display:block;margin-top:10px;color:#8d97ab">升级三选一期间，暂停键不响应</small>
+      </div></div>`;
+}
+function statsBody() {
+  const rows = HEROES.map((h, i) => {
+    const dmg = [41200, 28600, 19800, 12400][i], pct = [42, 29, 20, 9][i];
+    const slots = [['52%', '18%', '30%'], ['38%', '0%', '62%'], ['64%', '12%', '24%'], ['46%', '22%', '32%']][i];
+    return `<div class="statRow"><div class="statRank">${i + 1}</div><div class="statAvatar">${h.name.slice(-1)}</div>
+      <div class="statInfo"><div class="statLine"><span class="nm">${esc(h.name)}<small>（${h.el}）</small></span>
+      <span class="dmg">${dmg.toLocaleString()}</span><span class="pct">${pct}%</span></div>
+      <div class="statBar"><div class="statBarFill" style="width:${pct}%"></div></div>
+      <div class="statSlots">${['普攻', '技能', '大招'].map((n, k) => `<span class="slotChip">${n} <b>${slots[k]}</b></span>`).join('')}</div>
+      </div></div>`;
+  }).join('');
+  return stageHTMLWith({}) + `<div class="fDim" data-act="sDim">
+      <div class="statsPanel"><div class="statsHead"><span class="statsTitle">伤 害 统 计</span>
+        <button class="statsClose" data-act="sClose">✕</button></div>
+      <div class="statsSummary">
+        <div class="statChip"><div class="statChipVal">102,000</div><div class="statChipLab">团队总伤害</div></div>
+        <div class="statChip"><div class="statChipVal">1,860/s</div><div class="statChipLab">团队 DPS</div></div>
+        <div class="statChip"><div class="statChipVal">03:24</div><div class="statChipLab">战斗时长</div></div>
+      </div>${rows}
+      <button class="endBtn cyan" style="width:100%;margin-top:10px" data-act="sClose">关 闭</button></div></div>`;
+}
+function menuBody() {
+  return stageHTMLWith({}) + `<div class="fDim" data-act="mDim">
+      <div class="menuPanel"><div class="statsTitle" style="text-align:center">菜 单</div>
+      <button class="menuBtn cyan" data-act="mMail">📬 邮 箱${mailRed ? '<i class="mailRed">1</i>' : ''}</button>
+      <button class="menuBtn" data-act="mSetting">⚙️ 设 置</button>
+      <button class="menuBtn orange" data-act="mBack">返 回 战 斗</button>
+      <small style="color:#8d97ab">邮箱/设置浮窗复用二级浮窗稿（popups.html）同内容</small></div></div>`;
+}
+function clearBody() {
+  return stageHTMLWith({}) + `<div class="fDim" data-act="cDim">
+      <div class="endCard"><div class="endTitle">通 关</div>
+      <div class="clChips">
+        <div class="clChip"><b>214</b><span>击杀怪物</span></div>
+        <div class="clChip"><b>Lv.7</b><span>团队等级</span></div>
+        <div class="clChip gold"><b>+856</b><span>金币收益（含首通）</span></div></div>
+      <div class="clLootHead">✨ 掉 落 获 得 ✨</div>
+      <div class="clLootGrid">${DROPS.map(d => `<div class="clDrop ${d.r}"><span class="ic">${d.ic}</span><span class="nm">${esc(d.nm)}</span></div>`).join('')}</div>
+      <div style="height:14px"></div>
+      <div class="endBtns">
+        <button class="endBtn green" data-act="cAd">📺 看广告 · 掉落双倍（+856 金币）</button>
+        <button class="endBtn cyan" data-act="cHome">返 回 主 城</button></div>
+      <small style="display:block;margin-top:8px;color:#8d97ab">掉落逐项翻转弹出 · 错峰 0.28s</small></div></div>`;
+}
+function failBody() {
+  return stageHTMLWith({}) + `<div class="fDim" data-act="fDim">
+      <div class="endCard"><div class="endTitle">护 送 失 败</div>
+      <div style="height:10px"></div>
+      <div class="endLine"><span>抵达波次</span><b>第 6 / 10 波</b></div>
+      <div class="endLine"><span>击杀怪物</span><b>214</b></div>
+      <div class="endLine"><span>团队等级</span><b>Lv.7</b></div>
+      <div class="endGold">金币收益　+856</div>
+      <div class="endBtns">
+        <button class="endBtn orange" data-act="fRetry">重 试 一 次</button>
+        <button class="endBtn green" data-act="fAd">📺 看广告 · 金币翻倍（+856）</button>
+        <button class="endBtn cyan" data-act="fHome">返 回 主 城</button></div>
+      <small style="display:block;margin-top:8px;color:#8d97ab">副本局标题变「副本失败」 · 试炼局「试炼失败」</small></div></div>`;
+}
+const BODY = { hud: hudBody, boss: bossBody, endless: endlessBody, levelup: levelupBody, pause: pauseBody,
+  stats: statsBody, menu: menuBody, clear: clearBody, fail: failBody };
+const META = { hud: { layer: 'H1' }, boss: { layer: 'H1' }, endless: { layer: 'H1' },
+  levelup: { layer: 'H2' }, pause: { layer: 'H2' }, stats: { layer: 'H3' }, menu: { layer: 'H3' },
+  clear: { layer: 'H4' }, fail: { layer: 'H4' } };
+
+const CATALOG = [
+  ['H1 · 常驻层（不暂停）', [['hud', '战斗主画面', '常驻'], ['boss', 'BOSS 波次', '常驻'], ['endless', '无尽里程碑', '常驻']]],
+  ['H2 · 打断层（暂停战斗）', [['levelup', '升级三选一', '打断'], ['pause', '暂停菜单', '打断']]],
+  ['H3 · 浮窗（不暂停）', [['stats', '伤害统计', '浮窗'], ['menu', '战斗菜单', '浮窗']]],
+  ['H4 · 结算层', [['clear', '通关结算', '结算'], ['fail', '失败卡', '结算']]],
+];
+const NOTE = {
+  hud: ['战斗主画面（H1·常驻）', '信息全部贴边压薄，中央留给战斗；技能列贴两侧、避开车尾与顶栏。', [
+    '顶栏 44px：左 暂停/统计/菜单（含邮件红点）｜中 经验条+等级徽章｜右 波次/击杀 chip。',
+    '技能列：每列 2 英雄 × 3 槽（普攻/技能/大招 自上而下），图标 Ø33px（设计 92）；x2 倍速在左列顶部。',
+    '技能冷却 = 扇形遮罩 + 秒数；大招由击杀充能自底灌满，充满亮元素环（美术：元素色）。',
+    '点按图标弹数值浮窗；长按 0.45s 显示战场范围圈（正式项目 AbilityBar 行为）。',
+    '载具耐久条贴车顶，低于 35% 出红晕（vignette）与 warn/danger 两档变色。']],
+  boss: ['BOSS 波次（H1·变体）', 'BOSS 波不换场景，只在常驻 HUD 上叠 Boss 条与来袭提示。', [
+    'BOSS 条顶部居中：👑 名字 + 血量轨道，死亡收起并弹「BOSS 击破」。',
+    '来袭提示复用中央波次 popup（⚠ 前缀），不额外开层。',
+    '低耐久红晕同屏演示：载具被 BOSS 压制时的紧张反馈。']],
+  endless: ['无尽里程碑（H1·变体）', '末波清完不结算，波次 chip 变「无尽」，按里程碑滚奖励。', [
+    '波次 chip 文案变「无尽」，不显示总数。',
+    '里程碑提示为浮动弹幕（♾️ 金币 +N），战斗不暂停、不打断操作。']],
+  levelup: ['升级三选一（H2·打断）', '升级即暂停：三张增益卡，点卡即选、无撤销，选完恢复战斗。', [
+    '卡内容 = 英雄名 + 强化类型 + 生效说明 + 当前层数；三卡来自在场英雄池。',
+    '卡片点选期间整个战斗暂停（实体 update 全部挂起），不存在抢时操作。',
+    '卡片 3 张并排，390 宽下单卡约 112px；点击热区整卡可点。']],
+  pause: ['暂停菜单（H2·打断）', '手动暂停：时间轴与延时回调全部冻结；三条出路都是整局级操作。', [
+    '继续游戏：恢复；重新挑战：清场重置波次与时间轴（保留倍速）；退出关卡：结算已得金币回主城。',
+    '升级选卡期间暂停键不响应（互斥）。']],
+  stats: ['伤害统计（H3·浮窗）', '战局中随时可看的战绩面板：不暂停战斗。', [
+    '三芯片：团队总伤害 / 团队 DPS / 战斗时长。',
+    '每英雄一行：排名徽章 + 头像 + 伤害/占比 + 占比条 + 普攻/技能/大招分槽占比。',
+    '4 英雄行以内，局内零滚动。']],
+  menu: ['战斗菜单（H3·浮窗）', '局内轻入口：邮箱（红点）/设置；其余管理回主城做。', [
+    '邮箱红点与主城同源；战斗页邮箱/设置浮窗复用二级浮窗稿（popups.html）同内容。',
+    '打开浮窗战斗不暂停——浮窗不遮战斗关键区。']],
+  clear: ['通关结算（H4）', '首通/重复通关同一张卡：三芯片 + 掉落 + 双倍抉择。', [
+    '三芯片：击杀 / 团队等级 / 金币收益（含首通奖）。',
+    '掉落网格逐项翻转弹出（错峰 0.28s）；无掉落给固定提示位，不出空态页。',
+    '双倍按钮文案 = 本次收益金额；限次用完或无收益时隐藏（不是置灰）。']],
+  fail: ['失败卡（H4）', '失败即给三条出路：重试 / 广告翻倍 / 回主城；标题按模式变体。', [
+    '标题：护送失败 / 试炼失败 / 副本失败；无尽局改报无尽波数。',
+    '数据行：抵达波次 / 击杀 / 团队等级 / 金币收益。',
+    '看广告双倍按钮文案 = 收益金额，看完发等额金币。']],
+};
+
+/* ===================== 渲染 ===================== */
+function feedbackHTML() {
+  return `<div class="feedback${fbActive ? ' visible' : ''}" id="feedback" role="status" aria-live="polite">${esc(fbMsg)}</div>`;
+}
+function render() {
+  const phone = $('#phone');
+  let html = `<div class="safe"></div>`;
+  if (view === 'hud') html += hudBody();
+  else if (view === 'boss') html += bossBody();
+  else if (view === 'endless') html += endlessBody();
+  else if (view === 'levelup') html += levelupBody();
+  else if (view === 'pause') html += pauseBody();
+  else if (view === 'stats') html += statsBody();
+  else if (view === 'menu') html += menuBody();
+  else if (view === 'clear') html += clearBody();
+  else html += failBody();
+  /* 技能数值浮窗：点按图标弹出（居中，贴车尾上方），不随图标定位——画布内为贴图标定位 */
+  if (abTip) {
+    const h = HEROES[abTip.h];
+    const ab = abTip.k === 'skill' ? h.skill : h.ult;
+    const meta = abTip.k === 'skill' ? `冷却 ${ab.cd}s` : `冷却 ${ab.cd}s · 击杀充能`;
+    html += `<div class="abTip"><b>${esc(h.name)} · ${esc(ab.name)}</b>${esc(ab.desc)}<br><small>${meta} · 点其他图标切换，再点当前图标收起</small></div>`;
+  }
+  html += feedbackHTML();
+  phone.innerHTML = html;
+  wire();
+  renderRails();
+}
+function renderRails() {
+  const nav = $('#review-nav');
+  if (!nav.dataset.built) {
+    nav.innerHTML = CATALOG.map(([group, items]) =>
+      `<div class="group">${esc(group)}</div>` + items.map(([id, name, layer]) =>
+        `<button data-nav="${id}">${esc(name)}<span class="tag ${layer}">${esc(layer)}</span></button>`).join('')).join('');
+    nav.dataset.built = '1';
+  }
+  nav.querySelectorAll('[data-nav]').forEach(b => b.setAttribute('aria-current', b.dataset.nav === view ? 'page' : 'false'));
+  const n = NOTE[view];
+  const idx = Object.keys(META).indexOf(view) + 1;
+  $('#note-index').textContent = `战斗面 ${String(idx).padStart(2, '0')} / ${Object.keys(META).length} · ${META[view].layer}`;
+  $('#note-title').textContent = n[0];
+  $('#note-desc').textContent = n[1];
+  $('#note-list').innerHTML = n[2].map(x => `<li>${esc(x)}</li>`).join('');
+}
+
+/* ===================== 交互（事件委托：任何可点元素都有出路） ===================== */
+function feedback(text) {
+  clearTimeout(fbTimer);
+  fbMsg = text; fbActive = true;
+  const el = $('#feedback');
+  if (el) { el.textContent = text; el.classList.add('visible'); }
+  $('#review-status').textContent = text;
+  fbTimer = setTimeout(() => { fbActive = false; const cur = $('#feedback'); if (cur) cur.classList.remove('visible'); }, 2200);
+}
+function wire() {
+  const phone = $('#phone');
+  phone.classList.toggle('segOn', showSeg);
+  phone.classList.toggle('targetsOn', showTargets);
+  phone.onclick = e => {
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const act = b.dataset.act;
+    const go = v => { view = v; render(); };
+    switch (act) {
+      case 'bPause': go('pause'); break;
+      case 'bStats': go('stats'); break;
+      case 'bMenu': go('menu'); break;
+      case 'x2': speed = speed === 1 ? 2 : 1; render(); feedback(`倍速 x${speed} · 只改演出节奏，不改掉落与判定`); break;
+      case 'abTip': {
+        const h = +b.dataset.h, k = b.dataset.k;
+        if (abTip && abTip.h === h && abTip.k === k) { abTip = null; render(); break; }
+        abTip = { h, k }; render(); break;
+      }
+      case 'luPick': {
+        const c = LU_CARDS[+b.dataset.i];
+        picked = c.type; abTip = null; go('hud');
+        feedback(`已选「${c.hero} · ${c.type}」· 战斗恢复`); break;
+      }
+      case 'luDim': feedback('选卡期间不可关闭（战斗已暂停），三选一再走'); break;
+      case 'pResume': go('hud'); feedback('战斗恢复'); break;
+      case 'pRetry': feedback('重开：清场重置波次与时间轴（保留倍速与等级）'); break;
+      case 'pExit': feedback('退出：结算已得金币，返回主城'); break;
+      case 'pDim': feedback('避免误触：暂停菜单用按钮操作'); break;
+      case 'sClose': case 'sDim': abTip = null; go('hud'); break;
+      case 'mMail': mailRed = false; render(); feedback('战斗页邮箱浮窗：复用二级浮窗稿（popups.html）邮箱面'); break;
+      case 'mSetting': feedback('设置浮窗：复用主城设置面（音效/音量/关于/重置）'); break;
+      case 'mBack': case 'mDim': go('hud'); break;
+      case 'cAd': feedback('看完广告：掉落与金币双倍已入账'); break;
+      case 'cHome': case 'cDim': feedback('返回主城'); break;
+      case 'fRetry': feedback('重试：消耗体力重新入场'); break;
+      case 'fAd': feedback('看完广告：金币翻倍 +856 已入账'); break;
+      case 'fHome': case 'fDim': feedback('返回主城'); break;
+      case 'why': feedback(b.dataset.why || '已执行'); break;
+      default: feedback('已执行');
+    }
+  };
+  $('#review-nav').onclick = e => {
+    const b = e.target.closest('[data-nav]');
+    if (!b) return;
+    view = b.dataset.nav; render();
+  };
+}
+
+/* ===================== 外壳控件 ===================== */
+$('#size').onchange = e => {
+  const [w, h] = e.target.value.split(',');
+  $('.review').style.setProperty('--phone-w', w + 'px');
+  $('.phone').style.height = h + 'px';
+  vp = e.target.value; render();
+};
+$('#seg').onchange = e => { showSeg = e.target.checked; render(); };
+$('#targets').onchange = e => { showTargets = e.target.checked; render(); };
+$('#reset').onclick = () => { resetState(); render(); feedback('本稿状态已重置'); };
+
+render();
+</script>
+</body>
+</html>
