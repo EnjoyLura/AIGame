@@ -76,10 +76,13 @@ svg{display:block;width:100%;height:100%;pointer-events:none}small{font-size:10p
 .dim.l5{background:rgba(10,10,10,.82)}
 .pop{position:absolute;z-index:30;display:flex;flex-direction:column;overflow:hidden;background:#e6e6e6;
   border:2px solid #8b8b8b;box-shadow:0 14px 34px rgba(0,0,0,.4);color:#292929}
-/* 四档尺寸：与正式项目同口径 —— M/L 用视口比例定位（跨长宽比稳），S 居中偏上，XL 满屏 */
-.pop.M{position:absolute;left:23px;right:23px;top:18%;bottom:18%}
-.pop.L{position:absolute;left:17px;right:17px;top:14%;bottom:13%}
-.pop.S{position:absolute;left:50%;transform:translateX(-50%);top:30%;width:287px;max-width:86%}
+/* 四档尺寸：与正式项目同口径 —— M/L 用视口比例定位（跨长宽比稳），S 居中偏上，XL 满屏。
+   高度一律由内容决定（height:max-content）+ 上限（max-height），内容不足时 auto 外边距居中。
+   旧写法把 top/bottom 同时钉死，等于给每一面都固定一个高度：邮箱内容 549px 也只给 540px，
+   差 9px 就白出一条滚动条；建筑面板内容 638px 却给 540px，白留 165px 空白。 */
+.pop.M{position:absolute;left:23px;right:23px;top:4%;bottom:4%;height:max-content;margin-top:auto;margin-bottom:auto;max-height:92%}
+.pop.L{position:absolute;left:17px;right:17px;top:4%;bottom:4%;height:max-content;margin-top:auto;margin-bottom:auto;max-height:92%}
+.pop.S{position:absolute;left:50%;transform:translateX(-50%);top:30%;width:287px;max-width:86%;max-height:68%}
 .pop.XL{position:absolute;inset:0;border:0;box-shadow:none}
 
 /* ============================ 五段式骨架（①②③④⑤） ============================ */
@@ -128,8 +131,9 @@ svg{display:block;width:100%;height:100%;pointer-events:none}small{font-size:10p
 .popChip{font-size:11.5px;color:#4a4a4a;border:1px solid #a5a5a5;border-radius:99px;padding:3px 11px;background:#e6e6e6}
 .popChip.on{background:#8b8b8b;color:#fff;border-color:#6f6f6f;font-weight:700}
 
-/* ③ 内容滚动区：全稿唯一滚动轴 */
-.popScroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:9px 12px;display:flex;flex-direction:column;gap:7px}
+/* ③ 内容滚动区：全稿唯一滚动轴。
+   flex 基准必须是 auto（内容高），不能是 0：面板改内容自适应后 flex:1 会把滚动区压成 0 高。 */
+.popScroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:9px 12px;display:flex;flex-direction:column;gap:7px}
 .popScroll::-webkit-scrollbar{width:6px}
 .popScroll::-webkit-scrollbar-thumb{background:#a5a5a5;border-radius:3px}
 .popSec{flex:none;font-size:11.5px;color:#5f5f5f;border-left:3px solid #8b8b8b;padding-left:7px;margin-top:3px}
@@ -321,7 +325,7 @@ svg{display:block;width:100%;height:100%;pointer-events:none}small{font-size:10p
 <button class="review-reset" id="reset">重置本稿状态（领取 / 选择）</button>
 <div class="legend"><span>① 头部</span><span>② 说明·页签</span><span>③ 滚动区</span><span>④ 消耗·槽位</span><span>⑤ 命令区</span></div>
 <div class="note">图标、物品、角色均为灰阶体块占位，不代表美术方案。品质用 4 级灰阶代替颜色。</div>
-<p>四档尺寸：<b>S</b> 287 定宽居中偏上、<b>M/L</b> 视口比例定位、<b>XL</b> 满屏二级页。</p>
+<p>四档尺寸：<b>S</b> 287 定宽居中偏上、<b>M/L</b> 视口比例定位、<b>XL</b> 满屏二级页。四档都是<b>宽按档位、高按内容</b>——内容短就收成一屏读完，只有超出上限（M/L 88%、S 68%）才出现滚动条。</p>
 </aside>
 
 <section class="phone" id="phone" aria-label="二级浮窗布局交互稿">
@@ -445,8 +449,9 @@ const NOTE = {
     '层级靠遮罩深度区分：L2 满屏、L3 弹窗、L5 演出。',
     '子层左上角出现返回键，返回回到父层而不是直接关到主城。']],
   sizes: ['四档尺寸', '同一份内容在四档下的定位规则一致：宽按档位，高按内容。', [
-    'S：287 定宽居中偏上，用于确认与短提示。',
-    'M / L：按视口比例定位，跨长宽比稳定，内容区吃剩余高度。',
+    'S：287 定宽居中偏上，用于确认与短提示，不做滚动，全部内容一屏读完。',
+    'M / L：按视口比例定位，跨长宽比稳定；高度由内容决定（max-content）+ 上限，短内容不留空白也不空出滚动条。',
+    '只有内容真的超过上限（M/L 92%、S 68% 视口高）才出现滚动条，且始终只有 ③ 一根。',
     'XL：满屏二级页，头部用展示台，底部加模式栏。']],
   states: ['状态与红线', '不可用不禁用：按钮始终可点，点了解释原因。', [
     '缺量：数值加粗加下划线并标差值，按钮压暗但可点。',

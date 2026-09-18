@@ -73,8 +73,9 @@ ok('尺寸表四档都有定义', ['S', 'M', 'L', 'XL'].every((s) => new RegExp(
 ok('五级分层齐备（L2/L3/L4/L5）', ['L2', 'L3', 'L4', 'L5'].every((l) => new RegExp(`layer: '${l}'`).test(html)));
 ok('L5 遮罩更暗且不可误触关闭', /\.dim\.l5\{background:rgba\(10,10,10,\.82\)\}/.test(html)
     && /m\.layer === 'L3' \|\| m\.layer === 'L4'/.test(html));
+// 断言的是「谁在滚」而非某个 flex 简写：滚动区是唯一 overflow-y 区，命令/消耗区固定。
 ok('滚动轴只在 ③ 内容区（命令区/消耗区不进滚动）',
-    /\.popScroll\{flex:1;min-height:0;overflow-y:auto/.test(html)
+    /\.popScroll\{[^}]*overflow-y:auto/.test(html)
     && /\.popCTA\{flex:none/.test(html) && /\.popCost\{flex:none/.test(html));
 
 /* ---------- 4. 无死键 ---------- */
@@ -152,10 +153,15 @@ ok('组件命名沿用正式项目（popBanner/popQ/popMeta/popTabs/popFixBar/po
     ['popBanner', 'popQ', 'popMeta', 'popTabs', 'popFixBar', 'popScroll', 'popCost', 'popCTA', 'popBtn', 'popSlots', 'popClose']
         .every((c) => html.includes('.' + c)));
 ok('四档定位口径与项目一致（M 左右 23、L 左右 17、S 287 定宽、XL 满屏）',
-    /\.pop\.M\{position:absolute;left:23px;right:23px;top:18%;bottom:18%\}/.test(html)
-    && /\.pop\.L\{position:absolute;left:17px;right:17px;top:14%;bottom:13%\}/.test(html)
+    /\.pop\.M\{position:absolute;left:23px;right:23px;top:4%;bottom:4%/.test(html)
+    && /\.pop\.L\{position:absolute;left:17px;right:17px;top:4%;bottom:4%/.test(html)
     && /\.pop\.S\{position:absolute;left:50%;transform:translateX\(-50%\);top:30%;width:287px/.test(html)
     && /\.pop\.XL\{position:absolute;inset:0;border:0/.test(html));
+// 高度必须由内容决定：top/bottom 同时钉死等于把每面高度固定住，短内容也硬占满、白出一条滚动条。
+ok('四档高度按内容自适应且带上限（短内容不出滚动条）',
+    (html.match(/height:max-content;margin-top:auto;margin-bottom:auto;max-height:92%/g) || []).length >= 2
+    && /\.pop\.S\{[^}]*max-height:68%/.test(html)
+    && /宽按档位，高按内容/.test(html));
 ok('灰阶占位声明：不引入美术方案', /品质用 4 级灰阶代替颜色/.test(html) && /不代表美术方案/.test(html));
 
 /* ---------- 7. 可执行性 ---------- */

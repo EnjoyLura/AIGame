@@ -2396,12 +2396,22 @@ export const HOME_UI_CSS = `
 @keyframes popIn { from { opacity: 0; transform: translateY(calc(8px * var(--pu,1))); } to { opacity: 1; transform: none; } }
 
 /* --- 尺寸档：M/L 用视口比例定位（跨长宽比稳），S 居中偏上，XL 满屏 --- */
+/* 高度由内容决定，不再拉满：top+bottom 同时给出且 height:auto 时会被当成撑满，
+   于是短内容也硬占满一屏高、中间白白多出一条滚动条（实测：邮箱内容 549px 拿 540px 面板，
+   差 9px 就出滚动条；建筑面板内容 638px 拿 540px，多出 165px 空白）。
+   现在 top/bottom 只负责留遮罩可见边距，真正的上限是 max-height；
+   内容不足时由 auto 外边距居中（居中效果与原固定高度档一致）。 */
 #homeUi .pop.M { position: absolute; left: calc(23px * var(--pu,1)); right: calc(23px * var(--pu,1));
-  top: calc(18vh + var(--sat,0px)); bottom: calc(18vh + var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
+  top: calc(4vh + var(--sat,0px)); bottom: calc(4vh + var(--sab,0px));
+  height: max-content; margin-top: auto; margin-bottom: auto;
+  max-height: calc(92vh - var(--sat,0px) - var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
 #homeUi .pop.L { position: absolute; left: calc(17px * var(--pu,1)); right: calc(17px * var(--pu,1));
-  top: calc(14vh + var(--sat,0px)); bottom: calc(13vh + var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
+  top: calc(4vh + var(--sat,0px)); bottom: calc(4vh + var(--sab,0px));
+  height: max-content; margin-top: auto; margin-bottom: auto;
+  max-height: calc(92vh - var(--sat,0px) - var(--sab,0px)); border-radius: calc(14px * var(--pu,1)); }
 #homeUi .pop.S { position: absolute; left: 50%; transform: translateX(-50%); top: 30vh;
-  width: calc(287px * var(--pu,1)); max-width: 86vw; border-radius: calc(12px * var(--pu,1)); }
+  width: calc(287px * var(--pu,1)); max-width: 86vw;
+  max-height: calc(68vh - var(--sab,0px)); border-radius: calc(12px * var(--pu,1)); }
 #homeUi .pop.S.center { top: 50%; margin-top: calc(-0px * var(--pu,1)); transform: translate(-50%, -50%); }
 #homeUi .pop.XL { position: absolute; inset: 0; border: 0; border-radius: 0; }
 #homeUi .pop.XL.L5 { background: #12151d; color: #dbe2ef; }
@@ -2463,7 +2473,9 @@ export const HOME_UI_CSS = `
 #homeUi .popChip.on { color: var(--pks); border-color: var(--pk); background: rgba(200,134,47,.1); }
 
 /* --- 内容滚动区（唯一滚动轴）--- */
-#homeUi .popScroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+/* flex:1 的 flex-basis:0 只在「面板被拉满、有富余高度」时才对；面板改内容自适应后
+   必须以内容高度为基准（flex:1 1 auto），否则滚动区会被压成 0 高、整块内容看不见。 */
+#homeUi .popScroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   padding: calc(10px * var(--pu,1)) calc(12px * var(--pu,1)); display: flex; flex-direction: column;
   gap: calc(8px * var(--pu,1)); -webkit-overflow-scrolling: touch; }
 #homeUi .popScroll > .popFade { position: sticky; bottom: -1px; flex: none; height: calc(20px * var(--pu,1));

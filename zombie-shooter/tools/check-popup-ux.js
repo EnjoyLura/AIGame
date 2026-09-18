@@ -23,7 +23,8 @@ ok('骨架按 ①头部→②说明·页签→③滚动区→④消耗→⑤命�
   && core.indexOf("'popMeta'") < core.indexOf("'popScroll'")
   && core.indexOf("'popScroll'") < core.indexOf("'popCost'"));
 ok('滚动区只有一根（.popScroll 是唯一 overflow-y:auto 的弹层区）',
-  /\.popScroll \{ flex: 1; min-height: 0; overflow-y: auto/.test(style));
+  /#homeUi \.popScroll \{[^}]*overflow-y: auto/.test(style)
+  && !/#homeUi \.pop(Show|Tabs|Meta|Cost|CTA|Slots|Bar) \{[^}]*overflow-y/.test(style));
 ok('消耗行与命令区不进滚动（flex:none）',
   /#homeUi \.popCost \{ flex: none/.test(style) && /#homeUi \.popCTA \{ flex: none/.test(style)
   && /#homeUi \.popSlots \{ flex: none/.test(style));
@@ -35,6 +36,14 @@ ok('四档尺寸齐备且用视口比例定位（跨长宽比稳）',
   && /\.pop\.L \{ position: absolute; left: calc\(17px/.test(style)
   && /\.pop\.S \{ position: absolute; left: 50%/.test(style)
   && /\.pop\.XL \{ position: absolute; inset: 0/.test(style));
+// 高度不能靠 top+bottom 钉死：那样每面高度固定，短内容也硬占满整块并白出滚动条。
+ok('M/L 高度按内容自适应 + 上限（短内容不出滚动条、长列表才滚）',
+  (style.match(/height: max-content; margin-top: auto; margin-bottom: auto;/g) || []).length >= 2
+  && (style.match(/max-height: calc\(92vh - var\(--sat,0px\) - var\(--sab,0px\)\)/g) || []).length >= 2
+  && /\.pop\.S \{[^}]*max-height: calc\(68vh/.test(style));
+// 面板改内容自适应后，滚动区若还写 flex:1（basis 0）会被压成 0 高，内容整块看不见。
+ok('滚动区以内容高为基准（flex:1 1 auto，不被压成 0 高）',
+  /#homeUi \.popScroll \{ flex: 1 1 auto; min-height: 0; overflow-y: auto/.test(style));
 ok('五级分层 z-index 递增（L2<L3<L4<L5）',
   /popL2 \{ z-index: 210/.test(style) && /popL3 \{ z-index: 220/.test(style)
   && /popL4 \{ z-index: 230/.test(style) && /popL5 \{ z-index: 240/.test(style));
