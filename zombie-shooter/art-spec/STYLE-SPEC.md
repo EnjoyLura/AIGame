@@ -41,14 +41,23 @@
 
 ## 3. 通用生图风格后缀（每条 prompt 都带）
 
+> **2026-09-19 二轮修订**：一轮出图「AI 味」根因确诊 = 装饰性容器/徽章框 + 强镜面高光 + 木纹铆钉等纹理过密 + 火花光斑堆饰 + 多主体堆叠。硬规则并入后缀与负面词，后续每轮生图强制执行。
+
 ```
-casual mobile game asset, cartoon style, thick soft outlines, chunky rounded shapes,
-soft cel shading, vibrant saturated colors, warm cream and wood palette,
-clean vector-like rendering, centered composition, isolated on transparent background,
-no text, no watermark, game UI sprite sheet quality
+casual mobile game asset, cartoon style, chunky plump rounded silhouette,
+soft cel shading with 2-3 tone gradients, matte hand-painted finish, subtle darker outline,
+single centered object filling most of the frame, clean instantly readable silhouette, minimal surface detail,
+limited warm palette, isolated on plain solid pure green background (#00FF00), no text, no watermark
 ```
 
-负面词：`photorealistic, 3d render, dark gritty, horror, thin lines, sketch, watermark, text, ui frame around icon, drop shadow on background`
+负面词：`photorealistic, 3d render, strong specular gloss, wood grain texture, ornate metal frame, shield or badge container, emblem composition, multiple stacked objects, sparkles, stars, glow effects, dark gritty, thin lines, sketch, watermark, text`
+
+配套硬规则：
+
+- **顶栏资源类图标无框**：单主体出图（基准图顶栏的金币/钻石/闪电皆无框）；重装饰金属框一律禁止。
+- **页签/功能图标单主体**：是否加底托由 CSS 决定，精灵图本身不带托、不带背板。
+- **主体数量**：资源堆叠 ≤3 件；图标 1 件。
+- 绿幕出图 + `tools/chroma_key.py`（tol=60 + despill）抠像，不用透明底请求。
 
 ## 4. 分类模板（拼在风格后缀前）
 
@@ -88,7 +97,8 @@ no text, no watermark, game UI sprite sheet quality
 5. 透明底干净：无白边/黑边/投影残留（场景背景除外）；
 6. 无文字、无水印；按钮类不带字（字代码叠）；
 7. 尺寸/比例符合 §5，主体居中不出血；
-8. 与基准图同类件并排比对，第一眼像一族（同饱和度、同对比度）。
+8. 与基准图同类件并排比对，第一眼像一族（同饱和度、同对比度）；
+9. 无「AI 味」：无装饰框/徽章容器、无强镜面高光、无火花光斑特效、无照片级纹理，细节密度与基准图同类件一致。
 
 ## 7. 代码对接（换肤怎么落地）
 
