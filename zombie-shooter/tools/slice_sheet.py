@@ -101,13 +101,22 @@ def sort_row_major(blobs, sheet_h):
     return out
 
 
-def extract(im: Image.Image, box, size: int, margin_pct: int) -> Image.Image:
-    """单件：裁切 → 内容包围盒 → 留边方化画布 → LANCZOS 缩放。"""
+def extract(im: Image.Image, box, size, margin_pct: int) -> Image.Image:
+    """单件：裁切 → 内容包围盒 → 留边画布 → LANCZOS 缩放。
+    size 为 int 时方化画布；为 'WxH' 时按目标比例画布、内容等比 fit 不拉伸（绶带/横幅/场景件用）。"""
     cell = im.crop(box[:4])
     bbox = cell.getbbox()
     if not bbox:
         raise ValueError('empty cell')
     cell = cell.crop(bbox)
+    if isinstance(size, str) and 'x' in size:
+        tw, th = (int(v) for v in size.split('x'))
+        m = 1 + margin_pct / 100
+        scale = min(tw * m / cell.width, th * m / cell.height)
+        cell = cell.resize((max(1, round(cell.width * scale)), max(1, round(cell.height * scale))), Image.LANCZOS)
+        canvas = Image.new('RGBA', (tw, th), (0, 0, 0, 0))
+        canvas.paste(cell, ((tw - cell.width) // 2, (th - cell.height) // 2))
+        return canvas
     # 方化画布：最长边 + margin%
     side = int(max(cell.size) * (1 + margin_pct / 100))
     canvas = Image.new('RGBA', (side, side), (0, 0, 0, 0))
@@ -152,7 +161,7 @@ def main() -> int:
     for (name, sz), box in zip(slots, ordered):
         out = root / f'{name}.png'
         out.parent.mkdir(parents=True, exist_ok=True)
-        piece = extract(im, box, int(sz), args.margin)
+        piece = extract(im, box, sz if 'x' in sz else int(sz), args.margin)
         piece.save(out)
         print(f'OK   {name}.png  <- box{tuple(box[:4])}  {piece.size[0]}x{piece.size[1]}')
     return 0
