@@ -7,6 +7,20 @@ const src = UI_FILES.map(readUi).join('\n');
 const clsSrc = UI_FILES.filter((f) => f !== 'HomeUiStyle.ts').map(readUi).join('\n');
 // 样式表单独取，供"某条 CSS 必须存在/必须消失"的断言使用
 const style = readUi('HomeUiStyle.ts');
+// 函数体提取（花括号配平）：签名演进/函数体增长不再破坏断言窗口（取代 [\s\S]{0,N} 定长窗口法）。
+// 从 `): void {` 起配平，避开参数对象类型里的 `{`（如 _popIntercept(o: {...})）
+const fnBody = (text, sig) => {
+    const i = text.indexOf('protected ' + sig);
+    if (i < 0) return '';
+    const v = text.indexOf('): void {', i);
+    if (v < 0) return '';
+    let depth = 0;
+    for (let k = v + 8; k < text.length; k++) {
+        if (text[k] === '{') depth++;
+        else if (text[k] === '}' && --depth === 0) return text.slice(i, k + 1);
+    }
+    return '';
+};
 // 巡逻系统核心层
 const patrolSrc = fs.readFileSync('assets/scripts/core/PatrolSystem.ts', 'utf8');
 // 资源与体力时间戳兜底检查需要读核心层
@@ -317,7 +331,13 @@ ok('图鉴 L3·L：条目挂美术 + 未解锁剪影', /banner: '📖 怪物图�
 ok('图鉴威胁星级 + 精英怪累计', /tag: unlocked \? `\$\{'★'\.repeat\(def\.threat\)\}\$\{'☆'\.repeat\(5 - def\.threat\)\}` : undefined,/.test(src) && /累计击杀', `×\$\{bs\.eliteKills\}`/.test(src));
 ok('图鉴详情钻取：push + onBack 回列表 + 展示台立绘', /protected _openBestiaryDetail\(def: BestiaryDef\): void \{/.test(src) && /push: true,\s*\n\s*onBack: \(\) => this\._openBestiaryModal\(\),/.test(src) && /querySelector\('\.popPedestal'\)[\s\S]{0,200}ped\.style\.backgroundImage = u;/.test(src));
 ok('图鉴详情未收录态走告警行', /c\.appendChild\(this\._popWarn\('击杀该怪物后解锁完整档案'\)\);/.test(src));
-ok('玩法页四玩法已全部改走 _openPop（试炼/副本/远征为 XL 二级页）', /protected _openTrialModal\(\): void \{[\s\S]{0,1400}?size: 'XL',/.test(src) && /protected _openDungeonModal\(tier = 0\): void \{[\s\S]{0,6100}?this\._openPop\(opt\(\)\);/.test(src) && /protected _openExpeditionModal\(\): void \{[\s\S]{0,14000}?this\._openPop\(opt\(\)\);/.test(src));
+{
+    const trial = fnBody(src, '_openTrialModal'), dungeon = fnBody(src, '_openDungeonModal'), expedition = fnBody(src, '_openExpeditionModal');
+    ok('玩法页四玩法已全部改走 _openPop（试炼/副本/远征为 XL 二级页）',
+        /size: 'XL'/.test(trial) && /this\._openPop\(opt\(\)\)/.test(trial)
+        && /size: 'XL'/.test(dungeon) && /this\._openPop\(opt\(\)\)/.test(dungeon)
+        && /size: 'XL'/.test(expedition) && /this\._openPop\(opt\(\)\)/.test(expedition));
+}
 
 
 // 10. 招募 / 礼包迁移（含两处 L5 结果演出层）
@@ -344,8 +364,13 @@ ok('编队候补行内上下阵 + 满编置灰', /label: inLineup \? '下阵' : 
 ok('编队改动就地重绘并回写战斗页 CTA 行', /const applyToggle = \(id: string\): void => \{[\s\S]{0,260}?this\._refreshStagePage\(\);/.test(src) && /const toggle = \(id: string\): void => \{[\s\S]{0,120}?this\._popRebuild\(opt\(\)\);/.test(src));
 
 // 14. 3-C 拦截层 + S 档确认模板统一（UX 3-3/3-4）
-const interceptBody = (src.match(/protected _popIntercept\(o: \{[\s\S]{0,1800}?\n        \}\);\n    \}/) ?? [''])[0];
-ok('3-C 拦截型 S 弹窗：体力不足/未解锁两条出路，不出现「取消」', /protected _popIntercept\(o: \{/.test(src) && /protected _openStaminaGate\(need: number, after\?: \(\) => void, stayLabel\?: string\): void \{/.test(src) && /protected _openUnlockGate\(\s*\n\s*title: string,\s*\n\s*icon: string,\s*\n\s*reason: string,\s*\n\s*goLabel = '前 往 关 卡',\s*\n\s*go\?: \(\) => void,\s*\n\s*note = '解锁进度随主线推进自动刷新'\s*\n\s*\): void \{/.test(src) && interceptBody.indexOf('取消') < 0 && /再 等 等/.test(interceptBody) && /o\.ok\.label/.test(interceptBody));
+const interceptBody = fnBody(src, '_popIntercept');
+const unlockGateBody = fnBody(src, '_openUnlockGate');
+ok('3-C 拦截型 S 弹窗：体力不足/未解锁两条出路，不出现「取消」',
+    /o: \{/.test(interceptBody)
+    && /need: number/.test(fnBody(src, '_openStaminaGate'))
+    && /goLabel = '前 往 关 卡'/.test(unlockGateBody) && /解锁进度随主线推进自动刷新/.test(unlockGateBody)
+    && interceptBody.indexOf('取消') < 0 && /再 等 等/.test(interceptBody) && /o\.ok\.label/.test(interceptBody));
 ok('体力不足不再 toast 混杂：出战与副本各一处走拦截弹窗', /this\._openStaminaGate\(BattleConfig\.RUN_STAMINA_COST\);/.test(clsSrc) && /this\._openStaminaGate\(DUNGEON_STAMINA_COST/.test(clsSrc));
 ok('禁用键不是死键：PopCta/PopRow/商城键各有 onDisabled 通道', /onDisabled\?: \(\) => void;/.test(src) && /c\.onDisabled\?\.\(\);/.test(src) && /o\.action!\.onDisabled\?\.\(\);/.test(src) && /opt\.onBlocked\?\.\(\);/.test(src));
 ok('交互入口不用 HTML disabled（会吞掉 click，缺口提示无法触达）', !/buy\.disabled = !!opt\.disabled/.test(src) && !/endChip\.disabled = !endlessOk/.test(src) && !/this\._endlessHot\.disabled = !endlessOk/.test(src) && /'btn gold gBuy' \+ \(opt\.disabled \? ' off' : ''\)/.test(src));
