@@ -1436,12 +1436,12 @@ export class DomHud extends Component {
   transition: transform .06s ease, filter .06s ease; }
 #domHud button:active { transform: translateY(calc(4px * var(--s,1))) scale(.98); filter: brightness(.92); }
 /* 顶部条 HUD：高 122 设计像素，整体锚在顶部留白（--safeTop）之下——刘海/桌面都空出一段
-   透明间距露出画面；bossBar/pauseChip 同步以 --safeTop 让位 */
+   透明间距露出画面；无背板（交互稿 .btop 无底色），按钮/chip 各自带半透明底；
+   bossBar/pauseChip 同步以 --safeTop 让位 */
 #domHud .topbar { position: absolute; top: var(--safeTop); left: 0; right: 0;
   height: calc(122px * var(--s, 1));
   display: flex; align-items: center; justify-content: space-between; gap: calc(17px * var(--s,1));
-  padding: 0 calc(22px * var(--s,1));
-  background: linear-gradient(180deg, rgba(9,14,20,.92) 0%, rgba(13,22,31,.68) 62%, rgba(13,22,31,0) 100%); }
+  padding: 0 calc(22px * var(--s,1)); }
 #domHud .topLeft { flex: none; display: flex; gap: calc(17px * var(--s,1)); }
 #domHud .topRight { flex: none; display: flex; align-items: center; gap: calc(17px * var(--s,1)); }
 /* 波次/击杀 chip：标签在上、数值在下（交互稿口径），加宽保证三位数字不换行。
