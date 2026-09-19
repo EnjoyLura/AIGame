@@ -127,9 +127,11 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 
 ### 流程
 
-1. **生表**：一次生成 3×3（或 2×N）素材表，prompt 只给「格子清单 + 主题风格 + 绿幕底」，示例：
+1. **生表**：一次生成 3×3（或 2×N）素材表，prompt 只给「格子清单 + 主题风格 + 绿幕底」。
+   **风格锚靠图不靠词**：走 edit 模式把基准图2作为输入图（gpt-image-2 /v1/images/edits），
+   文字只负责排格子、不承担风格描述。三轮实际用的完整 prompt（留档于 gen-output/*.summary.json）：
 
-   > 一张3x3的图标素材表：金币堆、钻石、闪电体力、商店、英雄勋章、军用卡车、游戏手柄、基地炮塔、宝箱。末日题材欧美卡通风格，粗描边，纯绿色背景 (#00FF00)
+   > 一张末日题材欧美卡通风格的微信小游戏UI图标素材图，3×3 网格整齐排列，从左到右从上到下依次是：金币堆、蓝色钻石、黄色闪电、商店摊位、金色勋章、军用卡车、绿色游戏手柄、石头哨塔、木质宝箱，图标之间留有间隙，纯绿色背景
 
    三轮成品见 `gen-output/r3_sheet_20260919_213051.png`（gitignore，仅本地）。
 2. **切片落盘**：`python tools/slice_sheet.py <sheet.png> --slots "ui/res_gold:128,ui/res_diamond:128,ui/res_stamina:128,ui/nav_mall:128,ui/nav_heroes:128,ui/nav_battle:128,ui/nav_core:128,ui/nav_base:128,ui/chest:256"`
