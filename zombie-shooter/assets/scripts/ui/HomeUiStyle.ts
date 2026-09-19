@@ -1065,11 +1065,12 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .tabbar::before { content: ''; position: absolute; top: -1px; left: 8%; right: 8%; height: 2px;
   background: linear-gradient(90deg, transparent, rgba(240,177,62,.55), transparent); }
 #homeUi .tab { background: none; border: none; cursor: pointer; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0;
-  color: #7e93b8; font-size: calc(33px * var(--hs,1)); font-weight: 700; padding: 0; gap: calc(3px * var(--hs,1)); position: relative; border-radius: calc(8px * var(--hs,1)); }
+  color: #7e93b8; font-size: calc(33px * var(--hs,1)); font-weight: 700; padding: 0; gap: calc(3px * var(--hs,1)); position: relative; border-radius: calc(8px * var(--hs,1));
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 #homeUi .tab .ticon { width: calc(102px * var(--hs,1)); height: calc(102px * var(--hs,1)); display: flex; align-items: center; justify-content: center;
-  font-size: calc(42px * var(--hs,1)); filter: grayscale(.4); transition: .2s; }
+  font-size: calc(42px * var(--hs,1)); filter: grayscale(.4); transition: filter .2s; }
 #homeUi .tab.on { color: var(--c-gold-hi); }
-#homeUi .tab.on .ticon { transform: none; filter: drop-shadow(0 0 8px rgba(245,196,81,.8)); width: calc(116px * var(--hs,1)); height: calc(116px * var(--hs,1)); }
+#homeUi .tab.on .ticon { transform: scale(1.12); filter: drop-shadow(0 0 8px rgba(245,196,81,.8)); }
 #homeUi .tab.on::after { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
   width: calc(140px * var(--hs,1)); height: calc(8px * var(--hs,1)); border-radius: 99px;
   background: linear-gradient(90deg, transparent, var(--c-gold-frame), transparent); box-shadow: 0 0 8px var(--c-gold-frame); }
@@ -1768,10 +1769,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   background: linear-gradient(var(--c-text-ice2), #c9dbe6); border-top: 2px solid #fff; box-shadow: 0 -3px 10px #294f681c; }
 #homeUi .tabbar::before { display: none; content: none; }
 #homeUi .tab { color: var(--c-line-dim); flex: none; font-size: calc(13px * var(--pw,2.5)); height: auto; min-width: 0;
-  padding: calc(4px * var(--pw,2.5)) 0; gap: calc(1px * var(--pw,2.5)); border-radius: calc(4px * var(--pw,2.5)); }
+  padding: calc(4px * var(--pw,2.5)) 0; gap: calc(1px * var(--pw,2.5)); border-radius: calc(4px * var(--pw,2.5));
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 #homeUi .tab .ticon { width: calc(41px * var(--pw,2.5)); height: calc(41px * var(--pw,2.5)); display: grid; place-items: center; filter: none; font-size: 0; }
 #homeUi .tab.on { background: var(--c-cream-1); color: var(--c-gold-dk3); box-shadow: inset 0 3px var(--c-amber); }
-#homeUi .tab.on .ticon { width: calc(46px * var(--pw,2.5)); height: calc(46px * var(--pw,2.5)); transform: none; filter: none; }
+#homeUi .tab.on .ticon { transform: scale(1.1); }
 #homeUi .tab.on::after { display: none; content: none; }
 
 /* --- 礼包中心（青瓷浅色变体） --- */
