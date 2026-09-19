@@ -7,8 +7,9 @@ gen-output/
 # 工作区根目录的 AI 原始大图（已处理后入库，原图不入库）
 /*.png
 
-# 本地构建/检查临时日志
+# 本地构建/检查临时日志与临时目录（帧提取、切图残留等）
 zombie-shooter/temp_*.log
+zombie-shooter/temp_*/
 
 # ZCode 工作区配置
 .zcode/

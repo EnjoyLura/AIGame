@@ -30,7 +30,8 @@ node check-popups.mjs                # 二级浮窗交互稿
 ## 美术规范（art-spec）
 
 美术风格基准与资源契约在 `zombie-shooter/art-spec/`：基准图 `game_art_benchmark.png`、
-生图规范 `STYLE-SPEC.md`（色板/prompt 模板/验收清单）、槽位清单 `ASSET-MANIFEST.md`。
+生图规范 `STYLE-SPEC.md`（色板/prompt 模板/验收清单）、槽位清单 `ASSET-MANIFEST.md`、
+参考素材 `reference/`（怪物动作参考视频 + 护送主题定调图，生图/切图工具的原始输入）。
 
 - **换图不换 key**：图片路径即契约（`assets/resources/textures/<key>.png`），同名覆盖全游戏生效；
   新槽位先登记 `AssetLib.ts` 的 MANIFEST，文件可以后到（缺图自动回退占位）。
@@ -106,8 +107,30 @@ git check-ignore zombie-shooter/tools/imagegen.local.json   # 期望输出该路
 - **提交安全线**：APIKey 存放于 `zombie-shooter/tools/imagegen.local.json`，该文件与
   `gpt-image2-skill/`、`gen-output/` 均被 gitignore 严禁提交；每次 git 提交前需确认这些未入库。
 - commit 后**前台 push** 并 `git log --oneline origin/main -1` 双验证（后台 commit 的 push 常不生效）。
-- 未跟踪噪音文件勿提交：`code (3).html`、`ux-redesign/`、`vibe_images/`、
-  `zombie-shooter/prototype-assets/`、根目录 `*.mp4` 等。
+- **单人开发，直接在 main 上提交**，不开 feat 分支（历史分支已并回 main 删除）。
+- 素材与文档一律入库归位（2026-09-19 已整理）：文档进 `docs/`、参考素材进
+  `zombie-shooter/art-spec/reference/`、原型产物进 `zombie-shooter/prototype/`、
+  网页初稿进 `ux-redesign/`（禁读）。不要再往仓库根目录堆散文件；
+  AI 原始大图落在根目录的，处理完挪进 `gen-output/`（不入库）。
+
+### 仓库目录结构（2026-09-19 整理后）
+
+```
+AIG/
+├── AGENTS.md                  # 本文件：协作约定
+├── README.md                  # 仓库地图 + 常用命令
+├── docs/                      # 产品文档.md、技术文档.md
+├── ux-redesign/               # 初版网页设计稿（AI 禁读，仅存档）
+├── ux-layout-review/          # 自绘交互稿（battle/popups html）+ 断言检查器 + 评审记录
+├── zombie-shooter/            # Cocos Creator 游戏工程（唯一工程目录）
+│   ├── assets/                # 游戏源码与资源（Cocos 管理，禁止手工挪动）
+│   ├── art-spec/              # 美术规范 + 基准图 + reference/ 参考素材
+│   ├── prototype/             # Cocos 化之前的网页原型存档（prototype.html + 预览截图）
+│   ├── tools/                 # 检查器 / 生图 / 抠像 / 隧道等脚本（imagegen.local.json 不入库）
+│   └── build/ temp/ library/  # 构建产物与缓存（gitignore）
+├── gen-output/                # AI 生图原始输出（gitignore，403MB 级，定期可清）
+└── gpt-image2-skill/          # 第三方生图 skill 克隆件（gitignore）
+```
 
 ### 收尾总结格式（每轮固定输出）
 
