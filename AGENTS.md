@@ -47,3 +47,51 @@ node check-popups.mjs                # 二级浮窗交互稿
 - 无死键：任何可点元素必须有响应或出路，禁用态不允许静默吞点击。
 - 二级浮窗高度由内容决定（M 64vh / L 73vh / S 68vh 上限）；装不下的处理顺序是
   「先收内容密度 → 再升档 → 富列表才保留滚动」，不许抬高面板来消滚动条。
+
+## 会话工作方式（2026-09 沉淀）
+
+### 图片协作与缺陷定位
+
+- 用户在对话里**附加的截图到不了模型**（已多次踩坑）。要看图：让用户把图存到
+  `D:\qoder workspace\AIG\` 下并告知文件名，磁盘 Read 图片是可靠的（Downloads 里的也可读）。
+- 缺陷描述若不带界面名（如「HUD 栏显示不全」），**先确认目标页面再动手**——
+  主城 topbar（HomeUi）≠ 战斗 HUD（DomHud），猜错目标会改错文件、白做一轮。
+- 用户明确「不用回退」的提交保留在历史里即可，后续不再纠结也不重复改动。
+
+### UI 约定：安全区与双层样式
+
+- 贴屏边的 DOM UI 必须消费 `--sat`/`--sab`；CSS 一律写
+  `max(var(--sat,0px), env(safe-area-inset-top,0px))` **双保险**，不能只信 JS 令牌
+  （微信/部分安卓 WebView 对流内元素读 `env()` 返回 0，令牌会失效）。
+- `HomeUiCore._applySafeArea()` 是双探针（流内探针 + `position:fixed;inset:0` 全屏探针取最大值），
+  改动时不要退化回单探针。
+- HomeUi 样式分两层：base 深色层（`--hs`，桌面口径）在前、青瓷浅色层（`--pw`，手机口径）
+  在后覆盖，同特异性后者胜——改公共组件（topbar/资源胶囊等）**两层都要顾**，
+  手机上实际生效的是青瓷层。
+
+### 每轮收尾验证链（顺序固定）
+
+```sh
+cd zombie-shooter
+node tools/tc.js                       # 期望 TOTAL 0
+node tools/check-ux-refactor.js        # 以下 check 全部 0 FAIL
+node tools/check-split.js
+node tools/check-mail.js
+node tools/check-hud-slim.js
+# Cocos 构建（成功标志：grep -c "build Task (web-mobile) Finished" 计数 = 1）
+bash tools/postbuild.sh                # 构建戳 + 缓存击破 + _maxFontSize 补丁，构建日志用完删
+grep -c "<本轮改动标识>" build/web-mobile/assets/main/  # bundle 断言：确认改动真的进包
+git check-ignore zombie-shooter/tools/imagegen.local.json   # 期望输出该路径
+```
+
+- **提交安全线**：APIKey 存放于 `zombie-shooter/tools/imagegen.local.json`，该文件与
+  `gpt-image2-skill/`、`gen-output/` 均被 gitignore 严禁提交；每次 git 提交前需确认这些未入库。
+- commit 后**前台 push** 并 `git log --oneline origin/main -1` 双验证（后台 commit 的 push 常不生效）。
+- 未跟踪噪音文件勿提交：`code (3).html`、`ux-redesign/`、`vibe_images/`、
+  `zombie-shooter/prototype-assets/`、根目录 `*.mp4` 等。
+
+### 工具坑
+
+- Git Bash 里 inline `node -e` 写 `\u` 转义会炸：断言/校验脚本一律 Write 成文件再跑。
+- check 脚本断言 FAIL 时，先核对断言正则与当前函数签名是否同步（如 `_renderSkillCards`
+  签名演进导致旧正则误报），再怀疑业务代码。
