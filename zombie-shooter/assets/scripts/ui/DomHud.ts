@@ -1426,16 +1426,20 @@ export class DomHud extends Component {
         const style = document.createElement('style');
         style.textContent = `${UI_TOKENS_CSS}
 #domHud { position: fixed; inset: 0; z-index: 8000; pointer-events: none;
+  /* 顶部常驻安全带高度：基准 32 设计像素（交互稿 .safe，桌面也保留），刘海设备吃 --sat 撑开 */
+  --safeTop: max(calc(32px * var(--s,1)), var(--sat, 0px));
   font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   font-weight: 700; color: var(--c-ice-2); user-select: none; }
 #domHud .hudLabel, #domHud .bigLabel { text-shadow: 0 1px 2px rgba(0,0,0,.85); white-space: nowrap; }
 #domHud button { pointer-events: auto; cursor: pointer; font: inherit;
   transition: transform .06s ease, filter .06s ease; }
 #domHud button:active { transform: translateY(calc(4px * var(--s,1))) scale(.98); filter: brightness(.92); }
-/* 顶部条 HUD：高 122 设计像素 + 安全区避让（刘海屏不遮挡），单行布局（交互稿 battle.html ①） */
-#domHud .topbar { position: absolute; top: var(--sat, 0px); left: 0; right: 0; height: calc(122px * var(--s, 1));
+/* 顶部条 HUD：高 122 设计像素 + 常驻刘海防遮挡（交互稿 .safe 带 + 主城 .safeBand 同口径）——
+   背景从屏幕顶铺起，内容锚在安全带（--safeTop）之下；顶栏之下bossBar/pauseChip 同步让位 */
+#domHud .topbar { position: absolute; top: 0; left: 0; right: 0;
+  height: calc(var(--safeTop) + 122px * var(--s, 1)); box-sizing: border-box;
   display: flex; align-items: center; justify-content: space-between; gap: calc(17px * var(--s,1));
-  padding: 0 calc(22px * var(--s,1));
+  padding: var(--safeTop) calc(22px * var(--s,1)) 0;
   background: linear-gradient(180deg, rgba(9,14,20,.92) 0%, rgba(13,22,31,.68) 62%, rgba(13,22,31,0) 100%); }
 #domHud .topLeft { flex: none; display: flex; gap: calc(17px * var(--s,1)); }
 #domHud .topRight { flex: none; display: flex; align-items: center; gap: calc(17px * var(--s,1)); }
@@ -1485,7 +1489,7 @@ export class DomHud extends Component {
   background: linear-gradient(90deg, #8a5a1e, #d99b42 60%, #ffcf7d); transition: width .25s ease; }
 #domHud .vehicleBar.warn .vehicleFill { background: linear-gradient(90deg, #a05a12, #ff8f3d 60%, #ffc37d); }
 #domHud .vehicleBar.danger .vehicleFill { background: linear-gradient(90deg, #8f1d1d, #ff4d4d 60%, #ff9d9d); }
-#domHud .bossBar { position: absolute; left: 50%; top: calc(var(--sat, 0px) + 139px * var(--s,1));
+#domHud .bossBar { position: absolute; left: 50%; top: calc(var(--safeTop) + 139px * var(--s,1));
   transform: translateX(-50%); width: calc(692px * var(--s,1)); display: flex; flex-direction: column;
   align-items: center; gap: calc(6px * var(--s,1)); padding: calc(10px * var(--s,1)) calc(24px * var(--s,1));
   border-radius: calc(16px * var(--s,1)); background: rgba(8,12,18,.72);
@@ -1536,7 +1540,7 @@ export class DomHud extends Component {
   align-items: center; justify-content: center; gap: calc(40px * var(--s,1));
   background: rgba(0,0,0,.66); pointer-events: auto; }
 /* 暂停层顶部状态 chip + 底部互斥说明（交互稿 battle.html H2 暂停面） */
-#domHud .pauseChip { position: absolute; top: calc(var(--sat, 0px) + 106px * var(--s,1)); left: 50%; transform: translateX(-50%);
+#domHud .pauseChip { position: absolute; top: calc(var(--safeTop) + 106px * var(--s,1)); left: 50%; transform: translateX(-50%);
   font-size: calc(28px * var(--s,1)); font-weight: 500; color: #aab4c2; letter-spacing: 1px; white-space: nowrap;
   border: calc(2px * var(--s,1)) solid rgba(128,222,228,.35); border-radius: calc(999px * var(--s,1));
   padding: calc(6px * var(--s,1)) calc(28px * var(--s,1)); background: rgba(20,26,34,.72); }
