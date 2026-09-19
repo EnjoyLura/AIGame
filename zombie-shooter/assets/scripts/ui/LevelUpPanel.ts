@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Graphics, Label, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3, view } from 'cc';
 const { ccclass } = _decorator;
 import { Design, Palette } from '../config/GameConfig';
 import { AssetLib } from '../core/AssetLib';
@@ -15,6 +15,8 @@ export class LevelUpPanel extends Component {
     private static readonly CARD_H = 375;
 
     private _title: Label = null!;
+    /** 副题：选择提示（点卡即选，无撤销） */
+    private _subtitle: Label = null!;
     private _cards: Node[] = [];
     private _banner: Node = null!;
     /** 面板/卡片透明度层（入场与选卡动画用） */
@@ -34,8 +36,15 @@ export class LevelUpPanel extends Component {
         g.fill();
         this._panelOp = this.node.addComponent(UIOpacity);
 
-        this._title = this._makeLabel('团队升级！选择一项强化', 0, 66);
+        // 标题区两行结构（交互稿 battle.html H2 升级面）：横幅「团队升级」+ 副题选择提示
+        this._title = this._makeLabel('团 队 升 级', 0, 42);
         this._title.node.setPosition(0, 310);
+        this._subtitle = this._makeLabel('选择一项强化（点卡即选，无撤销）', 0, 28, new Color('#c3cad2'));
+        this._subtitle.node.setPosition(0, 200);
+        // 顶部暂停状态 chip（与暂停菜单 pauseChip 同语义）：锚可视区顶部 194 设计像素，
+        // 不能写死画布 y——可视高随视口变化（横屏裁切时写死值会飘出屏外）
+        const pauseChip = this._makeLabel('战斗已暂停 · 选卡后恢复', 0, 28, new Color('#aab4c2'));
+        pauseChip.node.setPosition(0, view.getVisibleSize().height / 2 - 194);
 
         // 标题横幅（参考《向僵尸开炮》撕纸横幅；美术就绪后显示在标题文字下层）
         const banner = createUINode('Banner');
@@ -120,8 +129,8 @@ export class LevelUpPanel extends Component {
             // 描述行给两行高度，长说明换行显示
             this._makeCardLabel(card, option.desc, -105, 24, 81, textColor);
 
-            // 入场：初始状态压在下方半透明缩小，错峰滑入
-            const targetY = 20;
+            // 入场：初始状态压在下方半透明缩小，错峰滑入（卡片整体下移，给副题让出间隙）
+            const targetY = -40;
             card.setPosition((i - 1) * 315, targetY - 130);
             op.opacity = 0;
             card.setScale(0.6, 0.6, 1);
@@ -186,7 +195,7 @@ export class LevelUpPanel extends Component {
         this._cardOps.length = 0;
     }
 
-    private _makeLabel(text: string, x: number, size: number): Label {
+    private _makeLabel(text: string, x: number, size: number, color?: Color): Label {
         const labelNode = createUINode('label');
         this.node.addChild(labelNode);
         labelNode.setPosition(x, 0);
@@ -195,7 +204,7 @@ export class LevelUpPanel extends Component {
         label.fontSize = size;
         label.lineHeight = size + 6;
         label.isBold = true;
-        label.color = Palette.text;
+        label.color = color ?? Palette.text;
         return label;
     }
 

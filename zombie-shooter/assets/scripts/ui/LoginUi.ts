@@ -4,15 +4,16 @@ import { SoundFx } from '../core/SoundFx';
 import { AssetLib } from '../core/AssetLib';
 import { NoticeSystem, NOTICE_KIND_NAMES, NoticeDef } from '../core/NoticeData';
 import { BUILD_STAMP } from '../config/GameConfig';
+import { UI_TOKENS_CSS } from './UiTheme';
 
 /**
  * 登录界面（参考主流小游戏登录图一比一落地，DOM 渲染）：
  * 全屏废墟都市背景 + 顶部版本号/适龄提示 + 公告入口 + 游戏大 LOGO
  * + 底部服务器行 + 「开始游戏」大金钮 + 协议勾选 + 版号合规文案。
  * 盖在 #homeUi 之上（z-index 9000 > 8500），点击开始游戏淡出揭开主城。
- * 样式独立成串（LOGIN_UI_CSS），不依赖 HomeUiStyle 的 --hs/--pw 两套主题体系。
+ * 样式独立成串（LOGIN_UI_CSS），颜色一律走 UiTheme token（不自带色板）。
  */
-export const LOGIN_UI_CSS = `
+export const LOGIN_UI_CSS = `${UI_TOKENS_CSS}
 #loginUi { position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column;
   background: #1a2129;
   background-image:
@@ -54,7 +55,7 @@ export const LOGIN_UI_CSS = `
 /* 中央 LOGO：游戏名大字 + 副标（描边+投影贴卡牌游戏味） */
 #loginUi .lgLogo { position: relative; z-index: 2; margin-top: calc(56px * var(--pw,2.5)); text-align: center; pointer-events: none; }
 #loginUi .lgLogo h1 { margin: 0; font-size: calc(46px * var(--pw,2.5)); font-weight: 900; letter-spacing: calc(3px * var(--pw,2.5));
-  color: #ffd75e;
+  color: var(--c-coin);
   text-shadow: 0 calc(2px * var(--pw,2.5)) 0 #b4541e, 0 calc(4px * var(--pw,2.5)) 0 #7a3410,
     0 calc(7px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) rgba(0,0,0,.65), 0 0 calc(24px * var(--pw,2.5)) rgba(255,170,60,.35);
   -webkit-text-stroke: calc(1.5px * var(--pw,2.5)) #5c2708; }
@@ -83,7 +84,7 @@ export const LOGIN_UI_CSS = `
   border: calc(1.5px * var(--pw,2.5)) solid #9fb0c3; background: rgba(20,26,36,.6); display: flex; align-items: center; justify-content: center;
   font-size: calc(9px * var(--pw,2.5)); color: transparent; }
 #loginUi .lgChk.on { background: #2ecc71; border-color: #2ecc71; color: #fff; }
-#loginUi .lgProto a { color: #ffd75e; font-weight: 700; text-decoration: none; }
+#loginUi .lgProto a { color: var(--c-coin); font-weight: 700; text-decoration: none; }
 #loginUi .lgLegal { margin-top: calc(6px * var(--pw,2.5)); text-align: center; font-size: calc(8.5px * var(--pw,2.5)); line-height: 1.6; color: rgba(255,255,255,.82); text-shadow: 0 1px 2px rgba(0,0,0,.75); }
 
 /* 登录层弹窗（公告/协议正文）：暗幕 + 居中面板 */
@@ -92,7 +93,7 @@ export const LOGIN_UI_CSS = `
 #loginUi .lgBox { width: calc(320px * var(--pw,2.5)); max-width: 100%; max-height: 70vh; display: flex; flex-direction: column;
   background: linear-gradient(180deg, #26313f, #1a222d); border: 1px solid #48586c; border-radius: calc(12px * var(--pw,2.5));
   box-shadow: 0 10px 30px rgba(0,0,0,.6); overflow: hidden; }
-#loginUi .lgHead { position: relative; flex: none; text-align: center; font-size: calc(14px * var(--pw,2.5)); font-weight: 800; color: #ffd75e;
+#loginUi .lgHead { position: relative; flex: none; text-align: center; font-size: calc(14px * var(--pw,2.5)); font-weight: 800; color: var(--c-coin);
   padding: calc(10px * var(--pw,2.5)); background: linear-gradient(180deg, #31404f, #232f3c); border-bottom: 1px solid #3c4c5e; }
 #loginUi .lgClose { position: absolute; top: calc(6px * var(--pw,2.5)); right: calc(8px * var(--pw,2.5)); width: calc(22px * var(--pw,2.5)); height: calc(22px * var(--pw,2.5));
   border: none; border-radius: 50%; background: rgba(255,255,255,.14); color: #fff; font-size: calc(11px * var(--pw,2.5)); cursor: pointer; }
@@ -106,9 +107,9 @@ export const LOGIN_UI_CSS = `
 #loginUi .lgTag.kactivity { background: #c17a10; }
 #loginUi .lgTag.knotice { background: #4a7fa8; }
 #loginUi .lgItemTitle { font-size: calc(12px * var(--pw,2.5)); font-weight: 800; color: #ffe9bd; }
-#loginUi .lgItemBody { margin-top: calc(4px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); line-height: 1.7; color: #dce8f7; }
+#loginUi .lgItemBody { margin-top: calc(4px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); line-height: 1.7; color: var(--c-text); }
 #loginUi .lgItemBody p { margin: 0; }
-#loginUi .lgBox p { margin: 0 0 calc(6px * var(--pw,2.5)); font-size: calc(10.5px * var(--pw,2.5)); line-height: 1.7; color: #dce8f7; }
+#loginUi .lgBox p { margin: 0 0 calc(6px * var(--pw,2.5)); font-size: calc(10.5px * var(--pw,2.5)); line-height: 1.7; color: var(--c-text); }
 #loginUi .lgToast { position: absolute; left: 50%; bottom: calc(160px * var(--pw,2.5) + var(--sab,0px)); transform: translateX(-50%);
   z-index: 20; background: rgba(14,18,26,.9); border: 1px solid rgba(255,255,255,.25); color: #fff;
   font-size: calc(11px * var(--pw,2.5)); border-radius: 99px; padding: calc(7px * var(--pw,2.5)) calc(16px * var(--pw,2.5));

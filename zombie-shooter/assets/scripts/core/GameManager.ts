@@ -2,7 +2,7 @@ import { sys } from 'cc';
 import { PlayerResources } from './PlayerResources';
 import { BattleConfig } from '../config/GameConfig';
 import { HERO_DEFS, ABILITY_MAX_LEVEL } from '../battle/HeroDef';
-import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS, MISC_ITEM_DEFS, MISC_STARTER, isEquipTier, miscDef, EquipState } from './HeroSystem';
+import { EQUIP_SLOTS, EQUIPMENT_DEFS, WEAPON_CORE_DEFS, BagItem, HeroSystem, EQUIP_SLOT_NAMES, ABILITY_SLOTS, MISC_ITEM_DEFS, MISC_STARTER, isEquipTier, miscDef, EquipState, EquipSlot } from './HeroSystem';
 import { talentXpMul } from './TalentSystem';
 import { sanitizeAffixes } from './EquipmentAffix';
 
@@ -381,6 +381,22 @@ export class GameManager {
         sys.localStorage.setItem(GameManager.SAVE_KEY, JSON.stringify(data));
     }
 
+    /**
+     * 装备 id 合法判定（坏档防御）。装备有两种 id 口径：
+     * 真实定义件走 EQUIPMENT_DEFS；背包件穿戴后是虚拟 id `bag:<slot>:<tier>`（HeroSystem.equipFromBag 写入口径）。
+     * 虚拟 id 原先不在此放行 —— 穿戴时该件已从背包 splice 掉，刷新再被丢弃就是整件装备凭空消失。
+     */
+    private _equipIdOk(id: string, slot: EquipSlot): boolean {
+        if (EQUIPMENT_DEFS.some(e => e.id === id && e.slot === slot)) {
+            return true;
+        }
+        if (!id.startsWith('bag:')) {
+            return false;
+        }
+        const parts = id.split(':');
+        return parts.length === 3 && parts[1] === slot && isEquipTier(Number(parts[2]));
+    }
+
     load(): void {
         const raw = sys.localStorage.getItem(GameManager.SAVE_KEY);
         if (!raw) {
@@ -441,7 +457,7 @@ export class GameManager {
                     for (const slot of EQUIP_SLOTS) {
                         const st = slots[slot];
                         if (st && typeof st.id === 'string' && typeof st.lv === 'number'
-                            && EQUIPMENT_DEFS.some(e => e.id === st.id && e.slot === slot)) {
+                            && this._equipIdOk(st.id, slot)) {
                             if (!this.equips[d.id]) {
                                 this.equips[d.id] = {};
                             }
@@ -462,8 +478,7 @@ export class GameManager {
                 }
             }
             // 主武器强化等级（缺省 1）
-            if (data.weaponLv && typeof data.weaponLv === 'object') {
-                for (const d of HERO_DEFS) {
+            if (data.weaponLv && typeof data.weaponLv === 'object') {                for (const d of HERO_DEFS) {
                     const lv = data.weaponLv[d.id];
                     if (typeof lv === 'number' && lv >= 1) {
                         this.weaponLv[d.id] = Math.floor(lv);

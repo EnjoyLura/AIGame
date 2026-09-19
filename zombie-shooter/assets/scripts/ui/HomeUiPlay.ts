@@ -24,6 +24,7 @@ import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/Equipm
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
 import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
+import { PatrolSystem, PATROL_MAX_HOURS, patrolGoldPerHour, patrolMiscPerHour, patrolSweepPerDay, patrolSweepReward, isPatrolStage } from '../core/PatrolSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiStage } from './HomeUiStage';
@@ -43,6 +44,23 @@ export abstract class HomeUiPlay extends HomeUiStage {
     /** 基地页签到入口红点 */
     protected _signinRedEl: HTMLElement | null = null;
 
+    /** 行动页标题右侧的今日活跃度 */
+    protected _actNumEl: HTMLElement | null = null;
+
+    /** 日常四快捷的副标（签到天数 / 待领任务 / 成就进度 / 礼包） */
+    protected _signinSubEl: HTMLElement | null = null;
+    protected _questSubEl: HTMLElement | null = null;
+    protected _achSubEl: HTMLElement | null = null;
+    protected _giftSubEl: HTMLElement | null = null;
+
+    /** 挑战场两席（无尽试炼 / 无尽护送）与远征行文案 */
+    protected _trialEntryEl: HTMLElement | null = null;
+    protected _endlessEntryEl: HTMLElement | null = null;
+    protected _expTextEl: HTMLElement | null = null;
+
+    /** 载具改装 XL 页（实现在 HomeUiBase；行动页页脚复用入口） */
+    protected abstract _openTuningModal(onBack?: () => void): void;
+
     /** 远征当前选中的任务 */
     protected _expSel: ExpeditionId = 'scout';
 
@@ -55,13 +73,18 @@ export abstract class HomeUiPlay extends HomeUiStage {
      * _refreshPlayPage 重建卡片时会刷一遍；进度变动后由 _refreshTop 走这里增量补刷。
      */
     protected _refreshEntryReds(): void {
+        // 巡逻红点：挂机产出随时间涨，凡是走 _refreshTop 的时机都顺带校准一次
+        if (this._patrolRed) {
+            const ps = PatrolSystem.instance;
+            this._patrolRed.classList.toggle('on', ps.unlocked() && ps.hasClaimable());
+        }
         const grid = this._playGridEl;
         if (!grid) {
             return;
         }
-        const cards = grid.querySelectorAll<HTMLElement>('.modeRow[data-entry]');
+        const cards = grid.querySelectorAll<HTMLElement>('[data-entry]');
         for (const card of cards) {
-            const red = card.querySelector('.bcardRed');
+            const red = card.querySelector('.questRed');
             if (red) {
                 this._refreshPureEntryRed(card.dataset.entry ?? '', red as HTMLElement);
             }
@@ -328,6 +351,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                                 label: '选 中',
                                 kind: 'gold',
                                 disabled: d.id === selId,
+                                onDisabled: () => this._toast(`已在查看「${d.name}」`),
                                 onClick: () => {
                                     this._dungeonSel = d.id;
                                     this._openDungeonModal(selTier);
@@ -608,6 +632,9 @@ export abstract class HomeUiPlay extends HomeUiStage {
                                     label: isPicked ? '取消' : '选择',
                                     kind: isPicked ? 'gold' : 'green',
                                     disabled: locked || inLineup || busy,
+                                    onDisabled: () => this._toast(locked
+                                        ? `${hdef.name} 尚未解锁，无法派遣`
+                                        : inLineup ? `${hdef.name} 已在上阵编队中` : `${hdef.name} 正在远征中`),
                                     onClick: () => pickHero(o.hid)
                                 }
                             }));
@@ -667,9 +694,214 @@ export abstract class HomeUiPlay extends HomeUiStage {
 
 
 
+    // ================= 巡逻队（挂机收益 + 扫荡） =================
+
+    /** 巡逻页当前选中的驻扎关卡（0 = 用系统里已驻扎的 / 默认最后一关） */
+    protected _patrolSel = 0;
+
+    /**
+     * 巡逻队（XL 二级页）：驻扎关卡选择（只在已通关关卡里挑）+ 挂机产出累积
+     * （真实时间计时，8 小时封顶）+ 一键收取 + 扫荡（花体力瞬时再清一遍）。
+     *
+     * 收益口径全在 PatrolSystem：金币按「已通关关数 × 400/小时 ×（1 + 关卡加成）」，
+     * 所以推得越远、驻扎关卡越靠后，收益越高——这是「打过的关卡越多越有收益」的落点。
+     */
+    protected _openPatrolModal(): void {
+        const ps = PatrolSystem.instance;
+        const gm = GameManager.instance;
+        const cleared = Math.max(0, Math.min(FINAL_STAGE_ID, gm.stageCleared));
+        const opt = (): PopOpts => {
+            // 默认驻扎：已驻扎的关卡优先，否则停在「最新通关的那一关」（收益最好的已通关关）
+            const fallback = Math.max(1, cleared);
+            let sel = this._patrolSel || ps.stageId || fallback;
+            sel = Math.min(Math.max(1, sel), Math.max(1, cleared));
+            this._patrolSel = sel;
+            const def = stageInfo(sel);
+            const stationed = ps.stageId === sel;
+            const pending = stationed ? ps.pendingYield() : { gold: 0, misc: [] };
+            const goldRate = patrolGoldPerHour(sel);
+            const miscRate = patrolMiscPerHour(sel);
+            const md = miscDef(miscRate.id);
+            const sweep = ps.canSweep(sel);
+            const left = ps.sweepLeft();
+            const perDay = patrolSweepPerDay();
+            const preview = patrolSweepReward(sel);
+            const previewMd = miscDef(preview.misc[0]?.id ?? '');
+            const pick = (id: number): void => {
+                this._patrolSel = id;
+                SoundFx.play('ui');
+                this._popRebuild(opt());
+            };
+            const progress = Math.min(100, Math.round(ps.accruedSecs() / (PATROL_MAX_HOURS * 3600) * 100));
+            return {
+                tier: 2,
+                size: 'XL',
+                title: '🛡️ 巡逻队',
+                barBack: true,
+                show: {
+                    icon: '🛡️',
+                    tier: stationed ? (ps.isCapped() ? '已满仓' : '巡逻中') : '待命',
+                    name: stationed ? `第 ${sel} 关 · ${def.name}` : '尚未派出巡逻队',
+                    sub: `已通关 ${cleared} 关 · 挂机 🪙${goldRate.toLocaleString()}/小时`
+                },
+                subtitle: `驻扎已通关关卡离线攒收益（${PATROL_MAX_HOURS} 小时封顶）· 扫荡今日剩余 ${left}/${perDay} 次`,
+                // 驻扎关卡只能挑打过的：这里列全 5 关，未通关的置灰并用 status 说明
+                slots: sb => {
+                    for (let id = 1; id <= FINAL_STAGE_ID; id++) {
+                        const open = id <= cleared;
+                        const cap = ps.accruedSecs() >= PATROL_MAX_HOURS * 3600;
+                        const cell = this._popSlot({
+                            icon: open ? (id === sel ? '🛡️' : '🚩') : '🔒',
+                            tier: `第${id}关`,
+                            on: id === sel,
+                            // 红点：正在驻扎且已攒够（或顶到上限）时提示可收
+                            red: open && ps.stageId === id && (cap || ps.hasClaimable()),
+                            // 未通关的格子不是死键：点了说明为什么不能选（不留「看着能点却没反应」）
+                            onClick: open
+                                ? () => pick(id)
+                                : () => this._openUnlockGate('无法驻扎', '🔒', `第 ${id} 关尚未通关，巡逻只服务已通关的关卡`)
+                        });
+                        if (!open) {
+                            cell.classList.add('lock');
+                        }
+                        sb.appendChild(cell);
+                    }
+                },
+                build: c => {
+                    // 正在别处巡逻时先说清队伍在哪：否则「未驻扎」会让人以为收益停了
+                    if (ps.isPatrolling && !stationed) {
+                        c.appendChild(this._popKV('巡逻队位置', `第 ${ps.stageId} 关 · 已累积 ${ps.accruedText()}（点该关可回去收取）`, 'total'));
+                    }
+                    c.appendChild(this._popSec(`🚩 第 ${sel} 关 · ${def.name}`));
+                    c.appendChild(this._popKV('关卡状态', sel <= cleared ? '已通关 · 可驻扎 / 可扫荡' : '未通关 · 通关后才能巡逻'));
+                    c.appendChild(this._popKV('挂机产出', `🪙 ${goldRate.toLocaleString()}/小时 · ${md ? md.ic : '📦'}${md ? md.name : miscRate.id} ${miscRate.n}/小时`, 'total'));
+                    c.appendChild(this._popKV('累积进度', stationed ? `${ps.accruedText()} / ${PATROL_MAX_HOURS} 小时` : '未驻扎', stationed && ps.isCapped() ? 'total' : 'free'));
+                    if (stationed) {
+                        const yieldText = [`🪙 ${pending.gold.toLocaleString()} 金币`];
+                        for (const m of pending.misc) {
+                            const pmd = miscDef(m.id);
+                            yieldText.push(`${pmd ? pmd.ic : '📦'} ${pmd ? pmd.name : m.id}×${m.n}`);
+                        }
+                        c.appendChild(this._popKV('待领取', yieldText.join(' · '), 'total'));
+                    }
+                    c.appendChild(this._popAttr({
+                        icon: '📈',
+                        text: `收益随进度增长：每通关 1 关，挂机金币 +${(400).toLocaleString()}/小时；驻扎关卡越靠后另有最高 +32% 加成`
+                    }));
+                    if (stationed && ps.isCapped()) {
+                        c.appendChild(this._popWarn(`⚠️ 已顶到 ${PATROL_MAX_HOURS} 小时上限，超出部分不再累积，请尽快收取`));
+                    } else if (stationed) {
+                        c.appendChild(this._popWarn(`⏳ 已在第 ${ps.stageId} 关巡逻 · 随时可收取，收取后重新计时`));
+                    } else if (ps.isPatrolling) {
+                        c.appendChild(this._popWarn(`🚩 巡逻队正在第 ${ps.stageId} 关：点「派驻第 ${sel} 关」会先自动收取，再转驻本关`));
+                    } else {
+                        c.appendChild(this._popWarn('🚩 当前未驻扎：选好关卡后点「派驻巡逻队」开始计时'));
+                    }
+                    c.appendChild(this._popSec('⚔️ 扫荡 · 花体力立刻再清一遍'));
+                    c.appendChild(this._popKV('扫荡对象', `第 ${sel} 关 · ${def.name}`));
+                    c.appendChild(this._popKV('预计产出', `🪙 ${preview.gold.toLocaleString()} · ${previewMd ? previewMd.ic : '📦'}${previewMd ? previewMd.name : ''}×${preview.misc[0]?.n ?? 0}`, 'total'));
+                    c.appendChild(this._popKV('今日剩余', `${left}/${perDay} 次`, left <= 0 ? 'total' : 'free'));
+                    c.appendChild(this._popKV('消耗', `⚡ ${BattleConfig.RUN_STAMINA_COST} 体力 / 次`));
+                    if (!sweep.ok) {
+                        c.appendChild(this._popWarn(`🔒 ${sweep.reason ?? '不可扫荡'}`));
+                    }
+                    c.appendChild(this._popSec('其余已通关关卡'));
+                    let listed = 0;
+                    for (let id = cleared; id >= 1; id--) {
+                        if (id === sel) {
+                            continue;
+                        }
+                        listed++;
+                        const d = stageInfo(id);
+                        const gr = patrolGoldPerHour(id);
+                        c.appendChild(this._popRow({
+                            icon: ps.stageId === id ? '🛡️' : '🚩',
+                            title: `第 ${id} 关 · ${d.name}`,
+                            tag: ps.stageId === id ? '巡逻中' : undefined,
+                            lines: [`🪙 ${gr.toLocaleString()}/小时`, '已通关 · 可驻扎/扫荡'],
+                            on: ps.stageId === id,
+                            action: { label: '选 中', kind: 'gold', onClick: () => pick(id) }
+                        }));
+                    }
+                    if (listed === 0) {
+                        c.appendChild(this._popEmpty('暂无其他已通关关卡', '继续推进主线可解锁更多巡逻点', '🚩'));
+                    }
+                },
+                ctas: stationed
+                    ? [
+                        {
+                            label: pending.gold > 0 || pending.misc.length > 0 ? `🪙 收 取 ${pending.gold.toLocaleString()}` : '暂 无 产 出',
+                            kind: 'gold',
+                            disabled: !(pending.gold > 0 || pending.misc.length > 0),
+                            onDisabled: () => this._toast('还没攒够产出 · 巡逻中会持续累积'),
+                            red: pending.gold > 0,
+                            onClick: () => {
+                                SoundFx.play('coin');
+                                const y = ps.claim();
+                                if (y) {
+                                    this._toast(`巡逻收取：🪙 ${y.gold.toLocaleString()}${y.misc.length ? ` · ${md ? md.name : ''}×${y.misc[0].n}` : ''}`);
+                                }
+                                this._refreshTop();
+                                this._popRebuild(opt());
+                            }
+                        },
+                        {
+                            label: sweep.ok ? `⚔️ 扫 荡 ⚡${BattleConfig.RUN_STAMINA_COST}` : sweep.reason ?? '不可扫荡',
+                            kind: 'green',
+                            disabled: !sweep.ok,
+                            // 禁用不是死键：按缺口给拦截弹窗或差额说明
+                            onDisabled: () => {
+                                if (!sweep.ok) {
+                                    if (ps.sweepLeft() <= 0) {
+                                        this._toast(sweep.reason ?? '今日扫荡次数已用完');
+                                    } else if (!isPatrolStage(sel)) {
+                                        this._openUnlockGate('无法扫荡', '🚩', sweep.reason ?? '该关尚未通关');
+                                    } else {
+                                        this._openStaminaGate(BattleConfig.RUN_STAMINA_COST, () => this._openPatrolModal());
+                                    }
+                                }
+                            },
+                            onClick: () => {
+                                SoundFx.unlock();
+                                const r = ps.sweep(sel);
+                                if (r) {
+                                    SoundFx.play('coin');
+                                    const rmd = miscDef(r.misc[0]?.id ?? '');
+                                    this._toast(`扫荡 ${r.stageName}：🪙 ${r.gold.toLocaleString()}${rmd ? ` · ${rmd.name}×${r.misc[0].n}` : ''}`);
+                                } else {
+                                    this._toast(ps.canSweep(sel).reason ?? '扫荡失败');
+                                }
+                                this._refreshTop();
+                                this._popRebuild(opt());
+                            }
+                        }
+                    ]
+                    : [{
+                        label: `🚩 派 驻 第 ${sel} 关`,
+                        kind: 'gold',
+                        disabled: sel > cleared,
+                        onDisabled: () => this._openUnlockGate('无法驻扎', '🚩', `第 ${sel} 关尚未通关，巡逻只服务已通关的关卡`),
+                        onClick: () => {
+                            SoundFx.unlock();
+                            const auto = ps.setStage(sel);
+                            if (auto && (auto.gold > 0 || auto.misc.length > 0)) {
+                                this._toast(`已转驻 · 上次产出自动收取 🪙 ${auto.gold.toLocaleString()}`);
+                            } else {
+                                this._toast(`巡逻队已派驻第 ${sel} 关`);
+                            }
+                            this._refreshTop();
+                            this._popRebuild(opt());
+                        }
+                    }],
+                note: '离线也计时 · 8 小时封顶 · 扫荡次数每日 00:00 重置 · 通关越多收益越高'
+            };
+        };
+        this._openPop(opt());
+    }
+
+
     /** 进入资源副本：走流程状态机（内部校验次数/体力/档位，失败给出具体原因） */
-    protected _startDungeon(id: DungeonId, tier: number): void {
-        if (!this._root) {
+    protected _startDungeon(id: DungeonId, tier: number): void {        if (!this._root) {
             return;
         }
         const def = dungeonDef(id);
@@ -836,6 +1068,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 ctas: [{
                     label: claimed ? '今日已签到' : '签 到',
                     disabled: claimed,
+                    onDisabled: () => this._toast('今日已签到 · 明天再来'),
                     onClick: () => {
                         SoundFx.unlock();
                         const got = ss.claim();
@@ -877,7 +1110,9 @@ export abstract class HomeUiPlay extends HomeUiStage {
             };
             return {
                 tier: 3,
-                size: 'M',
+                // 档位由内容量决定（交互稿口径，稿里本面即 L3）：活跃度固定块 + 双页签列表
+                // 在 M 档装不下（实测溢出 ~100px），升 L 档。
+                size: 'L',
                 banner: '📋 任务 · 成就',
                 art: `活跃 ${qs.activity}/${ACTIVITY_MAX}`,
                 tabs: ['每日任务', '成就'],
@@ -969,7 +1204,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         this._popRebuild(opt());
                     }
                 }] : undefined,
-                note: '完成每日任务获得活跃度 · 活跃宝箱领完当日封顶'
+                // 说明行与固定活跃度块（每日 0 点重置）重复，省一行高度让列表一屏多读一行
             };
         };
         this._openPop(opt());
@@ -1019,92 +1254,231 @@ export abstract class HomeUiPlay extends HomeUiStage {
 
     // ================= 玩法页（日常运营 + 玩法入口） =================
 
-    /** 玩法页：每日任务/签到状态卡（红点驱动，点击直达）+ 试炼/副本/远征/图鉴/排行入口行 */
+    /**
+     * 行动页（布局稿 R2）：标题行（今日活跃）→ 日常四快捷 → 挑战场（无尽试炼/无尽护送）
+     * → 资源副本四联 → 远征行 → 页脚三快捷。整页竖排，副本/远征/页脚常驻底部。
+     */
     protected _buildPlayPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'screen';
+        page.className = 'screen sAction';
         this._pages.core = page;
 
-        // 日常状态卡：任务 + 签到（运营功能与基地建筑养成解耦，集中放在玩法页顶部）
-        const dutyRow = document.createElement('div');
-        dutyRow.className = 'dutyRow';
-        const mkDuty = (ic: string, title: string, sub: string, onTap: () => void): HTMLButtonElement => {
-            const card = document.createElement('button');
-            card.className = 'dutyCard panel frame';
-            card.innerHTML = `<span class="dcIc">${ic}</span><span class="dcTxt"><b>${title}</b><i>${sub}</i></span><i class="questRed"></i>`;
-            card.onclick = (e) => {
+        // 标题行：页名 + 今日活跃度（活跃宝箱口径）
+        const title = document.createElement('div');
+        title.className = 'action-title';
+        const h1 = document.createElement('h1');
+        h1.textContent = '作战行动';
+        const act = document.createElement('small');
+        act.className = 'actNum';
+        title.appendChild(h1);
+        title.appendChild(act);
+        page.appendChild(title);
+        this._actNumEl = act;
+
+        // 日常四快捷：签到 / 任务 / 成就 / 礼包（红点驱动，点击直达）
+        const daily = document.createElement('div');
+        daily.className = 'action-daily';
+        const mkDaily = (ic: string, label: string, sub: string, onTap: () => void): HTMLButtonElement => {
+            const b = document.createElement('button');
+            b.className = 'hot dutyCard';
+            b.innerHTML = `<span class="ic">${ic}</span><span>${label}</span><small class="dcSub">${sub}</small>`
+                + '<i class="questRed"></i>';
+            b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
                 onTap();
             };
-            dutyRow.appendChild(card);
-            return card;
+            daily.appendChild(b);
+            return b;
         };
-        const questBtn = mkDuty('📋', '每日任务', '活跃宝箱 · 成就领奖', () => this._openQuestModal());
-        this._refreshQuestRed(questBtn.querySelector('.questRed') as HTMLElement);
-        this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
-        const signinBtn = mkDuty('📅', '每日签到', '七日奖励 · 断签不罚', () => this._openSigninModal());
-        this._refreshSigninRed(signinBtn.querySelector('.questRed') as HTMLElement);
+        const signinBtn = mkDaily('📅', '签到', '第 1 天', () => this._openSigninModal());
         this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
-        page.appendChild(dutyRow);
+        this._refreshSigninRed(this._signinRedEl);
+        this._signinSubEl = signinBtn.querySelector('.dcSub') as HTMLElement;
+        const questBtn = mkDaily('📋', '任务', '0 项可领', () => this._openQuestModal(0));
+        this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
+        this._refreshQuestRed(this._questRedEl);
+        this._questSubEl = questBtn.querySelector('.dcSub') as HTMLElement;
+        const achBtn = mkDaily('🎖️', '成就', '0 项达成', () => this._openQuestModal(1));
+        this._achSubEl = achBtn.querySelector('.dcSub') as HTMLElement;
+        const giftBtn = mkDaily('🎁', '礼包', '每日补给', () => this._openGiftModal());
+        this._giftSubEl = giftBtn.querySelector('.dcSub') as HTMLElement;
+        page.appendChild(daily);
 
-        // 玩法入口列表（BUILDINGS pureEntry：试炼/副本/远征/图鉴/排行）
-        const list = document.createElement('div');
-        list.className = 'modeList';
-        page.appendChild(list);
-        this._playGridEl = list;
+        // 挑战场：无尽试炼（塔层） / 无尽护送（通关全章解锁）
+        const ground = document.createElement('div');
+        ground.className = 'challenge-ground';
+        const mkEntry = (ic: string, name: string, onTap?: () => void): HTMLButtonElement => {
+            const b = document.createElement('button');
+            b.className = 'entry';
+            b.innerHTML = `<span class="ic">${ic}</span><h2>${name}</h2><small></small>`;
+            if (onTap) {
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    SoundFx.play('ui');
+                    onTap();
+                };
+            }
+            ground.appendChild(b);
+            return b;
+        };
+        const trialEl = mkEntry('🗼', '无尽试炼', () => this._openTrialModal());
+        trialEl.dataset.entry = 'trial';
+        trialEl.appendChild(this._mkRed('trial'));
+        const endlessEl = mkEntry('🌀', '无尽护送', () => this._startBattle(true));
+        endlessEl.dataset.entry = 'endless';
+        this._trialEntryEl = trialEl;
+        this._endlessEntryEl = endlessEl;
+        page.appendChild(ground);
+
+        // 资源副本四联（金币/强化石/合金/宝石）
+        const dungeons = document.createElement('div');
+        dungeons.className = 'dungeons';
+        const dLabel = document.createElement('div');
+        dLabel.className = 'section-label';
+        dLabel.innerHTML = `<b>资源副本</b><small>每次 ${DUNGEON_STAMINA_COST} 体力</small>`;
+        dungeons.appendChild(dLabel);
+        const dRow = document.createElement('div');
+        dRow.className = 'dungeon-row';
+        DUNGEON_DEFS.forEach((def, i) => {
+            const b = document.createElement('button');
+            b.className = 'hot';
+            b.dataset.entry = 'dungeon';
+            b.dataset.dungeon = def.id;
+            b.innerHTML = `<span class="ic">${def.ic}</span><span>${def.name}</span><small>${DUNGEON_RUNS_PER_DAY} 次</small>`;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                if (!GameManager.instance.isBuildingUnlocked('dungeon')) {
+                    this._toast('🔒 指挥中心 LV.2 解锁资源副本');
+                    return;
+                }
+                this._openDungeonModal(i);
+            };
+            b.appendChild(this._mkRed('dungeon'));
+            dRow.appendChild(b);
+        });
+        dungeons.appendChild(dRow);
+        page.appendChild(dungeons);
+
+        // 远征行：图标 + 进度文案 + 远征入口
+        const exp = document.createElement('div');
+        exp.className = 'expedition';
+        exp.dataset.entry = 'expedition';
+        exp.innerHTML = '<span class="ic">🚚</span><div class="expedition-text"><b>远征 · 物资搜寻</b><small></small></div>';
+        const expHot = document.createElement('button');
+        expHot.className = 'hot';
+        expHot.innerHTML = '<span class="ic">🚩</span>远征';
+        expHot.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._enterPureEntry('expedition');
+        };
+        exp.appendChild(expHot);
+        exp.appendChild(this._mkRed('expedition'));
+        page.appendChild(exp);
+        this._expTextEl = exp.querySelector('.expedition-text small') as HTMLElement;
+
+        // 页脚三快捷：怪物图鉴 / 排行榜 / 载具改装
+        const footer = document.createElement('div');
+        footer.className = 'action-footer';
+        const mkFoot = (ic: string, label: string, onTap: () => void, key?: string): HTMLButtonElement => {
+            const b = document.createElement('button');
+            b.className = 'hot';
+            b.innerHTML = `<span class="ic">${ic}</span>${label}`;
+            b.onclick = (e) => {
+                e.stopPropagation();
+                SoundFx.play('ui');
+                onTap();
+            };
+            if (key) {
+                b.dataset.entry = key;
+                b.appendChild(this._mkRed(key));
+            }
+            footer.appendChild(b);
+            return b;
+        };
+        mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary');
+        mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard');
+        mkFoot('🔧', '载具改装', () => this._openTuningModal());
+        page.appendChild(footer);
+
         root.appendChild(page);
+        // 入口红点巡检覆盖整页（入口分散在挑战场/副本/远征/页脚）
+        this._playGridEl = page;
+    }
+
+    /** 入口红点占位（纯 CSS 控制显隐） */
+    protected _mkRed(key: string): HTMLElement {
+        const red = document.createElement('i');
+        red.className = 'questRed';
+        red.dataset.red = key;
+        return red;
     }
 
 
-    /** 玩法页刷新：入口行重绘（动态进度描述 + 红点 + 进入态） */
+    /** 行动页刷新：标题活跃度 + 日常副标 + 挑战场层数/解锁 + 副本次数 + 远征文案 */
     protected _refreshPlayPage(): void {
-        const grid = this._playGridEl;
-        if (!grid) {
+        const page = this._playGridEl;
+        if (!page) {
             return;
         }
-        grid.innerHTML = '';
         const gm = GameManager.instance;
-        // 玩法定位短语（行内副标签）
-        const sub: Record<string, string> = {
-            trial: '爬塔挑战', dungeon: '材料产线', expedition: '离线派遣',
-            bestiary: '图鉴收集', leaderboard: '积分竞技',
-        };
-        for (const b of BUILDINGS) {
-            if (!b.pureEntry) {
-                continue;
-            }
-            const unlocked = gm.isBuildingUnlocked(b.id);
-            const row = document.createElement('button');
-            row.className = 'modeRow panel' + (unlocked ? '' : ' locked lock');
-            row.dataset.entry = b.id;
-            row.title = b.intro ?? '';
-            const ic = document.createElement('div');
-            ic.className = 'mmIc';
-            ic.textContent = b.ic;
-            row.appendChild(ic);
-            const mid = document.createElement('div');
-            mid.className = 'mm';
-            mid.innerHTML = `<b>${b.name}<span class="mini4">${sub[b.id] ?? ''}</span></b>` +
-                `<i>${unlocked ? this._pureEntryDesc(b.id) : `🔒 指挥中心 LV.${b.unlockHq} 解锁`}</i>`;
-            row.appendChild(mid);
-            const btn = document.createElement('span');
-            btn.className = 'mmGo';
-            btn.textContent = this._pureEntryBtnText(b.id);
-            row.appendChild(btn);
-            if (unlocked) {
-                row.onclick = (e) => {
-                    e.stopPropagation();
-                    SoundFx.play('ui');
-                    this._enterPureEntry(b.id);
-                };
-            }
-            const red = document.createElement('span');
-            red.className = 'bcardRed';
-            row.appendChild(red);
-            this._refreshPureEntryRed(b.id, red);
-            grid.appendChild(row);
+        const qs = QuestSystem.instance;
+        // 标题：今日活跃度（活跃宝箱口径）
+        if (this._actNumEl) {
+            this._actNumEl.textContent = `今日活跃 ${qs.activity} / ${ACTIVITY_MAX}`;
         }
+        const owned = QUEST_DEFS.filter(q => q.kind === 'daily' && qs.canClaim(q)).length;
+        if (this._questSubEl) {
+            this._questSubEl.textContent = owned > 0 ? `${owned} 项可领` : '今日已清';
+        }
+        if (this._signinSubEl) {
+            this._signinSubEl.textContent = this._signinDayText();
+        }
+        if (this._achSubEl) {
+            const achv = QUEST_DEFS.filter(q => q.kind === 'achv');
+            const done = achv.filter(q => qs.isClaimed(q)).length;
+            this._achSubEl.textContent = `达成 ${done} / ${achv.length}`;
+        }
+        if (this._giftSubEl) {
+            this._giftSubEl.textContent = '每日补给';
+        }
+        // 挑战场：试炼层数 / 无尽解锁（通关全章）
+        if (this._trialEntryEl) {
+            const ts = TrialSystem.instance;
+            const sub = this._trialEntryEl.querySelector('small') as HTMLElement;
+            sub.textContent = ts.maxFloor > 0 ? `第 ${ts.nextFloor} 层 · 不耗体力` : '不耗体力 · 从第 1 层开始';
+            this._trialEntryEl.title = '爬塔：层段固定奖励，首通结算';
+        }
+        if (this._endlessEntryEl) {
+            const ok = gm.stageCleared >= FINAL_STAGE_ID;
+            const sub = this._endlessEntryEl.querySelector('small') as HTMLElement;
+            sub.textContent = ok ? '波次无限 · 每 5 波里程碑' : `通关第 ${FINAL_STAGE_ID} 章解锁`;
+            this._endlessEntryEl.className = 'entry' + (ok ? '' : ' locked');
+            this._endlessEntryEl.title = ok ? '无尽护送：波次无限' : `通关第 ${FINAL_STAGE_ID} 章解锁`;
+        }
+        // 资源副本：每类今日剩余次数
+        page.querySelectorAll<HTMLElement>('.dungeon-row .hot[data-dungeon]').forEach(el => {
+            const id = el.dataset.dungeon as DungeonId;
+            const sub = el.querySelector('small');
+            if (sub) {
+                const left = DungeonSystem.instance.remaining(id);
+                sub.textContent = left > 0 ? `${left} / ${DUNGEON_RUNS_PER_DAY} 次` : '今日已用尽';
+            }
+            el.classList.toggle('off', GameManager.instance.stamina() < DUNGEON_STAMINA_COST);
+        });
+        if (this._expTextEl) {
+            this._expTextEl.textContent = this._pureEntryDesc('expedition');
+        }
+        this._refreshEntryReds();
+    }
+
+
+    /** 签到副标：按当前签到天数给出「第 N 天 / 7」 */
+    protected _signinDayText(): string {
+        const ss = SigninSystem.instance;
+        return `第 ${Math.min(ss.totalDays, ss.day)} 天 / ${ss.totalDays}`;
     }
 
 

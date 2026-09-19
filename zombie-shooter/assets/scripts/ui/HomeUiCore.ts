@@ -22,7 +22,7 @@ import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRI
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
 import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
 import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
-import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
+import { ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
 import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES, NoticeKind } from '../core/NoticeData';
@@ -160,22 +160,14 @@ export abstract class HomeUiCore extends Component {
 
     protected _expNum: HTMLDivElement | null = null;
 
-    /** 公告条跑马灯文字与未读红点 */
-    protected _noticeTextEl: HTMLDivElement | null = null;
-
-    protected _noticeRedEl: HTMLElement | null = null;
-
     /** 顶栏邮箱按钮（未读红点驱动） */
     protected _homeMailBtn: HTMLButtonElement | null = null;
 
-    /** 公告条本体（走马灯按需显示：无内容整条收起） */
-    protected _noticeBarEl: HTMLDivElement | null = null;
+    /** 顶栏公告按钮（未读红点驱动） */
+    protected _homeNoticeBtn: HTMLButtonElement | null = null;
 
-    /** 走马灯：当前消息的点击目标（公告/邮箱/远征/玩法页/出战） */
-    protected _tickerTap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' = 'notice';
-
-    /** 走马灯轮播游标（每次动画一轮推进一条，循环） */
-    protected _tickerIdx = 0;
+    /** 顶部刘海/胶囊安全区条（静态留白，只占位不画内容） */
+    protected _safeBandEl: HTMLDivElement | null = null;
 
     /** 本次会话是否已自动弹过公告（每次启动至多自动弹一次） */
     protected _autoNoticeShown = false;
@@ -204,6 +196,7 @@ export abstract class HomeUiCore extends Component {
 
     /** 贴图挂起队列：AssetLib 异步就绪后补挂 */
     protected _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
+    private _pendingTexTimer = 0;
 
 
     protected _tex(key: string, apply: (url: string) => void): void {
@@ -228,6 +221,13 @@ export abstract class HomeUiCore extends Component {
             }
             return true;
         });
+        // 竞态兜底：预载图晚于首次排水到达时自续排水直至清空（换图冷加载必踩，此前靠切页掩盖）
+        if (this._pendingTex.length && !this._pendingTexTimer) {
+            this._pendingTexTimer = window.setTimeout(() => {
+                this._pendingTexTimer = 0;
+                this._applyPendingTex();
+            }, 400);
+        }
     }
 
 
@@ -262,9 +262,10 @@ export abstract class HomeUiCore extends Component {
                 // 画布在超长屏上按高度铺满时 CSS 宽会超出视口；DOM 覆盖层必须按视口宽缩放，
                 // 否则 --pw 偏大导致 HUD 超屏被裁。取画布宽与视口宽的较小值。
                 const w = Math.min(canvas.getBoundingClientRect().width, window.innerWidth);
-                // --hs：设计宽 1080 缩放；--pw：原型 430px 手机框等比缩放（interface.css 覆盖层用）
+                // --hs：设计宽 1080 缩放；--pw：布局稿 390×844 手机框等比缩放（青瓷覆盖层用）。
+                // 390 是布局稿画框宽度：以它为基准，真机 390 宽时逐条与稿 1:1，更宽屏等比放大。
                 document.documentElement.style.setProperty('--hs', (w / 1080).toFixed(4));
-                document.documentElement.style.setProperty('--pw', (w / 430).toFixed(4));
+                document.documentElement.style.setProperty('--pw', (w / 390).toFixed(4));
             }
             this._applySafeArea();
         };
@@ -286,18 +287,11 @@ export abstract class HomeUiCore extends Component {
             }
         }, this);
         eventCenter.on(GameEvent.HOME_SHOW, () => this.show(), this);
-        // 新邮件到达（投放器/运营接口触发）：toast 提醒 + 顶栏红点实时亮起 + 走马灯立即切到新邮件消息
+        // 新邮件到达（投放器/运营接口触发）：toast 提醒 + 顶栏红点实时亮起
         eventCenter.on(GameEvent.MAIL_NEW, (def: MailDef) => {
             if (this._root) {
                 this._toast(`📬 新邮件：${def.title}`);
                 this._refreshTop();
-                this._advanceTicker();
-            }
-        }, this);
-        // 远征倒计时归零：走马灯播报「队伍归来」，入口红点由既有轮询兜底
-        eventCenter.on(GameEvent.EXPEDITION_READY, () => {
-            if (this._root) {
-                this._advanceTicker();
             }
         }, this);
         // 远征倒计时归零没有事件源（时间自己走），靠这个低频轮询兜底补亮红点：
@@ -311,6 +305,8 @@ export abstract class HomeUiCore extends Component {
     onDestroy(): void {
         clearInterval(this._expTimer);
         clearInterval(this._expIdleTimer);
+        clearTimeout(this._pendingTexTimer);
+        this._pendingTexTimer = 0;
         this._root?.remove();
         this._root = null;
     }
@@ -348,7 +344,6 @@ export abstract class HomeUiCore extends Component {
         this._refreshHeroes();
         this._refreshPlayPage();
         this._refreshBase();
-        this._refreshNoticeBar();
         this._applyPendingTex();
     }
 
@@ -610,9 +605,16 @@ export abstract class HomeUiCore extends Component {
         const maskClose = opts.maskClose ?? (tier !== 5 && size !== 'XL');
         mask.onclick = (e) => {
             e.stopPropagation();
-            if (e.target === mask && maskClose) {
-                this._closePop();
+            if (e.target !== mask) {
+                return;
             }
+            if (maskClose) {
+                this._closePop();
+                return;
+            }
+            // 不可关的层级（L5 演出 / XL 满屏）也要给出口：静默无反应等于死键（UX 0-4）。
+            // XL 铺满整屏本就点不到遮罩，这里实际服务 L5。
+            this._toast('本层需用底部命令关闭，避免误触中断');
         };
         const pop = this._el('div', `pop ${size} L${tier}`);
         pop.onclick = (e) => e.stopPropagation();
@@ -1255,7 +1257,11 @@ export abstract class HomeUiCore extends Component {
 
     // ================= 顶栏（全局） =================
 
-    /** 顶栏：玩家头像 + 名牌/等级/经验条 + 三资源胶囊（金币/钻石/体力） */
+    /**
+     * HUD 通栏（五页共用）：左侧竖版头像（等级角标压左上角、绝对定位），
+     * 右侧两行——上排三资源等分，下排昵称 + 经验条 + 邮箱/设置小图标。
+     * 内容整体右移让位头像，整条 64px（原型口径）。
+     */
     protected _buildTopbar(root: HTMLDivElement): void {
         const bar = document.createElement('div');
         bar.className = 'topbar';
@@ -1278,28 +1284,12 @@ export abstract class HomeUiCore extends Component {
             face.textContent = '';
         });
         avatar.appendChild(face);
+        // 等级角标压在头像左上角外沿（布局稿 .portrait strong），头像即等级入口
+        const lvBadge = document.createElement('b');
+        lvBadge.className = 'lvtag';
+        lvBadge.textContent = '12';
+        avatar.appendChild(lvBadge);
         bar.appendChild(avatar);
-        const info = document.createElement('div');
-        info.className = 'pinfo';
-        const nameRow = document.createElement('div');
-        nameRow.className = 'pname';
-        nameRow.appendChild(document.createTextNode('末日指挥官'));
-        const lvtag = document.createElement('span');
-        lvtag.className = 'lvtag';
-        lvtag.textContent = 'LV.12';
-        nameRow.appendChild(lvtag);
-        const exp = document.createElement('div');
-        exp.className = 'expbar';
-        const fill = document.createElement('i');
-        exp.appendChild(fill);
-        const expnum = document.createElement('div');
-        expnum.className = 'expnum';
-        info.appendChild(nameRow);
-        info.appendChild(exp);
-        info.appendChild(expnum);
-        bar.appendChild(info);
-        this._expFill = fill;
-        this._expNum = expnum;
         const reswrap = document.createElement('div');
         reswrap.className = 'reswrap';
         const mkRes = (id: 'gold' | 'diamond' | 'stamina', texKey: string) => {
@@ -1340,11 +1330,33 @@ export abstract class HomeUiCore extends Component {
         mkRes('diamond', 'ui/res_diamond');
         mkRes('stamina', 'ui/res_stamina');
         bar.appendChild(reswrap);
-        // 邮箱 + 设置收进 HUD 右侧工具组（与资源胶囊同一行，不再下探）
+        // 下排：昵称 + 经验条（+ 进度文案）｜右侧邮箱 / 设置两个小图标
+        const identity = document.createElement('div');
+        identity.className = 'identity';
+        const idLeft = document.createElement('div');
+        idLeft.className = 'idLeft';
+        const nameRow = document.createElement('span');
+        nameRow.className = 'pname';
+        nameRow.textContent = '末日指挥官';
+        const xpRow = document.createElement('div');
+        xpRow.className = 'xpRow';
+        const exp = document.createElement('div');
+        exp.className = 'expbar';
+        const fill = document.createElement('i');
+        exp.appendChild(fill);
+        const expnum = document.createElement('span');
+        expnum.className = 'expnum';
+        xpRow.appendChild(exp);
+        xpRow.appendChild(expnum);
+        idLeft.appendChild(nameRow);
+        idLeft.appendChild(xpRow);
+        identity.appendChild(idLeft);
+        this._expFill = fill;
+        this._expNum = expnum as HTMLDivElement;
         const util = document.createElement('div');
         util.className = 'hudUtil';
         const mailBtn = document.createElement('button');
-        mailBtn.className = 'btn dark sm setGear homeMailBtn';
+        mailBtn.className = 'tinyIcon homeMailBtn';
         mailBtn.textContent = '📬';
         mailBtn.title = '邮箱';
         mailBtn.onclick = (e) => {
@@ -1354,8 +1366,19 @@ export abstract class HomeUiCore extends Component {
         };
         util.appendChild(mailBtn);
         this._homeMailBtn = mailBtn;
+        const noticeBtn = document.createElement('button');
+        noticeBtn.className = 'tinyIcon homeNoticeBtn';
+        noticeBtn.textContent = '📣';
+        noticeBtn.title = '游戏公告';
+        noticeBtn.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openNoticeModal();
+        };
+        util.appendChild(noticeBtn);
+        this._homeNoticeBtn = noticeBtn;
         const gear = document.createElement('button');
-        gear.className = 'btn dark sm setGear';
+        gear.className = 'tinyIcon';
         gear.textContent = '⚙️';
         gear.title = '设置';
         gear.onclick = (e) => {
@@ -1364,7 +1387,8 @@ export abstract class HomeUiCore extends Component {
             this._openSettingsModal();
         };
         util.appendChild(gear);
-        bar.appendChild(util);
+        identity.appendChild(util);
+        bar.appendChild(identity);
         root.appendChild(bar);
     }
 
@@ -1385,6 +1409,7 @@ export abstract class HomeUiCore extends Component {
         }
         // 邮箱未读红点（新邮件到达/已读实时同步）
         this._homeMailBtn?.classList.toggle('unread', MailSystem.instance.hasUnread());
+        this._homeNoticeBtn?.classList.toggle('unread', NoticeSystem.instance.hasUnread());
         // 经验条（占位口径：最远波次 / 100）
         if (this._expFill) {
             const pct = Math.min(100, Math.round(gm.bestWave));
@@ -1407,8 +1432,8 @@ export abstract class HomeUiCore extends Component {
         const NAV: Array<{ key: string; icon: string; name: string; main?: boolean }> = [
             { key: 'mall', icon: '🛒', name: '商店' },
             { key: 'heroes', icon: '🎖️', name: '英雄' },
-            { key: 'battle', icon: '🚚', name: '战斗', main: true },
-            { key: 'core', icon: '🎮', name: '玩法' },
+            { key: 'battle', icon: '🚚', name: '护送' },
+            { key: 'core', icon: '🎮', name: '行动' },
             { key: 'base', icon: '🏰', name: '基地' },
         ];
         for (const item of NAV) {
@@ -1433,10 +1458,7 @@ export abstract class HomeUiCore extends Component {
                 icon.style.backgroundSize = 'contain';
                 icon.style.backgroundRepeat = 'no-repeat';
                 icon.style.backgroundPosition = 'center';
-                // 原型 interface.css：普通页签图标 34px、主钮图标 39px（430px 口径）
-                const iw = item.main ? 39 : 34;
-                icon.style.width = `calc(${iw}px * var(--pw,2.5))`;
-                icon.style.height = `calc(${iw}px * var(--pw,2.5))`;
+                // 图标尺寸交给 CSS（五签等分，选中态 42px 由 .tab.on 覆盖）——内联尺寸会压掉覆盖规则
                 icon.textContent = '';
             });
             nav.appendChild(btn);
@@ -1471,16 +1493,15 @@ export abstract class HomeUiCore extends Component {
 
 
     protected _switchPage(page: string): void {
+        // 显隐交给 CSS 的 .on 类：护送页是满屏竖向 flex 骨架，其余四页为块级滚动流，
+        // 内联 display 会把两种布局模式压成同一个值
         for (const key of Object.keys(this._pages)) {
-            this._pages[key].style.display = key === page ? 'block' : 'none';
+            this._pages[key].classList.toggle('on', key === page);
         }
         for (const key of Object.keys(this._navBtns)) {
             this._navBtns[key].classList.toggle('on', key === page);
         }
-        // 悬浮栏只随战斗页出现（左运营/右快捷），其余四页通栏
-        document.querySelectorAll('#homeUi .floatRail').forEach(el => {
-            el.classList.toggle('on', page === 'battle');
-        });
+        // 运营/快捷入口已收进护送页场景内侧，随页面显隐；此处不再切悬浮栏
         if (page === 'battle') {
             this._refreshStagePage();
         }
@@ -1508,8 +1529,9 @@ export abstract class HomeUiCore extends Component {
         root.id = 'homeUi';
         this._root = root;
 
+        // 壳层顺序＝布局稿：顶部刘海/胶囊安全区 32（手机版 30 + 状态栏安全区）→ 信息栏 64 → 页面 → 底导 70
+        this._buildSafeBand(root);
         this._buildTopbar(root);
-        this._buildNoticeBar(root);
 
         const viewport = document.createElement('div');
         viewport.className = 'viewport';
@@ -1534,117 +1556,28 @@ export abstract class HomeUiCore extends Component {
     }
 
 
-    // ================= 公告条与公告弹窗 =================
+    // ================= 顶部安全区与公告弹窗 =================
 
     /**
-     * 主城顶部公告条（topbar 之下全局常驻位）：走马灯轮播——未读公告（新→旧）
-     * 与动态消息（新邮件/远征归来/签到/任务/体力满）混合成队列，
-     * 每轮滚动动画结束切下一条；点击按当前消息类型分发到对应面板。
-     * 按需显示：已读公告不滚，队列空时整条收起，有新内容自动回归。
+     * 手机刘海/胶囊安全区条（布局稿 .safe 32；手机版 30 + 状态栏安全区）。
+     * 微信小游戏在刘海机上是沉浸式全屏，顶部这块必须留空，否则信息栏会被
+     * 状态栏与右侧胶囊盖住。稿里这条是系统状态栏内容占位（时间/胶囊），
+     * 游戏里交给系统绘制，所以这里只做一块静态留白，不画任何元素。
      */
-    protected _buildNoticeBar(root: HTMLDivElement): void {
-        const bar = document.createElement('div');
-        bar.className = 'noticeBar';
-        bar.title = '查看全部公告';
-        const ic = document.createElement('span');
-        ic.className = 'nIc';
-        ic.textContent = '📣';
-        const clip = document.createElement('div');
-        clip.className = 'nClip';
-        const text = document.createElement('div');
-        text.className = 'noticeText';
-        clip.appendChild(text);
-        const red = document.createElement('i');
-        red.className = 'nRed';
-        bar.appendChild(ic);
-        bar.appendChild(clip);
-        bar.appendChild(red);
-        bar.onclick = (e) => {
-            e.stopPropagation();
-            SoundFx.play('ui');
-            // 按当前滚到的消息分发：公告开列表，动态消息直达对应面板
-            if (this._tickerTap === 'mail') {
-                this._openMailModal();
-            } else if (this._tickerTap === 'expedition' || this._tickerTap === 'play') {
-                this._switchPage('play');
-            } else if (this._tickerTap === 'battle') {
-                this._switchPage('battle');
-            } else {
-                this._openNoticeModal();
-            }
-        };
-        // 每轮滚动动画结束推进下一条（noticeScroll 16s/轮）；队列在推进时重建以吸收最新事件
-        text.addEventListener('animationiteration', () => {
-            this._advanceTicker();
-        });
-        root.appendChild(bar);
-        this._noticeBarEl = bar;
-        this._noticeTextEl = text;
-        this._noticeRedEl = red;
-        this._refreshNoticeBar();
+    protected _buildSafeBand(root: HTMLDivElement): void {
+        const band = document.createElement('div');
+        band.className = 'safeBand';
+        root.appendChild(band);
+        this._safeBandEl = band;
     }
 
-    /**
-     * 走马灯消息队列：未读公告（新→旧，已读不再占屏）+ 动态事件消息（现查现拼，永远反映最新状态）。
-     * 队列为空 → 公告条整条收起（公告不用一直显示）；有内容才滚。
-     */
-    protected _buildTickerQueue(): Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> {
-        const q: Array<{ text: string; tap: 'notice' | 'mail' | 'expedition' | 'play' | 'battle' }> = [];
-        for (const n of NoticeSystem.instance.unreadList()) {
-            q.push({ text: `${NOTICE_KIND_NAMES[n.kind]}｜${n.title}　🔔 点击查看`, tap: 'notice' });
-        }
-        const gm = GameManager.instance;
-        if (MailSystem.instance.hasUnread()) {
-            q.push({ text: '📬 邮箱有未读邮件，附件待领取　→ 点击查看邮箱', tap: 'mail' });
-        }
-        if (ExpeditionSystem.instance.hasClaimable()) {
-            q.push({ text: '🚚 远征队伍归来，奖励待领取　→ 前往玩法页', tap: 'expedition' });
-        }
-        if (SigninSystem.instance.canClaimToday()) {
-            q.push({ text: '📅 今日签到奖励待领取　→ 前往玩法页', tap: 'play' });
-        }
-        if (QuestSystem.instance.hasClaimable()) {
-            q.push({ text: '✅ 有任务/成就奖励可领取　→ 前往玩法页', tap: 'play' });
-        }
-        if (gm.stamina() >= gm.staminaMax()) {
-            q.push({ text: '⚡ 体力已满，立即出战！', tap: 'battle' });
-        }
-        return q;
-    }
-
-    /** 走马灯推进：游标 +1（循环），重建队列吸收最新事件，刷新滚动文案与点击目标 */
-    protected _advanceTicker(): void {
-        this._tickerIdx++;
-        this._refreshNoticeBar();
-    }
-
-    /** 公告条刷新：按轮播游标取当前消息（双拼便于无缝循环）+ 未读公告红点；无内容时整条收起 */
-    protected _refreshNoticeBar(): void {
-        const q = this._buildTickerQueue();
-        if (this._noticeBarEl) {
-            this._noticeBarEl.style.display = q.length ? '' : 'none';
-        }
-        if (q.length === 0) {
-            this._tickerIdx = 0;
-            this._tickerTap = 'notice';
-            return;
-        }
-        const cur = q[this._tickerIdx % q.length];
-        this._tickerTap = cur.tap;
-        if (this._noticeTextEl) {
-            this._noticeTextEl.textContent = cur.text + '　　' + cur.text + '　　';
-        }
-        if (this._noticeRedEl) {
-            this._noticeRedEl.classList.toggle('on', NoticeSystem.instance.hasUnread());
-        }
-    }
 
 
     /** 公告列表弹窗（新→旧全量展示）；打开即全部标记已读：红点熄灭、下次进主城不再自动弹 */
     /** 游戏公告（UX 布局稿 1-B · L3·L）：分类页签 + 列表（标题/日期/摘要）+ 点行就地展开全文 */
     protected _openNoticeModal(tab = 0, expand = -1): void {
         NoticeSystem.instance.markAllRead();
-        this._refreshNoticeBar();
+        this._refreshTop();
         const filters: Array<{ label: string; kind: NoticeKind | null }> = [
             { label: '全部', kind: null },
             { label: '更新', kind: 'update' },
@@ -1691,7 +1624,7 @@ export abstract class HomeUiCore extends Component {
                         }
                     }
                 },
-                note: '公告按发布时间倒序 · 新公告会出现在主城顶部公告条'
+                note: '公告按发布时间倒序 · 新公告在信息栏 📣 上亮红点'
             };
         };
         this._openPop(opt());
@@ -1736,6 +1669,7 @@ export abstract class HomeUiCore extends Component {
                             label: '观 看',
                             kind: 'green',
                             disabled: left <= 0 || full,
+                            onDisabled: () => this._toast(full ? '体力已满，先消耗一些再来领' : '今日广告额度已用完 · 隔日重置'),
                             onClick: () => {
                                 SoundFx.unlock();
                                 AdService.instance.claimReward('stamina', () => {
@@ -1758,6 +1692,7 @@ export abstract class HomeUiCore extends Component {
                             label: `💎 ${STAMINA_BUY_COST}`,
                             kind: 'gold',
                             disabled: diamonds < STAMINA_BUY_COST,
+                            onDisabled: () => this._toast(`钻石不足 · 还差 💎 ${STAMINA_BUY_COST - diamonds}`),
                             onClick: () => {
                                 SoundFx.unlock();
                                 if (gm.buyStamina(STAMINA_BUY_N, STAMINA_BUY_COST)) {
@@ -1923,6 +1858,7 @@ export abstract class HomeUiCore extends Component {
                 ctas.push({
                     label: m.claimed ? '已领取' : '领取附件',
                     disabled: m.claimed,
+                    onDisabled: () => this._toast('该附件已领取过了'),
                     onClick: () => {
                         SoundFx.unlock();
                         if (ms.claim(openId)) {

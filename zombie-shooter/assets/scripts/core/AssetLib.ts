@@ -20,7 +20,9 @@ const MANIFEST = [
     'ui/panel_metal', 'ui/banner_orange', 'ui/btn_gold', 'ui/btn_cyan', 'ui/chip_dark', 'ui/chest',
     'ui/nav_mall', 'ui/nav_heroes', 'ui/nav_battle', 'ui/nav_core', 'ui/nav_base',
     'ui/res_gold', 'ui/res_diamond', 'ui/res_stamina',
-    'scenes/vehicle_tail',
+    'scenes/vehicle_tail', 'scenes/escort',
+    // 在库备用件（代码暂未引用，登记以保持清单↔磁盘一致；下一轮美术可直接取用）
+    'ui/btn_primary', 'ui/card_frame', 'ui/icon_frame', 'ui/panel_frame',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'characters/commander', 'characters/specialists',
     'monsters/stoneape', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',

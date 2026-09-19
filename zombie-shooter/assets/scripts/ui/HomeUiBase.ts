@@ -56,7 +56,9 @@ export abstract class HomeUiBase extends HomeUiPlay {
             const can = gm.canUpgradeBuilding(b.id);
             return {
                 tier: 3,
-                size: 'M',
+                // 档位由内容量决定（交互稿口径）：详情主体 + 关联功能区在 M 档装不下
+                //（实测溢出 ~100px），按规则升 L 档，而不是把 M 拉高到接近满屏。
+                size: 'L',
                 banner: `${b.ic} ${b.name}`,
                 art: `LV.${lv} / ${b.maxLevel}`,
                 subtitle: b.intro,
@@ -70,7 +72,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
                         c.appendChild(this._popAttr({ icon: '⬆️', text: `升到 LV.${lv + 1}：**${b.desc(lv + 1)}**` }));
                     }
                     c.appendChild(this._popSec('升级'));
-                    c.appendChild(this._popKV('当前等级', `LV.${lv} / ${b.maxLevel}`));
+                    // 「当前等级」与横幅 LV.x/max 重复，删行不减信息
                     c.appendChild(this._popKV('指挥中心', `LV.${gm.hqLevel()} · 本建筑上限 LV.${gm.hqLevel() + 1}`));
                     if (!maxed) {
                         c.appendChild(this._popKV('升级费用', `🪙 ${cost.toLocaleString()}`, 'total'));
@@ -83,6 +85,19 @@ export abstract class HomeUiBase extends HomeUiPlay {
                         c.appendChild(this._popAttr({ icon: '🏁', text: '已达满级' }));
                     } else if (!can) {
                         c.appendChild(this._popWarn(`金币不足 · 还差 🪙 ${(cost - gm.gold).toLocaleString()}`));
+                    }
+                    if (b.id === 'hq' && unlocked) {
+                        c.appendChild(this._popSec('关联功能'));
+                        c.appendChild(this._popRow({
+                            icon: '⚒️',
+                            title: '局外强化',
+                            lines: ['火力 / 装甲 / 赏金 / 演练 四向金币直购，全局生效'],
+                            action: {
+                                label: '进 入',
+                                kind: 'gold',
+                                onClick: () => this._openMetaUpgradeModal(() => this._openBuildingInfoModal(b.id))
+                            }
+                        }));
                     }
                     if (b.id === 'workshop' && unlocked) {
                         c.appendChild(this._popSec('关联功能'));
@@ -231,6 +246,9 @@ export abstract class HomeUiBase extends HomeUiPlay {
                     label: maxed ? '已 满 级' : `🔧 改 装（LV.${lv + 1}）`,
                     kind: 'gold',
                     disabled: maxed || !gate.ok,
+                    onDisabled: () => this._toast(maxed
+                        ? `${def.name} 已满级`
+                        : gate.reason ?? `图纸不足 · 还差 ${Math.max(0, cost.blueprint - bp)}`),
                     onClick: () => {
                         SoundFx.unlock();
                         if (vt.upgrade(def.id)) {
@@ -255,75 +273,84 @@ export abstract class HomeUiBase extends HomeUiPlay {
 
     // ================= 基地页 =================
 
-    /** 基地页：基地横幅（繁荣度）+ 建筑地图（节点化布局，点击开详情/升级抽屉）+ 局外强化卡 */
+    /**
+     * 基地页（布局稿 R2）：头行（基地名 + 全队加成）→ 营地地图（路面底纹 + 2×4 建筑格）
+     * → 局外强化条 → 底行（下一级目标 / 已开放设施数）。
+     */
     protected _buildBasePage(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'screen';
+        page.className = 'screen sBase';
         this._pages.base = page;
-        // 基地页只承载建筑养成：任务/签到迁玩法页、五大玩法入口迁玩法页，横幅只留等级与繁荣度
-        const banner = document.createElement('div');
-        banner.className = 'baseBanner panel frame';
-        banner.innerHTML = `<div class="bbIc">🏰</div><div><h3>第 7 区 · 方舟基地 <span class="lvtag"></span></h3>` +
-            `<div class="pros"></div>` +
-            `<div class="prosBar"><i></i></div></div>`;
-        page.appendChild(banner);
-        this._baseBannerEls = {
-            lv: banner.querySelector('.lvtag'),
-            pros: banner.querySelector('.pros'),
-            bar: banner.querySelector('.prosBar i'),
-        };
-        // 建筑地图（节点坐标在 _refreshBase 固定摆放）
+        // 局外强化（META_UPGRADES）升为 L2·XL 二级页，入口挂指挥中心详情 —— 布局稿基地页中部整块留给地图
+        // 头行：基地等级 = 指挥中心等级；右侧全局加成（火力/装甲强化实时值）
+        const head = document.createElement('div');
+        head.className = 'base-head';
+        const h1 = document.createElement('h1');
+        h1.textContent = '第 7 区 · 方舟基地';
+        const sub = document.createElement('small');
+        head.appendChild(h1);
+        head.appendChild(sub);
+        page.appendChild(head);
+        this._baseHeadSubEl = sub;
+        // 营地地图：路面底纹 + 建筑格（2 列 × 4 行，养成建筑 8 座）
         const map = document.createElement('div');
-        map.className = 'baseMap';
+        map.className = 'base-map';
+        const roads = document.createElement('div');
+        roads.className = 'map-roads';
+        roads.innerHTML = '<svg viewBox="0 0 390 600" preserveAspectRatio="none" aria-hidden="true">' +
+            '<path d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke="#b8b8b8" stroke-width="40" fill="none"/>' +
+            '<path d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke="#eee" stroke-width="2" stroke-dasharray="12 12" fill="none"/>' +
+            '</svg>';
+        const buildings = document.createElement('div');
+        buildings.className = 'base-buildings';
+        map.appendChild(roads);
+        map.appendChild(buildings);
         page.appendChild(map);
         this._baseMapEl = map;
-        // 局外强化（META_UPGRADES 卡网格）
-        const sec = document.createElement('div');
-        sec.className = 'secTitle';
-        sec.textContent = '⚒️ 局外强化';
-        page.appendChild(sec);
-        const meta = document.createElement('div');
-        meta.className = 'baseGrid';
-        page.appendChild(meta);
-        this._baseMetaEl = meta;
+        this._baseBuildingsEl = buildings;
+        // 底行：下一级目标 + 已开放设施数
+        const bottom = document.createElement('div');
+        bottom.className = 'base-bottom';
+        const nextTip = document.createElement('small');
+        const openTip = document.createElement('small');
+        bottom.appendChild(nextTip);
+        bottom.appendChild(openTip);
+        page.appendChild(bottom);
+        this._baseNextEl = nextTip;
+        this._baseOpenEl = openTip;
         root.appendChild(page);
     }
 
 
     protected _baseMapEl: HTMLDivElement | null = null;
 
-    protected _baseMetaEl: HTMLDivElement | null = null;
+    protected _baseBuildingsEl: HTMLDivElement | null = null;
 
-    protected _baseBannerEls: { lv: HTMLElement | null; pros: HTMLElement | null; bar: HTMLElement | null } | null = null;
+    protected _baseHeadSubEl: HTMLElement | null = null;
+    protected _baseNextEl: HTMLElement | null = null;
+
+    protected _baseOpenEl: HTMLElement | null = null;
 
 
     protected _refreshBase(): void {
         const gm = GameManager.instance;
-        const map = this._baseMapEl;
-        if (!map) {
+        const list = this._baseBuildingsEl;
+        if (!list) {
             return;
         }
-        // 横幅：基地等级 = 指挥中心等级；繁荣度 = 建筑等级总和
-        const pro = gm.prosperity();
-        if (this._baseBannerEls) {
-            const { lv, pros, bar } = this._baseBannerEls;
-            if (lv) {
-                lv.textContent = `基地 LV.${gm.hqLevel()}`;
-            }
-            if (pros) {
-                pros.textContent = `繁荣度 ${pro.cur.toLocaleString()} / ${pro.max.toLocaleString()} · 升级建筑提升繁荣度与全局上限`;
-            }
-            if (bar) {
-                bar.style.width = `${pro.max > 0 ? Math.max(3, Math.round(pro.cur / pro.max * 100)) : 0}%`;
-            }
-        }
-        // 建筑地图节点重绘（养成建筑固定坐标摆放；玩法入口建筑不在此页）
-        map.innerHTML = '';
-        const POS: Record<string, [number, number]> = {
-            camp: [20, 12], lab: [50, 9], armory: [80, 12],
-            station: [15, 48], hq: [50, 44], depot: [85, 48],
-            workshop: [32, 80], radar: [68, 80],
+        const lvOf = (id: string): number => gm.upgradeLevel(id);
+        const descOf = (id: string): string => {
+            const def = META_UPGRADES.find(u => u.id === id);
+            return def ? def.desc(lvOf(id)) : '';
         };
+        if (this._baseHeadSubEl) {
+            this._baseHeadSubEl.textContent = `${descOf('atk')}　${descOf('vehHp')}`;
+        }
+        // 营地建筑格（养成建筑按 BUILDINGS 顺序铺 2×4；奇偶错位由 CSS nth-child 完成）
+        list.innerHTML = '';
+        let opened = 0;
+        let lockedName = '';
+        let unlockedCount = 0;
         for (const b of BUILDINGS) {
             if (b.pureEntry) {
                 continue;
@@ -331,68 +358,142 @@ export abstract class HomeUiBase extends HomeUiPlay {
             const lv = gm.buildingLevel(b.id);
             const maxed = lv >= b.maxLevel;
             const unlocked = gm.isBuildingUnlocked(b.id);
-            const pos = POS[b.id] ?? [50, 50];
+            if (unlocked) {
+                opened++;
+            }
+            const canUp = unlocked && gm.canUpgradeBuilding(b.id);
+            if (!unlocked && !lockedName) {
+                lockedName = `${b.name}（指挥中心 LV.${b.unlockHq}）`;
+            }
             const node = document.createElement('button');
-            node.className = 'mapNode panel' + (unlocked ? '' : ' lock');
-            node.style.left = `${pos[0]}%`;
-            node.style.top = `${pos[1]}%`;
-            node.innerHTML = `<span class="mnIc">${b.ic}</span><span class="mnName">${b.name}</span>` +
-                `<span class="mnLv">${unlocked ? `LV.${lv}${maxed ? ' · MAX' : ''}` : `🔒 HQ${b.unlockHq} 解锁`}</span>`;
+            node.className = 'building' + (unlocked ? '' : ' locked');
+            node.dataset.building = b.id;
+            node.innerHTML = `<span class="ic">${b.ic}</span>` +
+                `<strong>${unlocked ? '' : '♙ '}${b.name}${canUp ? '<i class="questRed on"></i>' : ''}</strong>` +
+                `<small>${unlocked ? `LV.${lv}${maxed ? ' · MAX' : ''}` : `指挥中心 Lv.${b.unlockHq} 解锁`}</small>`;
             node.title = unlocked ? `${b.name} · 点击查看详情/升级` : `${b.name} · 指挥中心 LV.${b.unlockHq} 解锁`;
             node.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
                 this._openBuildingInfoModal(b.id);
             };
-            map.appendChild(node);
+            list.appendChild(node);
+            unlockedCount++;
         }
-        // 局外强化卡（真数据 META_UPGRADES：火力/装甲/赏金/演练）
-        const meta = this._baseMetaEl;
-        if (meta) {
-            meta.innerHTML = '';
-            for (const def of META_UPGRADES) {
-                const lv = gm.upgradeLevel(def.id);
-                const maxed = lv >= def.maxLevel;
-                const cost = gm.upgradeCost(def.id);
-                const card = document.createElement('div');
-                card.className = 'bcard panel';
-                const ic = document.createElement('div');
-                ic.className = 'bIc';
-                ic.textContent = def.id === 'atk' ? '⚔️' : def.id === 'vehHp' ? '🛡️' : def.id === 'goldGain' ? '🪙' : '🎯';
-                card.appendChild(ic);
-                const nm = document.createElement('div');
-                nm.className = 'bName';
-                nm.innerHTML = `${def.name}<span>LV.${lv}</span>`;
-                card.appendChild(nm);
-                const ds = document.createElement('div');
-                ds.className = 'bDesc';
-                ds.textContent = maxed ? def.desc(lv) : def.desc(lv + 1);
-                card.appendChild(ds);
-                const btn = document.createElement('button');
-                btn.className = 'btn gold sm';
-                btn.style.width = '100%';
-                if (maxed) {
-                    btn.textContent = '已满级';
-                    btn.disabled = true;
-                } else {
-                    btn.textContent = `🪙 ${cost.toLocaleString()}`;
-                    btn.disabled = !gm.canUpgrade(def.id);
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
+        if (this._baseNextEl) {
+            this._baseNextEl.textContent = lockedName ? `下一级营地：解锁${lockedName}` : '全部设施已开放';
+        }
+        if (this._baseOpenEl) {
+            this._baseOpenEl.textContent = `已开放 ${opened} / ${unlockedCount} 设施`;
+        }
+        // 局外强化卡已移入「⚒️ 局外强化」二级页（指挥中心详情 → 关联功能）
+        this._applyPendingTex();
+    }
+
+    /** 局外强化图标（META_UPGRADES 无 ic 字段，按 id 映射） */
+    protected _metaIc(id: string): string {
+        return id === 'atk' ? '⚔️' : id === 'vehHp' ? '🛡️' : id === 'goldGain' ? '🪙' : '🎯';
+    }
+
+    /**
+     * 局外强化（UX 布局稿 · XL 二级页）：四强化槽位条 + 选中项当前/下级对比 + 消耗行 + 底栏返回。
+     * 入口挂在指挥中心详情（基地页中部整块留给营地地图，与稿一致）。
+     */
+    protected _openMetaUpgradeModal(onBack?: () => void): void {
+        const gm = GameManager.instance;
+        let sel = 0;
+        const opt = (): PopOpts => {
+            const def = META_UPGRADES[sel];
+            const lv = gm.upgradeLevel(def.id);
+            const maxed = lv >= def.maxLevel;
+            const can = gm.canUpgrade(def.id);
+            const cost = maxed ? 0 : gm.upgradeCost(def.id);
+            return {
+                tier: 2,
+                size: 'XL',
+                title: '⚒️ 局外强化',
+                onBack,
+                barBack: true,
+                show: {
+                    icon: this._metaIc(def.id),
+                    tier: maxed ? 'MAX' : `LV.${lv}`,
+                    name: def.name,
+                    sub: lv > 0 ? def.desc(lv) : '尚未强化 · 强化后全局生效'
+                },
+                slots: sb => {
+                    for (let i = 0; i < META_UPGRADES.length; i++) {
+                        const d = META_UPGRADES[i];
+                        const dlv = gm.upgradeLevel(d.id);
+                        const dmax = dlv >= d.maxLevel;
+                        sb.appendChild(this._popSlot({
+                            icon: this._metaIc(d.id),
+                            tier: dmax ? 'MAX' : `L${dlv}`,
+                            on: i === sel,
+                            red: !dmax && gm.canUpgrade(d.id),
+                            onClick: () => {
+                                sel = i;
+                                this._popRebuild(opt());
+                            }
+                        }));
+                    }
+                },
+                build: c => {
+                    c.appendChild(this._popSec(`${def.name} · 强化进度`));
+                    c.appendChild(this._popKV('当前等级', `LV.${lv} / ${def.maxLevel}`, maxed ? 'total' : undefined));
+                    if (!maxed) {
+                        c.appendChild(this._popCmp('强化预览', [{
+                            label: def.name,
+                            old: def.desc(lv),
+                            now: def.desc(lv + 1)
+                        }]));
+                        c.appendChild(this._popAttr({
+                            icon: '⬆️',
+                            text: `升到 LV.${lv + 1} 后生效 · 加成计入**局外面板**，战斗开始时套用`
+                        }));
+                    } else {
+                        c.appendChild(this._popAttr({ icon: '🏁', text: '该强化已达上限' }));
+                    }
+                    c.appendChild(this._popSec('强化条件'));
+                    c.appendChild(this._popKV('购买方式', '金币直购 · 无等级门槛'));
+                    if (!maxed && !can) {
+                        c.appendChild(this._popWarn(`金币不足 · 还差 🪙 ${(cost - gm.gold).toLocaleString()}`));
+                    }
+                    c.appendChild(this._popSec('其余强化'));
+                    for (const d of META_UPGRADES) {
+                        if (d.id === def.id) {
+                            continue;
+                        }
+                        const dlv = gm.upgradeLevel(d.id);
+                        c.appendChild(this._popAttr({
+                            icon: this._metaIc(d.id),
+                            text: `${d.name} **LV.${dlv}**（${dlv > 0 ? d.desc(dlv) : '尚未强化'}）`
+                        }));
+                    }
+                },
+                cost: maxed ? undefined : [{ icon: '🪙', have: gm.gold, need: cost }],
+                ctas: [{
+                    label: maxed ? '已 满 级' : `🪙 ${cost.toLocaleString()} · 强 化`,
+                    kind: 'gold',
+                    disabled: maxed || !can,
+                    onDisabled: () => this._toast(maxed ? '该强化已满级' : `金币不足 · 还差 🪙 ${(cost - gm.gold).toLocaleString()}`),
+                    onClick: () => {
                         SoundFx.unlock();
+                        const nextLv = gm.upgradeLevel(def.id) + 1;
                         if (gm.buyUpgrade(def.id)) {
                             SoundFx.play('buy');
+                            this._toast(`${def.name} 升至 LV.${nextLv}`);
                             this._refreshBase();
                             this._refreshTop();
+                            this._popRebuild(opt());
+                        } else {
+                            this._toast('强化失败 · 检查金币');
                         }
-                    };
-                }
-                btn.style.opacity = btn.disabled ? '0.5' : '1';
-                card.appendChild(btn);
-                meta.appendChild(card);
-            }
-        }
-        this._applyPendingTex();
+                    }
+                }],
+                note: '局外强化全局生效 · 与英雄、装备加成叠乘'
+            };
+        };
+        this._openPop(opt());
     }
 
 }

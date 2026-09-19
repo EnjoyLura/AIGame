@@ -53,6 +53,13 @@ export abstract class HomeUiMall extends HomeUiCore {
     /** 商城礼包 banner（红点刷新用） */
     protected _giftBannerEl: HTMLDivElement | null = null;
 
+    /** 货架头页名 / 分区货架名（随页签变）与头行「每日免费」按钮 */
+    protected _mastTitleEl: HTMLElement | null = null;
+
+    protected _shelfNameEl: HTMLElement | null = null;
+
+    protected _giftHotEl: HTMLButtonElement | null = null;
+
     protected _mallAdLab: HTMLDivElement | null = null;
 
     /** 招募主卡（自英雄页上浮到商店页顶部） */
@@ -64,19 +71,55 @@ export abstract class HomeUiMall extends HomeUiCore {
     protected abstract _openRecruitResultModal(results: RecruitResult[]): void;
 
 
+    /**
+     * 商店页（布局稿 R2）：货架头（页名 + 每日免费补给）→ 滚动货架（两条主推 offer + 分区标签
+     * + 三列货架）→ 底部页签。页签常驻底部，货架内部滚动。
+     */
     protected _buildMallPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
-        page.className = 'screen';
+        page.className = 'screen sShop';
         this._pages.mall = page;
 
-        // 招募主卡：保底进度 + 概率详情入口 + 单抽/十连/广告免费抽直达（抽卡结果走 L4 全屏结果层）
+        // 货架头：页名（随页签变）+ 副标 + 每日免费补给
+        const mast = document.createElement('div');
+        mast.className = 'shop-mast';
+        const mastLeft = document.createElement('div');
+        const mastTitle = document.createElement('h1');
+        mastTitle.className = 'mastTitle';
+        mastTitle.textContent = '军需补给';
+        const mastSub = document.createElement('p');
+        mastSub.textContent = '护送队物资储备';
+        mastLeft.appendChild(mastTitle);
+        mastLeft.appendChild(mastSub);
+        mast.appendChild(mastLeft);
+        const freeHot = document.createElement('button');
+        freeHot.className = 'hot giftDot';
+        freeHot.innerHTML = '<span class="ic">🎁</span><span class="freeTxt">每日免费</span>';
+        freeHot.title = '每日免费补给（限时礼包）';
+        freeHot.onclick = (e) => {
+            e.stopPropagation();
+            SoundFx.play('ui');
+            this._openGiftModal();
+        };
+        mast.appendChild(freeHot);
+        page.appendChild(mast);
+        this._giftHotEl = freeHot;
+        this._mastTitleEl = mastTitle;
+
+        const scroll = document.createElement('div');
+        scroll.className = 'shop-scroll';
+
+        // 主推一：英雄招募（保底进度 + 免费/单抽/十连，抽卡结果走 L4 全屏结果层）
         const rcard = document.createElement('div');
-        rcard.className = 'rcard panel frame';
-        rcard.innerHTML = `<div class="rcLeft"><div class="rcTitle">🎖️ 英雄招募</div>` +
-            `<div class="rcPity"><div class="rcBar"><i></i></div><span class="rcPityTxt"></span></div>` +
-            `<button class="rcDetail">概率详情 ›</button></div>` +
-            `<div class="rcActs"><button class="btn gold sm rcOne"></button>` +
-            `<button class="btn blue sm rcTen"></button><button class="btn adBtn sm rcAd"></button></div>`;
+        rcard.className = 'shop-offer rcard';
+        rcard.innerHTML = '<div class="offer-art">🎖️</div>' +
+            '<div class="offer-copy"><h2>英雄招募</h2>' +
+            '<p class="rcPityTxt"></p><div class="rcBar"><i></i></div>' +
+            '<small>英雄 / 英雄碎片 · 十连必出</small>' +
+            '<button class="rcDetail">概率详情 ›</button></div>' +
+            '<div class="offer-buttons"><button class="hot rcAd"><span class="ic">▶</span><small></small></button>' +
+            '<button class="game-button rcOne"></button>' +
+            '<button class="game-button major rcTen"></button></div>';
         (rcard.querySelector('.rcDetail') as HTMLButtonElement).onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -116,45 +159,54 @@ export abstract class HomeUiMall extends HomeUiCore {
             SoundFx.unlock();
             AdService.instance.claimReward('recruit', () => doPull(1, true));
         };
-        page.appendChild(rcard);
+        scroll.appendChild(rcard);
         this._rcardEl = rcard;
 
-        // 限时礼包 banner（点击打开礼包弹窗）
+        // 主推二：限时礼包（旧顶部 banner 收进 offer 骨架，每日免费补给红点挂在头行按钮上）
         const banner = document.createElement('div');
-        banner.className = 'shopBanner frame';
-        banner.innerHTML = `<div class="sbTxt"><h3>末日启程 · 超值礼包</h3>` +
-            `<p>每日免费补给 + 钻石礼包</p>` +
-            `<div class="price">🎁 立即查看 <s>限时特惠</s></div></div>` +
-            `<div class="sbGift">🎁</div>` +
-            `<div class="sbTime giftDot">⏰ 限时特惠</div>`;
+        banner.className = 'shop-offer giftOffer';
+        banner.innerHTML = '<div class="offer-art"></div>' +
+            '<div class="offer-copy"><h2>末日启程 · 超值礼包</h2>' +
+            '<p>每日免费补给 + 钻石礼包</p>' +
+            '<small>限时特惠 · 钻石直购</small></div>' +
+            '<div class="offer-buttons"><button class="hot giftDot"><span class="ic">⏰</span><small>限时特惠</small></button>' +
+            '<button class="game-button major giftGo">立即查看</button></div>';
         banner.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
             this._openGiftModal();
         };
-        // 每日免费补给未领时 banner 角标亮红点
         this._refreshGiftDot(banner.querySelector('.giftDot') as HTMLElement);
-        // 浅色主题：banner 底图 = escort.png 照片（interface.css：center 45%/cover），左暗渐变由 CSS ::after 完成
+        // 浅色主题：offer 立绘 = escort.png 照片（center 45%/cover），左暗渐变由 CSS ::after 完成
+        const offerArt = banner.querySelector('.offer-art') as HTMLElement;
         this._tex('scenes/escort', u => {
-            banner.style.backgroundImage = u;
-            banner.style.backgroundSize = 'cover';
-            banner.style.backgroundPosition = 'center 45%';
-            banner.style.backgroundRepeat = 'no-repeat';
+            offerArt.style.backgroundImage = u;
+            offerArt.style.backgroundSize = 'cover';
+            offerArt.style.backgroundPosition = 'center 45%';
+            offerArt.style.backgroundRepeat = 'no-repeat';
         });
-        page.appendChild(banner);
+        scroll.appendChild(banner);
         this._giftBannerEl = banner;
 
-        // 页签：英雄 / 装备 / 宝石 / 材料
+        // 分区标签：货架名 + 刷新口径
+        const label = document.createElement('div');
+        label.className = 'section-label';
+        label.innerHTML = '<b class="shelfName">货架</b><small>每日 00:00 刷新</small>';
+        scroll.appendChild(label);
+        this._shelfNameEl = label.querySelector('.shelfName') as HTMLElement;
+
+        // 三列货架（含广告补给卡，置底）
+        const grid = document.createElement('div');
+        grid.className = 'goods shopGrid';
+        scroll.appendChild(grid);
+        this._mallGridEl = grid;
+        page.appendChild(scroll);
+
+        // 底部页签：英雄 / 装备 / 宝石 / 材料
         const tabs = document.createElement('div');
-        tabs.className = 'shopTabs';
+        tabs.className = 'flat-tabs shopTabs';
         page.appendChild(tabs);
         this._mallTabsEl = tabs;
-
-        // 双列商品网格（含广告补给卡，置底）
-        const grid = document.createElement('div');
-        grid.className = 'shopGrid';
-        page.appendChild(grid);
-        this._mallGridEl = grid;
 
         root.appendChild(page);
     }
@@ -200,7 +252,10 @@ export abstract class HomeUiMall extends HomeUiCore {
             const ad = rcard.querySelector('.rcAd') as HTMLButtonElement | null;
             if (ad) {
                 const adLeft = AdService.instance.remaining('recruit');
-                ad.textContent = adLeft > 0 ? `▶ 广告免费抽 ${adLeft}/1` : '今日已免费抽';
+                const lab = ad.querySelector('small');
+                if (lab) {
+                    lab.textContent = adLeft > 0 ? `免费 ${adLeft}/1` : '已抽完';
+                }
                 ad.disabled = adLeft <= 0;
                 ad.style.opacity = ad.disabled ? '0.45' : '1';
             }
@@ -208,10 +263,18 @@ export abstract class HomeUiMall extends HomeUiCore {
         const TABS: Array<['hero' | 'equip' | 'gem' | 'mat', string]> = [
             ['hero', '🦸 英雄'], ['equip', '🛡️ 装备'], ['gem', '💎 宝石'], ['mat', '⚙️ 材料'],
         ];
+        // 货架头随页签改名（布局稿：h1 = 当前货架名）
+        const cur = TABS.find(t => t[0] === this._mallTab);
+        if (this._mastTitleEl) {
+            this._mastTitleEl.textContent = this._mallTab === 'hero' ? '军需补给' : (cur ? cur[1].replace(/^\S+\s*/, '') : '军需补给');
+        }
+        if (this._shelfNameEl) {
+            this._shelfNameEl.textContent = `${cur ? cur[1].replace(/^\S+\s*/, '') : ''}货架`;
+        }
         tabs.innerHTML = '';
         for (const [key, label] of TABS) {
             const b = document.createElement('button');
-            b.className = this._mallTab === key ? 'on' : '';
+            b.className = this._mallTab === key ? 'on active' : '';
             b.textContent = label;
             b.onclick = (e) => {
                 e.stopPropagation();
@@ -615,6 +678,7 @@ export abstract class HomeUiMall extends HomeUiCore {
                                 label: soldOut ? '今日已购' : free ? '领 取' : `💎${def.price.amount.toLocaleString()}`,
                                 kind: free ? 'green' : 'gold',
                                 disabled: soldOut,
+                                onDisabled: () => this._toast(`今日购买次数已用完 · 明日 0 点重置`),
                                 onClick: () => {
                                     SoundFx.unlock();
                                     const r = this._giftSvc.buy(def);
@@ -648,6 +712,7 @@ export abstract class HomeUiMall extends HomeUiCore {
             size: 'M',
             banner: `🎉 ${def.name}`,
             art: `${drops.length} 项掉落`,
+            // 奖励已入账，演出只是回顾：允许点遮罩快速收起，不必强迫看完动画
             maskClose: true,
             build: c => {
                 c.appendChild(this._popSec('获得以下物品'));

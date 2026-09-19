@@ -131,6 +131,10 @@ export enum GameEvent {
     TRIAL_CLEAR = 'trial-clear',
     /** 资源副本通关：参数 (副本 id, 档位 0~2, 产出对象 DungeonReward) */
     DUNGEON_CLEAR = 'dungeon-clear',
+    /** 巡逻收取挂机产出：参数 (PatrolYield 金币与材料) */
+    PATROL_CLAIM = 'patrol-claim',
+    /** 巡逻扫荡已通关关卡：参数 (PatrolSweepResult 关卡与产出) */
+    PATROL_SWEEP = 'patrol-sweep',
     FLOW_CHANGED = 'flow-changed',
     GAME_RESTART = 'game-restart',
     HOME_SHOW = 'home-show',
