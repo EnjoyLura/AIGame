@@ -1426,7 +1426,8 @@ export class DomHud extends Component {
         const style = document.createElement('style');
         style.textContent = `${UI_TOKENS_CSS}
 #domHud { position: fixed; inset: 0; z-index: 8000; pointer-events: none;
-  /* 顶部常驻安全带高度：基准 32 设计像素（交互稿 .safe，桌面也保留），刘海设备吃 --sat 撑开 */
+  /* 顶部留白间距：基准 32 设计像素（交互稿 .safe，桌面也保留），刘海设备吃 --sat 撑开；
+     间距保持透明露出画面，顶栏只整体下移，不做不透明遮盖 */
   --safeTop: max(calc(32px * var(--s,1)), var(--sat, 0px));
   font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   font-weight: 700; color: var(--c-ice-2); user-select: none; }
@@ -1434,12 +1435,12 @@ export class DomHud extends Component {
 #domHud button { pointer-events: auto; cursor: pointer; font: inherit;
   transition: transform .06s ease, filter .06s ease; }
 #domHud button:active { transform: translateY(calc(4px * var(--s,1))) scale(.98); filter: brightness(.92); }
-/* 顶部条 HUD：高 122 设计像素 + 常驻刘海防遮挡（交互稿 .safe 带 + 主城 .safeBand 同口径）——
-   背景从屏幕顶铺起，内容锚在安全带（--safeTop）之下；顶栏之下bossBar/pauseChip 同步让位 */
-#domHud .topbar { position: absolute; top: 0; left: 0; right: 0;
-  height: calc(var(--safeTop) + 122px * var(--s, 1)); box-sizing: border-box;
+/* 顶部条 HUD：高 122 设计像素，整体锚在顶部留白（--safeTop）之下——刘海/桌面都空出一段
+   透明间距露出画面；bossBar/pauseChip 同步以 --safeTop 让位 */
+#domHud .topbar { position: absolute; top: var(--safeTop); left: 0; right: 0;
+  height: calc(122px * var(--s, 1));
   display: flex; align-items: center; justify-content: space-between; gap: calc(17px * var(--s,1));
-  padding: var(--safeTop) calc(22px * var(--s,1)) 0;
+  padding: 0 calc(22px * var(--s,1));
   background: linear-gradient(180deg, rgba(9,14,20,.92) 0%, rgba(13,22,31,.68) 62%, rgba(13,22,31,0) 100%); }
 #domHud .topLeft { flex: none; display: flex; gap: calc(17px * var(--s,1)); }
 #domHud .topRight { flex: none; display: flex; align-items: center; gap: calc(17px * var(--s,1)); }

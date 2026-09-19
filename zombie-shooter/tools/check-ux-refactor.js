@@ -428,13 +428,13 @@ ok('背包件穿戴后能过存档校验（虚拟 id bag:slot:tier 不再被当�
 const domHudSrc = fs.readFileSync('assets/scripts/ui/DomHud.ts', 'utf8');
 const luSrc = fs.readFileSync('assets/scripts/ui/LevelUpPanel.ts', 'utf8');
 const battleMgrSrc = fs.readFileSync('assets/scripts/battle/BattleManager.ts', 'utf8');
-// ⓪ 常驻刘海防遮挡：--safeTop = max(32 设计像素, --sat)，顶栏背景铺到屏幕顶、内容锚带下
-ok('战斗顶栏常驻安全带（交互稿 .safe 32px + 主城 .safeBand 同口径）',
+// ⓪ 顶部留白间距：--safeTop = max(32 设计像素, --sat)，顶栏整体下移、间距透明露画面（不做遮盖）
+ok('战斗顶栏下移留空顶部间距（交互稿 .safe 32px，刘海设备吃 --sat）',
   /--safeTop: max\(calc\(32px \* var\(--s,1\)\), var\(--sat, 0px\)\)/.test(domHudSrc)
-  && /#domHud \.topbar \{ position: absolute; top: 0; left: 0; right: 0;\s*\n\s*height: calc\(var\(--safeTop\) \+ 122px \* var\(--s, 1\)\); box-sizing: border-box;/.test(domHudSrc)
-  && /padding: var\(--safeTop\) calc\(22px \* var\(--s,1\)\) 0;/.test(domHudSrc));
+  && /#domHud \.topbar \{ position: absolute; top: var\(--safeTop\); left: 0; right: 0;\s*\n\s*height: calc\(122px \* var\(--s, 1\)\);/.test(domHudSrc)
+  && !/padding: var\(--safeTop\)/.test(domHudSrc));
 // ① 顶栏：122 设计像素高 + 大触点按钮 + 菜单宽按钮压制基类 + chip 上下两行 + 经验区入流
-ok('顶栏高 122 设计像素（交互稿 ①，390 屏显示 44px；+常驻安全带高度铺到屏幕顶）', /height: calc\(var\(--safeTop\) \+ 122px \* var\(--s, 1\)\)/.test(domHudSrc));
+ok('顶栏高 122 设计像素（交互稿 ①，390 屏显示 44px）', /height: calc\(122px \* var\(--s, 1\)\)/.test(domHudSrc));
 ok('顶栏按钮 105×94 大触点（62×62 旧尺寸已弃用）', /width: calc\(105px \* var\(--s,1\)\); height: calc\(94px \* var\(--s,1\)\)/.test(domHudSrc));
 ok('顶栏菜单宽按钮压制 .menuBtn 基类（基类 min-width:440 会把经验区挤成 0 宽）',
   /#domHud \.hudBtn\.menuBtn \{ position: relative; width: calc\(127px \* var\(--s,1\)\); min-width: 0; padding: 0;/.test(domHudSrc));
