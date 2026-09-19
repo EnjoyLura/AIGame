@@ -1181,7 +1181,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         }));
                     }
                     if (!list.length) {
-                        c.appendChild(this._popEmpty('暂无任务', undefined, '📋'));
+                        c.appendChild(this._popEmpty('暂无任务', undefined, 'ui/ico_task'));
                     }
                 },
                 ctas: ready.length > 0 ? [{
@@ -1228,7 +1228,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 subtitle: rank >= 0 ? `当前名次 #${rank + 1} / ${rows.length}` : undefined,
                 build: c => {
                     if (!rows.length) {
-                        c.appendChild(this._popEmpty('榜单暂无数据', '首次出战结算后上榜', '🏆'));
+                        c.appendChild(this._popEmpty('榜单暂无数据', '首次出战结算后上榜', 'ui/ico_rank'));
                         return;
                     }
                     rows.forEach((r, i) => {

@@ -223,6 +223,16 @@ export class LoginUi extends Component {
         const start = document.createElement('button');
         start.className = 'lgStart';
         start.textContent = '开始游戏';
+        // 四轮素材：金板开始按钮（border-image 九宫格；slice 16% 只切圆角斜面，板厚不被压扁）
+        this._tex('ui/btn_play', u => {
+            start.style.borderImageSource = u;
+            start.style.borderImageSlice = '16 fill';
+            start.style.borderImageWidth = 'calc(10px * var(--pw,2.5))';
+            start.style.borderImageRepeat = 'stretch';
+            start.style.background = 'none';
+            start.style.color = '#5a3a08';
+            start.style.textShadow = 'none';
+        });
         start.onclick = () => this._onStart();
         bottom.appendChild(start);
         const proto = document.createElement('div');

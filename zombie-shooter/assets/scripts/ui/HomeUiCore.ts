@@ -622,6 +622,15 @@ export abstract class HomeUiCore extends Component {
         // —— 1. 头部区（固定）：横幅 / 品质头 / 细标题条 ——
         const closeBtn = () => {
             const x = this._el('div', 'popClose', '✕');
+            // 四轮素材：红 X 金属板（contain 适配小方钮，边框隐去由图自带）
+            this._tex('ui/btn_close', u => {
+                x.style.backgroundImage = u;
+                x.style.backgroundSize = 'contain';
+                x.style.backgroundPosition = 'center';
+                x.style.backgroundRepeat = 'no-repeat';
+                x.style.borderColor = 'transparent';
+                x.textContent = '';
+            });
             x.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -762,6 +771,21 @@ export abstract class HomeUiCore extends Component {
                 opts.ctas.forEach(c => {
                     const b = this._el('div',
                         `popBtn ${c.kind ?? 'gold'}${multi ? ' wide' : ''}${c.disabled ? ' disabled' : ''}`, c.label);
+                    // 四轮素材板接线：金板→主 CTA，蓝板→次 CTA。border-image 九宫格保四角、
+                    // 中段拉伸；slice 16% 只切到圆角斜面区（30% 会把板面划进边区、板厚压扁），
+                    // borderImageWidth 按板源等比缩放显示，且大于原 border 向内画不改布局盒。
+                    if (!c.disabled && (!c.kind || c.kind === 'gold' || c.kind === 'grey')) {
+                        this._tex(c.kind === 'grey' ? 'ui/btn_cancel' : 'ui/btn_play', u => {
+                            b.style.borderImageSource = u;
+                            b.style.borderImageSlice = '16 fill';
+                            b.style.borderImageWidth = 'calc(10px * var(--pu,1))';
+                            b.style.borderImageRepeat = 'stretch';
+                            b.style.background = 'none';
+                            if (c.kind === 'grey') {
+                                b.style.color = '#e9f2fb';
+                            }
+                        });
+                    }
                     if (c.red) {
                         b.appendChild(this._el('i', 'popRed'));
                     }
@@ -998,7 +1022,18 @@ export abstract class HomeUiCore extends Component {
     /** 组件：空态（无数据/筛选无结果） */
     protected _popEmpty(text: string, hint?: string, icon = '📭'): HTMLElement {
         const box = this._el('div', 'popEmpty');
-        box.appendChild(this._el('div', 'ei', icon));
+        const ei = this._el('div', 'ei', icon);
+        // icon 传贴图 key（'ui/…' 前缀）时回填素材图，否则按 emoji 占位
+        if (icon.startsWith('ui/')) {
+            ei.textContent = '';
+            this._tex(icon, u => {
+                ei.style.backgroundImage = u;
+                ei.style.backgroundSize = 'contain';
+                ei.style.backgroundPosition = 'center';
+                ei.style.backgroundRepeat = 'no-repeat';
+            });
+        }
+        box.appendChild(ei);
         box.appendChild(this._el('div', undefined, text));
         if (hint) {
             box.appendChild(this._el('small', undefined, hint));
@@ -1359,6 +1394,15 @@ export abstract class HomeUiCore extends Component {
         mailBtn.className = 'tinyIcon homeMailBtn';
         mailBtn.textContent = '📬';
         mailBtn.title = '邮箱';
+        // 四轮素材：邮箱铁皮箱图标替换 emoji
+        this._tex('ui/ico_mail', u => {
+            mailBtn.style.backgroundImage = u;
+            mailBtn.style.backgroundSize = 'contain';
+            mailBtn.style.backgroundPosition = 'center';
+            mailBtn.style.backgroundRepeat = 'no-repeat';
+            mailBtn.style.backgroundColor = 'transparent';
+            mailBtn.textContent = '';
+        });
         mailBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1381,6 +1425,15 @@ export abstract class HomeUiCore extends Component {
         gear.className = 'tinyIcon';
         gear.textContent = '⚙️';
         gear.title = '设置';
+        // 四轮素材：齿轮图标替换 emoji
+        this._tex('ui/ico_setting', u => {
+            gear.style.backgroundImage = u;
+            gear.style.backgroundSize = 'contain';
+            gear.style.backgroundPosition = 'center';
+            gear.style.backgroundRepeat = 'no-repeat';
+            gear.style.backgroundColor = 'transparent';
+            gear.textContent = '';
+        });
         gear.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1761,7 +1814,7 @@ export abstract class HomeUiCore extends Component {
                 art: `待领 ${claimable} · 未读 ${unread}`,
                 build: c => {
                     if (!mails.length) {
-                        c.appendChild(this._popEmpty('暂无邮件', '战役与活动奖励会送达这里', '📭'));
+                        c.appendChild(this._popEmpty('暂无邮件', '战役与活动奖励会送达这里', 'ui/shop_letter'));
                         return;
                     }
                     for (const m of mails) {
@@ -1878,7 +1931,7 @@ export abstract class HomeUiCore extends Component {
                 onBack: () => this._openMailModal(),
                 build: c => {
                     if (!m) {
-                        c.appendChild(this._popEmpty('邮件已删除', '返回列表查看其他邮件', '📭'));
+                        c.appendChild(this._popEmpty('邮件已删除', '返回列表查看其他邮件', 'ui/shop_letter'));
                         return;
                     }
                     ms.markRead(openId);
@@ -1895,7 +1948,7 @@ export abstract class HomeUiCore extends Component {
                         c.appendChild(this._popSec('附件奖励'));
                         c.appendChild(attach.length
                             ? this._popGrid(attach, 4)
-                            : this._popEmpty('附件为空', undefined, '📦'));
+                            : this._popEmpty('附件为空', undefined, 'ui/shop_chest'));
                         c.appendChild(this._popKV('领取状态', m.claimed ? '已领取' : '未领取', 'free'));
                         if (mailExpiringSoon(m) && !m.claimed) {
                             c.appendChild(this._el('div', 'popWarn', '⏳ 附件 24 小时内过期，过期作废'));

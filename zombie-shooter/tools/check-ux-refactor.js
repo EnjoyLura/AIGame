@@ -264,7 +264,7 @@ ok('弹层统一入口 _openPop', /protected _openPop\(opts: PopOpts\): void \{/
 ok('五级分层 z-index 阶梯(L2/L3/L4/L5)', /\.protoMask\.popL2 \{ z-index: 210/.test(src) && /\.protoMask\.popL3 \{ z-index: 220/.test(src) && /\.protoMask\.popL4 \{ z-index: 230/.test(src) && /\.protoMask\.popL5 \{ z-index: 240/.test(src));
 ok('L5 结果层不可遮罩关闭', /opts\.maskClose \?\? \(tier !== 5 && size !== 'XL'\)/.test(src));
 ok('尺寸档 S/M/L/XL 几何', /#homeUi \.pop\.M \{ position: absolute/.test(src) && /#homeUi \.pop\.L \{ position: absolute/.test(src) && /#homeUi \.pop\.S \{ position: absolute/.test(src) && /#homeUi \.pop\.XL \{ position: absolute; inset: 0/.test(src));
-ok('五段式顺序 头/内容/消耗/CTA/槽位/底栏', /'popScroll'[\s\S]{0,1200}'popCost'[\s\S]{0,800}'popCTA'[\s\S]{0,2000}'popSlots'[\s\S]{0,1200}'popBar'/.test(src));
+ok('五段式顺序 头/内容/消耗/CTA/槽位/底栏', /'popScroll'[\s\S]{0,1200}'popCost'[\s\S]{0,800}'popCTA'[\s\S]{0,2600}'popSlots'[\s\S]{0,1200}'popBar'/.test(src));
 ok('唯一滚动轴 popScroll + 底部渐隐', /const scroll = this\._el\('div', 'popScroll'\);/.test(src) && /scroll\.appendChild\(this\._el\('div', 'popFade'\)\)/.test(src) && /overflow-y: auto; overscroll-behavior: contain/.test(src));
 ok('双主题令牌共用一套几何(--pu)', /--pu: var\(--hs,1\)/.test(src) && /--pu: var\(--pw,2\.5\)/.test(src));
 ok('尺寸单位全部走 --pu（无硬编码 --hs/--pw 混用）', !/\.popRow .ic \{ width: calc\([0-9.]+px \* var\(--pw/.test(src));
