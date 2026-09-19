@@ -152,5 +152,9 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
   两件会在掩膜膨胀阶段焊死、合并逻辑救不回（四轮 15 件曾识别成 11 件）。
   生表时写「图标之间留有间隙」+ 用 2K 分辨率；仍粘连就 `--dilate 3` 重切；
 - **绿幕容差**：默认 `--tol 60`；主体本身带绿色系（僵尸/毒系）时降 tol 或换底色（如纯蓝幕）再切；
+- **451 legal_error 措辞雷区**：现实头衔/合影类词会 400 拒单（「三名幸存者并肩合影」「王者/champion king 段位」均踩过）。
+  改成 sprite-sheet 口径（「一行三个从左到右依次是：…」）与中性词（「supreme legend tier emblem」）重试即过；
 - **本地烟测换端口**：内置浏览器磁盘缓存按源（协议+域名+端口）分区，同端口看到旧图时
   换一个端口重开页签即可验证新图；线上走隧道本来就是新源，不受影响。
+  另：IAB 在 ZCode 窗口后台时 rAF 被冻结、引擎静默起不来（无场景无报错）——自动化烟测直接用
+  `node tools/smoke_headless.mjs <url> <outDir>`（系统 Chrome 无头 + CDP，选卡用画布坐标点击）。
