@@ -196,6 +196,7 @@ export abstract class HomeUiCore extends Component {
 
     /** 贴图挂起队列：AssetLib 异步就绪后补挂 */
     protected _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
+    private _pendingTexTimer = 0;
 
 
     protected _tex(key: string, apply: (url: string) => void): void {
@@ -220,6 +221,13 @@ export abstract class HomeUiCore extends Component {
             }
             return true;
         });
+        // 竞态兜底：预载图晚于首次排水到达时自续排水直至清空（换图冷加载必踩，此前靠切页掩盖）
+        if (this._pendingTex.length && !this._pendingTexTimer) {
+            this._pendingTexTimer = window.setTimeout(() => {
+                this._pendingTexTimer = 0;
+                this._applyPendingTex();
+            }, 400);
+        }
     }
 
 
@@ -297,6 +305,8 @@ export abstract class HomeUiCore extends Component {
     onDestroy(): void {
         clearInterval(this._expTimer);
         clearInterval(this._expIdleTimer);
+        clearTimeout(this._pendingTexTimer);
+        this._pendingTexTimer = 0;
         this._root?.remove();
         this._root = null;
     }

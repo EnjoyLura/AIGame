@@ -70,6 +70,11 @@ const unregistered = [...codeRefs].filter(k => !manifestKeys.includes(k));
 ok(unregistered.length === 0,
     `代码引用未登记（会永远静默占位）：${unregistered.length ? unregistered.join(', ') : '无'}`);
 
+// ---- 5.5 挂起纹理自续排水（换图冷加载必踩的竞态：图晚于首次排水到达则永不显示）----
+const homeCoreSrc = fs.readFileSync(path.join(SCRIPTS, 'ui/HomeUiCore.ts'), 'utf-8');
+ok(/_pendingTexTimer/.test(homeCoreSrc) && /this\._applyPendingTex\(\);\s*\n\s*\},\s*400\)/.test(homeCoreSrc),
+    'HomeUiCore 挂起纹理自续排水（_pendingTexTimer 400ms 重排）');
+
 // ---- 6. art-spec 规范文件在位 ----
 for (const f of ['game_art_benchmark.png', 'STYLE-SPEC.md', 'ASSET-MANIFEST.md']) {
     ok(fs.existsSync(path.join(ART_SPEC, f)), `art-spec/${f} 在位`);
