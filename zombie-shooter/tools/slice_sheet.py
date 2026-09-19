@@ -124,13 +124,15 @@ def main() -> int:
                     help='槽位:尺寸 逗号分隔，如 ui/res_gold:128,ui/nav_mall:128（顺序=图内行优先）')
     ap.add_argument('--root', default='assets/resources/textures', help='textures 根目录')
     ap.add_argument('--tol', type=int, default=60, help='绿幕容差')
+    ap.add_argument('--dilate', type=int, default=6,
+                    help='掩膜膨胀半径（÷4 尺度像素，默认 6≈24px 全分辨率）；相邻件粘连时调小')
     ap.add_argument('--margin', type=int, default=6, help='单件留边 %%')
     ap.add_argument('--expect', type=int, default=0, help='期望件数（0=不校验）')
     args = ap.parse_args()
 
     im = key_green(Image.open(args.sheet), args.tol)
     mask = im.split()[3].point(lambda a: 255 if a > 24 else 0)
-    blobs = merge_close(mask_label_blobs(mask))
+    blobs = merge_close(mask_label_blobs(mask, args.dilate))
 
     slots = [s.split(':') for s in args.slots.split(',')]
     if args.expect and len(blobs) != args.expect:

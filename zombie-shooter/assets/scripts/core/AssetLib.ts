@@ -23,6 +23,11 @@ const MANIFEST = [
     'scenes/vehicle_tail', 'scenes/escort',
     // 在库备用件（代码暂未引用，登记以保持清单↔磁盘一致；下一轮美术可直接取用）
     'ui/btn_primary', 'ui/card_frame', 'ui/icon_frame', 'ui/panel_frame',
+    // 四轮素材表批量件（r4_icons 一次成型，未接线备用）：按钮系/头像框/标题绶带 + 商城货架/功能图标
+    'ui/btn_play', 'ui/btn_confirm', 'ui/btn_cancel', 'ui/btn_close',
+    'ui/avatar_frame', 'ui/ribbon_title',
+    'ui/shop_gift', 'ui/shop_chest', 'ui/shop_scroll', 'ui/shop_letter',
+    'ui/ico_task', 'ui/ico_mail', 'ui/ico_setting', 'ui/ico_rank', 'ui/ico_achieve',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'characters/commander', 'characters/specialists',
     'monsters/stoneape', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',
