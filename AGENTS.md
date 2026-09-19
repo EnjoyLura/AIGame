@@ -29,9 +29,10 @@ node check-popups.mjs                # 二级浮窗交互稿
 
 ## 美术规范（art-spec）
 
-美术风格基准与资源契约在 `zombie-shooter/art-spec/`：基准图 `game_art_benchmark.png`、
-生图规范 `STYLE-SPEC.md`（色板/prompt 模板/验收清单）、槽位清单 `ASSET-MANIFEST.md`、
-参考素材 `reference/`（怪物动作参考视频 + 护送主题定调图，生图/切图工具的原始输入）。
+美术风格基准与资源契约在 `zombie-shooter/art-spec/`：基准图 `game_art_benchmark2.png`（现行主基准，
+末日军武风）与 `game_art_benchmark.png`（casual 面板/按钮参考）、生图规范 `STYLE-SPEC.md`
+（双基准/色板/prompt 模板/验收清单/§8 素材表一次成型工作流——图标类批量产出首选）、
+槽位清单 `ASSET-MANIFEST.md`、参考素材 `reference/`（怪物动作参考视频 + 护送主题定调图，生图/切图工具的原始输入）。
 
 - **换图不换 key**：图片路径即契约（`assets/resources/textures/<key>.png`），同名覆盖全游戏生效；
   新槽位先登记 `AssetLib.ts` 的 MANIFEST，文件可以后到（缺图自动回退占位）。

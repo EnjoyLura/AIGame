@@ -4,10 +4,10 @@
 set -e
 cd "$(dirname "$0")/.."
 
-# 1) 本地静态服务（已监听 8113 则跳过）
+# 1) 本地静态服务（no-store 头，换图即时生效；已监听 8113 则跳过）
 if ! netstat -ano | grep -q ":8113.*LISTENING"; then
   echo "启动本地服务 :8113 ..."
-  (python -m http.server 8113 --bind 127.0.0.1 --directory build/web-mobile >/dev/null 2>&1 &)
+  (node tools/serve.mjs build/web-mobile 8113 127.0.0.1 >/dev/null 2>&1 &)
   sleep 2
 fi
 
