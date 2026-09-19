@@ -618,6 +618,16 @@ export abstract class HomeUiCore extends Component {
         };
         const pop = this._el('div', `pop ${size} L${tier}`);
         pop.onclick = (e) => e.stopPropagation();
+        // 六轮素材：弹层底板走九宫格 border-image（面板框图自带边框；XL 满屏演出层保持平铺底色）
+        if (size !== 'XL') {
+            this._tex(size === 'S' ? 'ui/panel_sub' : 'ui/panel_main', u => {
+                pop.style.borderImageSource = u;
+                pop.style.borderImageSlice = '12% fill';
+                pop.style.borderImageWidth = 'calc(16px * var(--pu,1))';
+                pop.style.borderImageRepeat = 'stretch';
+                pop.style.borderColor = 'transparent';
+            });
+        }
 
         // —— 1. 头部区（固定）：横幅 / 品质头 / 细标题条 ——
         const closeBtn = () => {
@@ -640,6 +650,15 @@ export abstract class HomeUiCore extends Component {
         };
         const backBtn = () => {
             const b = this._el('div', 'popBack', '‹');
+            // 六轮素材：圆形金属小钮做返回键底，‹ 字符压在板面上
+            this._tex('ui/btn_round', u => {
+                b.style.backgroundImage = u;
+                b.style.backgroundSize = 'contain';
+                b.style.backgroundPosition = 'center';
+                b.style.backgroundRepeat = 'no-repeat';
+                b.style.borderColor = 'transparent';
+                b.style.color = '#e9f2fb';
+            });
             b.onclick = (e) => {
                 e.stopPropagation();
                 goBack();
@@ -648,6 +667,14 @@ export abstract class HomeUiCore extends Component {
         };
         if (opts.banner) {
             const head = this._el('div', 'popBanner');
+            // 六轮素材：木质标题绶带做横幅底（100% 拉伸铺满，边框/底色交图）
+            this._tex('ui/ribbon_banner', u => {
+                head.style.backgroundImage = u;
+                head.style.backgroundSize = '100% 100%';
+                head.style.backgroundPosition = 'center';
+                head.style.backgroundRepeat = 'no-repeat';
+                head.style.borderBottomColor = 'transparent';
+            });
             head.appendChild(this._el('b', undefined, opts.banner));
             if (opts.art) {
                 head.appendChild(this._el('div', 'art', opts.art));
@@ -682,6 +709,14 @@ export abstract class HomeUiCore extends Component {
             pop.appendChild(head);
         } else if (opts.title) {
             const head = this._el('div', 'popTop', opts.title);
+            // 六轮素材：金属标题条做细标题底（100% 拉伸铺满）
+            this._tex('ui/bar_title', u => {
+                head.style.backgroundImage = u;
+                head.style.backgroundSize = '100% 100%';
+                head.style.backgroundPosition = 'center';
+                head.style.backgroundRepeat = 'no-repeat';
+                head.style.borderBottomColor = 'transparent';
+            });
             if (canBack) {
                 head.insertBefore(backBtn(), head.firstChild);
             }
@@ -774,8 +809,15 @@ export abstract class HomeUiCore extends Component {
                     // 四轮素材板接线：金板→主 CTA，蓝板→次 CTA。border-image 九宫格保四角、
                     // 中段拉伸；slice 16% 只切到圆角斜面区（30% 会把板面划进边区、板厚压扁），
                     // borderImageWidth 按板源等比缩放显示，且大于原 border 向内画不改布局盒。
-                    if (!c.disabled && (!c.kind || c.kind === 'gold' || c.kind === 'grey')) {
-                        this._tex(c.kind === 'grey' ? 'ui/btn_cancel' : 'ui/btn_play', u => {
+                    // 六轮补齐：绿板→确认，警示板→危险，金星板→看广告奖励键。
+                    const plate =
+                        c.kind === 'grey' ? 'ui/btn_cancel' :
+                        c.kind === 'green' ? 'ui/btn_confirm' :
+                        c.kind === 'danger' ? 'ui/btn_danger' :
+                        /看广告|免费|广告/.test(c.label) ? 'ui/btn_video' :
+                        (!c.kind || c.kind === 'gold') ? 'ui/btn_play' : null;
+                    if (!c.disabled && plate) {
+                        this._tex(plate, u => {
                             b.style.borderImageSource = u;
                             b.style.borderImageSlice = '16 fill';
                             b.style.borderImageWidth = 'calc(10px * var(--pu,1))';
@@ -1414,6 +1456,15 @@ export abstract class HomeUiCore extends Component {
         noticeBtn.className = 'tinyIcon homeNoticeBtn';
         noticeBtn.textContent = '📣';
         noticeBtn.title = '游戏公告';
+        // 六轮素材：军喇叭公告图标替换 emoji
+        this._tex('ui/ico_notice', u => {
+            noticeBtn.style.backgroundImage = u;
+            noticeBtn.style.backgroundSize = 'contain';
+            noticeBtn.style.backgroundPosition = 'center';
+            noticeBtn.style.backgroundRepeat = 'no-repeat';
+            noticeBtn.style.backgroundColor = 'transparent';
+            noticeBtn.textContent = '';
+        });
         noticeBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');

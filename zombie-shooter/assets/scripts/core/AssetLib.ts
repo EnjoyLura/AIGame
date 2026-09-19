@@ -26,6 +26,16 @@ const MANIFEST = [
     // 四轮素材表批量件（r4_icons 一次成型，未接线备用）：按钮系/头像框/标题绶带 + 商城货架/功能图标
     'ui/btn_play', 'ui/btn_confirm', 'ui/btn_cancel', 'ui/btn_close',
     'ui/avatar_frame', 'ui/ribbon_title',
+    // 六轮素材（r6_panels）：弹层面板底板/横标题绶带/标题条
+    'ui/panel_main', 'ui/panel_sub', 'ui/ribbon_banner', 'ui/bar_title',
+    // 六轮素材（r6_btns）：警示/奖励 CTA 板 + 圆形小钮×2
+    'ui/btn_danger', 'ui/btn_video', 'ui/btn_round', 'ui/btn_round2',
+    // 六轮素材（r6_icons）：公告喇叭/奖杯/锁
+    'ui/ico_notice', 'ui/ico_trophy', 'ui/ico_lock',
+    // 六轮素材（r6_frames/r6_badges）：铜银金头像框 + 白绿蓝紫品质框 + 七段位徽章（在库备用）
+    'ui/frame_bronze', 'ui/frame_silver', 'ui/frame_gold',
+    'ui/frame_q0', 'ui/frame_q1', 'ui/frame_q2', 'ui/frame_q3',
+    'ui/rank1', 'ui/rank2', 'ui/rank3', 'ui/rank4', 'ui/rank5', 'ui/rank6', 'ui/rank7',
     'ui/shop_gift', 'ui/shop_chest', 'ui/shop_scroll', 'ui/shop_letter',
     'ui/ico_task', 'ui/ico_mail', 'ui/ico_setting', 'ui/ico_rank', 'ui/ico_achieve',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',

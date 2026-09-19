@@ -557,7 +557,18 @@ export class DomHud extends Component {
             row.className = 'mailRow panel' + (m.read ? '' : ' unread') + (m.kind === 'reward' && !m.claimed ? ' claimable' : '');
             const ic = document.createElement('div');
             ic.className = 'mailIc';
-            ic.textContent = m.kind === 'reward' ? '🎁' : '📢';
+            // 六轮素材：奖励行用礼盒、系统行用军喇叭（AssetLib 已登记；未就绪回退 emoji）
+            const mailIconKey = m.kind === 'reward' ? 'ui/shop_gift' : 'ui/ico_notice';
+            const mailIconUrl = this._assetBgUrl(mailIconKey);
+            if (mailIconUrl) {
+                ic.style.backgroundImage = mailIconUrl;
+                ic.style.backgroundSize = 'contain';
+                ic.style.backgroundPosition = 'center';
+                ic.style.backgroundRepeat = 'no-repeat';
+                ic.textContent = '';
+            } else {
+                ic.textContent = m.kind === 'reward' ? '🎁' : '📢';
+            }
             row.appendChild(ic);
             const mid = document.createElement('div');
             mid.className = 'mailMid';
@@ -832,7 +843,12 @@ export class DomHud extends Component {
 
     /** 英雄立绘 → CSS 背景图 URL；资源未就绪返回 null（回退首字母徽章） */
     private _heroAvatarUrl(id: string): string | null {
-        const frame: SpriteFrame | null = AssetLib.frame(`characters/hero_${id}`);
+        return this._assetBgUrl(`characters/hero_${id}`);
+    }
+
+    /** 任意 AssetLib 已登记资源 → CSS 背景图 URL；未就绪返回 null */
+    private _assetBgUrl(key: string): string | null {
+        const frame: SpriteFrame | null = AssetLib.frame(key);
         const tex = (frame ? frame.texture : null) as Texture2D | null;
         const asset = tex ? tex.image : null;
         const img = asset ? asset.data : null;
