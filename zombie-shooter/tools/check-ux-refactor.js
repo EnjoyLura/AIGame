@@ -1,6 +1,6 @@
 // 五界面 UX 重构断言：页面归属/入口接线/红点迁移/两层 CSS（HomeUi 拆分后按继承链 8 文件拼接检查）
 const fs = require('fs');
-const UI_FILES = ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts', 'HomeUiStyle.ts'];
+const UI_FILES = ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts', 'HomeUiStyle.ts', 'UiPlate.ts'];
 const readUi = (f) => fs.readFileSync('assets/scripts/ui/' + f, 'utf8');
 const src = UI_FILES.map(readUi).join('\n');
 // 仅拼接 TS 类文件（排除样式表）：用于断言"旧 DOM 结构已消失"这类会在 CSS 里留死样式的情况
@@ -35,7 +35,7 @@ const ok = (name, cond) => {
 
 // 1. 导航：第 4 页签改为玩法（key 沿用 core，texKey nav_core 不变 → 不动美术资源）
 ok("NAV 'core' 名称=行动", /key: 'core', icon: '🎮', name: '行动'/.test(src));
-ok("texKey core→nav_core 保留", /item\.key === 'core' \? 'ui\/nav_core'/.test(src));
+ok("texKey core→nav_core 保留（槽位查 UiPlate.NAV_PLATE）", /core: 'ui\/nav_core'/.test(src));
 
 // 2. 构建与切换接线
 ok('_build 构建 _buildPlayPage', /this\._buildPlayPage\(viewport\)/.test(src));

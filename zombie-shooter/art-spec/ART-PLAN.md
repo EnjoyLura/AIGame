@@ -37,7 +37,7 @@
 ### 1.3 顶栏与进度
 | 组件 | 现状 |
 |---|---|
-| 头像框 / 等级角标 / 经验条 | 头像框已生成未接（43px 小位不糊的接法待定，个人主页大位优先） |
+| 头像框 / 等级角标 / 经验条 | 头像框 📦 在库未接：接法已定（框件走 border-image **无 `fill`** 变体，避免盖掉行图标的 background，见 STYLE-SPEC §9 表），等目检框厚；等级角标/经验条 ✗ 预留 `ui/lvtag` / `ui/bar_*` |
 | 资源胶囊 金/钻/体力 + 加号钮 | 已贴图(r3) |
 | 邮箱 / 公告 / 设置 小图标钮 | 邮箱/设置已贴图(r4)，公告 📣 待补 |
 | 体力条 / 经验条 / 关卡进度条（绿/黄/蓝 + 底槽 + 宝箱节点） | CSS |
@@ -47,9 +47,9 @@
 |---|---|
 | 页签 ×5（常态 + 选中态） | 已贴图(r3) |
 | 行卡 / 标签 chip / 红点 / 倒计时牌 | CSS（chip 可后置） |
-| 品质边框 ×4（白绿蓝紫） | × 无 → 新增 |
-| 段位徽章 ×7（青铜→王者） | × 无 → 新增 |
-| 星星 0~3 / 评价星 | × emoji → 新增 |
+| 品质边框 ×4（白绿蓝紫） | ✅ 本轮接 `ui/frame_q0~q3` → `.popQ .qi`（唯一真源，CSS 白边留作缺图回退） |
+| 段位徽章 ×7（青铜→王者） | 📦 在库无宿主：当前没有段位 UI（D4），待功能开；排行榜前三另族 = `ui/medal1~3` 预留 |
+| 星星 0~3 / 评价星 | × emoji → 预留 `ui/star_on` / `ui/star_off` |
 
 ### 1.5 图标族
 | 组件 | 现状 |
@@ -86,6 +86,9 @@
 
 > 已完成的 r3/r4 产出（nav×5 / res×3 / ico×5 / shop×4 / 按钮板金蓝 / 关闭钮等）视为
 > 批2/批3 的已交付部分，后续按新表整族替换。
+>
+> **每批具体出哪些 key 不在本文重复维护**：槽位清单 = `AssetLib.RESERVED_SLOTS`（预留/采购单）
+> + `ASSET-MANIFEST.md` §B/§C（分类导航），通用件的切片参数与态策略见 `STYLE-SPEC.md` §9/§10。
 
 ## 3. 交付顺序（阶段 = 批次的验收打包）
 
@@ -116,6 +119,18 @@
 | 九宫格面板契约 | 四角 24px 等宽，量测后配 9-slice；不达标重出 |
 | 长条件（绶带/横幅/按钮板）变形 | P0 `--rect` 落地后自然比例切片 |
 
+## 5.5 规范固化轮决策（2026-09-20）
+
+| # | 决策 | 落地位置 |
+|---|---|---|
+| D1 | **通用件契约层单源**：语义→板、九宫格参数、glyph 摘除规则全部收进 `assets/scripts/ui/UiPlate.ts`；页面禁止手写 `style.borderImage*`、禁止用中文文案正则猜板（旧 `HomeUiCore` 的 `/看广告\|免费\|广告/` 已删，`ad` 成为显式 kind） | UiPlate.ts + STYLE-SPEC §9，checker 逐 key 对账 |
+| D2 | **态策略**：一族一件，禁用/选中/按压全部走 CSS 派生（`filter` / `scale` / `active`）；只有语义上真的两态（载具完好↔受损）才整族出双件。页签不出 `nav_*_on` | STYLE-SPEC §10 |
+| D3 | **双轨择一**：品质框唯一真源 = `ui/frame_q0~q3`（本轮已接 `.popQ .qi`，CSS 白边降为缺图回退）。`.popQ` 头底色渐变是「品质头」另一件，不冲突、保留 | STYLE-SPEC §9 + HomeUiCore |
+| D4 | **段位 ≠ 名次**：`ui/rank1~7` 是段位徽章，**当前游戏没有段位 UI**，留在库待功能开；排行榜前三（🥇🥈🥉）与 HUD `.statRank` 是「名次奖牌」，新登记 `ui/medal1~3` 预留位，图到位再接，现在不动 CSS | ASSET-MANIFEST §B/§C |
+| D5 | **预留槽位进代码即采购单**：`AssetLib.RESERVED_SLOTS`（103 项）是预留唯一真源，预载跳过这些 key（不再白发 100+ 个失败请求）；图落地必须删声明 | AssetLib.ts + check-art-manifest |
+| D6 | **在库无宿主件必须收口**：旧一代板（panel_metal / panel_frame / panel_card / card_frame / icon_frame / btn_primary / btn_gold / btn_cyan / chip_dark / banner / banner_orange / btn_round2 / avatar_frame / ribbon_title / frame_bronze~gold / rank1-7 / ico_trophy / ico_lock / ico_achieve / shop_scroll）下一轮要么按 §9 登记宿主接线，要么整族删除，不允许长期「预载但不引用」 | 本节 |
+| D7 | **贴图与 glyph 混排收口**：贴图到位由 `UiPlate.icon()` 摘 glyph，缺图保留 glyph 回退；页签青瓷层原 `font-size:0`（会把缺图页签变成空槽）已改为按档显示 emoji 占位，两层口径一致 | HomeUiStyle/HomeUiCore |
+
 ## 6. 进度跟踪
 
 | 批次/阶段 | 状态 | 完成标记 |
@@ -126,3 +141,4 @@
 | P2 战斗主循环（批7~8） | ✅ 2026-09-20 | 批8 road/escort 重生成、批7 五怪物 trim-tight；无头烟测进战截图过（批6 四英雄+指挥官同轮入库） |
 | P3 内容图标（批4/6/10） | 部分 | 批6 ✅；批4 状态图标无接线目标本轮跳过；批10 用户豁免不换 |
 | P4 资源进度与特效（批5/9） | 未开始 | 无接线目标/动 CSS 骨架风险高，留待下轮 |
+| 规范固化轮（进版前置） | ✅ 2026-09-20 | UiPlate 契约层（语义→板 / NINE 切片档 / icon 摘 glyph）；`PLATE` 取代文案正则、`ad` 显式化；禁用态改「同板 + CSS filter 派生」；品质框 frame_q* 上屏 `.popQ .qi`；`RESERVED_SLOTS` 103 项预留进代码＝采购单（预载跳过）；checker 从 10 组扩到 16 组（加「代码引用扫描扩到所有槽位字面量」「UiPlate↔STYLE-SPEC §9 对账」「禁止页面手写 borderImage」「预留必须进 MANIFEST」）；揪出幽灵引用 `monsters/crawler` 已删 |

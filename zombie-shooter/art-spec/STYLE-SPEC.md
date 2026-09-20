@@ -73,7 +73,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 功能图标 | `icon of …, single item, slightly tilted 3/4 view, subtle golden rim light` | 商城/道具/功能入口 |
 | 资源图标 | `resource icon: …, stack of items, top-down slight angle` | 金币/钻石/体力（成对出亮暗两版不必要，亮版即可） |
 | 按钮 | `rounded rect game button labeled area, … color scheme, thick darker bottom edge, glossy top highlight` | **图内不要画文字**，文字由代码叠；按 §2 组件色出金/绿/蓝/红四系 |
-| 九宫格面板 | `wooden framed cream panel, corner ornaments, flat center area suitable for 9-slice, …` | 交付 96×96 以上、四角 24px 等宽的九宫格-safe 构图 |
+| 九宫格面板 | `wooden framed cream panel, corner ornaments, flat center area suitable for 9-slice, …` | 交付 512×512（panel_main/sub 同规格）；**四角装饰必须等宽且只占外圈 12%（≈61px）**，中段留平色可拉伸——代码按 `UiPlate.NINE.panel`（slice `12% fill` / 显示 16px）切，四角不等宽 = 切坏 |
 | 横幅/绶带 | `wooden banner board with ribbon, …` | 标题底板，长条形 |
 | 角色立绘 | `chibi cartoon character, …, full body, facing right, 3/4 view` | 武器感、职业特征明显 |
 | 怪物 | `cartoon monster …, side view walking pose, …` / 走帧：另出横排 12 帧行走序列（见 §5） | |
@@ -158,3 +158,63 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
   换一个端口重开页签即可验证新图；线上走隧道本来就是新源，不受影响。
   另：IAB 在 ZCode 窗口后台时 rAF 被冻结、引擎静默起不来（无场景无报错）——自动化烟测直接用
   `node tools/smoke_headless.mjs <url> <outDir>`（系统 Chrome 无头 + CDP，选卡用画布坐标点击）。
+
+## 9. 通用件契约表（组件 ↔ 槽位 ↔ 切片参数，美术与代码的唯一对账口径）
+
+> **这一节是进版阶段的对账单**：`assets/scripts/ui/UiPlate.ts` 的常量表与本表逐 key 相互断言
+> （`node tools/check-art-manifest.mjs` 会查「UiPlate 槽位未写进本节」）。改参数必须两边同步，
+> 否则美术照文档出图、代码照注释切片，两边都对，拼起来是坏的。
+>
+> 四条接线纪律（写进 UiPlate 头注释）：① 页面里不手写 `style.borderImage*`，一律走
+> `nineSlice()/icon()/strip()`；② 组件显示尺寸只归 CSS（内联尺寸会压掉主城两层样式的覆盖规则）；
+> ③ 贴图到位即摘同位 glyph，缺图保留 glyph 回退；④ 按钮一律去字底板 + 代码叠字，语义查 `PLATE`，
+> 禁止按中文文案正则猜板。
+
+| 通用件 | CSS 宿主 | 槽位 key | 1x 显示 | 适配 | 切片档（UiPlate.NINE） | 态数 | 状态 |
+|---|---|---|---|---|---|---|---|
+| 弹层底板 M/L | `.pop`（非 S） | `ui/panel_main` | 面板框 16px | border-image | `panel` = slice `12% fill` / width 16px×--pu | 1 | ✅ 已接 |
+| 弹层底板 S | `.pop.S` | `ui/panel_sub` | 同上 | border-image | `panel` | 1 | ✅ 已接 |
+| 大按钮（CTA/登录 START） | `.popBtn` / `.lgStart` | 见下方按钮语义行 | 板框 10px | border-image | `plate` = slice `16 fill` / 10px×--pu（登录 `platePw` 按 --pw） | 1（态由 CSS 派生，见 §10） | ✅ 已接 |
+| 细标题条 | `.popTop` | `ui/bar_title` | 高 41px×--pu | `strip`（100% 100% 拉伸） | — | 1 | ✅ 已接 |
+| 横幅绶带 | `.popBanner` | `ui/ribbon_banner` | 高 45px×--pu | `strip` | — | 1 | ✅ 已接 |
+| 弹窗标题绶带（备用） | — | `ui/ribbon_title` | 未接 | `strip` | — | 1 | 📦 在库待接（与 ribbon_banner 二择一，暂留备用） |
+| 关闭钮 | `.popClose` | `ui/btn_close` | 30px×--pu 方 | `icon`（contain + 摘 glyph + 隐边框） | — | 1 | ✅ 已接 |
+| 返回钮 | `.popBack` | `ui/btn_round` | 30px×--pu 方 | `icon` + `keepGlyph`（‹ 是功能符号不是占位，压在板面上）+ 字色改写 | — | 1 | ✅ 已接 |
+| 小圆钮备用件 | — | `ui/btn_round2` | 30px×--pu 方 | `icon` | — | 1 | 📦 在库待接（帮助/主页/刷新键的同类板） |
+| 底部主导航 5 签 | `.tab .ticon` | `ui/nav_mall` `ui/nav_heroes` `ui/nav_battle` `ui/nav_core` `ui/nav_base` | 102px×--hs ｜ 41px×--pw | `icon`（尺寸交 CSS） | — | 1（选中态 CSS 强调，见 §10） | ✅ 已接（查 `NAV_PLATE`） |
+| 顶栏资源胶囊 3 枚 | `.res > span:first-child` | `ui/res_gold` `ui/res_diamond` `ui/res_stamina` | 22px×--hs ｜ 20px×--pw | `icon`（尺寸交 CSS） | — | 1 | ✅ 已接（查 `RES_ICON`） |
+| 详情品质头·图标框 | `.popQ .qi` | `ui/frame_q0` `ui/frame_q1` `ui/frame_q2` `ui/frame_q3` | 58px×--pu 方 | `icon`（contain + keepGlyph，框压在道具 glyph 外圈） | — | 1 | ✅ 本轮接线（CSS 白边降为缺图回退） |
+| 行图标贴图槽 | `.popRow .ic`（`iconTex`） | 动态 key（立绘/怪图/礼盒…） | 40px×--pu | `icon`（cover） | — | 1 | ✅ 已接 |
+| 空态图 | `.popEmpty .ei` | 动态 key（`ui/` 前缀即视为槽位） | 44px×--pu | `icon`（contain） | — | 1 | ✅ 已接 |
+| 头像框 | 个人主页大位 | `ui/avatar_frame` | — | **需 `frame` 变体**：border-image 无 `fill`（行图标已占 background，框再走 background 会互相盖掉） | 待定 | 1 | 📦 在库待接（接法已定，等目检框厚/分辨率） |
+| 段位徽章 ×7 | 待开：段位/成就展示位 | `ui/rank1`…`ui/rank7` | 128px 见方 | `icon` | — | 1 | 📦 在库待接（**当前无段位 UI**，见 ART-PLAN §5 决策） |
+| 名次奖牌 ×3 | 排行榜 `.popRow .tag` / HUD `.statRank` | `ui/medal1` `ui/medal2` `ui/medal3` | 32~56px | `icon` | — | 1 | ✗ 待生图（现在分别是 🥇🥈🥉 emoji 与 CSS 渐变块） |
+
+### 按钮语义 → 去字底板（`UiPlate.PLATE`，唯一映射）
+
+| kind | 槽位 | 用在哪 | 状态 |
+|---|---|---|---|
+| `gold`（缺省） | `ui/btn_play` | 主 CTA：领取/确定/开始 | ✅ 已接 |
+| `green` | `ui/btn_confirm` | 确认/消耗类（购买、强化） | ✅ 已接 |
+| `blue` | `ui/btn_cancel` | 次级/取消 | ✅ 已接（主城 `.btn.blue` 待按本表接线） |
+| `danger` | `ui/btn_danger` | 警示：重置存档、退出 | ✅ 已接 |
+| `ad` | `ui/btn_video` | 看广告得奖励键 | ✅ 本轮显式化（旧版靠中文文案正则命中，改文案即掉板） |
+| `grey` | `ui/btn_cancel` | 置灰次级键（沿用蓝板 + §10 派生态） | ✅ 已接 |
+| `purple` | `ui/btn_purple` | 特殊：限时/首充/超值 | ✗ 待生图（缺图回退 CSS 底色） |
+
+> 旧一代板 `ui/btn_gold` `ui/btn_cyan` `ui/panel_metal` `ui/panel_frame` `ui/panel_card` `ui/card_frame`
+> `ui/icon_frame` `ui/btn_primary` `ui/chip_dark` `ui/banner` `ui/banner_orange` 全在库、无宿主：
+> **本表未列即视为备用件**，要么在本表登记宿主后再接，要么整族删除，不允许继续「预载但不引用」。
+
+## 10. 态策略（一族一件，不为每态出图）
+
+| 态 | 做法 | 谁负责 |
+|---|---|---|
+| 按钮禁用 | 同板照贴 + CSS `filter: grayscale(.6) brightness(.92)` + `opacity:.5`（`.popBtn.disabled`） | CSS，美术不出灰板 |
+| 页签/卡片选中 | 同件 + `transform: scale(1.1)` + 选中底色/内阴影（`.tab.on` / `.popTabs .on`） | CSS，不出 `nav_*_on` 二态图 |
+| 按压反馈 | `active` 位移 1px / 亮度提升 | CSS |
+| 红点、倒计时角标 | 保持 CSS 圆点（`.questRed`） | 不出图；要出图先在本表登记宿主 |
+| 需要真二态的件（如载具完好/受损两态） | **整族出双件**，key 加后缀（`scenes/vehicle_tail` + `scenes/vehicle_tail_damaged`） | 美术出图 + MANIFEST 登记 |
+
+**推论**：新增一类通用件时，先答三问再开工——① 宿主 CSS class 是哪个？② 单态还是整族双态？
+③ 切片走 `panel`/`plate` 哪一档？三问答完再写进本表与 `UiPlate`，否则接线与出图必然返工。

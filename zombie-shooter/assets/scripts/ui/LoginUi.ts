@@ -1,10 +1,10 @@
 import { _decorator, Component } from 'cc';
 const { ccclass } = _decorator;
 import { SoundFx } from '../core/SoundFx';
-import { AssetLib } from '../core/AssetLib';
 import { NoticeSystem, NOTICE_KIND_NAMES, NoticeDef } from '../core/NoticeData';
 import { BUILD_STAMP } from '../config/GameConfig';
 import { UI_TOKENS_CSS } from './UiTheme';
+import * as UiPlate from './UiPlate';
 
 /**
  * 登录界面（参考主流小游戏登录图一比一落地，DOM 渲染）：
@@ -223,13 +223,9 @@ export class LoginUi extends Component {
         const start = document.createElement('button');
         start.className = 'lgStart';
         start.textContent = '开始游戏';
-        // 四轮素材：金板开始按钮（border-image 九宫格；slice 16% 只切圆角斜面，板厚不被压扁）
+        // 金板开始按钮：九宫格参数与弹层 CTA 同族（platePw 档：宽度按 --pw 缩放）
         this._tex('ui/btn_play', u => {
-            start.style.borderImageSource = u;
-            start.style.borderImageSlice = '16 fill';
-            start.style.borderImageWidth = 'calc(10px * var(--pw,2.5))';
-            start.style.borderImageRepeat = 'stretch';
-            start.style.background = 'none';
+            UiPlate.nineSlice(start, 'platePw')(u);
             start.style.color = '#5a3a08';
             start.style.textShadow = 'none';
         });
@@ -408,20 +404,7 @@ export class LoginUi extends Component {
     }
 
     private _frameUrl(key: string): string | null {
-        const frame = AssetLib.frame(key);
-        const tex = (frame ? frame.texture : null) as (import('cc').Texture2D & { image?: { data?: unknown } }) | null;
-        const asset = tex ? tex.image : null;
-        const img = asset ? asset.data : null;
-        if (!img) {
-            return null;
-        }
-        if (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement && img.src) {
-            return `url(${img.src})`;
-        }
-        if (typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement) {
-            return `url(${img.toDataURL('image/png')})`;
-        }
-        return null;
+        return UiPlate.frameUrl(key);
     }
 
 }

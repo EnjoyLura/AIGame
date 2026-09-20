@@ -13,7 +13,6 @@ const BASE_TINT = new Color(255, 255, 255, 255);
 
 /** 已有美术立绘的怪型（key 相对 textures/；缺图的回退 Graphics 占位） */
 const MONSTER_ART: Record<string, string> = {
-    crawler: 'monsters/crawler',
     dog: 'monsters/dog',
     boar: 'monsters/boar',
     bear: 'monsters/bear',

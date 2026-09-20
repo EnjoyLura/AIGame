@@ -1771,7 +1771,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .tab { color: var(--c-line-dim); flex: none; font-size: calc(13px * var(--pw,2.5)); height: auto; min-width: 0;
   padding: calc(4px * var(--pw,2.5)) 0; gap: calc(1px * var(--pw,2.5)); border-radius: calc(4px * var(--pw,2.5));
   -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-#homeUi .tab .ticon { width: calc(41px * var(--pw,2.5)); height: calc(41px * var(--pw,2.5)); display: grid; place-items: center; filter: none; font-size: 0; }
+/* 页签 glyph 不再用 font-size:0 遮（那会让缺图页签变成空槽）：贴图到位时由 UiPlate.icon 摘掉
+   glyph 文本节点，缺图则按本尺寸显示 emoji 占位，两层口径一致。 */
+#homeUi .tab .ticon { width: calc(41px * var(--pw,2.5)); height: calc(41px * var(--pw,2.5)); display: grid; place-items: center; filter: none; font-size: calc(24px * var(--pw,2.5)); }
 #homeUi .tab.on { background: var(--c-cream-1); color: var(--c-gold-dk3); box-shadow: inset 0 3px var(--c-amber); }
 #homeUi .tab.on .ticon { transform: scale(1.1); }
 #homeUi .tab.on::after { display: none; content: none; }
@@ -2544,7 +2546,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .popBtn.danger { border-color: var(--pred); color: var(--pred2); background: rgba(192,72,63,.1); }
 #homeUi .popBtn.grey { border: 1px solid var(--pline); color: var(--pdim); background: none; font-weight: 400; }
 #homeUi .popBtn.wide { flex: 1; }
-#homeUi .popBtn.disabled { opacity: .5; border-color: var(--pline); color: var(--pdim); background: none; cursor: default; }
+/* 禁用态：板图照贴，置灰由 filter 派生（态策略见 art-spec/STYLE-SPEC.md §10——一族一件不出多态图） */
+#homeUi .popBtn.disabled { opacity: .5; border-color: var(--pline); color: var(--pdim); background: none; cursor: default;
+  filter: grayscale(.6) brightness(.92); }
 #homeUi .popCTA .note { font-size: calc(10.5px * var(--pu,1)); color: var(--pdim2); text-align: center; }
 #homeUi .popRed { position: absolute; right: calc(-4px * var(--pu,1)); top: calc(-4px * var(--pu,1));
   width: calc(12px * var(--pu,1)); height: calc(12px * var(--pu,1)); border-radius: 50%;

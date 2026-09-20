@@ -1,9 +1,8 @@
-import { _decorator, Component, SpriteFrame, sys } from 'cc';
+import { _decorator, Component, sys } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, BUILD_STAMP, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
 import { GameManager, META_UPGRADES, BUILDINGS } from '../core/GameManager';
-import { AssetLib } from '../core/AssetLib';
 import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
 import { ShopData, ShopItem, ShopQuota } from '../core/ShopData';
@@ -27,6 +26,7 @@ import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/Vehicle
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES, NoticeKind } from '../core/NoticeData';
 import { HOME_UI_CSS } from './HomeUiStyle';
+import * as UiPlate from './UiPlate';
 
 export const MALL_AD_STAMINA = 10;
 /** 体力获取弹窗：钻石直购档位（1💎=1体力，可超上限囤积） */
@@ -52,10 +52,10 @@ export type PopSize = 'S' | 'M' | 'L' | 'XL';
 /** 文本片段：字符串为普通说明，对象可指定强调样式（d 胶囊 / exp 过期 / soon 即将到期） */
 export type PopText = string | { text: string; kind?: 'd' | 'exp' | 'soon' };
 
-/** 弹层底部按钮 */
+/** 弹层底部按钮（kind 是贴图语义，取值域与 UiPlate.PLATE 同步） */
 export interface PopCta {
     label: string;
-    kind?: 'gold' | 'green' | 'danger' | 'grey';
+    kind?: 'gold' | 'green' | 'danger' | 'grey' | 'ad';
     disabled?: boolean;
     /** 禁用态下点击的去向：缺口 toast 或 3-C 拦截弹窗（禁用不是死键） */
     onDisabled?: () => void;
@@ -618,29 +618,16 @@ export abstract class HomeUiCore extends Component {
         };
         const pop = this._el('div', `pop ${size} L${tier}`);
         pop.onclick = (e) => e.stopPropagation();
-        // 六轮素材：弹层底板走九宫格 border-image（面板框图自带边框；XL 满屏演出层保持平铺底色）
+        // 弹层底板走九宫格 border-image（面板框图自带边框；XL 满屏演出层保持平铺底色）
         if (size !== 'XL') {
-            this._tex(size === 'S' ? 'ui/panel_sub' : 'ui/panel_main', u => {
-                pop.style.borderImageSource = u;
-                pop.style.borderImageSlice = '12% fill';
-                pop.style.borderImageWidth = 'calc(16px * var(--pu,1))';
-                pop.style.borderImageRepeat = 'stretch';
-                pop.style.borderColor = 'transparent';
-            });
+            this._tex(size === 'S' ? 'ui/panel_sub' : 'ui/panel_main', UiPlate.nineSlice(pop, 'panel'));
         }
 
         // —— 1. 头部区（固定）：横幅 / 品质头 / 细标题条 ——
         const closeBtn = () => {
             const x = this._el('div', 'popClose', '✕');
-            // 四轮素材：红 X 金属板（contain 适配小方钮，边框隐去由图自带）
-            this._tex('ui/btn_close', u => {
-                x.style.backgroundImage = u;
-                x.style.backgroundSize = 'contain';
-                x.style.backgroundPosition = 'center';
-                x.style.backgroundRepeat = 'no-repeat';
-                x.style.borderColor = 'transparent';
-                x.textContent = '';
-            });
+            // 红 X 金属板：contain 适配小方钮，边框隐去由图自带
+            this._tex('ui/btn_close', UiPlate.icon(x, { hideBorder: true }));
             x.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -650,14 +637,9 @@ export abstract class HomeUiCore extends Component {
         };
         const backBtn = () => {
             const b = this._el('div', 'popBack', '‹');
-            // 六轮素材：圆形金属小钮做返回键底，‹ 字符压在板面上
+            // 圆形金属小钮做返回键底，‹ 字符压在板面上（keepGlyph：这块的 glyph 是功能符号，不是占位）
             this._tex('ui/btn_round', u => {
-                b.style.backgroundImage = u;
-                b.style.backgroundSize = 'contain';
-                b.style.backgroundPosition = 'center';
-                b.style.backgroundRepeat = 'no-repeat';
-                b.style.borderColor = 'transparent';
-                b.style.color = '#e9f2fb';
+                UiPlate.icon(b, { color: '#e9f2fb', keepGlyph: true })(u);
             });
             b.onclick = (e) => {
                 e.stopPropagation();
@@ -667,14 +649,8 @@ export abstract class HomeUiCore extends Component {
         };
         if (opts.banner) {
             const head = this._el('div', 'popBanner');
-            // 六轮素材：木质标题绶带做横幅底（100% 拉伸铺满，边框/底色交图）
-            this._tex('ui/ribbon_banner', u => {
-                head.style.backgroundImage = u;
-                head.style.backgroundSize = '100% 100%';
-                head.style.backgroundPosition = 'center';
-                head.style.backgroundRepeat = 'no-repeat';
-                head.style.borderBottomColor = 'transparent';
-            });
+            // 木质标题绶带做横幅底（100% 拉伸铺满，边框/底色交图）
+            this._tex('ui/ribbon_banner', UiPlate.strip(head));
             head.appendChild(this._el('b', undefined, opts.banner));
             if (opts.art) {
                 head.appendChild(this._el('div', 'art', opts.art));
@@ -689,6 +665,10 @@ export abstract class HomeUiCore extends Component {
             const q = opts.quality;
             const head = this._el('div', `popQ q${q.q}`);
             const qi = this._el('div', 'qi', q.icon);
+            // 品质框唯一真源（frame_q0~q3 白绿蓝紫）：框图压在道具图标外圈，同位 glyph 保留；
+            // CSS 的 .qi 白边只作缺图回退，不再当第二套品质边框实现。
+            this._tex(UiPlate.QUALITY_FRAME[q.q - 1] ?? UiPlate.QUALITY_FRAME[0],
+                UiPlate.icon(qi, { hideBorder: true, keepGlyph: true }));
             if (q.tier) {
                 qi.appendChild(this._el('span', 'qtag', q.tier));
             }
@@ -709,14 +689,8 @@ export abstract class HomeUiCore extends Component {
             pop.appendChild(head);
         } else if (opts.title) {
             const head = this._el('div', 'popTop', opts.title);
-            // 六轮素材：金属标题条做细标题底（100% 拉伸铺满）
-            this._tex('ui/bar_title', u => {
-                head.style.backgroundImage = u;
-                head.style.backgroundSize = '100% 100%';
-                head.style.backgroundPosition = 'center';
-                head.style.backgroundRepeat = 'no-repeat';
-                head.style.borderBottomColor = 'transparent';
-            });
+            // 金属标题条做细标题底（100% 拉伸铺满）
+            this._tex('ui/bar_title', UiPlate.strip(head));
             if (canBack) {
                 head.insertBefore(backBtn(), head.firstChild);
             }
@@ -806,23 +780,12 @@ export abstract class HomeUiCore extends Component {
                 opts.ctas.forEach(c => {
                     const b = this._el('div',
                         `popBtn ${c.kind ?? 'gold'}${multi ? ' wide' : ''}${c.disabled ? ' disabled' : ''}`, c.label);
-                    // 四轮素材板接线：金板→主 CTA，蓝板→次 CTA。border-image 九宫格保四角、
-                    // 中段拉伸；slice 16% 只切到圆角斜面区（30% 会把板面划进边区、板厚压扁），
-                    // borderImageWidth 按板源等比缩放显示，且大于原 border 向内画不改布局盒。
-                    // 六轮补齐：绿板→确认，警示板→危险，金星板→看广告奖励键。
-                    const plate =
-                        c.kind === 'grey' ? 'ui/btn_cancel' :
-                        c.kind === 'green' ? 'ui/btn_confirm' :
-                        c.kind === 'danger' ? 'ui/btn_danger' :
-                        /看广告|免费|广告/.test(c.label) ? 'ui/btn_video' :
-                        (!c.kind || c.kind === 'gold') ? 'ui/btn_play' : null;
-                    if (!c.disabled && plate) {
+                    // 语义 → 去字底板只查 UiPlate.PLATE（旧版按中文文案正则猜板，改一句文案就掉板）。
+                    // 禁用态照样贴板，置灰由 .popBtn.disabled 的 CSS filter 派生（态策略见 STYLE-SPEC §10）。
+                    const plate = UiPlate.plateOf(c.kind);
+                    if (plate) {
                         this._tex(plate, u => {
-                            b.style.borderImageSource = u;
-                            b.style.borderImageSlice = '16 fill';
-                            b.style.borderImageWidth = 'calc(10px * var(--pu,1))';
-                            b.style.borderImageRepeat = 'stretch';
-                            b.style.background = 'none';
+                            UiPlate.nineSlice(b, 'plate')(u);
                             if (c.kind === 'grey') {
                                 b.style.color = '#e9f2fb';
                             }
@@ -960,12 +923,7 @@ export abstract class HomeUiCore extends Component {
             row.appendChild(act);
         }
         if (o.iconTex) {
-            this._tex(o.iconTex, u => {
-                ic.textContent = '';
-                ic.style.backgroundImage = u;
-                ic.style.backgroundSize = 'cover';
-                ic.style.backgroundPosition = 'center';
-            });
+            this._tex(o.iconTex, UiPlate.icon(ic, { size: 'cover' }));
         }
         return row;
     }
@@ -1064,16 +1022,11 @@ export abstract class HomeUiCore extends Component {
     /** 组件：空态（无数据/筛选无结果） */
     protected _popEmpty(text: string, hint?: string, icon = '📭'): HTMLElement {
         const box = this._el('div', 'popEmpty');
-        const ei = this._el('div', 'ei', icon);
+        const asKey = icon.startsWith('ui/');
+        const ei = this._el('div', 'ei', asKey ? '' : icon);
         // icon 传贴图 key（'ui/…' 前缀）时回填素材图，否则按 emoji 占位
-        if (icon.startsWith('ui/')) {
-            ei.textContent = '';
-            this._tex(icon, u => {
-                ei.style.backgroundImage = u;
-                ei.style.backgroundSize = 'contain';
-                ei.style.backgroundPosition = 'center';
-                ei.style.backgroundRepeat = 'no-repeat';
-            });
+        if (asKey) {
+            this._tex(icon, UiPlate.icon(ei));
         }
         box.appendChild(ei);
         box.appendChild(this._el('div', undefined, text));
@@ -1194,7 +1147,7 @@ export abstract class HomeUiCore extends Component {
         icon: string;
         rows: Array<{ icon?: string; text: string }>;
         note?: string;
-        ok: { label: string; kind?: 'gold' | 'green' | 'danger' | 'grey'; onClick: () => void };
+        ok: { label: string; kind?: PopCta['kind']; onClick: () => void };
         stayLabel?: string;
     }): void {
         this._openPop({
@@ -1247,11 +1200,11 @@ export abstract class HomeUiCore extends Component {
             this._popBack();
             after?.();
         };
-        let ok: { label: string; kind?: 'gold' | 'green' | 'danger' | 'grey'; onClick: () => void };
+        let ok: { label: string; kind?: PopCta['kind']; onClick: () => void };
         if (adLeft > 0) {
             ok = {
                 label: `📺 看广告 +${MALL_AD_STAMINA}`,
-                kind: 'green',
+                kind: 'ad',
                 onClick: () => {
                     SoundFx.unlock();
                     AdService.instance.claimReward('stamina', () => {
@@ -1352,14 +1305,8 @@ export abstract class HomeUiCore extends Component {
         };
         const face = document.createElement('div');
         face.textContent = '🎖️';
-        // 原型 interface.css：头像底图 = commander.png（照片），无 emoji
-        this._tex('characters/commander', u => {
-            face.style.backgroundImage = u;
-            face.style.backgroundSize = '180% auto';
-            face.style.backgroundPosition = 'center 8%';
-            face.style.backgroundRepeat = 'no-repeat';
-            face.textContent = '';
-        });
+        // 头像底图 = commander（照片类，cover 口径由参数给出），到位即顶掉 emoji
+        this._tex('characters/commander', UiPlate.icon(face, { size: '180% auto', position: 'center 8%' }));
         avatar.appendChild(face);
         // 等级角标压在头像左上角外沿（布局稿 .portrait strong），头像即等级入口
         const lvBadge = document.createElement('b');
@@ -1373,16 +1320,8 @@ export abstract class HomeUiCore extends Component {
             const chip = document.createElement('div');
             chip.className = 'res';
             const ico = document.createElement('span');
-            this._tex(texKey, u => {
-                ico.style.backgroundImage = u;
-                ico.style.backgroundSize = 'contain';
-                ico.style.backgroundRepeat = 'no-repeat';
-                ico.style.backgroundPosition = 'center';
-                ico.style.width = 'calc(16px * var(--pw,2.5))';
-                ico.style.height = 'calc(16px * var(--pw,2.5))';
-                ico.style.display = 'inline-block';
-                ico.textContent = '';
-            });
+            // 尺寸归 CSS（.res > span:first-child 两层各自覆盖），JS 只挂图
+            this._tex(texKey, UiPlate.icon(ico));
             chip.appendChild(ico);
             const b = document.createElement('b');
             chip.appendChild(b);
@@ -1436,15 +1375,8 @@ export abstract class HomeUiCore extends Component {
         mailBtn.className = 'tinyIcon homeMailBtn';
         mailBtn.textContent = '📬';
         mailBtn.title = '邮箱';
-        // 四轮素材：邮箱铁皮箱图标替换 emoji
-        this._tex('ui/ico_mail', u => {
-            mailBtn.style.backgroundImage = u;
-            mailBtn.style.backgroundSize = 'contain';
-            mailBtn.style.backgroundPosition = 'center';
-            mailBtn.style.backgroundRepeat = 'no-repeat';
-            mailBtn.style.backgroundColor = 'transparent';
-            mailBtn.textContent = '';
-        });
+        // 邮箱铁皮箱图标替换 emoji
+        this._tex('ui/ico_mail', UiPlate.icon(mailBtn, { hideBorder: true }));
         mailBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1456,15 +1388,8 @@ export abstract class HomeUiCore extends Component {
         noticeBtn.className = 'tinyIcon homeNoticeBtn';
         noticeBtn.textContent = '📣';
         noticeBtn.title = '游戏公告';
-        // 六轮素材：军喇叭公告图标替换 emoji
-        this._tex('ui/ico_notice', u => {
-            noticeBtn.style.backgroundImage = u;
-            noticeBtn.style.backgroundSize = 'contain';
-            noticeBtn.style.backgroundPosition = 'center';
-            noticeBtn.style.backgroundRepeat = 'no-repeat';
-            noticeBtn.style.backgroundColor = 'transparent';
-            noticeBtn.textContent = '';
-        });
+        // 军喇叭公告图标替换 emoji
+        this._tex('ui/ico_notice', UiPlate.icon(noticeBtn, { hideBorder: true }));
         noticeBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1476,15 +1401,8 @@ export abstract class HomeUiCore extends Component {
         gear.className = 'tinyIcon';
         gear.textContent = '⚙️';
         gear.title = '设置';
-        // 四轮素材：齿轮图标替换 emoji
-        this._tex('ui/ico_setting', u => {
-            gear.style.backgroundImage = u;
-            gear.style.backgroundSize = 'contain';
-            gear.style.backgroundPosition = 'center';
-            gear.style.backgroundRepeat = 'no-repeat';
-            gear.style.backgroundColor = 'transparent';
-            gear.textContent = '';
-        });
+        // 齿轮图标替换 emoji
+        this._tex('ui/ico_setting', UiPlate.icon(gear, { hideBorder: true }));
         gear.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1555,16 +1473,12 @@ export abstract class HomeUiCore extends Component {
                 SoundFx.play('ui');
                 this._switchPage(item.key);
             };
-            const texKey = item.key === 'mall' ? 'ui/nav_mall' : item.key === 'heroes' ? 'ui/nav_heroes'
-                : item.key === 'battle' ? 'ui/nav_battle' : item.key === 'core' ? 'ui/nav_core' : 'ui/nav_base';
-            this._tex(texKey, u => {
-                icon.style.backgroundImage = u;
-                icon.style.backgroundSize = 'contain';
-                icon.style.backgroundRepeat = 'no-repeat';
-                icon.style.backgroundPosition = 'center';
-                // 图标尺寸交给 CSS（五签等分，选中态 42px 由 .tab.on 覆盖）——内联尺寸会压掉覆盖规则
-                icon.textContent = '';
-            });
+            const texKey = UiPlate.NAV_PLATE[item.key];
+            if (texKey) {
+                // 页签 → 槽位查表；尺寸交 CSS（五签等分，选中态放大由 .tab.on 覆盖）——
+                // 内联尺寸会压掉覆盖规则，glyph 由贴图到位时摘除，缺图仍是 emoji 占位
+                this._tex(texKey, UiPlate.icon(icon));
+            }
             nav.appendChild(btn);
             this._navBtns[item.key] = btn;
         }
@@ -2262,20 +2176,7 @@ export abstract class HomeUiCore extends Component {
 
 
     protected _frameUrl(key: string): string | null {
-        const frame: SpriteFrame | null = AssetLib.frame(key);
-        const tex = (frame ? frame.texture : null) as (import('cc').Texture2D & { image?: { data?: unknown } }) | null;
-        const asset = tex ? tex.image : null;
-        const img = asset ? asset.data : null;
-        if (!img) {
-            return null;
-        }
-        if (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement && img.src) {
-            return `url(${img.src})`;
-        }
-        if (typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement) {
-            return `url(${img.toDataURL('image/png')})`;
-        }
-        return null;
+        return UiPlate.frameUrl(key);
     }
 
 

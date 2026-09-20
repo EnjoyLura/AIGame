@@ -1,9 +1,8 @@
-import { _decorator, Component, SpriteFrame, Texture2D, sys } from 'cc';
+import { _decorator, Component, sys } from 'cc';
 const { ccclass } = _decorator;
 import { BattleConfig, BUILD_STAMP, Design, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
 import { GameManager } from '../core/GameManager';
-import { AssetLib } from '../core/AssetLib';
 import { BattleManager } from '../battle/BattleManager';
 import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
@@ -12,6 +11,7 @@ import { FINAL_STAGE_ID } from '../battle/StageData';
 import { LootDrop, lootDropColor, tierRank, miscDef } from '../core/HeroSystem';
 import { HERO_DEFS } from '../battle/HeroDef';
 import { UI_TOKENS_CSS } from './UiTheme';
+import * as UiPlate from './UiPlate';
 import { MailSystem, MailState, mailTimeText, mailExpiringSoon } from '../core/MailSystem';
 import { DungeonReward, dungeonDef, DUNGEON_TIER_NAMES } from '../core/DungeonSystem';
 
@@ -846,33 +846,9 @@ export class DomHud extends Component {
         return this._assetBgUrl(`characters/hero_${id}`);
     }
 
-    /** 任意 AssetLib 已登记资源 → CSS 背景图 URL；未就绪返回 null */
+    /** 任意 AssetLib 已登记资源 → CSS 背景图 URL；未就绪返回 null（单源见 UiPlate.frameUrl） */
     private _assetBgUrl(key: string): string | null {
-        const frame: SpriteFrame | null = AssetLib.frame(key);
-        const tex = (frame ? frame.texture : null) as Texture2D | null;
-        const asset = tex ? tex.image : null;
-        const img = asset ? asset.data : null;
-        if (!img) {
-            return null;
-        }
-        if (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement && img.src) {
-            return `url(${img.src})`;
-        }
-        if (typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement) {
-            return `url(${img.toDataURL('image/png')})`;
-        }
-        if (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap) {
-            try {
-                const cv = document.createElement('canvas');
-                cv.width = asset!.width;
-                cv.height = asset!.height;
-                cv.getContext('2d')!.drawImage(img, 0, 0);
-                return `url(${cv.toDataURL('image/png')})`;
-            } catch {
-                return null;
-            }
-        }
-        return null;
+        return UiPlate.frameUrl(key);
     }
 
     private _refreshStats(): void {
