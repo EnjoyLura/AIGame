@@ -569,6 +569,18 @@ export abstract class HomeUiMall extends HomeUiCore {
         return row;
     }
 
+    /** 行内星级：英雄卡副标那一行（「定位 · ★★」）。与 `_starRow` 同一件亮星图，但只摆已升的颗数
+     *  （卡面上不摆空星，0 星就只剩定位文字），且跟着文字基线走而不是另起一行。
+     *  放 Mall 的理由同 `_starRow`：调用点在 `HomeUiHeroes`，那一档行数棘轮已经顶满。 */
+    protected _starInline(host: HTMLElement, prefix: string, n: number): void {
+        host.textContent = n > 0 ? `${prefix} · ` : prefix;
+        for (let i = 0; i < n; i++) {
+            const s = this._el('i', 'starIn', '★');
+            this._tex('ui/star_on', UiPlate.icon(s));
+            host.appendChild(s);
+        }
+    }
+
     /**
      * 检索框（背包按名字筛）：🔍 先占位，`ui/ico/ico_search` 到位由 `icon()` 摘掉，缺图不空槽。
      * 建在 Mall 层而不是用它的 Heroes 层：`check-split` 给 Heroes 记的行数棘轮只剩十几行余量，

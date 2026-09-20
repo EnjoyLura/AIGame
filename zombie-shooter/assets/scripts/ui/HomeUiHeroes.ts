@@ -561,7 +561,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             hName.appendChild(document.createTextNode(def.name));
             const sub = document.createElement('small');
             // 星级用实心星（稿 .hero-name small = ★★）；0 阶不挂空星，避免出现悬空的“· ”
-            sub.textContent = st > 0 ? `${def.role} · ${'★'.repeat(st)}` : def.role;
+            this._starInline(sub, def.role, st);
             sub.title = st >= HERO_STAR_MAX
                 ? '已满星'
                 : `升星进度 ${rs.shards(def.id)} / ${rs.starCost(def.id)} 碎片`;
@@ -2247,7 +2247,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     c.appendChild(this._popKV('当前星级', `${st} / ${HERO_STAR_MAX} 阶`, maxed ? 'total' : undefined));
                     if (!maxed) {
                         c.appendChild(this._popKV('所需碎片', `${have} / ${cost}`, 'total'));
-                        c.appendChild(this._popAttr({ icon: '🔩', text: '招募重复获得可转为该英雄碎片' }));
+                        c.appendChild(this._popAttr({ icon: '🔩', iconTex: 'ui/res/res_frag', text: '招募重复获得可转为该英雄碎片' }));
                         c.appendChild(this._popAttr({ icon: '⬆️', text: `升至 ★${st + 1} 提升英雄**星级加成**与羁绊门槛` }));
                     } else {
                         c.appendChild(this._popAttr({ icon: '🏁', text: '该英雄已无升星空间' }));

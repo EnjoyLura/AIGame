@@ -131,7 +131,12 @@ ok('页面显隐改走 .on 类（护送页 flex 骨架 / 其余四页块级滚�
 // 3-C. 英雄页骨架（布局稿 R2）：选择条 / 角色区（两列功能夹立绘 + 六槽）/ 工具行 / 背包四段
 ok('英雄页选择条 38px 等分（招募移入工具行）', /pick\.className = 'hero-roster'/.test(src) && !/hpick recruitEntry/.test(clsSrc));
 ok('角色区四列网格 44|1fr|44|124（两列功能分立绘两侧）', /grid-template-columns: calc\(44px \* var\(--pw,2\.5\)\) minmax\(0,1fr\) calc\(44px \* var\(--pw,2\.5\)\) calc\(124px \* var\(--pw,2\.5\)\)/.test(src));
-ok('角色区名字+星级并入副标（旧头牌/标签行已删）', /className = 'hero-name'/.test(src) && /\$\{def\.role\} · \$\{'★'/.test(src)
+// 星级从文本 '★'.repeat() 改成逐颗元素（要贴图就得先有元素），拼串搬进 Mall 的 _starInline：
+// 这里盯的仍是同一件事——副标 = 定位 + 星级，且旧的标签行/头牌没被建回来。
+ok('角色区名字+星级并入副标（旧头牌/标签行已删）', /className = 'hero-name'/.test(src)
+  && /this\._starInline\(sub, def\.role, st\)/.test(src)
+  && /_starInline\(host: HTMLElement, prefix: string, n: number\)/.test(src)
+  && /\$\{prefix\} · /.test(src)
   && !/tagRow = document/.test(clsSrc) && !/heroHead/.test(clsSrc));
 ok('战力行 = 战力 + 右侧 ⓘ 明细', /className = 'powerBadge'/.test(src) && /power\.innerHTML = `战力 <strong>/.test(src) && /power\.appendChild\(pwInfo\)/.test(src));
 ok('工具行：编队状态 + 招募/工坊', /className = 'hero-tools'/.test(src) && /className = 'loadouts'/.test(src)

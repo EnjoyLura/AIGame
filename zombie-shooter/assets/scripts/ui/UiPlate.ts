@@ -245,6 +245,18 @@ export const RES_ICON: Record<string, string> = {
 };
 
 /**
+ * 章节载具：`HomeUiStage` 的 `CHAPTER_THEMES[].veh` 字形 → 图标槽位。
+ *
+ * 键用字形而不是章节序号：章节→载具的对应关系只写在那份主题表里，这里再抄一份序号表
+ * 就会有两处真源。整串 key 字面量列出（`'icons/vehicle_' + x` 那种拼法 `check-art-manifest`
+ * 不认，会把已落盘的图判成「在库无归宿」）。
+ * 浅色（手机）主题把场景里的 `.veh` 整块隐藏，章节头这一枚是手机上唯一看得见载具的地方。
+ */
+export const VEHICLE_TEX: Record<string, string> = {
+    '🚚': 'icons/vehicle_truck', '🚢': 'icons/vehicle_ship', '🚛': 'icons/vehicle_hauler',
+};
+
+/**
  * 状态与属性图标族：词缀 id → 贴图 key。精英词缀（`battle/MonsterAffix`）与装备词缀
  * （`core/EquipmentAffix`）共用这一张表，两边 id 不撞（前者裸名、后者带 `af_` 前缀）。
  *

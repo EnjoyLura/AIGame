@@ -768,6 +768,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .chapter-head { height: calc(125px * var(--hs,1)); display: flex; align-items: center; justify-content: center; gap: calc(44px * var(--hs,1)); }
 #homeUi .chapter-head h1 { font-size: calc(53px * var(--hs,1)); font-weight: 900; color: var(--c-gold-hi); letter-spacing: calc(2px * var(--hs,1)); }
 #homeUi .chapter-head small { display: block; margin-top: calc(4px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); color: var(--c-text-dim); text-align: center; }
+/* 章节头载具牌：本章护送的是什么车（CHAPTER_THEMES 的 veh 字形 → UiPlate.VEHICLE_TEX）。
+   字形先占位、图到位由 icon() 摘掉，尺寸只归这里（贴图槽从不写 inline 宽高） */
+#homeUi .chapter-head .chVeh { flex: none; display: block; font-style: normal; text-align: center;
+  width: calc(76px * var(--hs,1)); height: calc(76px * var(--hs,1));
+  font-size: calc(64px * var(--hs,1)); line-height: calc(76px * var(--hs,1)); }
 /* 翻页器：挂在场景内侧左右边缘的垂直中线上（章节头只留章节名） */
 #homeUi .stage > .arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 5;
   display: flex; align-items: center; justify-content: center;
@@ -1187,6 +1192,10 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-name { position: absolute; left: calc(5px * var(--hs,1)); top: calc(1px * var(--hs,1)); z-index: 3;
   font-size: calc(13px * var(--hs,1)); font-weight: 800; color: var(--c-text-hi); }
 #homeUi .hero-name small { font-size: calc(9px * var(--hs,1)); margin-left: calc(4px * var(--hs,1)); color: var(--c-text-dim); }
+/* 卡面行内星级（_starInline 建）：跟着 9px 副标的基线走，尺寸归这里 */
+#homeUi .hero-name small .starIn { display: inline-block; font-style: normal; vertical-align: calc(-1px * var(--hs,1));
+  width: calc(11px * var(--hs,1)); height: calc(11px * var(--hs,1));
+  font-size: calc(11px * var(--hs,1)); line-height: calc(11px * var(--hs,1)); }
 #homeUi .powerBadge { position: relative; z-index: 2; flex: none; width: 100%; height: calc(27px * var(--hs,1)); display: flex;
   align-items: center; justify-content: center; gap: calc(4px * var(--hs,1)); background: none; border: none;
   font-size: calc(12px * var(--hs,1)); line-height: calc(27px * var(--hs,1)); color: var(--c-text-dim); }
@@ -1679,6 +1688,10 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .chapter-head { height: calc(50px * var(--pw,2.5)); gap: calc(18px * var(--pw,2.5)); }
 #homeUi .chapter-head h1 { font-size: calc(19px * var(--pw,2.5)); color: var(--c-deep-teal2); letter-spacing: 0; text-align: center; line-height: calc(23px * var(--pw,2.5)); }
 #homeUi .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); color: var(--c-edge-7); margin-top: 0; }
+/* 载具牌在手机上收进 45px 的章头条里（h1 23 + small 13 = 36，留 9 上下边）：
+   场景里那块 .veh 在浅色主题整块隐藏，这一枚是手机上唯一看得见载具的位置 */
+#homeUi .chapter-head .chVeh { width: calc(28px * var(--pw,2.5)); height: calc(28px * var(--pw,2.5));
+  font-size: calc(24px * var(--pw,2.5)); line-height: calc(28px * var(--pw,2.5)); }
 /* 翻页器在场景内侧：压在场景照片上，给一层浅底芯片保证 ‹ › 可辨 */
 #homeUi .stage > .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5));
   border: 1px solid #9fb6c2; border-radius: calc(6px * var(--pw,2.5));
@@ -2786,6 +2799,10 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-name { position: absolute; left: calc(5px * var(--pw,2.5)); top: calc(1px * var(--pw,2.5)); z-index: 3;
   font-size: calc(13px * var(--pw,2.5)); font-weight: 700; color: var(--c-deep-teal); }
 #homeUi .hero-name small { font-size: calc(9px * var(--pw,2.5)); margin-left: calc(4px * var(--pw,2.5)); color: var(--c-edge-6); }
+/* 行内星级在青瓷层：同一条尺寸口径换成 --pw（--hs 在本层没有值，只写上面那条会退回 1 倍、星比字还小） */
+#homeUi .hero-name small .starIn { vertical-align: calc(-1px * var(--pw,2.5));
+  width: calc(11px * var(--pw,2.5)); height: calc(11px * var(--pw,2.5));
+  font-size: calc(11px * var(--pw,2.5)); line-height: calc(11px * var(--pw,2.5)); }
 #homeUi .powerBadge { position: relative; z-index: 2; flex: none; width: 100%; height: calc(27px * var(--pw,2.5)); display: flex;
   align-items: center; justify-content: center; gap: calc(4px * var(--pw,2.5)); background: none; border: none;
   font-size: calc(12px * var(--pw,2.5)); line-height: calc(27px * var(--pw,2.5)); color: var(--c-edge-4); }

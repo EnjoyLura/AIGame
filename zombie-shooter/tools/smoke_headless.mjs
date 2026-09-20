@@ -411,6 +411,55 @@ console.log('starRow:', await evalJs(`JSON.stringify([...document.querySelectorA
 }))`));
 await shot('09-bestiary-stars');
 
+// 9. Step4 资源与载具族取景：护送页章节头载具牌 + 升星弹窗的碎片说明行 + 卡面行内星。
+//    载具牌是手机上唯一看得见「本章护送什么车」的位置（场景里那块 .veh 在浅色主题整块隐藏）。
+//    判据同 D20：bg=Y 且盒尺寸非 0（尺寸归 CSS，读不到 --pw 会量出 0×0）。
+// 图鉴详情那层弹层没有 .popClose，返回是圆钮 .popBack——两个都点一下，否则截图永远停在上一层
+await evalJs(`(() => { document.querySelector('.popClose')?.click(); document.querySelector('#homeUi .popBack')?.click(); return 1; })()`);
+await sleep(1400);
+console.log('nav ->', await gotoTab('护送'));
+await sleep(2600);
+console.log('chVeh:', await evalJs(`(() => {
+  const e = document.querySelector('#homeUi .chapter-head .chVeh');
+  if (!e) return 'NOT FOUND';
+  const cs = getComputedStyle(e);
+  const b = e.getBoundingClientRect();
+  return JSON.stringify(e.textContent || '') + '|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+    + '|box=' + Math.round(b.width) + 'x' + Math.round(b.height);
+})()`));
+await shot('10-chapter-vehicle');
+console.log('nav ->', await gotoTab('英雄'));
+await sleep(2600);
+// 新档 0 星，卡面上本来就没有星可摆，所以这一条只验 CSS 口径（临时插一个 .starIn 量完即删）；
+// 数据侧要等有重复英雄的存档才能复验——这条限制如实写进台账，不拿「代码接了」冒充「屏上有了」。
+console.log('starInCss:', await evalJs(`(() => {
+  const host = document.querySelector('#homeUi .hero-name small');
+  if (!host) return 'NOT FOUND';
+  const t = document.createElement('i');
+  t.className = 'starIn'; t.textContent = '★';
+  host.appendChild(t);
+  const cs = getComputedStyle(t);
+  const b = t.getBoundingClientRect();
+  const r = 'box=' + Math.round(b.width) + 'x' + Math.round(b.height) + ' font=' + cs.fontSize;
+  t.remove();
+  return r;
+})()`));
+await evalJs(`(() => {
+  const el = [...document.querySelectorAll('#homeUi .hot, #homeUi .btn')].find(e => /升星/.test(e.textContent || ''));
+  if (el) el.click();
+  return 1;
+})()`);
+await sleep(2600);
+console.log('fragRow:', await evalJs(`JSON.stringify([...document.querySelectorAll('#homeUi .popAttr')].map(e => {
+  const ai = e.querySelector('.ai');
+  if (!ai) return 'no-ai';
+  const cs = getComputedStyle(ai);
+  const b = ai.getBoundingClientRect();
+  return JSON.stringify((e.textContent || '').slice(0, 10)) + '|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+    + '|box=' + Math.round(b.width) + 'x' + Math.round(b.height);
+}))`));
+await shot('11-frag-row');
+
 ws.close();
 chrome.kill();
 try { rmSync(profile, { recursive: true, force: true }); } catch {}

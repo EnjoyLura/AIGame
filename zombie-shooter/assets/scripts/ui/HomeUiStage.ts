@@ -60,6 +60,9 @@ export abstract class HomeUiStage extends HomeUiHeroes {
 
     protected _vehEl: HTMLDivElement | null = null;
 
+    /** 章节头左侧的载具牌：本章护送的是什么车（浅色主题隐藏场景载具，这一枚是手机上唯一可见处） */
+    protected _chVehEl: HTMLElement | null = null;
+
     protected _mobsEl: HTMLDivElement | null = null;
 
     /** 已领取里程碑的关卡（对齐原型 claimedRewards：ready 领取后置 got） */
@@ -193,10 +196,15 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         hSub.className = 'chSub';
         hBox.appendChild(hName);
         hBox.appendChild(hSub);
+        const hVeh = document.createElement('i');
+        hVeh.className = 'chVeh';
+        hVeh.textContent = '🚚';
+        head.appendChild(hVeh);
         head.appendChild(hBox);
         page.appendChild(head);
         this._chNameEl = hName;
         this._chSubEl = hSub;
+        this._chVehEl = hVeh;
 
         // 难度段：居中定宽三档（普通/精英/噩梦），无尽入口移到底部左快捷
         const diff = document.createElement('div');
@@ -419,6 +427,13 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         if (this._chSubEl) {
             const open = clearedAll || stageId === gm.stageCleared + 1;
             this._chSubEl.textContent = `${open ? '护送主线' : '尚未解锁'} · ${stageId}/${FINAL_STAGE_ID}`;
+        }
+        if (this._chVehEl) {
+            this._chVehEl.textContent = theme.veh;
+            const vehTex = UiPlate.VEHICLE_TEX[theme.veh];
+            if (vehTex) {
+                this._tex(vehTex, UiPlate.icon(this._chVehEl));
+            }
         }
         if (this._chArrowL) {
             const whyL = this._stageStepBlocked(-1);

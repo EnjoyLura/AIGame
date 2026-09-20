@@ -99,8 +99,9 @@ const MANIFEST = [
  * 图落地后必须把该 key 从本表删除（`tools/check-art-manifest.mjs` 会盯过时声明）。
  * 预载阶段跳过本表 key，避免为不存在的图白发请求。
  *
- * ⚠ 2026-09-21 全量核实 + 同日两轮进版后：**本表剩下的 41 个键里，多数写的「宿主」其实不存在**
+ * ⚠ 2026-09-21 全量核实 + 之后按类别整批进版：**本表剩下的键里，多数写的「宿主」其实不存在**
  * （只有一条 CSS 规则、没有任何一行代码建这个元素，与 `.chTabs`/`.lbRank` 同一失效模式）。
+ * 条数不写在这里（写死必过期，本表实测即真源）。
  * 逐条判决（谁能出图、谁要先改 DOM、谁该撤键）见 `art-spec/STYLE-SPEC.md` §9
  * 「采购单宿主全量核实」。**出图前先查那张表，别照本行的描述施工。**
  */
@@ -154,8 +155,12 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // 会被当背景抠穿，见 STYLE-SPEC §8 坑。同族的 mat_blueprint（图纸）没有对应槽位，继续走 emoji——
     // 挂图前由 AssetLib.hasArt 挡掉，不会进预载清单。）
     // —— 扩展资源与进度条 ——
-    'ui/res/res_frag': '资源·英雄碎片', 'ui/res/res_medal': '资源·勋章',
-    'ui/res/res_energy': '资源·能量', 'ui/res/res_ticket': '资源·招募券',
+    // res_frag（英雄碎片）2026-09-21 已出图并接升星弹窗的碎片说明行（_popAttr.iconTex），声明移出本表。
+    // 下面三件**不出图**：本作资源表只有 gold/diamond/stamina + 四英雄 shard_*，
+    // 勋章没有成就/军团玩法，能量与体力是同一个东西（同位重复），招募券的「每日免费一次」是额度不是库存
+    // ——凭空挂进顶栏就是三个永远为 0 的假数字，按「无死键」红线整批不排产（判据见 STYLE-SPEC §9）。
+    'ui/res/res_medal': '资源·勋章（无勋章玩法，挂上去就是恒为 0 的假数字）',
+    'ui/res/res_energy': '资源·能量（与体力同位重复，顶栏已有 res_stamina）', 'ui/res/res_ticket': '资源·招募券（免费招募是每日额度不是库存）',
     // 进度条一族已整套出采购单：r12 表的底槽 + 绿/黄/蓝/红四色填充全部落盘接线
     // （HUD 三条底槽与蓝/红填充；主城四条加粗到 12px 后接绿/黄/蓝，见 STYLE-SPEC §9）。
     // 另 bar_cap / bar_node 两个键随批撤掉：底槽件自带圆头端点，节点另有 node_done/next/lock 三件。
@@ -178,9 +183,10 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // 而 `.frame` 有 ::before/::after 装饰伪元素与自己的边框，九宫格板贴上去会跟它们打架。
     // 要么先给 `.mbox.frame` 定一个「板 + 装饰」的先后口径，要么等一个不带 frame 的小框宿主。
     'ui/panel/panel_mini': '模块小框底板（.mbox 带 frame 类与装饰伪元素，口径未定，暂不贴）',
-    // —— 护送关卡卡载具 ——
-    'icons/vehicle_truck': '关卡载具·卡车', 'icons/vehicle_ship': '关卡载具·运输船',
-    'icons/vehicle_hauler': '关卡载具·重卡',
+    // —— 护送关卡载具 ——（三件 2026-09-21 已出图并接章节头载具牌，声明移出本表）
+    // 宿主是 HomeUiStage 章节头左端那一枚（CHAPTER_THEMES[].veh → UiPlate.VEHICLE_TEX 字形对 key）；
+    // 选这里而不是场景里那块 .veh，是因为浅色（手机）主题把 .veh 连同 road/dash/mobs 一起 display:none，
+    // 手机上原本根本看不见本章护送什么车。
 };
 
 export class AssetLib {
