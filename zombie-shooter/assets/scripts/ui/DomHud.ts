@@ -1001,7 +1001,7 @@ export class DomHud extends Component {
         this._xpFill.style.width = '0%';
         xpBar.appendChild(this._xpFill);
         xpWrap.appendChild(xpBar);
-        this._barTex(xpBar, this._xpFill, 'ui/progress/bar_fill_green');
+        this._barTex(xpBar, this._xpFill, 'ui/progress/bar_fill_blue');
         const topRight = document.createElement('div');
         topRight.className = 'topRight';
         top.appendChild(topRight);

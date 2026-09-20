@@ -128,6 +128,9 @@
 | 同上 | `ui/progress/bar_cap` `bar_node` | ⛔ 撤键 | 底槽件自带圆头端点，不需要独立 cap；节点另有 `ui/node_done/next/lock` 三件在用 |
 | 同上 | `ui/progress/bar_fill_yellow` `bar_fill_blue` | ⛔ 切了又删 | 图合格但没有可贴的宿主：黄件等车尾条的橙色三态配套（`.vehicleFill` 的金/橙/红由 `.warn/.danger` 类切换，挂内联贴图会把三态吃掉），蓝件全工程没有冷却/科技类条。源表留在 `gen-output/` |
 | 进度条落盘 | 3 件（track / fill_green / fill_red） | ✅ 已接线 | 宿主按实测过筛：**只有战斗 HUD 四条 ≥10px**（`.xpBar`25 `.vehTrack`20 `.bossTrack`28 `.statBar`20）。底槽四条全贴；填充只贴 `.xpFill`(绿) 与 `.bossFill`(红)，`.vehTrack`/`.statBar` 的填充色归 CSS 三态与英雄身份色管、不上图。HUD 层补 `--pu: var(--s,1)`（同 D10b 口径）。主城四条 3~8px 不接、六条是死样式、两条名不符——§9 原先粗写的「主城 11 条 + HUD 5 条」已按实测改写 |
+| 进度条拍板轮 | `ui/progress/bar_fill_green` → `bar_fill_blue` | 🔁 换件 | 用户判「经验条改用蓝色」：原 CSS 就是青色 `#4dd0e9`，换绿等于改配色。**绿件删出库、回采购单**（它唯一的宿主就是经验条，换蓝后它没位置了），蓝件落盘接 `.xpFill`。族内四色是出图侧的语义，落到具体宿主要让位于「换图不换观感」——这条写进 §9 填充档 |
+| 同上 | 载具条填充 `.vehicleFill` | ⛔ 判死不贴 | 用户判「不换成贴图」：金/橙/红三态由 `.warn/.danger` 类切换，挂内联贴图会把告警色吃掉；要贴就得再出一张橙色件。黄件继续留在采购单 |
+| 同上 | 主城四条细进度条 | 📋 排产 | 用户判「单开一轮加粗到能贴图」：`.expbar` 3px / `.rcBar` 6px / `.pbar` 7px / `.popAct .bar` 8px 抬到 ≥10px 再接底槽与填充。**属布局改动**，会挤动主城与弹层行高，单独一轮做，不与美术轮混 |
 
 ### 2.2 行数棘轮欠账（`check-split.js` 的 `SPLIT_DEBT`）
 
