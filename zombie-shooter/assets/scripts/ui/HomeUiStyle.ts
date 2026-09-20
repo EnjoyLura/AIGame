@@ -45,7 +45,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .pname { display: block; font-size: calc(11px * var(--hs,1)); line-height: calc(13px * var(--hs,1)); font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #homeUi .xpRow { display: flex; align-items: center; gap: calc(5px * var(--hs,1)); }
-#homeUi .expbar { flex: none; width: calc(110px * var(--hs,1)); height: calc(12px * var(--hs,1)); margin: 0;
+#homeUi .expbar { flex: none; width: calc(110px * var(--hs,1)); height: calc(10px * var(--hs,1)); margin: 0;
   background: #0a1426; border: none; border-radius: 0; overflow: hidden; }
 #homeUi .expbar i { display: block; height: 100%; width: 62%; background: #3ad0ff; border-radius: 0; box-shadow: none; }
 #homeUi .expnum { font-size: calc(9px * var(--hs,1)); line-height: calc(10px * var(--hs,1)); color: var(--c-text-dim); margin: 0;
@@ -1310,7 +1310,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .offer-copy p { font-size: calc(11px * var(--hs,1)); margin-top: calc(4px * var(--hs,1)); color: var(--c-text-dim); }
 #homeUi .offer-copy strong { font-size: calc(16px * var(--hs,1)); color: var(--c-gold-hi); }
 #homeUi .offer-copy small { display: block; margin-top: calc(3px * var(--hs,1)); font-size: calc(10px * var(--hs,1)); color: var(--c-text-dim); }
-#homeUi .offer-copy .rcBar { height: calc(12px * var(--hs,1)); background: #0a1426; margin-top: calc(5px * var(--hs,1)); overflow: hidden; }
+#homeUi .offer-copy .rcBar { height: calc(6px * var(--hs,1)); background: #0a1426; margin-top: calc(5px * var(--hs,1)); overflow: hidden; }
 #homeUi .offer-copy .rcBar i { display: block; height: 100%; width: 0; background: #3ad0ff; }
 #homeUi .offer-copy .rcDetail { margin-top: calc(5px * var(--hs,1)); font-size: calc(10px * var(--hs,1)); color: var(--c-cyan);
   background: none; border: none; text-decoration: underline; cursor: pointer; }
@@ -1453,7 +1453,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .idLeft { display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 0; }
 #homeUi .pname { font-size: calc(11px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); font-weight: 700; }
 #homeUi .xpRow { display: flex; align-items: center; gap: calc(5px * var(--pw,2.5)); }
-#homeUi .expbar { flex: none; width: calc(110px * var(--pw,2.5)); height: calc(12px * var(--pw,2.5)); margin: 0;
+#homeUi .expbar { flex: none; width: calc(110px * var(--pw,2.5)); height: calc(10px * var(--pw,2.5)); margin: 0;
   background: #c1c1c1; border: none; border-radius: 0; overflow: hidden; }
 #homeUi .expbar i { display: block; height: 100%; width: 62%; background: #777; border-radius: 0; box-shadow: none; }
 #homeUi .expnum { font-size: calc(9px * var(--pw,2.5)); line-height: calc(10px * var(--pw,2.5)); color: #555; margin: 0; }
@@ -2921,7 +2921,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .offer-copy p { font-size: calc(11px * var(--pw,2.5)); margin-top: calc(4px * var(--pw,2.5)); color: #555; }
 #homeUi .offer-copy strong { font-size: calc(16px * var(--pw,2.5)); color: var(--c-deep-teal); }
 #homeUi .offer-copy small { display: block; margin-top: calc(3px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: #666; }
-#homeUi .offer-copy .rcBar { height: calc(12px * var(--pw,2.5)); background: #b5b5b5; margin-top: calc(5px * var(--pw,2.5)); overflow: hidden; }
+#homeUi .offer-copy .rcBar { height: calc(6px * var(--pw,2.5)); background: #b5b5b5; margin-top: calc(5px * var(--pw,2.5)); overflow: hidden; }
 #homeUi .offer-copy .rcBar i { display: block; height: 100%; width: 0; background: #666; }
 #homeUi .offer-copy .rcDetail { margin-top: calc(5px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: var(--c-edge-5);
   background: none; border: none; text-decoration: underline; cursor: pointer; }
