@@ -1,14 +1,9 @@
-import { _decorator, Component, sys } from 'cc';
-const { ccclass } = _decorator;
+import { Component, sys } from 'cc';
 import { BattleConfig, BUILD_STAMP, GameEvent } from '../config/GameConfig';
 import { eventCenter } from '../core/EventCenter';
 import { GameManager, META_UPGRADES, BUILDINGS } from '../core/GameManager';
-import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
-import { ShopData, ShopItem, ShopQuota } from '../core/ShopData';
-import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
 import { QUEST_DEFS, QuestSystem, QuestDef, ACTIVITY_CHESTS, ACTIVITY_MAX, rewardText } from '../core/QuestSystem';
-import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
 import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem';
 import { BestiarySystem, BESTIARY_DEFS, BestiaryDef } from '../core/BestiarySystem';
 import { MailSystem, mailTimeText, mailExpiringSoon, MailDef } from '../core/MailSystem';
@@ -16,14 +11,7 @@ import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
 import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDef, StageDifficulty } from '../battle/StageData';
-import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MILESTONE_EVERY } from '../core/TrialSystem';
-import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRICE_10, RECRUIT_PITY, RecruitResult } from '../core/RecruitSystem';
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
-import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
-import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
-import { ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
-import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
-import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES, NoticeKind } from '../core/NoticeData';
 import { HOME_UI_CSS } from './HomeUiStyle';
 import * as UiPlate from './UiPlate';
@@ -374,44 +362,6 @@ export abstract class HomeUiCore extends Component {
             t.classList.add('show');
             setTimeout(() => t.remove(), 1800);
         }, 10);
-    }
-
-
-    /** 原型风弹窗：mask + mbox frame（英雄核心/武器强化/背包共用） */
-    protected _openModal(title: string, buildBody: (box: HTMLDivElement, close: () => void) => void): void {
-        if (!this._root || this._legacyMaskOpen()) {
-            return;
-        }
-        const mask = document.createElement('div');
-        mask.className = 'protoMask';
-        this._stackOverPop(mask);
-        mask.onclick = (e) => {
-            e.stopPropagation();
-            if (e.target === mask) {
-                mask.remove();
-            }
-        };
-        const box = document.createElement('div');
-        box.className = 'mbox frame';
-        box.onclick = (e) => e.stopPropagation();
-        const head = document.createElement('div');
-        head.className = 'mHead';
-        const h3 = document.createElement('h3');
-        h3.textContent = title;
-        const x = document.createElement('button');
-        x.className = 'mClose';
-        x.textContent = '✕';
-        x.onclick = (e) => {
-            e.stopPropagation();
-            mask.remove();
-        };
-        head.appendChild(h3);
-        head.appendChild(x);
-        box.appendChild(head);
-        const close = () => mask.remove();
-        buildBody(box, close);
-        mask.appendChild(box);
-        this._root.appendChild(mask);
     }
 
 

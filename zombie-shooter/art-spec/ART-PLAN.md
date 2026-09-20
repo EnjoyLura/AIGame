@@ -113,24 +113,35 @@
 ### 2.2 行数棘轮欠账（`check-split.js` 的 `SPLIT_DEBT`）
 
 `HomeUiCore.ts` / `HomeUiHeroes.ts` 用棘轮记预算（目标 1800）。**红线：只许把文件拆薄，不许把预算改大。**
-图标第一批接线给两个文件各加约 8 行，破了 Heroes 的 2490 → 本轮按红线删掉 18 行拆分残留的未使用 import
-（`GameConfig`/`EventCenter`/`AssetLib`/`GameFlow`/`ShopData`/`GiftPackData`/`QuestSystem`/`LeaderboardSystem`/
-`SigninSystem`/`BestiarySystem`/`MailSystem`/`StageData`/`TrialSystem`/`DungeonSystem`/`ExpeditionSystem`/
-`VehicleTuningSystem`/`HeroBond`/`NoticeData`）回到 2476。
 
-**下一轮再需要行数时直接从这里取，别重新扫**（已全目录核过零引用）：
+图标第一批接线给两个文件各加约 8 行，Heroes 破了 2490 预算，Core 顶到 2240 零余量。本轮按红线**真的删死代码**：
+
+| 文件 | 删了什么 | 行数 | 结果 |
+|---|---|---|---|
+| `HomeUiHeroes.ts` | 18 行拆分残留未用 import + 零调用方法 `_affixBlock`(21) + 随之失效的 `affixColor` 引用 | 40 | 2494 → 2454（余 36） |
+| `HomeUiCore.ts` | 12 行未用 import（含 `ccclass` 样板）+ 零调用方法 `_openModal`(39) | 51 | 2240 → 2189（余 51） |
+
+**下一轮还要行数时直接从这张剩余清单取，别重新扫**（已全目录 grep 核过零引用、且确认无 check 断言钉住）：
 
 | 位置 | 可省 | 说明 |
 |---|---|---|
-| `HomeUiHeroes.ts` `_affixBlock` 整方法 | 20~21 行 | 全工程零调用（词缀行已被 `_popAttr` 版内联取代）。⚠ **不要连带删** `HomeUiStyle` 的 `.affix*` 规则——`check-split-bundle.js` 有 `bundle-css: affixVal` 断言 |
-| 同文件三条孤儿文档注释 | 8~9 行 | 注释指向的 `_openHeroCoreModal` / `_openWeaponModal` / `_openSkillModal` 早已不存在（并入 `_openHeroGrowModal` 的 tab） |
-| 同文件 L1–L2 `_decorator`/`ccclass`/`SpriteFrame`/`sys` | 2 行 | 本文件无 `@ccclass`（装饰器只在终类壳 `HomeUi.ts`）；需跑 tc + 构建确认 |
-| 同文件背包穿戴行渲染两处重复 | ~14 行 | `_openEquipSlotPanel` 空槽分支与页签 2 分支逐行同构，只差回跳 tab |
-| 同文件工坊按钮造两遍 | ~8 行 | 页头「工坊」与背包行「合成」同 title 同动作；**砍掉其一是产品决定**，合并才是纯瘦身 |
+| `HomeUiCore.ts` `_popOpen` / `_closeTopMask` | 3 + 7 | 都是零调用的旧弹窗出口包装 |
+| `HomeUiCore.ts` `_safeBandEl` 字段 | 3 | 只写不读；安全区实际靠 `_applySafeArea()` 写 `--sat/--sab` 令牌驱动 |
+| `HomeUiCore.ts` 七条孤儿/历史注释 | 7 | 含指向已迁走的 `CHAPTER_THEMES` 的文档注释、失效的「商店页」分区头、描述已不存在的「输入 CONFIRM 二次确认」 |
+| `HomeUiHeroes.ts` 三条孤儿注释 + L1–L2 装饰器样板 | 10~11 | 注释指向的 `_openHeroCoreModal`/`_openWeaponModal`/`_openSkillModal` 全工程零命中 |
+| `HomeUiHeroes.ts` 背包穿戴行渲染两处重复 | ~14 | `_openEquipSlotPanel` 空槽分支与页签 2 分支逐行同构，只差回跳 tab |
+| `HomeUiHeroes.ts` 工坊按钮造两遍 | ~8 | 页头「工坊」与背包行「合成」同 title 同动作；**砍其一是产品决定** |
 
-**绝对不能碰的锚点**（都有 check 断言钉着）：`_pointerReady` 及其上方那条解释指针捕获的注释、
+**两条被锁死的肥票（想拿要先动 check，属另一笔账）**：`HomeUiCore.ts` 的 `_openSheet`(39) + `_openResult`(36)
+全工程零调用，本可删 75 行，但 `tools/check-ux-layout-bundle.js:14/16` 正向断言这两个标识符与 `sheetGrip`
+必须在构建产物里。**该脚本已不在 AGENTS.md 的收尾验证链里，且自身当前就报 2 FAIL**（`_baseMetaEl`、`floatRail`
+早就不存在）——要不要清那条清单来解锁这 75 行，是独立决策。
+
+**绝对不能碰的锚点**（都有 check 断言钉着）：`_pointerReady` 及其上方解释指针捕获的注释、
 `_wireBagDrag(` 必须恰好出现 2 次、五入按钮的 const 名与 `fcol.appendChild` 顺序、`starEntry` 类名、
-`_renderSkillCards`/`_openForgeModal` 落位锚点。
+`_renderSkillCards`/`_openForgeModal` 落位锚点、`_stamTick` 的 `private` 关键字、
+`HomeUiStyle` 的 `.affix*` 规则（`check-split-bundle.js` 有 `bundle-css: affixVal` 进包断言，
+删了 `_affixBlock` 也**不能**连带删样式）。
 
 ### 两版对照结论（六轮）
 

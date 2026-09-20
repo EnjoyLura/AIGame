@@ -7,7 +7,7 @@ import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES,
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
 import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRICE_10, RECRUIT_PITY, RecruitResult } from '../core/RecruitSystem';
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
-import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
+import { affixName, affixValueText, AFFIX_MAX } from '../core/EquipmentAffix';
 import { SLOT_EMOJI } from './HomeUiCore';
 import type { PopCta, PopOpts } from './HomeUiCore';
 import * as UiPlate from './UiPlate';
@@ -1409,28 +1409,6 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             return '';
         }
         return affixes.length > 1 ? `✦${affixes.length}` : '✦';
-    }
-
-
-    /** 词缀区块（详情弹窗/穿戴面板共用）；无词缀返回 null 不占位 */
-    protected _affixBlock(affixes: string[] | undefined, tier: EquipTier): HTMLDivElement | null {
-        if (!affixes || affixes.length === 0) {
-            return null;
-        }
-        const wrap = document.createElement('div');
-        wrap.className = 'affixBox';
-        const head = document.createElement('div');
-        head.className = 'affixHead';
-        head.textContent = `✦ 词缀（${affixes.length}）`;
-        wrap.appendChild(head);
-        for (const id of affixes) {
-            const row = document.createElement('div');
-            row.className = 'affixRow';
-            row.innerHTML = `<span class="affixName" style="color:${affixColor(id)}">${affixName(id)}</span>`
-                + `<span class="affixVal">${affixValueText(id, tier)}</span>`;
-            wrap.appendChild(row);
-        }
-        return wrap;
     }
 
 
