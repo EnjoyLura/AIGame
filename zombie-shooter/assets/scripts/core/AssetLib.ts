@@ -13,7 +13,6 @@ const MANIFEST = [
     'fx/rifle_muzzle_flash', 'fx/rifle_grenade_explosion', 'fx/rifle_grenade_ring',
     'weapons/rifle_bullet', 'weapons/rifle_grenade',
     'weapons/sniper_bullet', 'weapons/laser_beam', 'weapons/radiation_bullet',
-    'monsters/boar',
     'scenes/road',
     // 战斗内升级面（LevelUpPanel 用画布 Sprite 直接取帧）仍在服役的两件旧板：
     // 归档时被 check-art-manifest 的「代码引用未登记」当场拦下。要换新族得单开战斗面一轮。

@@ -103,6 +103,13 @@ for (let i = 0; i < 3; i++) {
 await sleep(1500);
 await shot('02-home');
 
+// 2b. 开公告弹层验证面板底板/绶带/喇叭图标
+await evalJs(`document.querySelector('.homeNoticeBtn')?.click(); 1`);
+await sleep(2000);
+await shot('02b-notice-pop');
+await evalJs(`document.querySelector('.popClose')?.click(); 1`);
+await sleep(1200);
+
 // 3. 找护送入口进玩法页（按文本找：护送）
 const navDump = await evalJs(`JSON.stringify([...document.querySelectorAll('button,[class*=btn],[class*=tab],[class*=nav] i, [class*=nav] span')].map(e => (e.className + '|' + (e.textContent || '').trim().slice(0, 10))).slice(0, 60))`);
 console.log('nav candidates:', navDump);

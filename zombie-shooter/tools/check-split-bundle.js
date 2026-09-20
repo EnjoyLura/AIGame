@@ -6,7 +6,7 @@ const ok = (name, cond) => { console.log((cond ? 'PASS' : 'FAIL') + ' ' + name);
 
 // 各文件代表成员（bundle 保留成员名，可作落位证明）
 for (const m of [
-  '_openStaminaModal', '_buildNoticeBar', '_openNoticeModal', '_buildAdOverlay', // Core
+  '_openStaminaModal', '_openNoticeModal', '_buildAdOverlay', // Core
   '_refreshMall', '_openGiftModal', '_buyShopItem', // Mall
   '_renderSkillCards', '_openAbilityModal', '_openForgeModal', // Heroes
   '_buildStagePage', '_startBattle', '_openSquadModal', '_openStageRewardModal', // Stage
@@ -16,7 +16,7 @@ for (const m of [
   ok('bundle: ' + m, s.includes(m));
 }
 // 样式抽离：关键 CSS 类与动画随 HOME_UI_CSS 进包
-for (const c of ['noticeScroll', 'dutyBanner', 'rewardEntry', 'staminaBox', 'affixVal']) {
+for (const c of ['dutyBanner', 'rewardEntry', 'staminaBox', 'affixVal']) {
   ok('bundle-css: ' + c, s.includes(c));
 }
 // 混合编码双模式（原样沿用既有校验策略）
@@ -26,7 +26,7 @@ const any = t => s.includes(t) || s.includes([...t].map(c => {
     ? [...c].map(h2 => '\\u' + h2.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join('')
     : '\\u' + h.padStart(4, '0');
 }).join(''));
-for (const t of ['玩法大厅', '每日运营', '公告', '体力不足']) {
+for (const t of ['玩法大厅', '今日活跃', '公告', '体力不足']) {
   ok('bundle-cjk: ' + t, any(t));
 }
 

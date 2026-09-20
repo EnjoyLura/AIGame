@@ -11,8 +11,10 @@ const any = t => s.includes(t) || s.includes([...t].map(c => {
     : '\\u' + h.padStart(4, '0');
 }).join(''));
 
-for (const m of ['_refreshBattleChests', '_openSheet', '_openResult', '_baseMapEl', '_baseMetaEl',
-  '_openBuildingInfoModal', 'floatRail', 'hudUtil', 'chHead', 'mapNode', 'dutyCard', 'modeRow',
+// _baseMetaEl / floatRail 已下线（源码零命中），且 floatRail 与 check-ux-refactor.js
+// 「运营/快捷栏不再挂 viewport 悬浮」的反向断言(/!floatRail|frBtn/)直接冲突——两条已删。
+for (const m of ['_refreshBattleChests', '_openSheet', '_openResult', '_baseMapEl',
+  '_openBuildingInfoModal', 'hudUtil', 'chHead', 'mapNode', 'dutyCard', 'modeRow',
   'rcard', 'eqGrid', 'fcol', 'mmGo', 'dcIc', 'mnIc', 'data-entry', 'sheetGrip']) {
   ok('bundle: ' + m, s.includes(m));
 }

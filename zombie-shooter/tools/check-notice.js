@@ -19,28 +19,22 @@ ok('坏档 try/catch 兜底', /_load\(\): void \{[\s\S]{0,600}\} catch \{/.test(
 ok('sys undefined 守卫', (notice.match(/typeof sys === 'undefined'/g) || []).length >= 2);
 ok('独立存档键', /SAVE_KEY = 'zombie-shooter-notice'/.test(notice));
 
-// 2. HomeUi 接线
+// 2. HomeUi 接线（公告条跑马灯已下线：形态改为顶栏公告按钮 _homeNoticeBtn + 分类弹窗 _openNoticeModal）
 ok('import NoticeSystem', /import \{ NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES \} from '\.\.\/core\/NoticeData';/.test(ui));
-ok('_build 挂公告条', /this\._buildTopbar\(root\);\s*\n\s*this\._buildNoticeBar\(root\);/.test(ui));
-ok('_refreshAll 刷公告条', /this\._refreshBase\(\);\s*\n\s*this\._refreshNoticeBar\(\);/.test(ui));
-ok('公告条走马灯只滚未读公告', /for \(const n of NoticeSystem\.instance\.unreadList\(\)\)/.test(ui));
-ok('公告条红点未读点亮', /_noticeRedEl\.classList\.toggle\('on', NoticeSystem\.instance\.hasUnread\(\)\)/.test(ui));
-ok('弹窗打开即 markAllRead', /_openNoticeModal\(\): void \{\s*\n\s*NoticeSystem\.instance\.markAllRead\(\);/.test(ui));
-ok('弹窗倒序渲染(新→旧)', /for \(let i = NOTICE_DEFS\.length - 1; i >= 0; i--\)/.test(ui));
-ok('类型 tag 分色', /n\.kind === 'update' \? 'g' : n\.kind === 'activity' \? 'p' : 'b'/.test(ui));
-ok('正文 pre-line 分段', /body\.textContent = n\.body;/.test(ui));
+ok('_build 经顶栏挂公告入口', /this\._buildTopbar\(root\);/.test(ui) && /className = 'tinyIcon homeNoticeBtn'/.test(ui));
+ok('_refreshAll 经 _refreshTop 刷公告', /protected _refreshAll\(\): void \{[\s\S]{0,40}this\._refreshTop\(\);/.test(ui));
+ok('顶栏公告按钮红点由未读驱动', /this\._homeNoticeBtn\?\.classList\.toggle\('unread', NoticeSystem\.instance\.hasUnread\(\)\);/.test(ui));
+ok('弹窗打开即 markAllRead', /_openNoticeModal\([^)]*\): void \{[\s\S]{0,40}NoticeSystem\.instance\.markAllRead\(\);/.test(ui));
+ok('弹窗倒序渲染(新→旧)', /\.sort\(\(a, b\) => b\.id - a\.id\)/.test(ui));
+ok('弹窗按分类页签过滤', /tabs: filters\.map\(f => f\.label\)/.test(ui) && /\.filter\(n => !cur\.kind \|\| n\.kind === cur\.kind\)/.test(ui));
+ok('类型按 kind 分图标+tag', /tag: NOTICE_KIND_NAMES\[n\.kind\]/.test(ui) && /n\.kind === 'update' \? '🛠' : n\.kind === 'activity' \? '🎉' : '📢'/.test(ui));
+ok('正文按换行分段(就地展开)', /for \(const line of n\.body\.split\('\\n'\)\)/.test(ui));
 ok('自动弹：未读+会话一次+弹窗让路',
   /NoticeSystem\.instance\.hasUnread\(\) && !this\._autoNoticeShown/.test(ui) &&
   /!document\.querySelector\('#homeUi \.protoMask'\)/.test(ui) &&
   /protected _autoNoticeShown = false;/.test(ui));
 
-// 3. 两层 CSS
-ok('noticeBar base 层(--hs)', /#homeUi \.noticeBar \{[^}]*--hs,1/.test(ui));
-ok('noticeBar 青瓷层(--pw)', /#homeUi \.noticeBar \{[^}]*--pw,2\.5/.test(ui));
-ok('跑马灯 keyframes 定义', /@keyframes noticeScroll \{ to \{ transform: translateX\(-100%\); \} \}/.test(ui));
-ok('青瓷层白名单后重声明动画', /#homeUi \.actChest\.ready \.acIc \{ animation: huiChest \.9s ease-in-out infinite; \}\s*\n[^@]*?#homeUi \.noticeText \{ animation: noticeScroll 16s linear infinite; \}/.test(ui));
-ok('noticeText 两层声明', (ui.match(/#homeUi \.noticeText \{[^}]*\}/g) || []).length >= 3);
-ok('nRed 红点两层', (ui.match(/#homeUi \.noticeBar \.nRed \{[^}]*\}/g) || []).length >= 2);
+// 3. 公告弹窗样式两层（.noticeBar/.noticeText/.nRed/noticeScroll 走马灯 CSS 已随公告条下线删除）
 ok('公告弹窗样式两层', (ui.match(/#homeUi \.noticeBox \.nItem \{[^}]*\}/g) || []).length >= 2);
 
 process.exit(fail ? 1 : 0);

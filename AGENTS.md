@@ -99,9 +99,21 @@ node tools/check-ux-refactor.js        # 以下 check 全部 0 FAIL
 node tools/check-split.js
 node tools/check-mail.js
 node tools/check-hud-slim.js
+# 以下源码类 check 也纳入链（不在链里的检查器会悄悄变红，"全绿基线"就只覆盖了一半的检查器）
+node tools/check-notice.js
+node tools/check-stamina.js
+node tools/check-bite.js
+node tools/check-perf.js
 # Cocos 构建（成功标志：grep -c "build Task (web-mobile) Finished" 计数 = 1）
 bash tools/postbuild.sh                # 构建戳 + 缓存击破 + _maxFontSize 补丁，构建日志用完删
 grep -c "<本轮改动标识>" build/web-mobile/assets/main/  # bundle 断言：确认改动真的进包
+# 以下 *-bundle check 读 build/web-mobile 产物，须在构建之后跑（同样纳入链防腐烂）
+node tools/check-notice-bundle.js
+node tools/check-stamina-bundle.js
+node tools/check-split-bundle.js
+node tools/check-ux-bundle.js
+node tools/check-ux-layout-bundle.js
+node tools/check-mail-bundle.js
 git check-ignore zombie-shooter/tools/imagegen.local.json   # 期望输出该路径
 ```
 

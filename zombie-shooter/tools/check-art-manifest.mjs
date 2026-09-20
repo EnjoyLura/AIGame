@@ -29,10 +29,13 @@ function parseReserved(src) {
     const body = block.slice(block.indexOf('{'), block.indexOf('};'));
     const out = {};
     for (const m of body.matchAll(/'([\w/]+)':\s*'([^']*)'/g)) {
+        // 同时收集出现顺序的原始 key 列表：对象会静默去重，重复登记要靠这份列表暴露
+        RESERVED_RAW.push(m[1]);
         out[m[1]] = m[2];
     }
     return out;
 }
+const RESERVED_RAW = [];
 const RESERVED = parseReserved(libSrc);
 const TEX_CATS = 'ui|icons|monsters|characters|scenes|weapons|fx';
 /** 规范文档：§9 通用件契约表是「槽位 ↔ 宿主」的对账终点，在库件必须在这里有个说法 */
@@ -51,7 +54,14 @@ const manifestBlock = libSrc.split('const MANIFEST = [')[1].split(']')[0]
     .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
 const manifestKeys = [...manifestBlock.matchAll(/'([\w/]+)'/g)].map(m => m[1]);
 ok(manifestKeys.length > 0, `MANIFEST 解析到 ${manifestKeys.length} 个 key`);
+// 同一 key 登记两次会让磁盘/引用对账口径失真（一条对上了另一条例子失效）：清单必须唯一。
+const dupManifest = [...new Set(manifestKeys.filter((k, i) => manifestKeys.indexOf(k) !== i))];
+ok(dupManifest.length === 0,
+    `MANIFEST 有重复 key（只保留一次）：${dupManifest.length ? dupManifest.join(', ') : '无'}`);
 ok(Object.keys(RESERVED).length > 0, `RESERVED_SLOTS 解析到 ${Object.keys(RESERVED).length} 个预留槽位`);
+const dupReserved = [...new Set(RESERVED_RAW.filter((k, i) => RESERVED_RAW.indexOf(k) !== i))];
+ok(dupReserved.length === 0,
+    `RESERVED_SLOTS 有重复 key（只保留一次）：${dupReserved.length ? dupReserved.join(', ') : '无'}`);
 
 // ---- 2. 磁盘清单（png/jpg/webp 都算）----
 const diskKeys = fs.readdirSync(TEXTURES, { recursive: true })

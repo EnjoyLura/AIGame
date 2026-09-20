@@ -13,7 +13,7 @@ const any = t => s.includes(t) || s.includes([...t].map(c => {
 for (const m of ['_openStaminaModal', 'staminaNextIn', 'buyStamina', 'STAMINA_BUY_COST', 'staminaBox', 'stRow']) {
   ok('bundle: ' + m, s.includes(m));
 }
-for (const t of ['体力补给', '看广告领体力', '可超出上限囤积', '下一几点']) {
+for (const t of ['体力补给', '看广告领体力', '可超出上限囤积', '下一点']) {
   ok('bundle-cjk: ' + t, any(t));
 }
 process.exit(fail ? 1 : 0);

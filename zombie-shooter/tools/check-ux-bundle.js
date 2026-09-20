@@ -14,7 +14,7 @@ const any = t => s.includes(t) || s.includes([...t].map(c => {
     ? [...c].map(h2 => '\\u' + h2.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join('')
     : '\\u' + h.padStart(4, '0');
 }).join(''));
-for (const t of ['玩法大厅', '奖励详情', '每日运营', '爬塔挑战']) {
+for (const t of ['玩法大厅', '奖励详情', '今日活跃', '试炼之塔']) {
   ok('bundle-cjk: ' + t, any(t));
 }
 ok('gone: 战术研究(旧技能页标题)', !any('战术研究'));
