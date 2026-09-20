@@ -255,15 +255,18 @@ export abstract class HomeUiCore extends Component {
      *  只扫 `.viewport` 里的五个页面：弹层的 CTA 由 `_openPop` 按 kind 路由，两套规则不要互相覆盖。
      *  调用时机不靠这里——见 `HomeUiMall._watchCityPlates`（页面每次重建都要重扫一遍，否则板子跟着 DOM 一起没了）。 */
     protected _plateCityButtons(): void {
-        const host = this._root?.querySelector<HTMLElement>('.viewport');
-        if (!host) {
-            return;
-        }
-        const sel = UiPlate.CITY_BUTTON_PLATE.map(r => r.sel).join(', ');
-        for (const el of Array.from(host.querySelectorAll<HTMLElement>(sel))) {
-            const hit = UiPlate.CITY_BUTTON_PLATE.find(r => el.matches(r.sel));
-            if (hit?.key) {
-                this._tex(hit.key, UiPlate.nineSlice(el, hit.spec));
+        const view = this._root?.querySelector<HTMLElement>('.viewport');
+        // 两张表两套扫描范围：按钮族只扫 `.viewport`（弹层 CTA 归 `_openPop` 路由，不许互相覆盖），
+        // 容器族要连 `.viewport` 之外的 `.tabbar` 一起扫，所以它自带容器前缀。
+        for (const [table, host] of [[UiPlate.CITY_BUTTON_PLATE, view], [UiPlate.SURFACE_PLATE, this._root]] as const) {
+            if (!host) {
+                continue;
+            }
+            for (const el of Array.from(host.querySelectorAll<HTMLElement>(table.map(r => r.sel).join(', ')))) {
+                const hit = table.find(r => el.matches(r.sel));
+                if (hit?.key) {
+                    this._tex(hit.key, UiPlate.nineSlice(el, hit.spec));
+                }
             }
         }
     }

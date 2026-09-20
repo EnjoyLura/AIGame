@@ -3121,5 +3121,18 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .screen.sHeroes .hero-tools .loadouts b small { font-size: calc(9px * var(--pw,2.5)); font-weight: 400;
   color: var(--c-edge-4); margin-left: calc(3px * var(--pw,2.5)); }
 #homeUi .screen.sHeroes .hero-tools .loadouts .squadEntry { flex: none; min-width: calc(29px * var(--pw,2.5));
-  height: calc(28px * var(--pw,2.5)); padding: 0 calc(4px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); }`;
+  height: calc(28px * var(--pw,2.5)); padding: 0 calc(4px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); }
+/* ---- 板子到位之后，压在暗板上的字要翻亮（r31 容器底板族）----
+   .plated 由 UiPlate.nineSlice 在贴图真的落到 style 上那一刻打上，所以缺图回退时这些规则整体不生效、
+   旧配色照旧对——这就是为什么色写在 CSS 而不是 nineSlice 的内联 color 里（内联会盖掉回退态）。
+   排在本文件最末：两层（--hs 基准 / --pw 青瓷）都在这之前，同特异性下这一条两边都赢。 */
+#homeUi .tab.plated { color: var(--c-cream-1); }
+/* 选中那块板是琥珀金，页签名用深墨蓝压上去（对比 ~7:1）；照旧写的 --c-gold-dk3 只有 ~2.8:1，实测糊 */
+#homeUi .tab.on.plated { color: var(--c-navy-3); }
+#homeUi .flat-tabs > button.plated { color: var(--c-cream-1); }
+#homeUi .flat-tabs > button.on.plated { color: var(--c-gold-hi); }
+#homeUi .building.plated small { color: var(--c-cream-2); }
+#homeUi .eqGrid .slot.plated { color: var(--c-cream-1); }
+/* 槽名是 .sname 自己带色（两层各一条），继承改不动它——要翻亮必须点到这一层，特异性也刚好压过两层旧规则 */
+#homeUi .eqGrid .slot.plated .sname { color: var(--c-cream-1); }`;
 

@@ -1442,6 +1442,8 @@ export class DomHud extends Component {
         const btn = document.createElement('button');
         btn.className = 'hudBtn ' + cls;
         btn.textContent = text;
+        // 三枚功能钮（菜单/暂停/战报）共用 `sq` 档同一块板：这一族的选中态是描边色变化，走 CSS，不出二态图
+        this._tex('ui/button/btn_hud', UiPlate.nineSlice(btn, 'sq'));
         btn.onclick = (e) => {
             e.stopPropagation();
             onClick();

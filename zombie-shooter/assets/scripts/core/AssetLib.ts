@@ -64,6 +64,10 @@ const MANIFEST = [
     // 按钮系补件：特殊(紫)板 + 小圆钮族 + 主城按钮族三档（r24 表，按类别一次出齐）
     'ui/button/btn_purple', 'ui/button/btn_home', 'ui/button/btn_help', 'ui/button/btn_refresh',
     'ui/button/btn_small', 'ui/button/btn_side', 'ui/button/btn_row',
+    // 容器底板族（r31 表，一张 3列2行出 7 件）：底部主导航两态 / 二级分类页签 / 战斗 HUD 功能钮 /
+    // 装备六槽 / 基地建筑卡 / 行动模式入口卡。这一族补的是表面普查里最后几块「整页零九宫格」的面。
+    'ui/nav/tab_plate', 'ui/nav/tab_plate_on', 'ui/tab/seg_plate', 'ui/button/btn_hud',
+    'ui/panel/eq_slot', 'ui/panel/building_card', 'ui/panel/entry_card',
     // 二级页签族（商城货架 4 签 / 背包分类 4 签共用；tab_core 至今没有宿主，理由见 RESERVED_SLOTS 注）
     'ui/ico/tab_hero', 'ui/ico/tab_equip', 'ui/ico/tab_gem', 'ui/ico/tab_mat', 'ui/ico/tab_core', 'ui/ico/tab_potion',
     // 功能入口图标族（主城侧栏 + 英雄养成 + 商城 + HUD + 设置/登录）

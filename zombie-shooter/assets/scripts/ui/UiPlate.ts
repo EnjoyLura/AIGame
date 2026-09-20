@@ -74,7 +74,8 @@ export interface NineSpec {
  *    12px 的条配 4px 板边只剩 4px 内腔，等于把一根细线糊成一坨；切片值不变，显示宽度按
  *    12÷52（源件条高）≈0.23 折算成 2px / 4px。
  */
-export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm' | 'chip', NineSpec> = {
+export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm' | 'chip'
+    | 'navTab' | 'seg' | 'sq' | 'bigCard', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     // 按钮板族（plate / platePw / btn / btnSm 共用同一批 r24 去字板）：切片一律**按百分比**。
     // 两件事都是实测出来的，改之前先读：
@@ -102,6 +103,22 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
     // 所以切片按**百分比**给（像素档在横长件上会把包边划进中段拉 smear）。
     // 显示宽度按 chip 实测高 ~100 CSS px 折算（18% × 100 ≈ 18px，同 D21 口径）。
     chip: { slice: '18% 12% fill', width: 'calc(14px * var(--pu,1))' },
+    // ===== 容器底板族（r31 表 7 件，2026-09-21）=====
+    // 这一族补的是表面普查里最后几块「整页零九宫格」的面：底部主导航 5 格（每页都在屏）、
+    // 二级分类页签 4 签、战斗 HUD 三枚功能钮、英雄页装备六槽、基地页 8 张建筑卡、行动页 2 张模式入口卡。
+    // 切片一律百分比（同 plate 的理由：同族源件比例从 6:1 的薄条到 1.2:1 的方卡都有），
+    // 且**源件都不许带透明边**——r31 这批用 `slice_sheet.py --tight` 切、`trim_alpha.py --check` 过关（≤6%）。
+    // 底部主导航格：源 674×273、宿主实测 106×93。格子里那枚图标就有 102 见方，板只能露出四边一圈，
+    // 所以显示宽度取 10px——再厚就把图标压进包边里了。
+    navTab: { slice: '26% 12% fill', width: 'calc(10px * var(--pu,1))' },
+    // 二级分类页签（装备/宝石/材料/道具）：源 639×107 是这一族最薄的条，宿主 135×47。
+    // 上下切片给到 30% 才包得住两头的角码，左右 10% 就够——再宽会把中段那点平牌面切没。
+    seg: { slice: '30% 10% fill', width: 'calc(9px * var(--pu,1))' },
+    // 近方小件：战斗 HUD 功能钮（源 281×274 / 宿主 53~64×47）与英雄页装备六槽（宿主 82×83）共用一档。
+    sq: { slice: '26% 22% fill', width: 'calc(12px * var(--pu,1))' },
+    // 大卡：基地建筑卡（源 674×272 / 宿主 251×150）与行动模式入口卡（源 526×441 / 宿主 240×235）。
+    // 两张卡宿主都 ≥150 高，板给到 15px 才压得住这么大的面。
+    bigCard: { slice: '26% 12% fill', width: 'calc(15px * var(--pu,1))' },
 };
 
 /**
@@ -140,6 +157,29 @@ export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: '
     { sel: '.hot', key: 'ui/button/btn_side', spec: 'btn' },
 ];
 
+/**
+ * 容器底板族：CSS 选择器 → [贴图 key, 切片档]，口径与 `CITY_BUTTON_PLATE` 一致（顺序即优先级）。
+ *
+ * 这一族补的是表面普查（`tools/audit_ui_surfaces.mjs`）里最后几块「整页零九宫格」的面。
+ * 与按钮族**分成两张表**是因为扫描范围不同：按钮族只扫 `.viewport`（弹层 CTA 归 `_openPop` 路由，
+ * 两套规则不许互相覆盖），而导航格在 `.viewport` 之外的 `.tabbar` 里，必须扫整个 `#homeUi`。
+ * 所以这里的选择器一律**自带容器前缀**，别写裸类名去够弹层里的同名元素。
+ */
+export const SURFACE_PLATE: Array<{ sel: string; key: string | null; spec: keyof typeof NINE }> = [
+    // 底部主导航五格（每页都在屏，是全屏最大的一片无图面）。选中/未选两块板，
+    // 同 `.diffSeg` 那对选择器的口径：不是"一族两态图"，是同族两档各指一块已有语义板。
+    { sel: '.tabbar .tab.on', key: 'ui/nav/tab_plate_on', spec: 'navTab' },
+    { sel: '.tabbar .tab', key: 'ui/nav/tab_plate', spec: 'navTab' },
+    // 二级分类页签（商城 4 签 + 背包 4 签共用同一件；选中色仍由 CSS 高亮，不出二态板）
+    { sel: '.flat-tabs > button', key: 'ui/tab/seg_plate', spec: 'seg' },
+    // 英雄页装备六槽（头盔/护甲/腕甲/护腿/手套/战靴）——基地页之外最大的一片纯色方格
+    { sel: '.eqGrid .slot', key: 'ui/panel/eq_slot', spec: 'sq' },
+    // 基地页 8 张建筑卡（这一页原先九宫格数为 0）
+    { sel: '.building', key: 'ui/panel/building_card', spec: 'bigCard' },
+    // 行动页「无尽试炼 / 无尽护送」两张入口卡
+    { sel: '.challenge-ground .entry', key: 'ui/panel/entry_card', spec: 'bigCard' },
+];
+
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */
 export function nineSlice(el: HTMLElement, spec: keyof typeof NINE, opts?: { keepBackground?: boolean }): (url: string) => void {
     const n = NINE[spec];
@@ -152,6 +192,9 @@ export function nineSlice(el: HTMLElement, spec: keyof typeof NINE, opts?: { kee
         if (!opts?.keepBackground) {
             el.style.background = 'none';
         }
+        // 打上「这块板真的贴上了」的标记：板子把浅底换成深色金属板之后，原先按浅底写的字色要翻亮，
+        // 而那件事只在图到位时成立（缺图回退 CSS 底色时旧配色才是对的）。CSS 靠这个类分岔。
+        el.classList.add('plated');
     };
 }
 

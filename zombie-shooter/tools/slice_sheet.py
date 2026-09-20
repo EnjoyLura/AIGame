@@ -113,7 +113,9 @@ def extract(im: Image.Image, box, size, margin_pct: int, tight: bool = False) ->
         raise ValueError('empty cell')
     cell = cell.crop(bbox)
     if tight:
-        m = max(1, int(round(max(cell.size) * margin_pct / 100)))
+        # 留边按**短边**算，不按最长边：横长板件（722×320）按最长边留 6% 就是上下各 43px，
+        # 占短边的 12%——又落回「透明边大于切片档」那个坑（trim_alpha --check 会当场报出来）。
+        m = max(2, int(round(min(cell.size) * margin_pct / 100)))
         canvas = Image.new('RGBA', (cell.width + m * 2, cell.height + m * 2), (0, 0, 0, 0))
         canvas.paste(cell, (m, m))
         return canvas
