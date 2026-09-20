@@ -191,7 +191,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 头像框 | 见下方「行图标外框（框件族）」行：`frame()` 变体已落地并接在名片行 | `ui/avatar_frame` | 40px×--pu | `frame`（border-image 无 fill，不抢 iconTex 的 background） | `frame` | 1 | ✅ 本轮接线；顶栏小位待 clip-path 定案 |
 | 段位徽章 ×7 | 待开：段位/成就展示位 | `ui/rank1`…`ui/rank7` | 128px 见方 | `icon` | — | 1 | 📦 在库待接（**当前无段位 UI**，见 ART-PLAN §5 决策） |
 | 名次奖牌 ×3 | 排行榜 `.popRow .tag` / HUD `.statRank` | `ui/medal1` `ui/medal2` `ui/medal3` | 32~56px | `icon` | — | 1 | ✗ 待生图（现在分别是 🥇🥈🥉 emoji 与 CSS 渐变块） |
-| 主城按钮（页内手工建的键） | `.btn.gold` / `.btn.blue` / `.btn.adBtn` / `.btn.dark` | 复用 `PLATE`：金 `ui/btn_play`、蓝 `ui/btn_cancel`、广告 `ui/btn_video` | 高 44~50px×--pw | `nineSlice(el,'plate')`（墨色仍由 CSS 定） | `plate` | 1 | ✅ 本轮接线（英雄养成五入 + 解锁大键；`.gBuy` 小胶囊见下「薄板档」） |
+| 主城按钮（页内手工建的键） | `.btn.gold` / `.btn.blue` / `.btn.adBtn` / `.btn.dark` | 复用 `PLATE`：金 `ui/btn_play`、蓝 `ui/btn_cancel`、广告 `ui/btn_video` | 高 44~88px×层缩放 | `nineSlice(el,'plate')`（墨色仍由 CSS 定；`--pu` 已按两层补齐） | `plate` | 1 | ⚠ 只允许 `.btn.big`（解锁大键已接）；五入/`.gBuy` 小键实测压字，已撤板等 `bar` 档 |
 | 进度条（底槽 / 填充 / 端头） | 见下方「进度条与页签的出图口径」 | `ui/bar_track` `ui/bar_fill_green` `ui/bar_fill_yellow` `ui/bar_fill_blue` `ui/bar_fill_red` `ui/bar_cap` `ui/bar_node` | 条高 8~14px×--pu（HUD 侧 8~12px×--s） | 底槽 `nineSlice`（薄板档）+ 填充 `strip`（100% 100%，宽度由 JS 写 %） | 待定档 `bar` | 1 | ✗ 待生图 + 批5 接线（契约先定，见下） |
 | 二级页签图标 | `.shopTabs`（商城）/ `.bagTabs`（背包）/ `.chTabs`（章节）的图标位 | `ui/tab_hero` `ui/tab_equip` `ui/tab_gem` `ui/tab_mat` `ui/tab_core` `ui/tab_potion` | 与 `.hot .ic` 同口径（图标 20~34px 方） | `icon`（尺寸归 CSS） | — | 1（选中态 CSS，见 §10） | ✗ 待生图（宿主已定，出图即按 `mkBtn` 的 tex 槽接） |
 
@@ -216,14 +216,20 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 
 ### 薄板档：小尺寸键为什么现在不能贴常规板
 
-`.btn.gold.gBuy`（商城商品卡的购买键，青瓷层高约 27px×--hs）与 HUD 上的细进度条，**件高不足 10px 圆角
-斜面厚度的四倍**，硬贴 `plate` 档会把板厚吃进板面（看着像一整块药丸边框糊住文字）。
-所以按钮板/进度条这类件出图时要**同时给两档**：
+**实测踩坑（2026-09-20）**：英雄页养成五入（`.hero-quick .btn`，44~56px 见方）按 `plate` 档贴蓝板后，
+每边吃掉 10px 斜面，内容盒只剩 30~36px，而 emoji+文字要 40px 以上 → **文字直接压在板面上重叠**。
+同一轮还暴露第二个坑：主城上下文原本没有 `--pu`，`calc(10px * var(--pu,1))` 退化成恒定 10px，
+手机上本该 25px 的板厚变成 10px，板与件的比例彻底失衡（现由 `#homeUi .btn { --pu: var(--hs,1) }`
++ 青瓷层 `--pu: var(--pw,2.5)` 补齐两层）。
+
+闸门：**件宽/件高不足板厚四倍的件，一律不许贴 `plate` 档**。主城键当前只允许 `.btn.big`
+（整幅大键，如「前往商店解锁」）走 `CITY_PLATE`；`.hero-quick` 五入与 `.gBuy` 小胶囊保持 CSS 底色，
+等下面 `bar` 档定出来再吃。出图时按钮板/进度条这类件要**同时给两档**：
 
 | 档 | 用途 | 源件建议 | slice / 显示 |
 |---|---|---|---|
-| `plate`（已定） | 弹层 CTA、主城大键、登录 START | 高 ≥40px@1x | `16 fill` / 10px×--pu |
-| `bar`（待批5 定档） | 进度条底槽、端头、小胶囊键 | 高 8~14px@1x，**四角只画 3~4px** | 建议 `6 fill` / 4px×--pu，实测后写回本表与 `UiPlate.NINE` |
+| `plate`（已定） | 弹层 CTA、`.btn.big`、登录 START | 高 ≥40px@1x | `16 fill` / 10px×--pu |
+| `bar`（待批5 定档） | 进度条底槽、端头、`.gBuy` 与小方键 | 高 8~14px@1x，**四角只画 3~4px** | 建议 `6 fill` / 4px×--pu，实测后写回本表与 `UiPlate.NINE` |
 
 `UiPlate.NINE` 里没有的档 = 不许接线：先补本表一行、再加 NINE 一档、最后接宿主，顺序不许多。
 

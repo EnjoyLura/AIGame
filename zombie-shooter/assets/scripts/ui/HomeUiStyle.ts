@@ -76,7 +76,10 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   margin: calc(20px * var(--hs,1)) calc(4px * var(--hs,1)) calc(14px * var(--hs,1)); display: flex; align-items: center; gap: calc(12px * var(--hs,1)); }
 #homeUi .secTitle::before { content: ''; width: calc(8px * var(--hs,1)); height: calc(28px * var(--hs,1));
   background: linear-gradient(180deg, var(--c-gold-hi), #e0a23c); border-radius: calc(4px * var(--hs,1)); }
-#homeUi .btn { border: none; cursor: pointer; font-family: inherit; font-weight: 800; border-radius: calc(18px * var(--hs,1)); }
+#homeUi .btn { border: none; cursor: pointer; font-family: inherit; font-weight: 800; border-radius: calc(18px * var(--hs,1));
+  /* 主城键的板厚缩放档：UiPlate.NINE.plate 用 calc(Npx*var(--pu,1))，主城上下文原本没有 --pu，
+     不补这一行则板厚在手机上恒为 10px（弹层里是 25px），板子与件宽比例失衡 */
+  --pu: var(--hs,1); }
 #homeUi .btn:active { transform: scale(.95); }
 #homeUi .btn.gold { background: linear-gradient(180deg, #ffe9a6, var(--c-gold) 55%, #c9861f); color: #5a3a08; border: 1px solid #8a5c12;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 3px 0 #7c520f, 0 6px 14px rgba(240,177,62,.3); }
@@ -1154,6 +1157,10 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-roster .hpick i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #homeUi .hero-roster .hpick.on { background: #1c2c4d; box-shadow: inset 0 calc(-2px * var(--hs,1)) var(--c-gold-frame); color: var(--c-gold-hi); }
 #homeUi .hero-roster .hpick.lock .pic { filter: grayscale(1) brightness(.55); }
+/* 编队条是横排行卡（高 34），沿用大头像条那条 translate(32,-80) 的锁徽会压在名字上：
+   改回随行内联（.hpick 本身是 flex 行），锁徽排在名字之后不遮字。特异性高于两层通用规则 */
+#homeUi .hero-roster .hpick.lock::after { position: static; transform: none; top: auto; right: auto;
+  font-size: calc(13px * var(--hs,1)); line-height: 1; margin-left: calc(2px * var(--hs,1)); }
 #homeUi .hero-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #homeUi .hero-stage { flex: none; position: relative; height: 38%; max-height: calc(263px * var(--hs,1)); min-height: calc(179px * var(--hs,1));
   display: grid; grid-template-columns: calc(44px * var(--hs,1)) minmax(0,1fr) calc(44px * var(--hs,1)) calc(124px * var(--hs,1));
@@ -1468,6 +1475,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 
 /* --- 按钮 / 标签 --- */
 #homeUi .btn { border-radius: calc(6px * var(--pw,2.5)); min-height: calc(44px * var(--pw,2.5)); box-shadow: none;
+  --pu: var(--pw,2.5);
   font-size: calc(14px * var(--pw,2.5)); }
 #homeUi .btn.gold { background: linear-gradient(#ffc06e, #f29a40 60%, #e88931); color: #58320f; border: 1px solid #c57b2e;
   box-shadow: inset 0 2px #ffdb9d, 0 3px 0 #ad6626; }
@@ -2725,6 +2733,8 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-roster .hpick i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #homeUi .hero-roster .hpick.on { background: #eee; box-shadow: inset 0 calc(-2px * var(--pw,2.5)) #666; color: var(--c-deep-teal); font-weight: 700; }
 #homeUi .hero-roster .hpick.lock .pic { filter: grayscale(1) brightness(.8); }
+/* 青瓷层同口径（锁徽随行内联，尺寸走 --pw） */
+#homeUi .hero-roster .hpick.lock::after { font-size: calc(11px * var(--pw,2.5)); margin-left: calc(2px * var(--pw,2.5)); }
 #homeUi .hero-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #homeUi .hero-stage { flex: none; position: relative; height: 38%; max-height: calc(263px * var(--pw,2.5)); min-height: calc(179px * var(--pw,2.5));
   display: grid; grid-template-columns: calc(44px * var(--pw,2.5)) minmax(0,1fr) calc(44px * var(--pw,2.5)) calc(124px * var(--pw,2.5));

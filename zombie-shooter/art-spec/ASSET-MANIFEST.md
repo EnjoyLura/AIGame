@@ -84,7 +84,8 @@ UI 走 glyph/CSS 回退、图落地后**必须从 `RESERVED_SLOTS` 删掉该行*
 3. **状态与属性图标**：盾/剑/心/骷髅/火/冰/电/毒/锁/侦查 + 天赋节点三态 ✗（批4）。
 4. **内容与资源图标**：材料 3 + 宝石 4 + 扩展资源 4 + 载具 3 + 评价星 2 + 名次奖牌 3 ✗。
 5. **按钮**：六色语义板 5 色已接 ✅（紫板 ✗）；小圆钮 close/round ✅、**round2 ✅（P0 接帮助 ? 钮）**、
-   home/help/refresh ✗。
+   home/help/refresh ✗；主城键只允许 `.btn.big` 走 `CITY_PLATE`（解锁大键已接），`.hero-quick` 五入与
+   `.gBuy` 小胶囊实测贴 `plate` 会压字，已撤板等 `bar` 薄板档（见 STYLE-SPEC §9 薄板档）。
 6. **面板与底板**：pop 底板两档 ✅、标题条/绶带 ✅、ribbon_title 📦（待宿主）；行卡底板、模块小框 ✗；
    小尺寸键（`.gBuy` 一类的薄板档）待 §9 定 `bar` 档后才能贴。
 7. **框·徽·角标**：品质框 frame_q0-q3 ✅（接 `.popQ .qi`）；**头像框 avatar_frame ✅（P0 接 `.popRow .ic`
