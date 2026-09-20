@@ -8,7 +8,7 @@
 
 清单里暂无文件的 key 属「预留槽位」（缺图回退占位，图到位即生效）——这正是逐张补图、随时可进的机制。风格与尺寸要求见 [STYLE-SPEC.md](./STYLE-SPEC.md)。
 
-## A. 在库槽位（94 张图，png/jpg；r1/r2 旧版 9 件 + 2026-09-21 无宿主的 12 件已归档，均见 §E）
+## A. 在库槽位（97 张图，png/jpg；r1/r2 旧版 9 件 + 2026-09-21 无宿主的 12 件已归档，均见 §E）
 
 | key | 用途 | 现尺寸 | 状态 |
 |---|---|---|---|
@@ -35,6 +35,7 @@
 | ui/ico/ico_mail · ico_notice · ico_setting · ico_task · ico_rank | 功能图标 5 枚 | 128 | 已上屏（rank 作 popEmpty 空态图） |
 | ui/ico/ 图标三批共 19 件：第一批 ico_add · signin · trial · endless · core · weapon · starup · talent · recruit · forge · del · warn<br>第二批 ico_ad · slider · pause · stats<br>拆行轮 ico_sound · mute · info | 主城功能入口图标（顶栏加号 / 侧栏三键 / 英雄页四键 / 确认弹窗两键 / 商城看广告键 / 设置音量与音效 / HUD 暂停、伤害统计与设置浮窗三个小节头） | 128 | 已上屏，宿主与切片口径见 §9；同批出图又撤键的 7 件（more · check · calendar · shop · inbox · codex · loot）与仍留采购单的 3 件（friend · undo · search，缺的是功能位不是图）见 ART-PLAN §2.1 |
 | ui/shop/shop_gift · shop_chest · shop_scroll · shop_letter | 礼盒 / 宝箱 / 卷轴 / 信件 | 256 | 前三已上屏，letter 作空态图 |
+| ui/progress/bar_track · bar_fill_green · bar_fill_red | 进度条底槽（内凹暗槽带圆头）+ 绿/红两档填充色带 | 512×64 | 已上屏：底槽贴 HUD 四条（`.xpBar/.vehTrack/.bossTrack/.statBar`），绿贴经验、红贴 boss 血条；黄/蓝两件图已出但无宿主未落盘，见 ART-PLAN §2.1 |
 
 > **r1/r2 旧版 UI 板类件 11 件已归档**到 `art-spec/reference/legacy-keep/`（2026-09-20 拍板弃用，
 > 清单与「拷回即复活」的做法见该目录 README.md），不再登记在 MANIFEST、不进包。

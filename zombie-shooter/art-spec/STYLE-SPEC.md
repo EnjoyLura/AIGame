@@ -246,14 +246,13 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 段位徽章 ×7 | 待开：段位/成就展示位 | 已移出包 → `art-spec/reference/stock/rank/`（原 `ui/rank1`…`ui/rank7`） | 128px 见方 | `icon` | — | 1 | 📦 在库无宿主，2026-09-21 移出包（**当前无段位 UI**，见 ART-PLAN §5 决策） |
 | 名次奖牌 ×3 | 排行榜 `.popRow .tag` / HUD `.statRank` | `ui/badge/medal1` `ui/badge/medal2` `ui/badge/medal3` | 32~56px | `icon` | — | 1 | ✗ 待生图（现在分别是 🥇🥈🥉 emoji 与 CSS 渐变块） |
 | 主城按钮（页内手工建的键） | `.btn.gold` / `.btn.blue` / `.btn.adBtn` / `.btn.dark` | 复用 `PLATE`：金 `ui/button/btn_play`、蓝 `ui/button/btn_cancel`、广告 `ui/button/btn_video` | 高 44~88px×层缩放 | `nineSlice(el,'plate')`（墨色仍由 CSS 定；`--pu` 已按两层补齐） | `plate` | 1 | ⚠ 只允许 `.btn.big`（解锁大键已接）；五入/`.gBuy` 小键实测压字，已撤板等 `bar` 档 |
-| 进度条（底槽 / 填充 / 端头） | 见下方「进度条与页签的出图口径」 | `ui/progress/bar_track` `ui/progress/bar_fill_green` `ui/progress/bar_fill_yellow` `ui/progress/bar_fill_blue` `ui/progress/bar_fill_red` `ui/progress/bar_cap` `ui/progress/bar_node` | **宿主条高 ≥10px 才可贴**（实测现存 3~14px，见薄板档） | 底槽 `nineSlice(el,'bar')` + 填充 `strip`（100% 100%，宽度由 JS 写 %） | `bar`（✅ 本轮定档 `8 fill` / 2px×--pu） | 1 | ⚠ 档已定、图未出；宿主要先过 10px 高度筛，薄的那几条不接 |
+| 进度条（底槽 / 填充） | **实测宿主只有战斗 HUD 四条**：`#domHud .xpBar`（25px，底槽+绿填充）、`.vehTrack`（20px，只贴底槽）、`.bossTrack`（28px，底槽+红填充）、`.statBar`（20px，只贴底槽）。主城四条活的（`.expbar` 3px、`.popRow .pbar` 7px、`.popAct .bar` 8px、抽卡 `.rcBar` 6px）全不过 ≥10px 筛，**不接**；另 `.qBar/.biBar/.talentBar/.prosBar/.actBar/.starBar` 六条是**死样式**（全工程无一处建 DOM），`.popBar`/`.bagBar` 名不符（弹层底栏与背包容器，不是进度条） | `ui/progress/bar_track` `ui/progress/bar_fill_green` `ui/progress/bar_fill_red`（已落盘）＋ `bar_fill_yellow` `bar_fill_blue`（图在 `gen-output/`，无宿主未落盘） | 底槽条高 20~28px；填充件横向拉伸、宽度仍由 JS 写 % | 底槽 `nineSlice(el,'bar')` + 填充 `strip`；两条不贴图的理由：`.vehicleFill` 的色是 `.warn/.danger` 三态由 CSS 类切（内联贴图会吃掉三态，缺橙色件），`.statBarFill` 的色由 JS 按英雄身份色内联写（`DomHud.ts:894`） | `bar`（✅ 2026-09-20 按 `tools/measure_nine.py` 实测改档：slice `10 17 10 17 fill` / width `4px×--pu` 与 `7px×--pu`） | 1 | ✅ 底槽 + 绿/红填充已接线；HUD 层补 `--pu: var(--s,1)` 令牌（同 D10b 的口径），否则板厚不随 HUD 缩放 |
 | 二级页签图标 | `.shopTabs`（商城）/ `.bagTabs`（背包）/ `.chTabs`（章节）的图标位 | `ui/ico/tab_hero` `ui/ico/tab_equip` `ui/ico/tab_gem` `ui/ico/tab_mat` `ui/ico/tab_core` `ui/ico/tab_potion` | 与 `.hot .ic` 同口径（图标 20~34px 方） | `icon`（尺寸归 CSS） | — | 1（选中态 CSS，见 §10） | ✗ 待生图（宿主已定，出图即按 `mkBtn` 的 tex 槽接） |
 | 功能图标·第一批 12 件 | 侧栏 `.side-tools .hot .ic`（签到/试炼/无尽）｜英雄页 `.hero-quick .btn .ic`（核心/武器/升星/天赋）+ `.hero-tools .hot .ic`（招募/工坊，两处：页头与背包行）｜顶栏 `.res .add`（加号）｜确认弹窗 `.popIcBig`（删除/警告） | `ui/ico/ico_signin` `ui/ico/ico_trial` `ui/ico/ico_endless` `ui/ico/ico_core` `ui/ico/ico_weapon` `ui/ico/ico_starup` `ui/ico/ico_talent` `ui/ico/ico_recruit` `ui/ico/ico_forge` `ui/ico/ico_add` `ui/ico/ico_del` `ui/ico/ico_warn` | 侧栏与英雄页 23~26px、顶栏加号 14px、弹窗大图标 62px（各 ×层缩放） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1 | ✅ 图标第一批落盘接线（2026-09-20）。⚠ 英雄页「技能」键按「除技能外不换」保留 emoji，但已一并包进 `.ic` span 以对齐字号 |
-| 功能图标·第二批 4 件 | 商城主推「看广告」键 `.offer-buttons .hot.rcAd .ic`（播放三角）｜设置弹窗音量行 `.popAttr .ai`（滑杆）｜战斗 HUD 左上两键 `.hudBtn.pauseBtn .ic` `.hudBtn.statsBtn .ic` | `ui/ico/ico_ad` `ui/ico/ico_slider` `ui/ico/ico_pause` `ui/ico/ico_stats` | rcAd 23px、`.ai` 34px、HUD 键内 56px（均 ×层缩放） | `icon`（HUD 两键的图挂**内层 `.ic`**：`.hudBtn` 的底是 CSS 渐变板面，图直接压在按钮上会连板面一起换掉） | — | 1 | ✅ 图标第二批落盘接线（2026-09-20）。HUD 两键沿用本文件既有 `_assetBgUrl` 一次性回退口径：贴图未就绪时 glyph 留着 |
+| 功能图标·第二批 4 件 | 商城主推「看广告」键 `.offer-buttons .hot.rcAd .ic`（播放三角）｜设置弹窗音量行 `.popAttr .ai`（滑杆）｜战斗 HUD 左上两键 `.hudBtn.pauseBtn .ic` `.hudBtn.statsBtn .ic` | `ui/ico/ico_ad` `ui/ico/ico_slider` `ui/ico/ico_pause` `ui/ico/ico_stats` | rcAd 23px、`.ai` 34px、HUD 键内 56px（均 ×层缩放） | `icon`（HUD 两键的图挂**内层 `.ic`**：`.hudBtn` 的底是 CSS 渐变板面，图直接压在按钮上会连板面一起换掉） | — | 1 | ✅ 图标第二批落盘接线（2026-09-20）。⚠ HUD 两键首版接成「一次性取 URL」（照本文件邮件行旧例），实测**根本没上图**——DomHud 在场景加载时就建整棵 DOM，那会儿预载还没回来，返回 null 就永久留 glyph；现改走 `DomHud._tex` 挂起队列、`update(dt)` 里排空，见 ART-PLAN D20 |
 | 功能图标·第三批 3 件 | 主城设置弹窗音效行 `.popAttr .ai`（按静音态在 喇叭/喇叭叉 之间换图）｜战斗页设置浮窗三个小节头 `.bSetHead .ic`（音效 / 关于 / 危险操作，第三处复用第一批的 `ico_warn`） | `ui/ico/ico_sound` `ui/ico/ico_mute` `ui/ico/ico_info` | `.ai` 34px、`.bSetHead .ic` 30px（×--s） | `icon` | — | 1 | ✅ 拆行接线轮（2026-09-20）。两条新机制：`PopAttrOpts.iconTex`（glyph 先占位、图到位由 `icon()` 摘掉，缺图不空槽）与 `DomHud._iconIc(el, glyph, key?)` + `mkHead(icon, text, tex?)`；`.bSetHead` 改 flex 让图标与标题同行居中。音效行随 `_popRebuild` 在静音/开启两态间换 key，这是「状态换图」而不是「状态显隐」，所以不受 §9 小状态符禁令约束 |
 | 功能图标·待接 1 件 | 见「状态」列 | `ui/ico/ico_empty` | 同上口径 | `icon` | — | 1 | ✗ 图未落盘（切过又删，源表留在 `gen-output/`）：`_popEmpty` 的 14 个调用点全部显式传图，默认 📭 分支无人走，挂上去也是假宿主 |
 | 功能图标·缺功能位 3 件 | 无 | `ui/ico/ico_friend` `ui/ico/ico_undo` `ui/ico/ico_search` | 同上口径 | `icon` | — | 1 | ✗ 键留在采购单、图不落盘：friend 全工程没有好友/社交入口；undo 现有的 `↩`/`←` 是弹层二级页的**返回**键（`HomeUiCore._popBar`），语义不是撤销，给它上图会把「返回上级 / 返回上一页」两档压成同一个符号；search 全工程还没有检索位 |
-| 功能图标·缺功能位 3 件 | 无 | `ui/ico/ico_friend` `ui/ico/ico_undo` `ui/ico/ico_search` | 同上口径 | `icon` | — | 1 | ✗ 键留在采购单、图不落盘：friend 全工程没有好友/社交入口；undo 现有的 `↩`/`←` 是弹层二级页的**返回**键（`HomeUiCore._popBar`），语义不是撤销，给它上图会把「返回上级 / 返回上一页」两档压成同一个符号；search 见上一行 |
 
 > **有些槽位不该出图**（2026-09-20 第二批定，同批撤掉的 4 个键都属这几类）：
 > ① **随文小状态符**留字符——`›`（详情链尾）、`✓`（登录协议勾选、网格选中角标）、`✅`（签到已领格）
@@ -307,7 +306,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 档 | 用途 | 源件建议 | slice / 显示 |
 |---|---|---|---|
 | `plate`（已定） | 弹层 CTA、`.btn.big`、登录 START | 高 ≥40px@1x | `16 fill` / 10px×--pu |
-| `bar`（**本轮定档**，依据见下） | 进度条底槽 `ui/progress/bar_track` | 512×64，黑边画进 8px | `8 fill` / 2px×--pu |
+| `bar`（**已定档 → 同日按生成件改档**，依据见下） | 进度条底槽 `ui/progress/bar_track` | 512×64，上下描边各 10px、左右圆头各 17px | `10 17 10 17 fill` / 4px 与 7px×--pu |
 | `chip`（**未定档、不进 NINE**） | `.good .gBuy` 27px、`.gBuy` 44~56px、`.hero-quick` 五入 44px | 128×128，斜面画进 12px | 建议 `12 fill` / 6px×--pu，待样张实测 |
 
 `UiPlate.NINE` 里没有的档 = 不许接线：先补本表一行、再加 NINE 一档、最后接宿主，顺序不许多。
@@ -320,22 +319,35 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 **描边 : 条高 ≈ 1 : 9**。回推到 1x 显示——条高 14px 时描边 ≈1.5px（取整 2px）；源件高 64px 时描边
 ≈7px（slice 取 8，留一点圆角余量）。于是 `bar = { slice: '8 fill', width: 'calc(2px * var(--pu,1))' }`。
 
-**同一轮量出来的硬约束（原先没进规范）**：16 个条类宿主的真实高度是 `.expbar` 3px、`.prosBar`
-6px(手机)/12px(桌面)、`.qBar` `.biBar` `.rcBar` `.talentBar` 7px(手机)/12~14px(桌面)。
-**条高低于 10px 时，上下两条 2px 描边就把内腔吃光了**，贴九宫格等于把一根细线糊成一坨。
-所以 `bar` 档的适用前提写死在这里：**宿主条高 ≥10px（设计像素）**。3~7px 那几条要么先把高度抬到
-10px 再接，要么承认它就是一根 CSS 渐变线，不出图也不接线。这条筛子排在接线之前，别等贴完再回退。
+**同日按生成件改档（r12 表落地时）**：上面那组数字是从基准图**比例**推的，前提是「圆角半径很小」。
+实际出图的五条件圆头很大——`python tools/measure_nine.py <bar_track.png>` 量 512×64 的切片得
+「柱高爬到满高 98% 用了 17 列」，即左右圆头各 17px、上下描边含抠像软边各 10px。
+按 `8 fill` 切会把圆头划进中段横向拉长，两端糊成一条直线。故改为四边分设：
+`bar = { slice: '10 17 10 17 fill', width: 'calc(4px * var(--pu,1)) calc(7px * var(--pu,1))' }`
+（4/7 按宿主 20~28px 对 64px 源件折算，比例 0.39~0.44 取中）。
+**教训：切片档要量「真正要用的那张切片件」，不能只量参考图的比例。**
+
+**同一轮量出来的硬约束（原先没进规范）**：条类宿主的真实高度见 §9 进度条行——HUD 四条 20~28px 达标，
+主城四条只有 3 / 6 / 7 / 8px。**条高低于 10px 时，上下两条描边就把内腔吃光了**，贴九宫格等于把一根
+细线糊成一坨。所以 `bar` 档的适用前提写死在这里：**宿主条高 ≥10px（设计像素）**；过不了筛的那几条
+**不许为了贴图去抬高度**（会挤动整页布局），承认它就是一根 CSS 渐变线。这条筛子排在接线之前，
+别等贴完再回退。
 
 基准图那三条条体中间嵌着字（`120/120` `68%` `3/3`），所以它只能用来定比例，**不能当切片源**；
 真正上屏的 `ui/progress/bar_track` 必须另出干净件（批5）。
 
 ### 进度条与页签的出图口径（批5 / 批1 追加，出图前只需读这段）
 
-- **底槽 `ui/progress/bar_track`**：横向九宫格条，中间为**内凹暗槽**、两端留圆头；源件 512×64、黑边画进 8px，
-  按上表 `bar` 档切（`8 fill` / 2px×--pu）。宿主写 `.qBar/.actBar/.rcBar/.talentBar/.biBar/.prosBar/.expbar/.pbar/.starBar/
-  .popBar/.bagBar`（主城，11 条）与 `#domHud .xpBar/.vehicleBar/.bossBar` 及每英雄伤害占比 fill（HUD，共 5 条）。
-  **出图前先把这份宿主表按「条高 ≥10px」筛一遍**：过不了筛的（`.expbar` 3px、手机端 6~7px 那几条）
-  从宿主表里划掉，不要为了贴图去改它们的高度——抬高度会挤动整页布局，那是另一件事。
+- **底槽 `ui/progress/bar_track`**：横向九宫格条，中间为**内凹暗槽**、两端圆头；源件 512×64。
+  切片档按 `tools/measure_nine.py` 量**实际生成件**得：上下描边（含抠像软边）各 10px、左右圆头各 17px
+  → `border-image-slice: 10 17 10 17 fill`，`border-image-width: 4px / 7px`（×--pu，按宿主 20~28px 折算）。
+  原先照基准图量的 `8 fill` / 2px 对不上这批件——8px 只够盖住软边，圆头会被划进中段拉成长条。
+  **过筛结论（2026-09-20 逐条量过，替代此前粗写的「主城 11 条 + HUD 5 条」）**：只有战斗 HUD 的
+  `.xpBar`(25) / `.vehTrack`(20) / `.bossTrack`(28) / `.statBar`(20) 四条达标；主城 `.expbar`(3) /
+  `.rcBar`(6) / `.popRow .pbar`(7) / `.popAct .bar`(8) 四条不接，`.qBar`/`.biBar`/`.talentBar`/`.prosBar`/
+  `.actBar`/`.starBar` 六条是**死样式**（没有任何代码建这个 DOM），`.popBar`/`.bagBar` 名不符实
+  （弹层底部导航栏、背包容器）。不接的一律**不抬高度**——抬高度会挤动整页布局，那是另一件事。
+  HUD 层因此补了 `--pu: var(--s,1)`（同 D10b 的口径），否则 `UiPlate` 的板厚在手机上不随 HUD 缩放。
 - **填充 `ui/progress/bar_fill_green|yellow|blue|red`**：**纯横向可拉伸的色带件**（不带高光边、不带圆头，
   圆头交给 track 与 cap），宽度由 JS 按百分比写；四色语义 = 绿通用/经验、黄体力/活跃、蓝冷却/科技、红危险/boss。
 - **端头 `ui/progress/bar_cap`、节点 `ui/progress/bar_node`**：端头是 cap 小方件（contain）；节点是关卡进度上的宝箱里程碑。

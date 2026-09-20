@@ -65,15 +65,19 @@ export interface NineSpec {
  *    slice 用百分比会把板面划进边区、板厚被压扁（四轮实测口径）；
  *  - frame：框件（头像框等），**不带 fill** —— 只画四边、中心留空，
  *    宿主自己的底色/立绘 background 才不会被框图盖掉；
- *  - bar：进度条底槽，源件 512×64 的黑边画进 8px（基准图实测描边:条高 ≈1:9），显示 2px。
+ *  - bar：进度条底槽。**四边切片值不同**——`tools/measure_nine.py` 量 r12 表切出的 `bar_track`（512×64）
+ *    得「上下描边含软边各 10px、左右圆头各 17px」，故 slice 写 `10 17 10 17 fill`；
+ *    width 按宿主条高 20~28px 折算取 4px / 7px（×--pu）。
  *    **只给条高 ≥10px 的宿主用**——再薄的条，上下两条描边就把内腔吃光了（STYLE-SPEC §9 薄板档）。
+ *    旧口径 `8 fill` / 2px 是照基准图量出来的，对不上这批生成件（8px 只够盖住软边、圆头会被拉进中段），
+ *    2026-09-20 按实测改档。
  */
 export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
     platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
     frame: { slice: '16%', width: 'calc(5px * var(--pu,1))' },
-    bar: { slice: '8 fill', width: 'calc(2px * var(--pu,1))' },
+    bar: { slice: '10 17 10 17 fill', width: 'calc(4px * var(--pu,1)) calc(7px * var(--pu,1))' },
 };
 
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */

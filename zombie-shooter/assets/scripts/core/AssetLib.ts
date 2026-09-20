@@ -27,8 +27,8 @@ const MANIFEST = [
     // btn_gold/btn_cyan/chip_dark。不进包、不登记 MANIFEST；要用回某张就拷回本清单里同 key 的
     // 路径（ui/ 下带类别段，如 textures/ui/button/btn_play.png）再登记。
     // 2026-09-21 分类迁移：ui/ 下的件按类别落到子目录（button/panel/banner/nav/res/ico/frame/shop，
-    // 另有 progress/badge 两类目前只有预留 key、无在库图：进度条族与奖牌/战力徽章自成一族，
-    // 不与标题条 banner / 框件 frame 混目录），
+    // 另有 progress/badge 两类：进度条族 r12 已落盘三件，badge 仍只有预留 key、无在库图——
+    // 名次奖牌/战力徽章自成一族，不与标题条 banner / 框件 frame 混目录），
     // ui/ 顶层不再放散图；另有 12 件「在库无宿主」的图移出包 → art-spec/reference/stock/（见其 README）。
     // 四轮素材表批量件（r4_icons 一次成型）：按钮系/头像框/标题绶带 + 商城货架/功能图标
     'ui/button/btn_play', 'ui/button/btn_confirm', 'ui/button/btn_cancel', 'ui/button/btn_close',
@@ -82,7 +82,6 @@ const MANIFEST = [
     // 扩展资源与进度件
     'ui/res/res_frag', 'ui/res/res_medal', 'ui/res/res_energy', 'ui/res/res_ticket',
     'ui/progress/bar_track', 'ui/progress/bar_fill_green', 'ui/progress/bar_fill_yellow', 'ui/progress/bar_fill_blue', 'ui/progress/bar_fill_red',
-    'ui/progress/bar_cap', 'ui/progress/bar_node',
     // 框徽角标补件（升星/等级/折扣/节点/战力/名次奖牌）
     'ui/star_on', 'ui/star_off', 'ui/lvtag', 'ui/tag_free', 'ui/tag_sale', 'ui/tag_hot',
     'ui/node_done', 'ui/node_next', 'ui/node_lock', 'ui/badge/power_badge',
@@ -143,10 +142,11 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // —— 扩展资源与进度条 ——
     'ui/res/res_frag': '资源·英雄碎片', 'ui/res/res_medal': '资源·勋章',
     'ui/res/res_energy': '资源·能量', 'ui/res/res_ticket': '资源·招募券',
-    'ui/progress/bar_track': '进度条底槽（九宫格横件）', 'ui/progress/bar_fill_green': '进度填充·绿（经验/通用）',
+    // 进度条一族（r12 表已出图；底槽 + 绿/红填充已落盘接线，见 STYLE-SPEC §9）：
+    // 下面两件是「图出了但这一轮没有可贴的宿主」——yellow 等车尾条的橙色三态件配套（金/橙/红
+    // 三态由 CSS 类切换，挂内联贴图会把三态吃掉），blue 全工程没有冷却/科技类条。
+    // 另 bar_cap / bar_node 两个键随批撤掉：底槽件自带圆头端点，节点另有 node_done/next/lock 三件。
     'ui/progress/bar_fill_yellow': '进度填充·黄（体力/活跃度）', 'ui/progress/bar_fill_blue': '进度填充·蓝（科技/冷却）',
-    'ui/progress/bar_fill_red': '进度填充·红（boss 血条/危险）', 'ui/progress/bar_cap': '进度条端头',
-    'ui/progress/bar_node': '关卡进度宝箱节点',
     // —— 框徽角标 ——
     'ui/star_on': '评价星·亮', 'ui/star_off': '评价星·空',
     'ui/lvtag': '等级角标（替 .lvtag CSS）', 'ui/tag_free': '角标·免费',

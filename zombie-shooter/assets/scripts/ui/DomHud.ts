@@ -49,6 +49,8 @@ export class DomHud extends Component {
     private _vehBarEl: HTMLDivElement | null = null;
     /** 低耐久红色边缘晕（危险预警） */
     private _vignette: HTMLDivElement | null = null;
+    /** 等 AssetLib 预载回来的贴图回调（见 `_tex`） */
+    private _pendingTex: Array<{ key: string; apply: (url: string) => void }> = [];
     private _popupEl: HTMLDivElement | null = null;
     /** 弹报副行（本波数量等上下文，交互稿 battle.html ②） */
     private _popupSubEl: HTMLDivElement | null = null;
@@ -134,6 +136,7 @@ export class DomHud extends Component {
         if (!this._root) {
             return;
         }
+        this._flushTex();
         const bm = BattleManager.instance;
         if (bm) {
             // 战斗暂停（含升级选卡）→ 冻结 DOM 伤害数字动画
@@ -998,6 +1001,7 @@ export class DomHud extends Component {
         this._xpFill.style.width = '0%';
         xpBar.appendChild(this._xpFill);
         xpWrap.appendChild(xpBar);
+        this._barTex(xpBar, this._xpFill, 'ui/progress/bar_fill_green');
         const topRight = document.createElement('div');
         topRight.className = 'topRight';
         top.appendChild(topRight);
@@ -1026,6 +1030,9 @@ export class DomHud extends Component {
         this._vehicleFill.className = 'vehicleFill';
         this._vehicleFill.style.width = '100%';
         track.appendChild(this._vehicleFill);
+        // 车尾条只贴底槽：填充色是 .warn/.danger 三态（金/橙/红）由 CSS 类切换，
+        // 挂内联贴图会把三态一起吃掉（内联样式压过类规则），等出到橙色填充件再换
+        this._barTex(track, null);
         vBar.appendChild(track);
         this._vehicleText = this._label(vBar, 'vehicleText', `${BattleConfig.VEHICLE_MAX_HP} / ${BattleConfig.VEHICLE_MAX_HP}`);
         root.appendChild(vBar);
@@ -1064,6 +1071,7 @@ export class DomHud extends Component {
         this._bossFill.style.width = '100%';
         bossTrack.appendChild(this._bossFill);
         bossBar.appendChild(bossTrack);
+        this._barTex(bossTrack, this._bossFill, 'ui/progress/bar_fill_red');
         root.appendChild(bossBar);
         this._bossBarEl = bossBar;
         this._bossNameEl = bossName;
@@ -1261,6 +1269,8 @@ export class DomHud extends Component {
             fill.className = 'statBarFill';
             fill.style.width = '0%';
             bar.appendChild(fill);
+            // 伤害占比条只贴底槽：填充色由 `DomHud.ts` 按英雄色内联写死（身份色优先于贴图）
+            this._barTex(bar, null);
             const chips = document.createElement('div');
             chips.className = 'statSlots';
             const slots: HTMLSpanElement[] = [];
@@ -1364,9 +1374,43 @@ export class DomHud extends Component {
         ic.className = 'ic';
         ic.textContent = glyph;
         btn.appendChild(ic);
-        const url = key ? this._assetBgUrl(key) : null;
+        if (key) {
+            this._tex(key, UiPlate.icon(ic));
+        }
+    }
+
+    /** 贴图回填队列（同 HomeUi/LoginUi 的 `_tex` 口径）：DomHud 在场景加载时就建好整棵 DOM，
+     *  那一刻 AssetLib 的异步预载常常还没回来，一次性取 URL 会让贴图永久退化成 glyph 占位。 */
+    private _tex(key: string, apply: (url: string) => void): void {
+        const url = this._assetBgUrl(key);
         if (url) {
-            UiPlate.icon(ic)(url);
+            apply(url);
+            return;
+        }
+        this._pendingTex.push({ key, apply });
+    }
+
+    /** 每帧排空一次（队列空时零成本）；预载回来后贴图自动补上，不依赖面板何时被打开 */
+    private _flushTex(): void {
+        if (!this._pendingTex.length) {
+            return;
+        }
+        this._pendingTex = this._pendingTex.filter(p => {
+            const url = this._assetBgUrl(p.key);
+            if (url) {
+                p.apply(url);
+                return false;
+            }
+            return true;
+        });
+    }
+
+    /** 进度条贴图：底槽走 `bar` 九宫格、填充走横向拉伸（宽度仍由 JS 写 %）。
+     *  缺图整条回退 CSS 渐变；填充不传 key 表示「这条的填充色归 CSS/JS 管，不上图」。 */
+    private _barTex(track: HTMLElement, fill: HTMLElement | null, fillKey?: string): void {
+        this._tex('ui/progress/bar_track', UiPlate.nineSlice(track, 'bar'));
+        if (fill && fillKey) {
+            this._tex(fillKey, UiPlate.strip(fill));
         }
     }
 
@@ -1440,6 +1484,9 @@ export class DomHud extends Component {
   /* 顶部留白间距：基准 32 设计像素（交互稿 .safe，桌面也保留），刘海设备吃 --sat 撑开；
      间距保持透明露出画面，顶栏只整体下移，不做不透明遮盖 */
   --safeTop: max(calc(32px * var(--s,1)), var(--sat, 0px));
+  /* UiPlate 的切片档一律按 --pu 算板厚（见 D10b）；HUD 层原本只有 --s，这里补一行别名，
+     否则九宫格板厚在手机上不会随 HUD 缩放 */
+  --pu: var(--s,1);
   font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   font-weight: 700; color: var(--c-ice-2); user-select: none; }
 #domHud .hudLabel, #domHud .bigLabel { text-shadow: 0 1px 2px rgba(0,0,0,.85); white-space: nowrap; }
