@@ -104,6 +104,8 @@ node tools/check-notice.js
 node tools/check-stamina.js
 node tools/check-bite.js
 node tools/check-perf.js
+node tools/check-popup-ux.js         # 二级浮窗红线：原先只在文首「验证入口」提过、没进链，等于每轮不跑
+node tools/check-art-manifest.mjs    # 清单↔磁盘↔代码↔契约表四方对账：美术轮必跑，同样曾游离在链外
 # Cocos 构建（成功标志：grep -c "build Task (web-mobile) Finished" 计数 = 1）
 bash tools/postbuild.sh                # 构建戳 + 缓存击破 + _maxFontSize 补丁，构建日志用完删
 grep -c "<本轮改动标识>" build/web-mobile/assets/main/  # bundle 断言：确认改动真的进包
@@ -114,8 +116,13 @@ node tools/check-split-bundle.js
 node tools/check-ux-bundle.js
 node tools/check-ux-layout-bundle.js
 node tools/check-mail-bundle.js
+node tools/check-perf-bundle.js        # AGENTS.md 此前从未提过这个文件，纯孤儿
 git check-ignore zombie-shooter/tools/imagegen.local.json   # 期望输出该路径
 ```
+
+**一个例外**：`tools/check_mortar_assets.py` 不进每轮链——它只盯迫击炮图集（512×512 RGBA、
+16 格透明边、meta 未裁剪）与诊断码增删对齐，属窄口径。**但改 `fx/mortar.png` 或动诊断码的轮次必须跑它。**
+（写这里是为了让它有别于"从没被人记起"，而不是继续当第三个孤儿。）
 
 - **提交安全线**：APIKey 存放于 `zombie-shooter/tools/imagegen.local.json`，该文件与
   `gpt-image2-skill/`、`gen-output/` 均被 gitignore 严禁提交；每次 git 提交前需确认这些未入库。
