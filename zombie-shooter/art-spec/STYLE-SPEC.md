@@ -371,7 +371,28 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
   （`ui/HUD.ts` Graphics 与飘字），没有可贴的 DOM 图形位，出图会白出。等战斗 HUD 图形化那一轮再定宿主；
   在此之前它们只是 `RESERVED_SLOTS` 里的挂名项，不排产。
 
-### 在库无归宿件（退役候选 / 待接，等拍板）
+### 采购单宿主全量核实（2026-09-21，出图前必查这张表）
+
+起因：用户要求「别再一族一族磨，把剩下的美术一次全出完」。动手前逐族核宿主，结论是
+**`RESERVED_SLOTS` 上剩的 43 个键里，31 个根本没有宿主**——规范/采购单里那句用途说明
+是当初登记时写的，从没验过建 DOM 的代码在不在。`.chTabs` 与 `.lbRank` 不是两个偶发，
+是这批声明的常态。**判据：一条宿主声明必须能指到「哪一行代码创建了这个元素」，
+只有一条 CSS 规则不算。**
+
+| 判决 | 件数 | 键 | 依据（代码位置） |
+|---|---|---|---|
+| ✅ **有活宿主，可出图可进版** | 10 | `ui/panel/row_card`（`.good.panel` `HomeUiMall.ts:303` + `.mailRow.panel` `DomHud.ts:570`）、`ui/panel/panel_mini`（`.mbox` `HomeUiCore.ts:394/435`）、`ui/plate_wave`（`.chip.waveChip` `DomHud.ts:1019`，最小宽 122px、上面叠「波次 3/10」文字）、`ui/badge/power_badge`（`.powerBadge` `HomeUiHeroes.ts:569`，高 27px、叠「战力 12,345」）、`ui/lvtag`（`.lvtag` `HomeUiCore.ts:1303`，实测仅 ≈21×13px）、`ui/tag_hot`（`.gHot` `HomeUiMall.ts:306`，叠「HOT」）、`icons/mat_stone/alloy/core` + `icons/gem_fire/wind/ice/thunder`（背包 `.bcell` `HomeUiHeroes.ts:823` 与商城 `.gIc` `HomeUiMall.ts:311`，格子 110~124px——**但这两处现在只写 emoji、没有贴图槽，要先加 `iconTex` 才能进版**） | 建 DOM 的代码在，尺寸够 |
+| ⚠ **宿主在，但要改结构才能贴** | 5 | `ui/node_done/next/lock`（真节点是 `_popGrid` 的 `<i>` 格 `HomeUiCore.ts:968`，**`_popGrid` 没有 `iconTex` 参数**；`.talentNode` 那套 CSS 是死样式）、`ui/star_on/off`（星级全是文本：`'★'.repeat()` `HomeUiHeroes.ts:560`、`HomeUiPlay.ts:948`，没有可挂图的元素）、`ui/boss_crown`（`.bossName` 是 `👑 名字` 一行文本 `DomHud.ts:206`，皇冠是随文 emoji 前缀） | 要么先拆出元素，要么按「随文小符号不出图」判死 |
+| ⛔ **无宿主：功能不存在** | 10 | `icons/status_shield/sword/heart/skull/fire/ice/bolt/poison/lock/search`（战斗内 buff 全是 Cocos `Graphics`+`Label`，`ui/HUD.ts` 与 `DomHud.ts` 里 grep `buff` 零命中）、`ui/skill_slot`（技能键是 `AbilityBar.ts` 的画布节点，92×92，不是 DOM） | 等战斗 HUD 图形化那一轮，先开图形位再出图 |
+| ⛔ **无宿主：界面没有这个入口** | 8 | `ui/res/res_frag`（碎片只在英雄页以文本 `🔩 碎片 N` 出现 `HomeUiHeroes.ts:272`；顶栏 `mkRes` 只调 3 次、`.reswrap` 硬写 3 列）、`ui/res/res_medal/res_energy/res_ticket`（这三个资源 id 除 `AssetLib.ts` 外全工程不存在）、`ui/ico/ico_friend/undo/search`（无好友系统、无检索位，现有 `↩` 两处都是返回键）、`ui/ico/ico_empty`（`_popEmpty` 15 个调用点全部显式传图，默认分支不可达） | 先做功能，再谈图 |
+| ⛔ **无宿主：同位重复或位置是死的** | 8 | `ui/button/btn_purple`（`PLATE.purple` 有映射 `UiPlate.ts:164`，但 `PopCta.kind` 的取值域里根本没有 `purple`，零调用点）、`btn_help`（帮助 `?` 已由 `btn_round2` 接在 `.popMeta .q` 上）、`btn_home`/`btn_refresh`（全工程没有 ↻/⌂ 这类键）、`ui/tag_free/sale`（`.gTagTop` 只在 CSS `:156/:1806`，无建点）、`icons/vehicle_truck/ship/hauler`（`StageInfo` 没有载具字段，护送页的场景是 CSS 渐变 + 伪元素山/日） | 建议撤键（撤法见上面「有些槽位不该出图」） |
+
+**新查出的死样式块**（与 `.chTabs`/`.lbRank` 同族，留给死样式清扫那一轮）：
+`.mRow`、`.questRow`、`.gTagTop`、`.talentNode` 及其 `.tbNodes/.talentBranch/.talentDetail/.tnIc/.tnLv`、`.star`。
+
+**这一轮的实际产出边界**：能真正「进版」的只有 10 件（其中 7 件还要先加贴图槽），
+5 件要先改 DOM 结构，26 件是「先有界面才有图」。所以「一次全出完」这件事
+**不是慢在生成，是慢在那 26 个键对应的界面还没做**。
 
 `check-art-manifest` 的「在库件必须有归宿」断言就是冲这张表去的：每张在库图要么被代码引用，
 要么在这里有一句说法（接谁的宿主、为什么还没接）。**下一轮要么接线、要么整族删，不留第三种状态。**
