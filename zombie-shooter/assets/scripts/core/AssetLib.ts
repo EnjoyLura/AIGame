@@ -112,11 +112,12 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'ui/button/btn_purple': '特殊/紫色大按钮去字底板（UiPlate.PLATE.purple）',
     'ui/button/btn_home': '小圆钮·主页', 'ui/button/btn_help': '小圆钮·帮助 ?', 'ui/button/btn_refresh': '小圆钮·刷新 ↻',
     // —— 二级页签 ——（tab_hero/equip/gem/mat/potion 五件 2026-09-20 已出图并接线，声明移出本表）
-    // tab_core 留单：图出了（gen-output/r13 那张表里第 5 格，反应堆芯，质量合格），但**没有这个页签**——
+    // tab_core：图 2026-09-20 已出且合格（r13 表第 5 格，反应堆芯），但**这个页签还没有**——
     // 规范原先写的宿主 `.chTabs` 是死样式（护送页早已改成「章节头 + 左右翻页箭头」，全工程无一处建 DOM），
-    // 背包第四签的真实分类是「道具」而非「核心」。武器核心是养成弹窗里的一行，不是页签，硬套 tab_ 键
-    // 等于给同一个位置挂两套语义。等真出现「核心」分类页签再落盘，或按 §9 撤键。
-    'ui/ico/tab_core': '页签·核心（宿主未落地：章节页签已被章节头替代、背包无核心签）',
+    // 背包第四签的真实分类是「道具」而非「核心」。同轮用户拍板「核心页签功能我后面做」，所以本行与
+    // MANIFEST 那行都保留；切片件存在 `art-spec/reference/stock/ico/tab_core.png`（gen-output 被 gitignore
+    // 且定期可清，不能当长期存放处）。界面建好当天把 png 拷回 `assets/resources/textures/ui/ico/` 并删掉本行。
+    'ui/ico/tab_core': '页签·核心（图已出并归档 stock/ico/，等核心分类页签建起来）',
     // —— 功能入口图标 ——（图标三批共 19 件已出图并接线，预留声明已移出本表：
     // 第一批 ico_add / ico_signin / ico_trial / ico_endless / ico_core / ico_weapon / ico_starup /
     // ico_talent / ico_recruit / ico_forge / ico_del / ico_warn；第二批 ico_ad / ico_slider /
@@ -152,8 +153,9 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'ui/lvtag': '等级角标（替 .lvtag CSS）', 'ui/tag_free': '角标·免费',
     'ui/tag_sale': '角标·折扣', 'ui/tag_hot': '角标·HOT',
     'ui/node_done': '天赋节点·已点', 'ui/node_next': '天赋节点·可点', 'ui/node_lock': '天赋节点·锁定',
-    'ui/badge/power_badge': '战力徽章底', 'ui/badge/medal1': '排行榜名次奖牌·第 1（替 🥇）',
-    'ui/badge/medal2': '排行榜名次奖牌·第 2（替 🥈）', 'ui/badge/medal3': '排行榜名次奖牌·第 3（替 🥉）',
+    // 名次奖牌三件（medal1/2/3）2026-09-20 已出图并接 HUD 伤害统计 `.statRank`，声明移出本表；
+    // 排行榜弹窗那处按「随文小符号不出图」判死，理由见 STYLE-SPEC §9 名次奖牌行。
+    'ui/badge/power_badge': '战力徽章底',
     'ui/panel/row_card': '列表行卡底板（任务/邮件/货架条目）', 'ui/panel/panel_mini': '模块小框底板（.mbox）',
     // —— 护送关卡卡载具 ——
     'icons/vehicle_truck': '关卡载具·卡车', 'icons/vehicle_ship': '关卡载具·运输船',

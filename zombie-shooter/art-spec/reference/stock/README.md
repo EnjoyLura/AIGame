@@ -14,14 +14,15 @@
 |---|---|---|---|
 | `rank/` | 7 | `ui/rank1` ~ `ui/rank7`（段位徽章七档：青铜→王者） | 游戏里没有段位字段与展示位（ART-PLAN 决策 D4） |
 | `frame/` | 3 | `ui/frame_bronze` `ui/frame_silver` `ui/frame_gold`（铜/银/金头像框） | 分档需要段位或段位化等级数据源；现在只有单档 `ui/frame/avatar_frame` 有宿主 |
-| `ico/` | 2 | `ui/ico_achieve`（成就入口）`ui/ico_lock`（锁定态） | 主城无成就入口（成就只在活动/任务里以行卡出现）；🔒 现有表现全是文案内嵌 emoji，没有独立图形位 |
+| `ico/` | 3 | `ui/ico_achieve`（成就入口）`ui/ico_lock`（锁定态）`ui/ico/tab_core`（核心页签） | 主城无成就入口（成就只在活动/任务里以行卡出现）；🔒 现有表现全是文案内嵌 emoji，没有独立图形位；tab_core 是**唯一一件「key 还留在采购单」的**——2026-09-20 拍板「核心页签功能我后面做」，所以 `AssetLib` 的 `MANIFEST` 与 `RESERVED_SLOTS` 两行都不删，图先存这儿，界面建好当天拷回即生效 |
 
 ## 想复活某一张
 
 1. 把它（**连 `.png.meta` 一起**，保住原 uuid）拷回 `assets/resources/textures/` 下
    按现行类别归好的位置：段位徽章 → `ui/badge/`，铜银金头像框 → `ui/frame/`，
    功能图标 → `ui/ico/`。
-2. 在 `assets/scripts/core/AssetLib.ts` 的 `MANIFEST` 里登记该行 key。
+2. 在 `assets/scripts/core/AssetLib.ts` 的 `MANIFEST` 里登记该行 key（`tab_core` 已在册，跳过这步，
+   只需删掉 `RESERVED_SLOTS` 里那一行）。
 3. 给它在 `art-spec/STYLE-SPEC.md` §9 通用件契约表登记宿主（CSS class + 切片档），
    或在「在库无归宿件」表里写一句说法——`tools/check-art-manifest.mjs` 的
    「在库件必须有归宿」断言在盯，光登记不接宿主过不了对账。

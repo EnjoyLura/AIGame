@@ -189,6 +189,16 @@ for (let i = 0; i < 60 && !shot2; i++) {
 }
 if (!shot2) await shot('06-battle-more');
 
+// 7. 伤害统计面板：名次奖牌贴图核对（同 D20）。三档应有图且数字留在环心，第 4 名应保持 CSS 板
+await evalJs(`document.querySelector('.statsBtn')?.click(); 1`);
+await sleep(2200);
+console.log('statRank:', await evalJs(`JSON.stringify([...document.querySelectorAll('#domHud .statRank')].map(e => {
+  const cs = getComputedStyle(e);
+  return e.textContent.trim() + '|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+    + '|ink=' + cs.color + '|fs=' + cs.fontSize + '|w=' + Math.round(e.getBoundingClientRect().width);
+}))`));
+await shot('07-stats-medals');
+
 ws.close();
 chrome.kill();
 try { rmSync(profile, { recursive: true, force: true }); } catch {}

@@ -15,6 +15,16 @@ import * as UiPlate from './UiPlate';
 import { MailSystem, MailState, mailTimeText, mailExpiringSoon } from '../core/MailSystem';
 import { DungeonReward, dungeonDef, DUNGEON_TIER_NAMES } from '../core/DungeonSystem';
 
+/** 名次奖牌三档：key 与「环心数字」的墨色成对登记。墨色走 UiTheme 令牌（不落 hex），
+ *  跟着金属档走；4 名以后没有奖牌，也不改色——保持 CSS 深色板 + 原字色。
+ *  key 必须整串字面量写出来：`'ui/badge/medal' + rank` 这种拼法会被
+ *  `check-art-manifest` 判成「代码引用未登记」，而那正是它要防的静默占位。 */
+const RANK_MEDAL: Record<number, { key: string; ink: string }> = {
+    1: { key: 'ui/badge/medal1', ink: 'var(--c-gold-bright)' },
+    2: { key: 'ui/badge/medal2', ink: 'var(--c-text-ice)' },
+    3: { key: 'ui/badge/medal3', ink: 'var(--c-amber)' },
+};
+
 /** 伤害统计面板每英雄一行的可更新元素 */
 interface StatRow {
     root: HTMLDivElement;
@@ -879,6 +889,7 @@ export class DomHud extends Component {
             const pct = stats.teamTotal > 0 ? Math.round((h.total / stats.teamTotal) * 100) : 0;
             row.rank.textContent = String(i + 1);
             row.rank.className = 'statRank rank' + (i + 1);
+            this._rankTex(row.rank, i + 1);
             row.root.classList.toggle('lead', i === 0);
             const url = this._heroAvatarUrl(h.id);
             if (url) {
@@ -1247,6 +1258,7 @@ export class DomHud extends Component {
             row.className = 'statRow';
             const rank = document.createElement('div');
             rank.className = 'statRank rank' + (i + 1);
+            this._rankTex(rank, i + 1);
             rank.textContent = String(i + 1);
             const avatar = document.createElement('div');
             avatar.className = 'statAvatar';
@@ -1412,6 +1424,24 @@ export class DomHud extends Component {
         if (fill && fillKey) {
             this._tex(fillKey, UiPlate.strip(fill));
         }
+    }
+
+    /** 名次奖牌：三档各一件。环心是镂空的，所以名次数字留在原位，只把墨色换成同档金属色
+     *  （走 UiTheme 令牌）。缺图时什么都不改，仍是 CSS 渐变板 + 深色字。
+     *  `dataset.medal` 去重：`_refreshStats` 会反复刷排名，不去重就会每次往挂起队列塞一条。 */
+    private _rankTex(el: HTMLElement, rank: number): void {
+        const medal = RANK_MEDAL[rank];
+        if (!medal || el.dataset.medal === String(rank)) {
+            return;
+        }
+        el.dataset.medal = String(rank);
+        const put = UiPlate.icon(el, { keepGlyph: true, hideBorder: true, color: medal.ink });
+        this._tex(medal.key, (url) => {
+            put(url);
+            // 环心镂空只有条高的一小截，34px 的数字会压到金属边上；写内联而不是加类，
+            // 因为 _refreshStats 每次重排名都会整行重写 className，挂类会被抹掉
+            el.style.fontSize = 'calc(20px * var(--s,1))';
+        });
     }
 
     private _chipLab(text: string): HTMLSpanElement {

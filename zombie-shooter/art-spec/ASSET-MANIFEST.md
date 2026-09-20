@@ -8,7 +8,7 @@
 
 清单里暂无文件的 key 属「预留槽位」（缺图回退占位，图到位即生效）——这正是逐张补图、随时可进的机制。风格与尺寸要求见 [STYLE-SPEC.md](./STYLE-SPEC.md)。
 
-## A. 在库槽位（104 张图，png/jpg；r1/r2 旧版 9 件 + 2026-09-21 无宿主的 12 件已归档，均见 §E）
+## A. 在库槽位（107 张图，png/jpg；r1/r2 旧版 9 件 + 2026-09-21 无宿主的 12 件已归档，均见 §E）
 
 | key | 用途 | 现尺寸 | 状态 |
 |---|---|---|---|
@@ -37,6 +37,7 @@
 | ui/shop/shop_gift · shop_chest · shop_scroll · shop_letter | 礼盒 / 宝箱 / 卷轴 / 信件 | 256 | 前三已上屏，letter 作空态图 |
 | ui/progress/bar_track · bar_fill_blue · bar_fill_green · bar_fill_yellow · bar_fill_red | 进度条底槽（内凹暗槽带圆头）+ 蓝/绿/黄/红四档填充色带 | 512×64 | 五件整套已上屏：底槽贴 HUD 四条（`.xpBar/.vehTrack/.bossTrack/.statBar` 走 `bar` 档）与主城三条（`.expbar` 10px、`.pbar` 与 `.popAct .bar` 12px，走 `barThin` 档）；填充蓝＝顶栏经验与 HUD 经验、绿＝弹层行进度、黄＝弹层活跃/保底、红＝boss 血条。载具条与伤害占比条按拍板只贴底槽，抽卡保底条退回 6px 不贴，理由见 §9 |
 | ui/ico/tab_hero · tab_equip · tab_gem · tab_mat · tab_potion | 二级页签图标（r13 素材表）：英雄半身 / 步枪 / 蓝钻 / 铝锭木料石 / 医疗包 | 128×128 | 五件已上屏，吃下 7 个位置——商城 `.shopTabs` 四签 + 背包 `.bagTabs` 四签，装备/宝石/材料三签两处共用同件；图标位是 `span.ticon`，20px ×层缩放归 CSS。**同批出的 `tab_core`（反应堆芯）没落盘**：规范里那个「章节 `.chTabs`」宿主是死样式、背包第四签真名是「道具」，键留在采购单，判决见 §9 与 ART-PLAN §2.1 |
+| ui/badge/medal1 · medal2 · medal3 | 名次奖牌金/银/铜（r14 素材表）：骷髅双翼环，环心留空 | 192×192 | 三件已上屏，宿主只有一处＝战斗 HUD 伤害统计 `.statRank.rank1/2/3`；环心留给名次数字，数字墨色跟着金属档走。排行榜弹窗那格（`.popRow .tag`）实测只有 10~26px、属随文小符号，判死不贴图；`.lbRank` 一族是死样式。见 §9 |
 
 > **r1/r2 旧版 UI 板类件 11 件已归档**到 `art-spec/reference/legacy-keep/`（2026-09-20 拍板弃用，
 > 清单与「拷回即复活」的做法见该目录 README.md），不再登记在 MANIFEST、不进包。
