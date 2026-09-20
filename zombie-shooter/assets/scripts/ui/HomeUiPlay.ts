@@ -1005,11 +1005,15 @@ export abstract class HomeUiPlay extends HomeUiStage {
             onBack: () => this._openBestiaryModal(),
             show: {
                 icon: unlocked ? '👾' : '❓',
-                tier: unlocked ? `${'★'.repeat(def.threat)}` : undefined,
                 name: unlocked ? def.name : '？？？',
                 sub: unlocked ? def.behavior : '？？？ · ？？？'
             },
             build: c => {
+                // 威胁等级从「一串 ★ 文本」改成逐颗星元素：文本星只能整串一个颜色，也贴不了图
+                if (unlocked) {
+                    c.appendChild(this._popSec('威胁等级'));
+                    c.appendChild(this._starRow(def.threat, 5));
+                }
                 c.appendChild(this._popSec('习性'));
                 c.appendChild(this._popAttr({
                     icon: '📄',

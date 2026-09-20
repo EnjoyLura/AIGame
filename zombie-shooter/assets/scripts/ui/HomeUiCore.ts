@@ -987,13 +987,14 @@ export abstract class HomeUiCore extends Component {
 
     /** 组件：格子网格（装备/材料/宝石/层格） */
     protected _popGrid(
-        items: Array<{ icon: string; count?: number | string; sel?: boolean; title?: string }>,
+        items: Array<{ icon: string; count?: number | string; sel?: boolean; title?: string; tex?: string }>,
         cols: 3 | 4 | 5,
         onPick?: (i: number) => void
     ): HTMLElement {
         const grid = this._el('div', `popGrid c${cols}`);
         items.forEach((it, i) => {
             const cell = this._el('i', it.sel ? 'sel' : undefined, it.icon);
+            if (it.tex) { this._tex(it.tex, UiPlate.icon(cell, { keepGlyph: true })); }
             if (it.title) {
                 cell.title = it.title;
             }

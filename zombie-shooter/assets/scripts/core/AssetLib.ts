@@ -160,13 +160,18 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // （HUD 三条底槽与蓝/红填充；主城四条加粗到 12px 后接绿/黄/蓝，见 STYLE-SPEC §9）。
     // 另 bar_cap / bar_node 两个键随批撤掉：底槽件自带圆头端点，节点另有 node_done/next/lock 三件。
     // —— 框徽角标 ——
-    'ui/star_on': '评价星·亮', 'ui/star_off': '评价星·空',
-    'ui/lvtag': '等级角标（替 .lvtag CSS）', 'ui/tag_free': '角标·免费',
-    'ui/tag_sale': '角标·折扣', 'ui/tag_hot': '角标·HOT',
-    'ui/node_done': '天赋节点·已点', 'ui/node_next': '天赋节点·可点', 'ui/node_lock': '天赋节点·锁定',
+    // 评价星两件（star_on/off）与天赋节点三态（node_done/next/lock）2026-09-21 已出图并接线：
+    // 星走 HomeUiMall._starRow（原来是一串 '★'.repeat() 文本，文本星贴不了图），
+    // 节点走 _popGrid 新增的 tex 槽（未解锁=锁、点满=绿、可点=蓝）。逐条判据见 STYLE-SPEC §9。
+    // 下面这五件 r25 表已出且合格（平整牌面、无镂空），但**宿主形状对不上**：出图前只核了「宿主在不在」，
+    // 没核「宿主是什么轮廓」——五件都是方形/六角/星芒的**徽章**，而宿主是 21~34×13~18 的**扁角标**
+    // 与 27px 高的整宽胶囊。硬贴要么把徽章压成饼、要么盖住文字。切片件全部归档
+    // `art-spec/reference/stock/badge/`，等宿主改尺寸/改形状那天拷回即生效。
+    'ui/lvtag': '等级角标（.lvtag 实测 21~34×13~18px，徽章形状放不下）', 'ui/tag_free': '角标·免费（.gTagTop 死样式，无建点）',
+    'ui/tag_sale': '角标·折扣（.gTagTop 死样式，无建点）', 'ui/tag_hot': '角标·HOT（.gHot 是 99px 圆角胶囊，非徽章形）',
     // 名次奖牌三件（medal1/2/3）2026-09-20 已出图并接 HUD 伤害统计 `.statRank`，声明移出本表；
     // 排行榜弹窗那处按「随文小符号不出图」判死，理由见 STYLE-SPEC §9 名次奖牌行。
-    'ui/badge/power_badge': '战力徽章底',
+    'ui/badge/power_badge': '战力徽章底（宿主 .powerBadge 是 27px 高整宽胶囊，徽章形塞不进；要接得先在胶囊左端开一个 27px 方图位）',
     // row_card（列表行卡底板）2026-09-21 已出图并接商城货卡 `.good.panel`（两处）与 HUD 邮件行
     // `.mailRow.panel`，声明移出本表。
     // panel_mini 留单：图出了也合格，但 `.mbox` 这两个容器（HomeUiCore.ts:394/435）带 `frame` 类，

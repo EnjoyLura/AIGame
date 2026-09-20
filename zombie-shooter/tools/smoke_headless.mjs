@@ -347,6 +347,70 @@ console.log('statRank:', await evalJs(`JSON.stringify([...document.querySelector
 }))`));
 await shot('07-stats-medals');
 
+// 8. Step3 角标/星/节点族取景：退出战斗 → 英雄页开「天赋」（节点三态）→ 行动页开「图鉴」点第一只
+//    已收录怪（威胁星级）。判据同 D20：bg=Y 且 glyph 仍在（节点要留 emoji、星是整颗替换）。
+//    退出要走「菜单 → 退出关卡」，且必须等 #homeUi 真的可见再往下点——主城 DOM 一直挂着，
+//    隐藏时 el.click() 照样生效、贴图照样挂上，但量出来全是 0×0，会把「没上图」误判成「上了图」。
+await evalJs(`document.querySelector('.statsClose')?.click(); 1`);
+await sleep(800);
+await evalJs(`document.querySelector('#domHud .hudBtn.menuBtn')?.click(); 1`);
+await sleep(1500);
+await evalJs(`(() => {
+  const el = [...document.querySelectorAll('#domHud .menuBtn')].find(e => /退 出/.test(e.textContent || ''));
+  if (el) el.click();
+  return 1;
+})()`);
+console.log('home visible:', await waitUntil(
+  `(() => { const r = document.querySelector('#homeUi'); if (!r) return false; const b = r.getBoundingClientRect(); return b.width > 0 && getComputedStyle(r).display !== 'none'; })()`,
+  25000, 'homeUi visible'));
+await sleep(2000);
+console.log('nav ->', await gotoTab('英雄'));
+await sleep(2500);
+await evalJs(`(() => {
+  const el = [...document.querySelectorAll('#homeUi .hot, #homeUi .btn')].find(e => /天赋/.test(e.textContent || ''));
+  if (el) el.click();
+  return 1;
+})()`);
+await sleep(2600);
+// 英雄页的「天赋」先进的是「天赋总览」（三分支卡），节点网格在「前往天赋图」后面一层。
+// 那个键是 `_popAttr` 的 .abAct（不是 button/.btn/.hot），所以按文本找最深层元素来点。
+await evalJs(`(() => {
+  const all = [...document.querySelectorAll('#homeUi *')].filter(e => (e.textContent || '').trim() === '前往天赋图');
+  const el = all[all.length - 1];
+  if (el) el.click();
+  return all.length;
+})()`);
+await sleep(2600);
+console.log('talentNodes:', await evalJs(`JSON.stringify([...document.querySelectorAll('#homeUi .popGrid i')].slice(0, 10).map(e => {
+  const cs = getComputedStyle(e);
+  const b = e.getBoundingClientRect();
+  return JSON.stringify(e.textContent || '').slice(0, 10) + '|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+    + '|box=' + Math.round(b.width) + 'x' + Math.round(b.height);
+}))`));
+await shot('08-talent-nodes');
+await evalJs(`document.querySelector('.popClose')?.click(); 1`);
+await sleep(1500);
+console.log('nav ->', await gotoTab('行动'));
+await sleep(2500);
+await evalJs(`(() => {
+  const el = [...document.querySelectorAll('.action-footer .hot')].find(e => /图鉴/.test(e.textContent || ''));
+  if (el) el.click();
+  return 1;
+})()`);
+await sleep(2600);
+await evalJs(`(() => {
+  const el = [...document.querySelectorAll('#homeUi .popRow')].find(e => !/\\?\\?\\?/.test(e.textContent || ''));
+  if (el) el.click();
+  return 1;
+})()`);
+await sleep(2600);
+console.log('starRow:', await evalJs(`JSON.stringify([...document.querySelectorAll('#homeUi .starRow i')].map(e => {
+  const cs = getComputedStyle(e);
+  return JSON.stringify(e.textContent || '') + '|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+    + '|w=' + Math.round(e.getBoundingClientRect().width);
+}))`));
+await shot('09-bestiary-stars');
+
 ws.close();
 chrome.kill();
 try { rmSync(profile, { recursive: true, force: true }); } catch {}

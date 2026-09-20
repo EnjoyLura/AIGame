@@ -556,6 +556,19 @@ export abstract class HomeUiMall extends HomeUiCore {
     }
 
 
+    /** 星级条：原来是一串 `'★'.repeat(n)` 文本——文本星只能整串一个颜色、也贴不了图，
+     *  要出图就得拆成逐颗的元素。亮/空两件套同一张表口径（同族异色，不为每档出二态）。
+     *  放在 Mall 层的理由同 `_searchBox`：Core 与 Heroes 都已顶到 `check-split` 的行数棘轮预算。 */
+    protected _starRow(n: number, max: number): HTMLElement {
+        const row = this._el('div', 'starRow');
+        for (let i = 0; i < max; i++) {
+            const s = this._el('i', undefined, i < n ? '★' : '☆');
+            this._tex(i < n ? 'ui/star_on' : 'ui/star_off', UiPlate.icon(s));
+            row.appendChild(s);
+        }
+        return row;
+    }
+
     /**
      * 检索框（背包按名字筛）：🔍 先占位，`ui/ico/ico_search` 到位由 `icon()` 摘掉，缺图不空槽。
      * 建在 Mall 层而不是用它的 Heroes 层：`check-split` 给 Heroes 记的行数棘轮只剩十几行余量，

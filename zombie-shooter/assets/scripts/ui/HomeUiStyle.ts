@@ -2683,6 +2683,13 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .popGrid i.sel { border-color: var(--pk); background: rgba(200,134,47,.12); }
 #homeUi .popGrid i .ck { position: absolute; left: calc(2px * var(--pu,1)); top: calc(2px * var(--pu,1));
   font-size: calc(10px * var(--pu,1)); color: var(--pks); }
+/* 星级条（_starRow 建）：逐颗星一个元素，才贴得上亮/空两件图。缺图时里面就是 ★/☆ 文本，
+   尺寸仍按这里给（贴图槽从不写 inline 宽高），所以回退观感与贴图态一致 */
+#homeUi .starRow { display: flex; gap: calc(3px * var(--pu,1)); justify-content: center; padding: calc(3px * var(--pu,1)) 0; }
+#homeUi .starRow i { box-sizing: border-box; display: block; flex: none;
+  width: calc(26px * var(--pu,1)); height: calc(26px * var(--pu,1));
+  font-size: calc(20px * var(--pu,1)); line-height: calc(26px * var(--pu,1)); text-align: center;
+  color: var(--pk); font-style: normal; }
 #homeUi .popCardRow { flex: none; display: flex; gap: calc(10px * var(--pu,1)); justify-content: center; flex-wrap: wrap; }
 #homeUi .popCard { width: calc(92px * var(--pu,1)); padding: calc(10px * var(--pu,1)) calc(6px * var(--pu,1));
   border-radius: calc(11px * var(--pu,1)); border: 2px solid var(--pk); background: rgba(200,134,47,.08);

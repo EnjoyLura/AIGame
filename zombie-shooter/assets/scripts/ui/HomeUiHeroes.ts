@@ -131,6 +131,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                             const dOpen = ts.isUnlocked(d.id);
                             return {
                                 icon: `${d.ic}${d.id === sel.id ? '👑' : ''}`,
+                                tex: !dOpen ? 'ui/node_lock' : dmax ? 'ui/node_done' : 'ui/node_next',
                                 count: dmax ? '✅' : dOpen ? (ts.canUpgrade(d.id) ? '▶' : `${dlv}/${d.maxLevel}`) : '🔒',
                                 sel: d.id === sel.id,
                                 title: `${d.name} Lv.${dlv}/${d.maxLevel} · ${d.desc(dlv)}`

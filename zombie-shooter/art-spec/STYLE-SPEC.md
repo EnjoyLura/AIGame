@@ -374,6 +374,9 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
   （`ui/HUD.ts` Graphics 与飘字），没有可贴的 DOM 图形位，出图会白出。等战斗 HUD 图形化那一轮再定宿主；
   在此之前它们只是 `RESERVED_SLOTS` 里的挂名项，不排产。
 
+| 评价星 2 件 + 天赋节点 3 件 | 星：**怪物图鉴详情**的「威胁等级」行（`HomeUiMall._starRow`，由 `HomeUiPlay` 的图鉴详情调用）——原来是一串 `'★'.repeat(n)` 文本。节点：天赋图 `_popGrid` 的 `<i>` 格（`HomeUiHeroes.ts:128` 传 `tex`），三态分别指 未解锁 → `ui/node_lock`、点满 → `ui/node_done`、可点 → `ui/node_next` | `ui/star_on` `ui/star_off` `ui/node_done` `ui/node_next` `ui/node_lock`（五件全部落盘接线） | 星 26px×--pu（弹层档，两层共用一条 `--pu`）；节点格实测 80×80 | 星 `icon`（整颗替换，glyph 摘掉）；节点 `icon({ keepGlyph: true })`（节点自己的 emoji 要留在环心） | — | 1（亮/空、三态都是**整族出多件**，不是 CSS 派生态——见 §10 最后一行） | ✅ r17b 一张 5列1行表出齐，`--dilate 2` 才拆得开（默认 6 会把相邻两星并成一件）。**无头取景已目击两处宿主**：图鉴详情五颗星 `bg=Y`、宽 36px，第 1 颗金、后 4 颗灰金属；天赋图十个节点格 `bg=Y`、80×80，emoji 仍在环心（截图 `gen-output/smoke_step3d/08-talent-nodes.png`、`09-bestiary-stars.png`）。⚠ 英雄页「升星」弹窗那处星级（`HomeUiHeroes.ts:2244` 的 subtitle）**本轮没接**：`HomeUiHeroes.ts` 已顶到 `check-split` 的 2490 行预算，加不动了——先拆薄再加，`_starRow` 现成可调 |
+| 角标与徽章 5 件（判形不判在不在） | 无（宿主全在，但形状放不下） | `ui/lvtag` `ui/tag_free` `ui/tag_sale` `ui/tag_hot` `ui/badge/power_badge` | 实测：`.lvtag` 21~34×13~18px、`.good .gHot` 字号 9px（约 20×12）、`.gHot`（商城主推）60×36 的 99px 圆角胶囊、`.powerBadge` 27px 高整宽胶囊、`.gTagTop` 只有 CSS 无建点 | — | — | — | ✗ **r25 表五件全部合格（平整牌面、无镂空）但一件都不落盘**，切片件归档 `art-spec/reference/stock/badge/`、键留采购单。**踩的坑是新的**：出图前只核了「宿主在不在、尺寸够不够」，没核「宿主是什么轮廓」——出出来的五件是方形/六角/星芒的**徽章**，宿主是又扁又窄的**角标**与整宽**胶囊**，硬贴要么把徽章压成饼、要么盖住文字。**补一条判据：出图前除了量尺寸，还要写下宿主的形状（扁条/圆角胶囊/方格/整宽），徽章形只能对徽章位，角标形只能对角标位**（同 D19 的教训换了个维度） |
+
 ### 采购单宿主全量核实（2026-09-21，出图前必查这张表）
 
 起因：用户要求「别再一族一族磨，把剩下的美术一次全出完」。动手前逐族核宿主，结论是
