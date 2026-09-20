@@ -19,7 +19,7 @@
 ## 想复活某一张
 
 1. 把它（**连 `.png.meta` 一起**，保住原 uuid）拷回 `assets/resources/textures/` 下
-   按现行类别归好的位置：段位徽章 → `ui/frame/`，铜银金头像框 → `ui/frame/`，
+   按现行类别归好的位置：段位徽章 → `ui/badge/`，铜银金头像框 → `ui/frame/`，
    功能图标 → `ui/ico/`。
 2. 在 `assets/scripts/core/AssetLib.ts` 的 `MANIFEST` 里登记该行 key。
 3. 给它在 `art-spec/STYLE-SPEC.md` §9 通用件契约表登记宿主（CSS class + 切片档），

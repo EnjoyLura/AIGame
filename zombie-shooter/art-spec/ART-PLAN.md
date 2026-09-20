@@ -199,7 +199,7 @@
 | D2 | **态策略**：一族一件，禁用/选中/按压全部走 CSS 派生（`filter` / `scale` / `active`）；只有语义上真的两态（载具完好↔受损）才整族出双件。页签不出 `nav_*_on` | STYLE-SPEC §10 |
 | D3 | **双轨择一**：品质框唯一真源 = `ui/frame/frame_q0~q3`（本轮已接 `.popQ .qi`，CSS 白边降为缺图回退）。`.popQ` 头底色渐变是「品质头」另一件，不冲突、保留 | STYLE-SPEC §9 + HomeUiCore |
 | D4 | **段位 ≠ 名次**：`ui/rank1~7` 是段位徽章，**当前游戏没有段位 UI**，2026-09-21 分类迁移时整族移出包 → `art-spec/reference/stock/rank/`（段位玩法开时按该目录 README 拷回并登记 MANIFEST）；排行榜前三（🥇🥈🥉）与 HUD `.statRank` 是「名次奖牌」，新登记 `ui/badge/medal1~3` 预留位，图到位再接，现在不动 CSS | ASSET-MANIFEST §B/§C/§E2 |
-| D5 | **预留槽位进代码即采购单**：`AssetLib.RESERVED_SLOTS`（103 项）是预留唯一真源，预载跳过这些 key（不再白发 100+ 个失败请求）；图落地必须删声明 | AssetLib.ts + check-art-manifest |
+| D5 | **预留槽位进代码即采购单**：`AssetLib.RESERVED_SLOTS` 是预留唯一真源（条数不写死在文档里，以该表实测为准——落版图就减、开新槽就加，写死的数字必然过期），预载跳过这些 key（不再白发 100+ 个失败请求）；图落地必须删声明 | AssetLib.ts + check-art-manifest |
 | D6 | **在库无宿主件必须收口**：旧一代板（panel_metal / panel_frame / panel_card / card_frame / icon_frame / btn_primary / btn_gold / btn_cyan / chip_dark / banner / banner_orange / btn_round2 / avatar_frame / ribbon_title / frame_bronze~gold / rank1-7 / ico_trophy / ico_lock / ico_achieve / shop_scroll）下一轮要么按 §9 登记宿主接线，要么整族删除，不允许长期「预载但不引用」 | 本节 |
 | D7 | **贴图与 glyph 混排收口**：贴图到位由 `UiPlate.icon()` 摘 glyph，缺图保留 glyph 回退；页签青瓷层原 `font-size:0`（会把缺图页签变成空槽）已改为按档显示 emoji 占位，两层口径一致 | HomeUiStyle/HomeUiCore |
 | D8 | **在库件必须有归宿**（P0 接线轮）：`check-art-manifest` 新增断言——磁盘每张图要么被代码引用（含 `characters/hero_${id}` 这类模板拼 key 的前缀族），要么在 STYLE-SPEC §9「在库无归宿件」表里有一句说法。引用扫描同时修掉两个口径漏洞：清单自身不再算作"引用"、块注释里的 key 不算引用 | STYLE-SPEC §9 + checker |

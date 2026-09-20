@@ -45,7 +45,7 @@
 > avatar_frame、ribbon_title、frame_q0-q3）已在库并按类别归位，按 §9 取用；同批的
 > ico_lock、frame_bronze/silver/gold、rank1-7 因无宿主已于 2026-09-21 移出包（见 §E）。
 
-## B. 预留槽位 = 机器可读采购单（103 项）
+## B. 预留槽位 = 机器可读采购单（条数以 `AssetLib.RESERVED_SLOTS` 实测为准）
 
 **唯一真源在代码**：`assets/scripts/core/AssetLib.ts` 的 `RESERVED_SLOTS`（key → 用途与宿主注记）。
 登记进 `MANIFEST` 且写进 `RESERVED_SLOTS` 即为合法预留：预载阶段跳过（不白发请求）、
