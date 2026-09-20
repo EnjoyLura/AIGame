@@ -34,8 +34,9 @@ const ok = (name, cond) => {
 };
 
 // 1. 导航：第 4 页签改为玩法（key 沿用 core，texKey nav_core 不变 → 不动美术资源）
+//    2026-09-21 分类迁移：贴图槽位落到 ui/nav/ 子目录，槽位名仍是 nav_core（判据不变）
 ok("NAV 'core' 名称=行动", /key: 'core', icon: '🎮', name: '行动'/.test(src));
-ok("texKey core→nav_core 保留（槽位查 UiPlate.NAV_PLATE）", /core: 'ui\/nav_core'/.test(src));
+ok("texKey core→nav_core 保留（槽位查 UiPlate.NAV_PLATE）", /core: 'ui\/nav\/nav_core'/.test(src));
 
 // 2. 构建与切换接线
 ok('_build 构建 _buildPlayPage', /this\._buildPlayPage\(viewport\)/.test(src));

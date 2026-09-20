@@ -61,7 +61,13 @@ ok('行内时间拼接', /mailTimeText\(m\.ts\)/.test(hud));
 ok('过期黄色提醒 tag', /mailExpiringSoon\(m\)[\s\S]{0,200}⏳ 附件将过期/.test(hud));
 
 // 5. 主城入口与弹窗
-ok('顶栏邮箱按钮(齿轮前)', /homeMailBtn[\s\S]{0,300}_openMailModal\(\)/.test(core));
+// 定长窗口 → 花括号配平取函数体（本文件 fnBody 口径，AGENTS.md「断言两条硬规矩」之①）。
+// 2026-09-21 贴图 key 分类迁移把中间的 'ui/ico_mail' 改成 'ui/ico/ico_mail'（+4 字符），
+// homeMailBtn→_openMailModal() 的实际距离由 303 涨到 315，原 {0,300} 窗口直接假 FAIL：
+// 业务代码一行没动，是断言写法的问题。改成「同一个函数体内 + onclick 体内」双重锚定，判据只紧不松。
+const topbar = fnBody(core, '_buildTopbar');
+ok('顶栏邮箱按钮(齿轮前)', /className = 'tinyIcon homeMailBtn'/.test(topbar)
+    && /mailBtn\.onclick = \(e\) => \{[^}]*this\._openMailModal\(\);/.test(topbar));
 ok('Core import 邮件工具', /import \{ MailSystem, mailTimeText, mailExpiringSoon, MailDef \} from '\.\.\/core\/MailSystem';/.test(core));
 ok('顶栏红点接 hasUnread', /_homeMailBtn\?\.classList\.toggle\('unread', MailSystem\.instance\.hasUnread\(\)\)/.test(core));
 ok('show() 挂每日投放', /protected show\(\): void \{\s*\n\s*if \(this\._root\) \{\s*\n\s*\/\/ 每日\/回归邮件投放[\s\S]{0,200}feedDaily\(\);/.test(core));

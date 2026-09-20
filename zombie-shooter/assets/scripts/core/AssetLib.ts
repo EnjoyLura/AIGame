@@ -6,7 +6,8 @@ import { Rect, resources, Size, SpriteFrame, Vec2 } from 'cc';
  * 由调用方回退 Graphics 占位——美术可以逐张补齐，随时都能进游戏。
  */
 
-/** 已就绪的美术清单（key 相对 textures/，如 'monsters/boar'） */
+/** 已就绪的美术清单（key 相对 textures/，如 'monsters/boar'、'ui/button/btn_play'；
+ *  ui 族自 2026-09-21 起一律带类别段，见 art-spec/STYLE-SPEC.md §5 命名） */
 const MANIFEST = [
     'fx/mortar',
     'fx/rifle_muzzle_flash', 'fx/rifle_grenade_explosion', 'fx/rifle_grenade_ring',
@@ -16,30 +17,36 @@ const MANIFEST = [
     'scenes/road',
     // 战斗内升级面（LevelUpPanel 用画布 Sprite 直接取帧）仍在服役的两件旧板：
     // 归档时被 check-art-manifest 的「代码引用未登记」当场拦下。要换新族得单开战斗面一轮。
-    'ui/banner', 'ui/panel_card',
+    'ui/banner/banner', 'ui/panel/panel_card',
     // 主城 UI 贴图套件（页签/资源图标/宝箱沿用；r1/r2 的板类件已归档，见下方注）
-    'ui/chest',
-    'ui/nav_mall', 'ui/nav_heroes', 'ui/nav_battle', 'ui/nav_core', 'ui/nav_base',
-    'ui/res_gold', 'ui/res_diamond', 'ui/res_stamina',
+    'ui/shop/chest',
+    'ui/nav/nav_mall', 'ui/nav/nav_heroes', 'ui/nav/nav_battle', 'ui/nav/nav_core', 'ui/nav/nav_base',
+    'ui/res/res_gold', 'ui/res/res_diamond', 'ui/res/res_stamina',
     'scenes/vehicle_tail', 'scenes/escort',
     // 旧版 UI 素材（2026-09-20 拍板弃用）已移出契约位 → art-spec/reference/legacy-keep/：
     // panel_card/banner/btn_primary/card_frame/icon_frame/panel_frame/panel_metal/banner_orange/
-    // btn_gold/btn_cyan/chip_dark。不进包、不登记 MANIFEST；要用回某张就拷回 ui/<key>.png 再登记。
+    // btn_gold/btn_cyan/chip_dark。不进包、不登记 MANIFEST；要用回某张就拷回本清单里同 key 的
+    // 路径（ui/ 下带类别段，如 textures/ui/button/btn_play.png）再登记。
+    // 2026-09-21 分类迁移：ui/ 下的件按类别落到子目录（button/panel/banner/nav/res/ico/frame/shop，
+    // 另有 progress/badge 两类目前只有预留 key、无在库图：进度条族与奖牌/战力徽章自成一族，
+    // 不与标题条 banner / 框件 frame 混目录），
+    // ui/ 顶层不再放散图；另有 12 件「在库无宿主」的图移出包 → art-spec/reference/stock/（见其 README）。
     // 四轮素材表批量件（r4_icons 一次成型）：按钮系/头像框/标题绶带 + 商城货架/功能图标
-    'ui/btn_play', 'ui/btn_confirm', 'ui/btn_cancel', 'ui/btn_close',
-    'ui/avatar_frame', 'ui/ribbon_title',
+    'ui/button/btn_play', 'ui/button/btn_confirm', 'ui/button/btn_cancel', 'ui/button/btn_close',
+    'ui/frame/avatar_frame', 'ui/banner/ribbon_title',
     // 六轮素材（r6_panels）：弹层面板底板/横标题绶带/标题条
-    'ui/panel_main', 'ui/panel_sub', 'ui/ribbon_banner', 'ui/bar_title',
+    'ui/panel/panel_main', 'ui/panel/panel_sub', 'ui/banner/ribbon_banner', 'ui/banner/bar_title',
     // 六轮素材（r6_btns）：警示/奖励 CTA 板 + 圆形小钮×2
-    'ui/btn_danger', 'ui/btn_video', 'ui/btn_round', 'ui/btn_round2',
-    // 六轮素材（r6_icons）：公告喇叭/奖杯/锁
-    'ui/ico_notice', 'ui/ico_trophy', 'ui/ico_lock',
-    // 六轮素材（r6_frames/r6_badges）：铜银金头像框 + 白绿蓝紫品质框 + 七段位徽章（在库备用）
-    'ui/frame_bronze', 'ui/frame_silver', 'ui/frame_gold',
-    'ui/frame_q0', 'ui/frame_q1', 'ui/frame_q2', 'ui/frame_q3',
-    'ui/rank1', 'ui/rank2', 'ui/rank3', 'ui/rank4', 'ui/rank5', 'ui/rank6', 'ui/rank7',
-    'ui/shop_gift', 'ui/shop_chest', 'ui/shop_scroll', 'ui/shop_letter',
-    'ui/ico_task', 'ui/ico_mail', 'ui/ico_setting', 'ui/ico_rank', 'ui/ico_achieve',
+    'ui/button/btn_danger', 'ui/button/btn_video', 'ui/button/btn_round', 'ui/button/btn_round2',
+    // 六轮素材（r6_icons）：公告喇叭/奖杯
+    // （同批 ico_lock 无独立图形位、同批 r6_frames/r6_badges 的铜银金头像框与七段位徽章在库无宿主，
+    //  2026-09-21 分类迁移时整批移出包 → art-spec/reference/stock/，理由见 STYLE-SPEC §9 归档表）
+    'ui/ico/ico_notice', 'ui/ico/ico_trophy',
+    // 六轮素材（r6_frames）：白绿蓝紫品质框四档
+    'ui/frame/frame_q0', 'ui/frame/frame_q1', 'ui/frame/frame_q2', 'ui/frame/frame_q3',
+    'ui/shop/shop_gift', 'ui/shop/shop_chest', 'ui/shop/shop_scroll', 'ui/shop/shop_letter',
+    // 功能图标（ico_achieve 同批移出包：主城无成就入口，见上）
+    'ui/ico/ico_task', 'ui/ico/ico_mail', 'ui/ico/ico_setting', 'ui/ico/ico_rank',
     'characters/hero_rifle', 'characters/hero_sniper', 'characters/hero_laser', 'characters/hero_radiation',
     'characters/commander', 'characters/specialists',
     'monsters/stoneape', 'monsters/dog', 'monsters/boar', 'monsters/bear', 'monsters/eagle',
@@ -56,17 +63,17 @@ const MANIFEST = [
     'fx/coin_burst', 'fx/levelup_glow', 'fx/portal', 'fx/dmg_word',
     'ui/plate_wave', 'ui/skill_slot', 'ui/boss_crown',
     // 按钮系补件：特殊(紫)板 + 小圆钮族
-    'ui/btn_purple', 'ui/btn_home', 'ui/btn_help', 'ui/btn_refresh',
+    'ui/button/btn_purple', 'ui/button/btn_home', 'ui/button/btn_help', 'ui/button/btn_refresh',
     // 二级页签族（商城货架 / 背包分类共用）
-    'ui/tab_hero', 'ui/tab_equip', 'ui/tab_gem', 'ui/tab_mat', 'ui/tab_core', 'ui/tab_potion',
+    'ui/ico/tab_hero', 'ui/ico/tab_equip', 'ui/ico/tab_gem', 'ui/ico/tab_mat', 'ui/ico/tab_core', 'ui/ico/tab_potion',
     // 功能入口图标族（主城侧栏 + 英雄养成 + 商城 + HUD + 设置/登录）
-    'ui/ico_add', 'ui/ico_signin', 'ui/ico_codex', 'ui/ico_trial', 'ui/ico_endless',
-    'ui/ico_core', 'ui/ico_weapon', 'ui/ico_skill', 'ui/ico_starup', 'ui/ico_talent',
-    'ui/ico_recruit', 'ui/ico_forge', 'ui/ico_ad', 'ui/ico_more',
-    'ui/ico_pause', 'ui/ico_stats', 'ui/ico_undo', 'ui/ico_loot', 'ui/ico_del',
-    'ui/ico_inbox', 'ui/ico_empty', 'ui/ico_sound', 'ui/ico_mute', 'ui/ico_info',
-    'ui/ico_warn', 'ui/ico_slider', 'ui/ico_check', 'ui/ico_friend', 'ui/ico_calendar',
-    'ui/ico_shop', 'ui/ico_search',
+    'ui/ico/ico_add', 'ui/ico/ico_signin', 'ui/ico/ico_codex', 'ui/ico/ico_trial', 'ui/ico/ico_endless',
+    'ui/ico/ico_core', 'ui/ico/ico_weapon', 'ui/ico/ico_skill', 'ui/ico/ico_starup', 'ui/ico/ico_talent',
+    'ui/ico/ico_recruit', 'ui/ico/ico_forge', 'ui/ico/ico_ad', 'ui/ico/ico_more',
+    'ui/ico/ico_pause', 'ui/ico/ico_stats', 'ui/ico/ico_undo', 'ui/ico/ico_loot', 'ui/ico/ico_del',
+    'ui/ico/ico_inbox', 'ui/ico/ico_empty', 'ui/ico/ico_sound', 'ui/ico/ico_mute', 'ui/ico/ico_info',
+    'ui/ico/ico_warn', 'ui/ico/ico_slider', 'ui/ico/ico_check', 'ui/ico/ico_friend', 'ui/ico/ico_calendar',
+    'ui/ico/ico_shop', 'ui/ico/ico_search',
     // 状态与属性图标族
     'icons/status_shield', 'icons/status_sword', 'icons/status_heart', 'icons/status_skull',
     'icons/status_fire', 'icons/status_ice', 'icons/status_bolt', 'icons/status_poison',
@@ -75,13 +82,13 @@ const MANIFEST = [
     'icons/mat_stone', 'icons/mat_alloy', 'icons/mat_core',
     'icons/gem_fire', 'icons/gem_wind', 'icons/gem_ice', 'icons/gem_thunder',
     // 扩展资源与进度件
-    'ui/res_frag', 'ui/res_medal', 'ui/res_energy', 'ui/res_ticket',
-    'ui/bar_track', 'ui/bar_fill_green', 'ui/bar_fill_yellow', 'ui/bar_fill_blue', 'ui/bar_fill_red',
-    'ui/bar_cap', 'ui/bar_node',
+    'ui/res/res_frag', 'ui/res/res_medal', 'ui/res/res_energy', 'ui/res/res_ticket',
+    'ui/progress/bar_track', 'ui/progress/bar_fill_green', 'ui/progress/bar_fill_yellow', 'ui/progress/bar_fill_blue', 'ui/progress/bar_fill_red',
+    'ui/progress/bar_cap', 'ui/progress/bar_node',
     // 框徽角标补件（升星/等级/折扣/节点/战力/名次奖牌）
     'ui/star_on', 'ui/star_off', 'ui/lvtag', 'ui/tag_free', 'ui/tag_sale', 'ui/tag_hot',
-    'ui/node_done', 'ui/node_next', 'ui/node_lock', 'ui/power_badge',
-    'ui/medal1', 'ui/medal2', 'ui/medal3', 'ui/row_card', 'ui/panel_mini',
+    'ui/node_done', 'ui/node_next', 'ui/node_lock', 'ui/badge/power_badge',
+    'ui/badge/medal1', 'ui/badge/medal2', 'ui/badge/medal3', 'ui/panel/row_card', 'ui/panel/panel_mini',
     // 护送关卡卡载具
     'icons/vehicle_truck', 'icons/vehicle_ship', 'icons/vehicle_hauler',
 ];
@@ -105,25 +112,25 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'fx/dmg_word': '伤害飘字底纹（3 色共用）',
     'ui/plate_wave': '战斗波次牌底', 'ui/skill_slot': '战斗技能槽底托', 'ui/boss_crown': 'boss 预警徽',
     // —— 按钮系 ——
-    'ui/btn_purple': '特殊/紫色大按钮去字底板（UiPlate.PLATE.purple）',
-    'ui/btn_home': '小圆钮·主页', 'ui/btn_help': '小圆钮·帮助 ?', 'ui/btn_refresh': '小圆钮·刷新 ↻',
+    'ui/button/btn_purple': '特殊/紫色大按钮去字底板（UiPlate.PLATE.purple）',
+    'ui/button/btn_home': '小圆钮·主页', 'ui/button/btn_help': '小圆钮·帮助 ?', 'ui/button/btn_refresh': '小圆钮·刷新 ↻',
     // —— 二级页签 ——
-    'ui/tab_hero': '页签·英雄（商城货架头）', 'ui/tab_equip': '页签·装备（商城/背包共用）',
-    'ui/tab_gem': '页签·宝石（商城/背包共用）', 'ui/tab_mat': '页签·材料',
-    'ui/tab_core': '页签·核心（背包）', 'ui/tab_potion': '页签·耗材（背包）',
+    'ui/ico/tab_hero': '页签·英雄（商城货架头）', 'ui/ico/tab_equip': '页签·装备（商城/背包共用）',
+    'ui/ico/tab_gem': '页签·宝石（商城/背包共用）', 'ui/ico/tab_mat': '页签·材料',
+    'ui/ico/tab_core': '页签·核心（背包）', 'ui/ico/tab_potion': '页签·耗材（背包）',
     // —— 功能入口图标 ——（图标第一批 12 件已出图并接线，预留声明于 2026-09-20 移出：
     // ico_add / ico_signin / ico_trial / ico_endless / ico_core / ico_weapon / ico_starup /
     // ico_talent / ico_recruit / ico_forge / ico_del / ico_warn）
     // 下面仍缺图：codex/loot/inbox/empty/sound/mute/info 是「宿主已被当代在库件占着，或要先拆
     // DOM 结构才挂得上图」，search 是「全工程还没有检索位」——逐条理由见 STYLE-SPEC §9。
-    'ui/ico_codex': '侧栏·图鉴', 'ui/ico_skill': '英雄页·技能', 'ui/ico_ad': '广告 ▶ 前缀',
-    'ui/ico_more': '详情 › 链尾',
-    'ui/ico_pause': 'HUD·暂停 ❚❚', 'ui/ico_stats': 'HUD·伤害统计', 'ui/ico_undo': '撤销 ↩',
-    'ui/ico_loot': '补给箱 📦', 'ui/ico_inbox': '收件 📭/📧',
-    'ui/ico_empty': '空态图标（替 popEmpty 的 📭）', 'ui/ico_sound': '设置·音量',
-    'ui/ico_mute': '设置·静音', 'ui/ico_info': '设置·关于 ℹ️',
-    'ui/ico_slider': '设置·音量滑杆', 'ui/ico_check': '登录·协议勾选 ✓',
-    'ui/ico_friend': '好友', 'ui/ico_calendar': '日历', 'ui/ico_shop': '商店帐篷', 'ui/ico_search': '放大镜',
+    'ui/ico/ico_codex': '侧栏·图鉴', 'ui/ico/ico_skill': '英雄页·技能', 'ui/ico/ico_ad': '广告 ▶ 前缀',
+    'ui/ico/ico_more': '详情 › 链尾',
+    'ui/ico/ico_pause': 'HUD·暂停 ❚❚', 'ui/ico/ico_stats': 'HUD·伤害统计', 'ui/ico/ico_undo': '撤销 ↩',
+    'ui/ico/ico_loot': '补给箱 📦', 'ui/ico/ico_inbox': '收件 📭/📧',
+    'ui/ico/ico_empty': '空态图标（替 popEmpty 的 📭）', 'ui/ico/ico_sound': '设置·音量',
+    'ui/ico/ico_mute': '设置·静音', 'ui/ico/ico_info': '设置·关于 ℹ️',
+    'ui/ico/ico_slider': '设置·音量滑杆', 'ui/ico/ico_check': '登录·协议勾选 ✓',
+    'ui/ico/ico_friend': '好友', 'ui/ico/ico_calendar': '日历', 'ui/ico/ico_shop': '商店帐篷', 'ui/ico/ico_search': '放大镜',
     // —— 状态与属性 ——
     'icons/status_shield': '状态·盾/护甲', 'icons/status_sword': '状态·剑/攻击',
     'icons/status_heart': '状态·心/生命', 'icons/status_skull': '状态·骷髅/致死',
@@ -135,20 +142,20 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'icons/gem_fire': '宝石·火', 'icons/gem_wind': '宝石·风', 'icons/gem_ice': '宝石·冰',
     'icons/gem_thunder': '宝石·雷',
     // —— 扩展资源与进度条 ——
-    'ui/res_frag': '资源·英雄碎片', 'ui/res_medal': '资源·勋章',
-    'ui/res_energy': '资源·能量', 'ui/res_ticket': '资源·招募券',
-    'ui/bar_track': '进度条底槽（九宫格横件）', 'ui/bar_fill_green': '进度填充·绿（经验/通用）',
-    'ui/bar_fill_yellow': '进度填充·黄（体力/活跃度）', 'ui/bar_fill_blue': '进度填充·蓝（科技/冷却）',
-    'ui/bar_fill_red': '进度填充·红（boss 血条/危险）', 'ui/bar_cap': '进度条端头',
-    'ui/bar_node': '关卡进度宝箱节点',
+    'ui/res/res_frag': '资源·英雄碎片', 'ui/res/res_medal': '资源·勋章',
+    'ui/res/res_energy': '资源·能量', 'ui/res/res_ticket': '资源·招募券',
+    'ui/progress/bar_track': '进度条底槽（九宫格横件）', 'ui/progress/bar_fill_green': '进度填充·绿（经验/通用）',
+    'ui/progress/bar_fill_yellow': '进度填充·黄（体力/活跃度）', 'ui/progress/bar_fill_blue': '进度填充·蓝（科技/冷却）',
+    'ui/progress/bar_fill_red': '进度填充·红（boss 血条/危险）', 'ui/progress/bar_cap': '进度条端头',
+    'ui/progress/bar_node': '关卡进度宝箱节点',
     // —— 框徽角标 ——
     'ui/star_on': '评价星·亮', 'ui/star_off': '评价星·空',
     'ui/lvtag': '等级角标（替 .lvtag CSS）', 'ui/tag_free': '角标·免费',
     'ui/tag_sale': '角标·折扣', 'ui/tag_hot': '角标·HOT',
     'ui/node_done': '天赋节点·已点', 'ui/node_next': '天赋节点·可点', 'ui/node_lock': '天赋节点·锁定',
-    'ui/power_badge': '战力徽章底', 'ui/medal1': '排行榜名次奖牌·第 1（替 🥇）',
-    'ui/medal2': '排行榜名次奖牌·第 2（替 🥈）', 'ui/medal3': '排行榜名次奖牌·第 3（替 🥉）',
-    'ui/row_card': '列表行卡底板（任务/邮件/货架条目）', 'ui/panel_mini': '模块小框底板（.mbox）',
+    'ui/badge/power_badge': '战力徽章底', 'ui/badge/medal1': '排行榜名次奖牌·第 1（替 🥇）',
+    'ui/badge/medal2': '排行榜名次奖牌·第 2（替 🥈）', 'ui/badge/medal3': '排行榜名次奖牌·第 3（替 🥉）',
+    'ui/panel/row_card': '列表行卡底板（任务/邮件/货架条目）', 'ui/panel/panel_mini': '模块小框底板（.mbox）',
     // —— 护送关卡卡载具 ——
     'icons/vehicle_truck': '关卡载具·卡车', 'icons/vehicle_ship': '关卡载具·运输船',
     'icons/vehicle_hauler': '关卡载具·重卡',

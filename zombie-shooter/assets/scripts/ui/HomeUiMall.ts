@@ -97,7 +97,7 @@ export abstract class HomeUiMall extends HomeUiCore {
         freeHot.className = 'hot giftDot';
         freeHot.innerHTML = '<span class="ic">🎁</span><span class="freeTxt">每日免费</span>';
         // 在库宝箱顶掉 emoji 占位（礼盒图标已给侧栏「礼包」键，两处不同件不混用）
-        this._tex('ui/shop_chest', UiPlate.icon(freeHot.querySelector('.ic') as HTMLElement));
+        this._tex('ui/shop/shop_chest', UiPlate.icon(freeHot.querySelector('.ic') as HTMLElement));
         freeHot.title = '每日免费补给（限时礼包）';
         freeHot.onclick = (e) => {
             e.stopPropagation();

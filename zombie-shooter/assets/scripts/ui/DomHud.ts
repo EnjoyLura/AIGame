@@ -558,7 +558,7 @@ export class DomHud extends Component {
             const ic = document.createElement('div');
             ic.className = 'mailIc';
             // 六轮素材：奖励行用礼盒、系统行用军喇叭（AssetLib 已登记；未就绪回退 emoji）
-            const mailIconKey = m.kind === 'reward' ? 'ui/shop_gift' : 'ui/ico_notice';
+            const mailIconKey = m.kind === 'reward' ? 'ui/shop/shop_gift' : 'ui/ico/ico_notice';
             const mailIconUrl = this._assetBgUrl(mailIconKey);
             if (mailIconUrl) {
                 ic.style.backgroundImage = mailIconUrl;

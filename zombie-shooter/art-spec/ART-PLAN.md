@@ -37,7 +37,7 @@
 ### 1.3 顶栏与进度
 | 组件 | 现状 |
 |---|---|
-| 头像框 / 等级角标 / 经验条 | 头像框 📦 在库未接：接法已定（框件走 border-image **无 `fill`** 变体，避免盖掉行图标的 background，见 STYLE-SPEC §9 表），等目检框厚；等级角标/经验条 ✗ 预留 `ui/lvtag` / `ui/bar_*` |
+| 头像框 / 等级角标 / 经验条 | 头像框 📦 在库未接：接法已定（框件走 border-image **无 `fill`** 变体，避免盖掉行图标的 background，见 STYLE-SPEC §9 表），等目检框厚；等级角标/经验条 ✗ 预留 `ui/lvtag` / `ui/progress/bar_*` |
 | 资源胶囊 金/钻/体力 + 加号钮 | 已贴图(r3) |
 | 邮箱 / 公告 / 设置 小图标钮 | 邮箱/设置已贴图(r4)，公告 📣 待补 |
 | 体力条 / 经验条 / 关卡进度条（绿/黄/蓝 + 底槽 + 宝箱节点） | CSS |
@@ -47,8 +47,8 @@
 |---|---|
 | 页签 ×5（常态 + 选中态） | 已贴图(r3) |
 | 行卡 / 标签 chip / 红点 / 倒计时牌 | CSS（chip 可后置） |
-| 品质边框 ×4（白绿蓝紫） | ✅ 本轮接 `ui/frame_q0~q3` → `.popQ .qi`（唯一真源，CSS 白边留作缺图回退） |
-| 段位徽章 ×7（青铜→王者） | 📦 在库无宿主：当前没有段位 UI（D4），待功能开；排行榜前三另族 = `ui/medal1~3` 预留 |
+| 品质边框 ×4（白绿蓝紫） | ✅ 本轮接 `ui/frame/frame_q0~q3` → `.popQ .qi`（唯一真源，CSS 白边留作缺图回退） |
+| 段位徽章 ×7（青铜→王者） | 📦 2026-09-21 移出包 → `art-spec/reference/stock/rank/`：当前没有段位 UI（D4），在库无宿主就不该占包；排行榜前三另族 = `ui/badge/medal1~3` 预留 |
 | 星星 0~3 / 评价星 | × emoji → 预留 `ui/star_on` / `ui/star_off` |
 
 ### 1.5 图标族
@@ -101,25 +101,29 @@
 | 五轮 AI 版 `gen-output/r7_icons_*.png` | （整表） | ✗ 整表作废 | 提示词带形象（「图鉴卷轴」「试炼高塔」）违反共性纪律第 1 条；背景草绿抠不净 |
 | 五轮 用户版 `gen-output/icons.png` | （整表） | ⛔ 作废 | 背景深灰（提示词只写「纯色背景方便抠图」）→ 切片器认不出整表。逐格判定由下面 r8 接续，不再重复维护 |
 | 六轮 r8 `gen-output/r8_icons_*.png` | （整表） | ✅ 可切 | 按新写法出：只报功能名 + 底色点名 `#00FF00`。四角实测 (11,248,18)，默认 tol=60 背景抠除 68.8%、去绿染仅 0.68% → 切片链路通了 |
-| 同上 | `ui/ico_add` | ✅ 修好 | 槽位名从「获取资源」改成「加号」即出单个加号——**功能名要贴槽位真实用途**，不是越抽象越好 |
-| 同上 | `ui/ico_trial` `ui/ico_endless` | ✗ 不合格 | 两格都出成骷髅头（试炼=环中骷髅、无尽=盾徽骷髅+∞），相邻两键语义撞车、缩到 56px 分不开 → 进补出表，槽位名改得更互斥（如「关卡试炼」「无尽生存」） |
-| 同上 | `ui/ico_trial` `ui/ico_starup` `ui/ico_talent` `ui/ico_mute` `ui/ico_info` `ui/ico_warn` | ✗ 不合格 | 6 格套了金属圆环/盾形装饰框 → **用户判：不要框**（边界见 §3「图标一律无装饰外框」：语义形状保留）→ 进 r9 补出表 |
-| 同上 | `ui/ico_add`（绿加号） | ✗ 不合格 | 加号本体是绿的、底也是绿的，会走「去绿染」被改色 → 补出时点名「加号用金色」 |
-| 同上 | `ui/ico_info` | ✅ 豁免 | 圆牌带字母 i → **用户判：不算违规**，已写进 §6 第 6 条例外 |
+| 同上 | `ui/ico/ico_add` | ✅ 修好 | 槽位名从「获取资源」改成「加号」即出单个加号——**功能名要贴槽位真实用途**，不是越抽象越好 |
+| 同上 | `ui/ico/ico_trial` `ui/ico/ico_endless` | ✗ 不合格 | 两格都出成骷髅头（试炼=环中骷髅、无尽=盾徽骷髅+∞），相邻两键语义撞车、缩到 56px 分不开 → 进补出表，槽位名改得更互斥（如「关卡试炼」「无尽生存」） |
+| 同上 | `ui/ico/ico_trial` `ui/ico/ico_starup` `ui/ico/ico_talent` `ui/ico/ico_mute` `ui/ico/ico_info` `ui/ico/ico_warn` | ✗ 不合格 | 6 格套了金属圆环/盾形装饰框 → **用户判：不要框**（边界见 §3「图标一律无装饰外框」：语义形状保留）→ 进 r9 补出表 |
+| 同上 | `ui/ico/ico_add`（绿加号） | ✗ 不合格 | 加号本体是绿的、底也是绿的，会走「去绿染」被改色 → 补出时点名「加号用金色」 |
+| 同上 | `ui/ico/ico_info` | ✅ 豁免 | 圆牌带字母 i → **用户判：不算违规**，已写进 §6 第 6 条例外 |
 | 六轮 r9 `gen-output/r9_icons_*.png` | 8 格补出 | ✅ 合格 | 加号改金色、试炼=石砌地堡、无尽=破土僵尸手（两格不再撞成骷髅）、六格装饰框全部去掉 |
-| 图标第一批落盘 | 12 件 | ✅ 已接线 | `ico_add/signin/trial/endless/core/weapon/starup/talent/recruit/forge/del/warn` 切片进 `textures/ui/` 并接宿主；预留声明同步从 `RESERVED_SLOTS` 移出 |
+| 图标第一批落盘 | 12 件 | ✅ 已接线 | `ico_add/signin/trial/endless/core/weapon/starup/talent/recruit/forge/del/warn` 切片进 `textures/ui/` 并接宿主；预留声明同步从 `RESERVED_SLOTS` 移出（2026-09-21 分类迁移后该族落盘位是 `textures/ui/ico/`，重切时按新 key） |
 | 图标第一批落盘 | 8 件 | ⛔ 切了又删 | `ico_codex/loot/inbox/empty/info/sound/mute/search` 无真宿主（占位在当代在库件手里 / emoji 嵌在长文案里 / 默认分支无人走 / 全工程无检索位），留源表在 `gen-output/`，接线那轮重切。逐条理由见 STYLE-SPEC §9「功能图标·待接」 |
 
 ### 2.2 行数棘轮欠账（`check-split.js` 的 `SPLIT_DEBT`）
 
 `HomeUiCore.ts` / `HomeUiHeroes.ts` 用棘轮记预算（目标 1800）。**红线：只许把文件拆薄，不许把预算改大。**
 
-图标第一批接线给两个文件各加约 8 行，Heroes 破了 2490 预算，Core 顶到 2240 零余量。本轮按红线**真的删死代码**：
+图标第一批接线给两个文件各加约 8 行，Heroes 破了 2490 预算，Core 顶到 2240 零余量。按红线**真的删死代码**，分两笔提交还掉：
 
-| 文件 | 删了什么 | 行数 | 结果 |
-|---|---|---|---|
-| `HomeUiHeroes.ts` | 18 行拆分残留未用 import + 零调用方法 `_affixBlock`(21) + 随之失效的 `affixColor` 引用 | 40 | 2494 → 2454（余 36） |
-| `HomeUiCore.ts` | 12 行未用 import（含 `ccclass` 样板）+ 零调用方法 `_openModal`(39) | 51 | 2240 → 2189（余 51） |
+| 提交 | 文件 | 删了什么 | 净减 | 结果 |
+|---|---|---|---|---|
+| `18084c2` | `HomeUiHeroes.ts` | 18 行拆分残留的未使用 import | 18 | 2494 → 2476 |
+| `e2d1f85` | `HomeUiHeroes.ts` | 零调用方法 `_affixBlock` + 随之失效的 `affixColor` 引用 | 22 | 2476 → **2454**（余 36） |
+| `e2d1f85` | `HomeUiCore.ts` | 12 行未使用 import（含 `ccclass` 样板）+ 零调用方法 `_openModal` | 50 | 2240 → **2190**（余 50） |
+
+两笔合计 90 行；`e2d1f85` 单笔 72 行（该提交信息里写的「91 行」把上一笔的 18 行重复计入了，
+以本表为准——历史已推送，不为一个数字去强推改写）。
 
 **下一轮还要行数时直接从这张剩余清单取，别重新扫**（已全目录 grep 核过零引用、且确认无 check 断言钉住）：
 
@@ -150,7 +154,7 @@
 | 可切片 | ⛔ 深灰底切不出 | ✅ |
 | 造型密度 | 高（骷髅书/靶心剑/双人徽章），56px 会糊 | 低一档，轮廓更好读 |
 | 风格 | 更暖、更废土手绘 | 偏金属灰，圆环框变多 |
-| 语义准确 | `ui/ico_add` 出成资源堆 ✗ | 加号 ✅，但试炼/无尽撞成两个骷髅 ✗ |
+| 语义准确 | `ui/ico/ico_add` 出成资源堆 ✗ | 加号 ✅，但试炼/无尽撞成两个骷髅 ✗ |
 
 **没有哪版全面胜出**，所以流程第 5 步的分流是必须的：整表挑不出更好的那一版直接全用，
 要按格取。台账清零前不进下一类。
@@ -193,8 +197,8 @@
 |---|---|---|
 | D1 | **通用件契约层单源**：语义→板、九宫格参数、glyph 摘除规则全部收进 `assets/scripts/ui/UiPlate.ts`；页面禁止手写 `style.borderImage*`、禁止用中文文案正则猜板（旧 `HomeUiCore` 的 `/看广告\|免费\|广告/` 已删，`ad` 成为显式 kind） | UiPlate.ts + STYLE-SPEC §9，checker 逐 key 对账 |
 | D2 | **态策略**：一族一件，禁用/选中/按压全部走 CSS 派生（`filter` / `scale` / `active`）；只有语义上真的两态（载具完好↔受损）才整族出双件。页签不出 `nav_*_on` | STYLE-SPEC §10 |
-| D3 | **双轨择一**：品质框唯一真源 = `ui/frame_q0~q3`（本轮已接 `.popQ .qi`，CSS 白边降为缺图回退）。`.popQ` 头底色渐变是「品质头」另一件，不冲突、保留 | STYLE-SPEC §9 + HomeUiCore |
-| D4 | **段位 ≠ 名次**：`ui/rank1~7` 是段位徽章，**当前游戏没有段位 UI**，留在库待功能开；排行榜前三（🥇🥈🥉）与 HUD `.statRank` 是「名次奖牌」，新登记 `ui/medal1~3` 预留位，图到位再接，现在不动 CSS | ASSET-MANIFEST §B/§C |
+| D3 | **双轨择一**：品质框唯一真源 = `ui/frame/frame_q0~q3`（本轮已接 `.popQ .qi`，CSS 白边降为缺图回退）。`.popQ` 头底色渐变是「品质头」另一件，不冲突、保留 | STYLE-SPEC §9 + HomeUiCore |
+| D4 | **段位 ≠ 名次**：`ui/rank1~7` 是段位徽章，**当前游戏没有段位 UI**，2026-09-21 分类迁移时整族移出包 → `art-spec/reference/stock/rank/`（段位玩法开时按该目录 README 拷回并登记 MANIFEST）；排行榜前三（🥇🥈🥉）与 HUD `.statRank` 是「名次奖牌」，新登记 `ui/badge/medal1~3` 预留位，图到位再接，现在不动 CSS | ASSET-MANIFEST §B/§C/§E2 |
 | D5 | **预留槽位进代码即采购单**：`AssetLib.RESERVED_SLOTS`（103 项）是预留唯一真源，预载跳过这些 key（不再白发 100+ 个失败请求）；图落地必须删声明 | AssetLib.ts + check-art-manifest |
 | D6 | **在库无宿主件必须收口**：旧一代板（panel_metal / panel_frame / panel_card / card_frame / icon_frame / btn_primary / btn_gold / btn_cyan / chip_dark / banner / banner_orange / btn_round2 / avatar_frame / ribbon_title / frame_bronze~gold / rank1-7 / ico_trophy / ico_lock / ico_achieve / shop_scroll）下一轮要么按 §9 登记宿主接线，要么整族删除，不允许长期「预载但不引用」 | 本节 |
 | D7 | **贴图与 glyph 混排收口**：贴图到位由 `UiPlate.icon()` 摘 glyph，缺图保留 glyph 回退；页签青瓷层原 `font-size:0`（会把缺图页签变成空槽）已改为按档显示 emoji 占位，两层口径一致 | HomeUiStyle/HomeUiCore |
@@ -202,10 +206,10 @@
 | D9 | **接线只接当前世代**：P0 只接 r4/r6 套件件（与新基准同族）；r1/r2 老一代板（panel_metal/panel_frame/panel_card/card_frame/icon_frame/btn_gold/btn_cyan/chip_dark/banner/banner_orange/btn_primary）**不为消化库存而硬塞进 r6 宿主**，一并列退役候选等拍板 | STYLE-SPEC §9 |
 | D10 | **主城按钮并入同一板族（范围经实测收窄）**：`UiPlate.CITY_PLATE` + `HomeUiCore._plateCityBtn()` 让 `.btn.gold/.blue/.adBtn/.dark` 复用弹层板，但**只允许 `.btn.big` 这类整幅大键**（已接「前往商店解锁」）；英雄养成五入与商城 `.gBuy` 小胶囊贴板会把文字压在板面上，已撤板回 CSS 底色，等 `bar` 薄板档定档 | STYLE-SPEC §9 薄板档 |
 | D10b | **主城缩放令牌补齐**：主城上下文原本没有 `--pu`，`UiPlate` 的 `calc(Npx * var(--pu,1))` 退化成恒定像素（手机上板厚 10px 而非 25px）。现由 `#homeUi .btn` 两层各写 `--pu: var(--hs,1)` / `--pu: var(--pw,2.5)` 补齐——**接任何新宿主前先确认它所在层有 `--pu`** | HomeUiStyle |
-| D11 | **四套页签不合一**：`.popTabs`（弹层文字档）与 `.shopTabs/.bagTabs/.chTabs`（主城图形档）布局职责不同，只统一「图标位 + 选中态走 CSS」口径；二级页签按 `ui/tab_*` 六 key 一次成表 | STYLE-SPEC §9 |
+| D11 | **四套页签不合一**：`.popTabs`（弹层文字档）与 `.shopTabs/.bagTabs/.chTabs`（主城图形档）布局职责不同，只统一「图标位 + 选中态走 CSS」口径；二级页签按 `ui/ico/tab_*` 六 key 一次成表 | STYLE-SPEC §9 |
 | D12 | **进度条与状态图标族的排产闸门**：进度条族 `bar` 档**已定档**（`UiPlate.NINE.bar` = slice `8 fill` / 显示 2px×--pu，依据是量基准图得「描边:条高 ≈1:9」），并新增一条硬门槛：**宿主条高 ≥10px 才可贴**，3~7px 那几条不接；状态图标族 `icons/status_*` **延后**（战斗 buff 无 DOM 图形位，出图会白出），只挂预留不排产 | STYLE-SPEC §9 薄板档 + UiPlate.ts |
 | D13 | **旧版 UI 素材归档而非删除**（2026-09-20 用户拍板）：11 件 r1/r2 件移入 `art-spec/reference/legacy-keep/`（不占 `textures/` 契约位、不进包、不被 checker 要求归宿），内容件（技能图标 12 / 走帧 4 / 弹道 / fx / 路面）**留用不弃**；要换回某张旧图 = 从归档目录拷回同名 key 重建 | ASSET-MANIFEST §A/§E |
-| D14 | **提示词只报功能名，不报形象**（五轮 A/B 实测）：同一批 20 格，「图鉴卷轴/试炼高塔」写法出的图字面拘谨，「图鉴/试炼」写法让模型自己设计，密度与风格一致性明显更高——模型的设计能力优于替它设计。代价是必须逐格审台账（`ui/ico_add` 按"获取资源"就出成了资源堆）。槽位名要贴真实用途：改叫「加号」就出对了 | STYLE-SPEC §8 生表 + 五轮 A/B 记录 |
+| D14 | **提示词只报功能名，不报形象**（五轮 A/B 实测）：同一批 20 格，「图鉴卷轴/试炼高塔」写法出的图字面拘谨，「图鉴/试炼」写法让模型自己设计，密度与风格一致性明显更高——模型的设计能力优于替它设计。代价是必须逐格审台账（`ui/ico/ico_add` 按"获取资源"就出成了资源堆）。槽位名要贴真实用途：改叫「加号」就出对了 | STYLE-SPEC §8 生表 + 五轮 A/B 记录 |
 | D15 | **底色必须点名 `#00FF00`，不留给模型**：写「纯色背景方便抠图」会被发挥成草绿（通道差 97，与主体绿重叠 → 无解）或深灰（描边本身就是近黑，按距离抠会连描边一起吃掉）。点名 `#00FF00` 后背景侧通道差 ≥229，默认容差直接可切。**不改切片工具去支持深色底** | STYLE-SPEC §8 坑 |
 | D16 | **功能图标一律去装饰外框；通用约定符号豁免「无文字」**（2026-09-20 用户拍板）：金属圆环/盾形/徽章底板一律禁止（显示位只有 44~56px，框会挤掉主体），但静音斜杠、警告三角、信息圆牌这类语义形状要保留；信息图标中心的字母 `i` 不算文字违规 | STYLE-SPEC §3 硬规则 + §6 第 6 条 |
 | D17 | **一类没清零不开下一类**：整表不合格不等于整表作废——合格格落盘、不合格 key 原地留在 `RESERVED_SLOTS`（不预载、上屏走 emoji 回退，破不了断言），攒够就单出补出小表，台账清零才算该类进版完成 | 本文 §2.1 + STYLE-SPEC §8 流程第 5 步 |

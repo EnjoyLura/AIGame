@@ -96,7 +96,11 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
   - 怪物单图：384×384；行走序列帧：横排 N×256（N 帧，现有为 12 帧 2916~3156×256）
   - 特效序列：512×512 横排 16 格（mortar 同规格）或单帧 256~512
   - 武器子弹：竖长条 23~52×128
-- **命名**：全小写下划线，`<分类>/<语义>`（如 `ui/btn_confirm_green`），key 即相对 `assets/resources/textures/` 的路径。
+- **命名**：全小写下划线，`<分类>/<类别>/<语义>`（如 `ui/button/btn_confirm_green`；类别层可省，
+  非 UI 族就是 `<分类>/<语义>`，如 `monsters/boar_walk`），key 即相对 `assets/resources/textures/` 的路径。
+  2026-09-21 起 `ui/` 下的件一律按类别归位到子目录（button/panel/banner/nav/res/ico/frame/shop，
+  另 progress/badge 两类当前仅有预留 key、无在库图），
+  `ui/` 顶层不再放散图；切片落盘前先查 `AssetLib.ts` 里该 key 登记的是哪一级。
 
 ## 6. 验收清单（生图指标，出图逐条过）
 
@@ -148,7 +152,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
    > 一张末日题材欧美卡通风格的微信小游戏UI图标素材图，5列3行网格整齐排列，从左到右从上到下依次是：开始按钮、确认按钮、取消按钮、关闭按钮、头像框、标题绶带、礼物图标、宝箱图标、卷轴图标、信件图标、任务图标、邮件图标、设置图标、排行榜图标、成就图标，图标之间留有间隙，纯绿色背景，按钮上不要画任何文字
 
    成品：`gen-output/r3_sheet_*.png`（9 格）、`gen-output/r4_icons_*.png`（15 格）（gitignore，仅本地）。
-2. **切片落盘**：`python tools/slice_sheet.py <sheet.png> --slots "ui/res_gold:128,ui/res_diamond:128,ui/res_stamina:128,ui/nav_mall:128,ui/nav_heroes:128,ui/nav_battle:128,ui/nav_core:128,ui/nav_base:128,ui/chest:256"`
+2. **切片落盘**：`python tools/slice_sheet.py <sheet.png> --slots "ui/res/res_gold:128,ui/res/res_diamond:128,ui/res/res_stamina:128,ui/nav/nav_mall:128,ui/nav/nav_heroes:128,ui/nav/nav_battle:128,ui/nav/nav_core:128,ui/nav/nav_base:128,ui/shop/chest:256"`
    ——绿幕整表 → 色键掩膜 → 连通域标记 → 卫星碎件并回主体（面积比 <30% 才并入，防误融合）→
    行主序排序 → 裁边/补安全边距/缩放 → 直接写入 `assets/resources/textures/<key>.png`（换图不换 key）。
    参数：`--expect 15` 校验格数、`--margin 6` 安全边距百分比、`--tol 60` 绿幕容差、
@@ -177,7 +181,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 结论：**生图模型的设计能力优于在提示词里替它设计**。`ART-PLAN` 共性纪律第 1 条「prompt 只报槽位名」
 早就写了这条，本表把它钉死成"槽位名 = 功能名，不带形象"，因为 AI 版就是当场踩出来的反例。
 
-代价也要写清楚：不指定形象，就会有个别格子与槽位的真实用途对不上（`ui/ico_add` 是顶栏资源胶囊
+代价也要写清楚：不指定形象，就会有个别格子与槽位的真实用途对不上（`ui/ico/ico_add` 是顶栏资源胶囊
 右边那个小加号，模型按"获取资源"出了资源堆）。所以 A/B 换来的不是"更省事"，是**质量换审核责任**——
 每表必须逐格过台账，见上面流程第 5 步。
 
@@ -217,47 +221,50 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 
 | 通用件 | CSS 宿主 | 槽位 key | 1x 显示 | 适配 | 切片档（UiPlate.NINE） | 态数 | 状态 |
 |---|---|---|---|---|---|---|---|
-| 弹层底板 M/L | `.pop`（非 S） | `ui/panel_main` | 面板框 16px | border-image | `panel` = slice `12% fill` / width 16px×--pu | 1 | ✅ 已接 |
-| 弹层底板 S | `.pop.S` | `ui/panel_sub` | 同上 | border-image | `panel` | 1 | ✅ 已接 |
+| 弹层底板 M/L | `.pop`（非 S） | `ui/panel/panel_main` | 面板框 16px | border-image | `panel` = slice `12% fill` / width 16px×--pu | 1 | ✅ 已接 |
+| 弹层底板 S | `.pop.S` | `ui/panel/panel_sub` | 同上 | border-image | `panel` | 1 | ✅ 已接 |
 | 大按钮（CTA/登录 START） | `.popBtn` / `.lgStart` | 见下方按钮语义行 | 板框 10px | border-image | `plate` = slice `16 fill` / 10px×--pu（登录 `platePw` 按 --pw） | 1（态由 CSS 派生，见 §10） | ✅ 已接 |
-| 细标题条 | `.popTop` | `ui/bar_title` | 高 41px×--pu | `strip`（100% 100% 拉伸） | — | 1 | ✅ 已接 |
-| 横幅绶带 | `.popBanner` | `ui/ribbon_banner` | 高 45px×--pu | `strip` | — | 1 | ✅ 已接 |
-| 弹窗标题绶带（备用） | — | `ui/ribbon_title` | 未接 | `strip` | — | 1 | 📦 在库待接（与 ribbon_banner 二择一，暂留备用） |
-| 关闭钮 | `.popClose` | `ui/btn_close` | 30px×--pu 方 | `icon`（contain + 摘 glyph + 隐边框） | — | 1 | ✅ 已接 |
-| 返回钮 | `.popBack` | `ui/btn_round` | 30px×--pu 方 | `icon` + `keepGlyph`（‹ 是功能符号不是占位，压在板面上）+ 字色改写 | — | 1 | ✅ 已接 |
-| 小圆钮备用件 | `.popMeta .q`（帮助 ?） | `ui/btn_round2` | 17px×--pu 圆 | `icon` + `keepGlyph`（? 是符号）+ 隐边框 | — | 1 | ✅ 本轮接线 |
-| 行图标外框（框件族） | `.popRow .ic`（`frameTex`） | `ui/avatar_frame`（名片行） | 40px×--pu 方 | **`frame`** = border-image slice `16%`（**无 fill**）/ width 5px×--pu，保背景 | `frame` | 1 | ✅ 本轮接线（顶栏 43px 位不接：`.pAvatar > div` 有 `clip-path` 多边形，框图会被裁，需先定框/切角关系） |
-| 入口图标槽（侧栏/页脚键） | `.hot .ic`（`mkBtn`/`mkFoot` 的 tex 参数） | `ui/ico_task` `ui/ico_trophy` `ui/shop_scroll` `ui/shop_gift` `ui/shop_chest` | 34px×--pu（侧栏覆写 56px×--hs / 24px×--pw 与字形同框） | `icon`（尺寸归 CSS，两层同 footprint） | — | 1 | ✅ 本轮接线（新入口图标直接传 key，不再加机制） |
-| 底部主导航 5 签 | `.tab .ticon` | `ui/nav_mall` `ui/nav_heroes` `ui/nav_battle` `ui/nav_core` `ui/nav_base` | 102px×--hs ｜ 41px×--pw | `icon`（尺寸交 CSS） | — | 1（选中态 CSS 强调，见 §10） | ✅ 已接（查 `NAV_PLATE`） |
-| 顶栏资源胶囊 3 枚 | `.res > span:first-child` | `ui/res_gold` `ui/res_diamond` `ui/res_stamina` | 22px×--hs ｜ 20px×--pw | `icon`（尺寸交 CSS） | — | 1 | ✅ 已接（查 `RES_ICON`） |
-| 详情品质头·图标框 | `.popQ .qi` | `ui/frame_q0` `ui/frame_q1` `ui/frame_q2` `ui/frame_q3` | 58px×--pu 方 | `icon`（contain + keepGlyph，框压在道具 glyph 外圈） | — | 1 | ✅ 本轮接线（CSS 白边降为缺图回退） |
+| 细标题条 | `.popTop` | `ui/banner/bar_title` | 高 41px×--pu | `strip`（100% 100% 拉伸） | — | 1 | ✅ 已接 |
+| 横幅绶带 | `.popBanner` | `ui/banner/ribbon_banner` | 高 45px×--pu | `strip` | — | 1 | ✅ 已接 |
+| 弹窗标题绶带（备用） | — | `ui/banner/ribbon_title` | 未接 | `strip` | — | 1 | 📦 在库待接（与 ribbon_banner 二择一，暂留备用） |
+| 关闭钮 | `.popClose` | `ui/button/btn_close` | 30px×--pu 方 | `icon`（contain + 摘 glyph + 隐边框） | — | 1 | ✅ 已接 |
+| 返回钮 | `.popBack` | `ui/button/btn_round` | 30px×--pu 方 | `icon` + `keepGlyph`（‹ 是功能符号不是占位，压在板面上）+ 字色改写 | — | 1 | ✅ 已接 |
+| 小圆钮备用件 | `.popMeta .q`（帮助 ?） | `ui/button/btn_round2` | 17px×--pu 圆 | `icon` + `keepGlyph`（? 是符号）+ 隐边框 | — | 1 | ✅ 本轮接线 |
+| 行图标外框（框件族） | `.popRow .ic`（`frameTex`） | `ui/frame/avatar_frame`（名片行） | 40px×--pu 方 | **`frame`** = border-image slice `16%`（**无 fill**）/ width 5px×--pu，保背景 | `frame` | 1 | ✅ 本轮接线（顶栏 43px 位不接：`.pAvatar > div` 有 `clip-path` 多边形，框图会被裁，需先定框/切角关系） |
+| 入口图标槽（侧栏/页脚键） | `.hot .ic`（`mkBtn`/`mkFoot` 的 tex 参数） | `ui/ico/ico_task` `ui/ico/ico_trophy` `ui/shop/shop_scroll` `ui/shop/shop_gift` `ui/shop/shop_chest` | 34px×--pu（侧栏覆写 56px×--hs / 24px×--pw 与字形同框） | `icon`（尺寸归 CSS，两层同 footprint） | — | 1 | ✅ 本轮接线（新入口图标直接传 key，不再加机制） |
+| 底部主导航 5 签 | `.tab .ticon` | `ui/nav/nav_mall` `ui/nav/nav_heroes` `ui/nav/nav_battle` `ui/nav/nav_core` `ui/nav/nav_base` | 102px×--hs ｜ 41px×--pw | `icon`（尺寸交 CSS） | — | 1（选中态 CSS 强调，见 §10） | ✅ 已接（查 `NAV_PLATE`） |
+| 顶栏资源胶囊 3 枚 | `.res > span:first-child` | `ui/res/res_gold` `ui/res/res_diamond` `ui/res/res_stamina` | 22px×--hs ｜ 20px×--pw | `icon`（尺寸交 CSS） | — | 1 | ✅ 已接（查 `RES_ICON`） |
+| 详情品质头·图标框 | `.popQ .qi` | `ui/frame/frame_q0` `ui/frame/frame_q1` `ui/frame/frame_q2` `ui/frame/frame_q3` | 58px×--pu 方 | `icon`（contain + keepGlyph，框压在道具 glyph 外圈） | — | 1 | ✅ 本轮接线（CSS 白边降为缺图回退） |
 | 行图标贴图槽 | `.popRow .ic`（`iconTex`） | 动态 key（立绘/怪图/礼盒…） | 40px×--pu | `icon`（cover） | — | 1 | ✅ 已接 |
 | 空态图 | `.popEmpty .ei` | 动态 key（`ui/` 前缀即视为槽位） | 44px×--pu | `icon`（contain） | — | 1 | ✅ 已接 |
-| 头像框 | 见下方「行图标外框（框件族）」行：`frame()` 变体已落地并接在名片行 | `ui/avatar_frame` | 40px×--pu | `frame`（border-image 无 fill，不抢 iconTex 的 background） | `frame` | 1 | ✅ 本轮接线；顶栏小位待 clip-path 定案 |
-| 段位徽章 ×7 | 待开：段位/成就展示位 | `ui/rank1`…`ui/rank7` | 128px 见方 | `icon` | — | 1 | 📦 在库待接（**当前无段位 UI**，见 ART-PLAN §5 决策） |
-| 名次奖牌 ×3 | 排行榜 `.popRow .tag` / HUD `.statRank` | `ui/medal1` `ui/medal2` `ui/medal3` | 32~56px | `icon` | — | 1 | ✗ 待生图（现在分别是 🥇🥈🥉 emoji 与 CSS 渐变块） |
-| 主城按钮（页内手工建的键） | `.btn.gold` / `.btn.blue` / `.btn.adBtn` / `.btn.dark` | 复用 `PLATE`：金 `ui/btn_play`、蓝 `ui/btn_cancel`、广告 `ui/btn_video` | 高 44~88px×层缩放 | `nineSlice(el,'plate')`（墨色仍由 CSS 定；`--pu` 已按两层补齐） | `plate` | 1 | ⚠ 只允许 `.btn.big`（解锁大键已接）；五入/`.gBuy` 小键实测压字，已撤板等 `bar` 档 |
-| 进度条（底槽 / 填充 / 端头） | 见下方「进度条与页签的出图口径」 | `ui/bar_track` `ui/bar_fill_green` `ui/bar_fill_yellow` `ui/bar_fill_blue` `ui/bar_fill_red` `ui/bar_cap` `ui/bar_node` | **宿主条高 ≥10px 才可贴**（实测现存 3~14px，见薄板档） | 底槽 `nineSlice(el,'bar')` + 填充 `strip`（100% 100%，宽度由 JS 写 %） | `bar`（✅ 本轮定档 `8 fill` / 2px×--pu） | 1 | ⚠ 档已定、图未出；宿主要先过 10px 高度筛，薄的那几条不接 |
-| 二级页签图标 | `.shopTabs`（商城）/ `.bagTabs`（背包）/ `.chTabs`（章节）的图标位 | `ui/tab_hero` `ui/tab_equip` `ui/tab_gem` `ui/tab_mat` `ui/tab_core` `ui/tab_potion` | 与 `.hot .ic` 同口径（图标 20~34px 方） | `icon`（尺寸归 CSS） | — | 1（选中态 CSS，见 §10） | ✗ 待生图（宿主已定，出图即按 `mkBtn` 的 tex 槽接） |
-| 功能图标·第一批 12 件 | 侧栏 `.side-tools .hot .ic`（签到/试炼/无尽）｜英雄页 `.hero-quick .btn .ic`（核心/武器/升星/天赋）+ `.hero-tools .hot .ic`（招募/工坊，两处：页头与背包行）｜顶栏 `.res .add`（加号）｜确认弹窗 `.popIcBig`（删除/警告） | `ui/ico_signin` `ui/ico_trial` `ui/ico_endless` `ui/ico_core` `ui/ico_weapon` `ui/ico_starup` `ui/ico_talent` `ui/ico_recruit` `ui/ico_forge` `ui/ico_add` `ui/ico_del` `ui/ico_warn` | 侧栏与英雄页 23~26px、顶栏加号 14px、弹窗大图标 62px（各 ×层缩放） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1 | ✅ 图标第一批落盘接线（2026-09-20）。⚠ 英雄页「技能」键按「除技能外不换」保留 emoji，但已一并包进 `.ic` span 以对齐字号 |
-| 功能图标·待接 8 件 | 见「状态」列逐条 | `ui/ico_codex` `ui/ico_loot` `ui/ico_inbox` `ui/ico_empty` `ui/ico_sound` `ui/ico_mute` `ui/ico_info` `ui/ico_search` | 同上口径 | `icon` | — | 1 | ✗ **图未落盘**（切过又删，源表留在 `gen-output/`，接线那轮重切即可）：codex/loot 的宿主正被当代在库件 `ui/shop_scroll` / `ui/chest` / `ui/shop_chest` 占着，换过去要先给那三件定退役；inbox/sound/mute/info 的 emoji 嵌在长文案里、`dropGlyph` 清不掉，要先拆出 `<span class="ic">`；empty 的 14 个调用点全部显式传图，默认 📭 分支无人走（挂上去也是假宿主）；search 全工程还没有检索位，属功能缺口不是美术缺口 |
+| 头像框 | 见下方「行图标外框（框件族）」行：`frame()` 变体已落地并接在名片行 | `ui/frame/avatar_frame` | 40px×--pu | `frame`（border-image 无 fill，不抢 iconTex 的 background） | `frame` | 1 | ✅ 本轮接线；顶栏小位待 clip-path 定案 |
+| 段位徽章 ×7 | 待开：段位/成就展示位 | 已移出包 → `art-spec/reference/stock/rank/`（原 `ui/rank1`…`ui/rank7`） | 128px 见方 | `icon` | — | 1 | 📦 在库无宿主，2026-09-21 移出包（**当前无段位 UI**，见 ART-PLAN §5 决策） |
+| 名次奖牌 ×3 | 排行榜 `.popRow .tag` / HUD `.statRank` | `ui/badge/medal1` `ui/badge/medal2` `ui/badge/medal3` | 32~56px | `icon` | — | 1 | ✗ 待生图（现在分别是 🥇🥈🥉 emoji 与 CSS 渐变块） |
+| 主城按钮（页内手工建的键） | `.btn.gold` / `.btn.blue` / `.btn.adBtn` / `.btn.dark` | 复用 `PLATE`：金 `ui/button/btn_play`、蓝 `ui/button/btn_cancel`、广告 `ui/button/btn_video` | 高 44~88px×层缩放 | `nineSlice(el,'plate')`（墨色仍由 CSS 定；`--pu` 已按两层补齐） | `plate` | 1 | ⚠ 只允许 `.btn.big`（解锁大键已接）；五入/`.gBuy` 小键实测压字，已撤板等 `bar` 档 |
+| 进度条（底槽 / 填充 / 端头） | 见下方「进度条与页签的出图口径」 | `ui/progress/bar_track` `ui/progress/bar_fill_green` `ui/progress/bar_fill_yellow` `ui/progress/bar_fill_blue` `ui/progress/bar_fill_red` `ui/progress/bar_cap` `ui/progress/bar_node` | **宿主条高 ≥10px 才可贴**（实测现存 3~14px，见薄板档） | 底槽 `nineSlice(el,'bar')` + 填充 `strip`（100% 100%，宽度由 JS 写 %） | `bar`（✅ 本轮定档 `8 fill` / 2px×--pu） | 1 | ⚠ 档已定、图未出；宿主要先过 10px 高度筛，薄的那几条不接 |
+| 二级页签图标 | `.shopTabs`（商城）/ `.bagTabs`（背包）/ `.chTabs`（章节）的图标位 | `ui/ico/tab_hero` `ui/ico/tab_equip` `ui/ico/tab_gem` `ui/ico/tab_mat` `ui/ico/tab_core` `ui/ico/tab_potion` | 与 `.hot .ic` 同口径（图标 20~34px 方） | `icon`（尺寸归 CSS） | — | 1（选中态 CSS，见 §10） | ✗ 待生图（宿主已定，出图即按 `mkBtn` 的 tex 槽接） |
+| 功能图标·第一批 12 件 | 侧栏 `.side-tools .hot .ic`（签到/试炼/无尽）｜英雄页 `.hero-quick .btn .ic`（核心/武器/升星/天赋）+ `.hero-tools .hot .ic`（招募/工坊，两处：页头与背包行）｜顶栏 `.res .add`（加号）｜确认弹窗 `.popIcBig`（删除/警告） | `ui/ico/ico_signin` `ui/ico/ico_trial` `ui/ico/ico_endless` `ui/ico/ico_core` `ui/ico/ico_weapon` `ui/ico/ico_starup` `ui/ico/ico_talent` `ui/ico/ico_recruit` `ui/ico/ico_forge` `ui/ico/ico_add` `ui/ico/ico_del` `ui/ico/ico_warn` | 侧栏与英雄页 23~26px、顶栏加号 14px、弹窗大图标 62px（各 ×层缩放） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1 | ✅ 图标第一批落盘接线（2026-09-20）。⚠ 英雄页「技能」键按「除技能外不换」保留 emoji，但已一并包进 `.ic` span 以对齐字号 |
+| 功能图标·待接 8 件 | 见「状态」列逐条 | `ui/ico/ico_codex` `ui/ico/ico_loot` `ui/ico/ico_inbox` `ui/ico/ico_empty` `ui/ico/ico_sound` `ui/ico/ico_mute` `ui/ico/ico_info` `ui/ico/ico_search` | 同上口径 | `icon` | — | 1 | ✗ **图未落盘**（切过又删，源表留在 `gen-output/`，接线那轮重切即可）：codex/loot 的宿主正被当代在库件 `ui/shop/shop_scroll` / `ui/shop/chest` / `ui/shop/shop_chest` 占着，换过去要先给那三件定退役；inbox/sound/mute/info 的 emoji 嵌在长文案里、`dropGlyph` 清不掉，要先拆出 `<span class="ic">`；empty 的 14 个调用点全部显式传图，默认 📭 分支无人走（挂上去也是假宿主）；search 全工程还没有检索位，属功能缺口不是美术缺口 |
 
 ### 按钮语义 → 去字底板（`UiPlate.PLATE`，唯一映射）
 
 | kind | 槽位 | 用在哪 | 状态 |
 |---|---|---|---|
-| `gold`（缺省） | `ui/btn_play` | 主 CTA：领取/确定/开始 | ✅ 已接 |
-| `green` | `ui/btn_confirm` | 确认/消耗类（购买、强化） | ✅ 已接 |
-| `blue` | `ui/btn_cancel` | 次级/取消 | ✅ 已接（主城 `.btn.blue` 待按本表接线） |
-| `danger` | `ui/btn_danger` | 警示：重置存档、退出 | ✅ 已接 |
-| `ad` | `ui/btn_video` | 看广告得奖励键 | ✅ 本轮显式化（旧版靠中文文案正则命中，改文案即掉板） |
-| `grey` | `ui/btn_cancel` | 置灰次级键（沿用蓝板 + §10 派生态） | ✅ 已接 |
-| `purple` | `ui/btn_purple` | 特殊：限时/首充/超值 | ✗ 待生图（缺图回退 CSS 底色） |
+| `gold`（缺省） | `ui/button/btn_play` | 主 CTA：领取/确定/开始 | ✅ 已接 |
+| `green` | `ui/button/btn_confirm` | 确认/消耗类（购买、强化） | ✅ 已接 |
+| `blue` | `ui/button/btn_cancel` | 次级/取消 | ✅ 已接（主城 `.btn.blue` 待按本表接线） |
+| `danger` | `ui/button/btn_danger` | 警示：重置存档、退出 | ✅ 已接 |
+| `ad` | `ui/button/btn_video` | 看广告得奖励键 | ✅ 本轮显式化（旧版靠中文文案正则命中，改文案即掉板） |
+| `grey` | `ui/button/btn_cancel` | 置灰次级键（沿用蓝板 + §10 派生态） | ✅ 已接 |
+| `purple` | `ui/button/btn_purple` | 特殊：限时/首充/超值 | ✗ 待生图（缺图回退 CSS 底色） |
 
 > **旧一代板已归档**（2026-09-20 拍板弃用）：`panel_metal` `panel_frame` `card_frame`
 > `icon_frame` `btn_primary` `btn_gold` `btn_cyan` `chip_dark` `banner_orange` 共 9 件移出
-> （另 `ui/banner` `ui/panel_card` 因 `LevelUpPanel` 画布取帧仍在服役而放回在库，见 ASSET-MANIFEST §E）
+> （另 `ui/banner/banner` `ui/panel/panel_card` 因 `LevelUpPanel` 画布取帧仍在服役而放回在库，见 ASSET-MANIFEST §E）
 > `textures/` 契约位，改放 `art-spec/reference/legacy-keep/`（不进包、不登记、看中了可原样拷回）。
+> **另一处归档位**：`art-spec/reference/stock/` —— 2026-09-21 分类迁移时移出的 12 件「在库但无宿主」
+> 的件（段位徽章 ×7、铜银金头像框 ×3、`ico_achieve`、`ico_lock`），同样不进包、不登记。
+> 两处区别：`legacy-keep/` 是**风格作废**，`stock/` 是**风格没问题、只缺要用它的界面**。
 > 留下来的规矩仍然成立：**在库件必须有归宿**——要么在本表登记宿主后接上，要么列退役候选，
 > 不允许「预载但不引用」这种第三态（`check-art-manifest` 的 5.6 断言在盯）。
 
@@ -278,7 +285,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 档 | 用途 | 源件建议 | slice / 显示 |
 |---|---|---|---|
 | `plate`（已定） | 弹层 CTA、`.btn.big`、登录 START | 高 ≥40px@1x | `16 fill` / 10px×--pu |
-| `bar`（**本轮定档**，依据见下） | 进度条底槽 `ui/bar_track` | 512×64，黑边画进 8px | `8 fill` / 2px×--pu |
+| `bar`（**本轮定档**，依据见下） | 进度条底槽 `ui/progress/bar_track` | 512×64，黑边画进 8px | `8 fill` / 2px×--pu |
 | `chip`（**未定档、不进 NINE**） | `.good .gBuy` 27px、`.gBuy` 44~56px、`.hero-quick` 五入 44px | 128×128，斜面画进 12px | 建议 `12 fill` / 6px×--pu，待样张实测 |
 
 `UiPlate.NINE` 里没有的档 = 不许接线：先补本表一行、再加 NINE 一档、最后接宿主，顺序不许多。
@@ -298,22 +305,22 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 10px 再接，要么承认它就是一根 CSS 渐变线，不出图也不接线。这条筛子排在接线之前，别等贴完再回退。
 
 基准图那三条条体中间嵌着字（`120/120` `68%` `3/3`），所以它只能用来定比例，**不能当切片源**；
-真正上屏的 `ui/bar_track` 必须另出干净件（批5）。
+真正上屏的 `ui/progress/bar_track` 必须另出干净件（批5）。
 
 ### 进度条与页签的出图口径（批5 / 批1 追加，出图前只需读这段）
 
-- **底槽 `ui/bar_track`**：横向九宫格条，中间为**内凹暗槽**、两端留圆头；源件 512×64、黑边画进 8px，
+- **底槽 `ui/progress/bar_track`**：横向九宫格条，中间为**内凹暗槽**、两端留圆头；源件 512×64、黑边画进 8px，
   按上表 `bar` 档切（`8 fill` / 2px×--pu）。宿主写 `.qBar/.actBar/.rcBar/.talentBar/.biBar/.prosBar/.expbar/.pbar/.starBar/
   .popBar/.bagBar`（主城，11 条）与 `#domHud .xpBar/.vehicleBar/.bossBar` 及每英雄伤害占比 fill（HUD，共 5 条）。
   **出图前先把这份宿主表按「条高 ≥10px」筛一遍**：过不了筛的（`.expbar` 3px、手机端 6~7px 那几条）
   从宿主表里划掉，不要为了贴图去改它们的高度——抬高度会挤动整页布局，那是另一件事。
-- **填充 `ui/bar_fill_green|yellow|blue|red`**：**纯横向可拉伸的色带件**（不带高光边、不带圆头，
+- **填充 `ui/progress/bar_fill_green|yellow|blue|red`**：**纯横向可拉伸的色带件**（不带高光边、不带圆头，
   圆头交给 track 与 cap），宽度由 JS 按百分比写；四色语义 = 绿通用/经验、黄体力/活跃、蓝冷却/科技、红危险/boss。
-- **端头 `ui/bar_cap`、节点 `ui/bar_node`**：端头是 cap 小方件（contain）；节点是关卡进度上的宝箱里程碑。
+- **端头 `ui/progress/bar_cap`、节点 `ui/progress/bar_node`**：端头是 cap 小方件（contain）；节点是关卡进度上的宝箱里程碑。
 - **二级页签图标**：商城 `.shopTabs`（英雄/装备/宝石/材料）与背包 `.bagTabs`（装备/宝石/核心/耗材）、
   章节 `.chTabs` 各给一个图标位（20~34px 方，`icon` 口径，尺寸写进对应层的 CSS）。
   **四套页签不合并**（`.popTabs` 是弹层文字档、另三套是主城图形档，布局职责不同），
-  只统一「图标位 + 选中态走 CSS」这一条口径；出图按 `ui/tab_*` 六个 key 一次成表。
+  只统一「图标位 + 选中态走 CSS」这一条口径；出图按 `ui/ico/tab_*` 六个 key 一次成表。
 - **状态图标族 `icons/status_*`**：**本轮判定延后**——战斗内 buff/debuff 目前是画布/文字表现
   （`ui/HUD.ts` Graphics 与飘字），没有可贴的 DOM 图形位，出图会白出。等战斗 HUD 图形化那一轮再定宿主；
   在此之前它们只是 `RESERVED_SLOTS` 里的挂名项，不排产。
@@ -325,10 +332,14 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 
 | key | 原意 | 为什么还没接 | 建议 |
 |---|---|---|---|
-| `ui/frame_bronze` `ui/frame_silver` `ui/frame_gold` | 铜/银/金三档头像框 | 分档需要段位或段位化等级数据源，现在只有单档 `ui/avatar_frame` 有宿主 | 待段位功能开；否则退役 |
-| `ui/rank1` `ui/rank2` `ui/rank3` `ui/rank4` `ui/rank5` `ui/rank6` `ui/rank7` | 段位徽章七档（青铜→王者） | 游戏里没有段位字段与展示位（D4）；排行榜前三是「名次」另族 `ui/medal1~3` | 待段位玩法开；否则退役 |
-| `ui/ico_achieve` | 成就入口图标 | 主城无成就入口（成就只在活动/任务里以行卡出现） | 开成就页再接，否则退役 |
-| `ui/ico_lock` | 锁定态图标 | 现有 🔒 全是文案内嵌 emoji（如「🔒 需先将前置节点点满」），没有独立图形位；节点三态属预留族 `ui/node_done/next/lock` | 随批4 节点图形化一起接 |
+| — | — | 2026-09-21 分类迁移后本表清空：原先记在这里的 12 件（铜/银/金头像框、段位徽章七档、`ico_achieve`、`ico_lock`）已按「在库无宿主 → 移出包」处理，见下 | — |
+
+> **在库无归宿件的处置已执行**（2026-09-21 拍板「在用的留下、没在用的移出包」）：
+> `ui/frame_bronze` `ui/frame_silver` `ui/frame_gold` → `art-spec/reference/stock/frame/`；
+> `ui/rank1`…`ui/rank7` → `art-spec/reference/stock/rank/`；
+> `ui/ico_achieve` `ui/ico_lock` → `art-spec/reference/stock/ico/`。
+> 移出后不再登记 MANIFEST、不再进包，复活方法见 `art-spec/reference/stock/README.md`。
+> 本表重新回到「空表」——今后再有在库件接不上宿主，就记回这张表，别让它继续占包。
 
 ## 10. 态策略（一族一件，不为每态出图）
 

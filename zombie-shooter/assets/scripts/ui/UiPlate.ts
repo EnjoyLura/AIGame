@@ -144,16 +144,16 @@ export type PlateKind = 'gold' | 'green' | 'blue' | 'danger' | 'ad' | 'grey' | '
 /**
  * 语义 → 去字底板槽位。唯一映射表，取代旧「按中文文案正则猜板」（会随文案漂移掉板）。
  * grey 沿用蓝板（现状），置灰本身由 §10 态策略的 CSS filter 派生，不出独立灰板；
- * purple 为待美术的预留位（ui/btn_purple），缺图时回退 CSS 底色。
+ * purple 为待美术的预留位（ui/button/btn_purple），缺图时回退 CSS 底色。
  */
 export const PLATE: Record<PlateKind, string> = {
-    gold: 'ui/btn_play',
-    green: 'ui/btn_confirm',
-    blue: 'ui/btn_cancel',
-    danger: 'ui/btn_danger',
-    ad: 'ui/btn_video',
-    grey: 'ui/btn_cancel',
-    purple: 'ui/btn_purple',
+    gold: 'ui/button/btn_play',
+    green: 'ui/button/btn_confirm',
+    blue: 'ui/button/btn_cancel',
+    danger: 'ui/button/btn_danger',
+    ad: 'ui/button/btn_video',
+    grey: 'ui/button/btn_cancel',
+    purple: 'ui/button/btn_purple',
 };
 
 /** 未声明 kind 即主按钮（金色）；未知语义不猜板，交回 CSS 底色 */
@@ -166,16 +166,16 @@ export function plateOf(kind?: string): string | null {
 
 /** 底部主导航：页 key → 页签图标槽位（取代散在渲染里的三元链） */
 export const NAV_PLATE: Record<string, string> = {
-    mall: 'ui/nav_mall', heroes: 'ui/nav_heroes', battle: 'ui/nav_battle',
-    core: 'ui/nav_core', base: 'ui/nav_base',
+    mall: 'ui/nav/nav_mall', heroes: 'ui/nav/nav_heroes', battle: 'ui/nav/nav_battle',
+    core: 'ui/nav/nav_core', base: 'ui/nav/nav_base',
 };
 
 /** 详情品质头 .qi 的品质框：下标 = 品质档 - 1（q1~q4 → 白绿蓝紫） */
-export const QUALITY_FRAME: string[] = ['ui/frame_q0', 'ui/frame_q1', 'ui/frame_q2', 'ui/frame_q3'];
+export const QUALITY_FRAME: string[] = ['ui/frame/frame_q0', 'ui/frame/frame_q1', 'ui/frame/frame_q2', 'ui/frame/frame_q3'];
 
 /** 顶栏资源胶囊：资源 id → 图标槽位 */
 export const RES_ICON: Record<string, string> = {
-    gold: 'ui/res_gold', diamond: 'ui/res_diamond', stamina: 'ui/res_stamina',
+    gold: 'ui/res/res_gold', diamond: 'ui/res/res_diamond', stamina: 'ui/res/res_stamina',
 };
 
 /**
@@ -183,7 +183,7 @@ export const RES_ICON: Record<string, string> = {
  * 主城键的墨色仍由 CSS 决定（板子只给底），所以此处不配 color；缺图保留 CSS 渐变。
  */
 export const CITY_PLATE: Record<string, string> = {
-    gold: 'ui/btn_play', blue: 'ui/btn_cancel', adBtn: 'ui/btn_video', dark: 'ui/btn_cancel',
+    gold: 'ui/button/btn_play', blue: 'ui/button/btn_cancel', adBtn: 'ui/button/btn_video', dark: 'ui/button/btn_cancel',
 };
 
 /** 按 class 取主城按钮语义档（多档并存时取第一个命中的色语义，sm/big 只是尺寸修饰不参与） */

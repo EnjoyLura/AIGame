@@ -366,22 +366,22 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             return b;
         };
         if (side === 'L') {
-            const signBtn = mkBtn('📅', '签到', true, () => this._openSigninModal(), 'ui/ico_signin');
+            const signBtn = mkBtn('📅', '签到', true, () => this._openSigninModal(), 'ui/ico/ico_signin');
             this._sideSigninRed = signBtn.querySelector('.questRed');
-            const questBtn = mkBtn('📋', '任务', true, () => this._openQuestModal(), 'ui/ico_task');
+            const questBtn = mkBtn('📋', '任务', true, () => this._openQuestModal(), 'ui/ico/ico_task');
             this._sideQuestRed = questBtn.querySelector('.questRed');
-            const giftBtn = mkBtn('🎁', '礼包', true, () => this._openGiftModal(), 'ui/shop_gift');
+            const giftBtn = mkBtn('🎁', '礼包', true, () => this._openGiftModal(), 'ui/shop/shop_gift');
             this._sideGiftRed = giftBtn.querySelector('.questRed');
             return;
         }
-        mkBtn('📖', '图鉴', false, () => this._openBestiaryModal(), 'ui/shop_scroll');
-        mkBtn('🏆', '排行', false, () => this._openLeaderboardModal(), 'ui/ico_trophy');
-        mkBtn('🗼', '试炼', false, () => this._openTrialModal(), 'ui/ico_trial');
+        mkBtn('📖', '图鉴', false, () => this._openBestiaryModal(), 'ui/shop/shop_scroll');
+        mkBtn('🏆', '排行', false, () => this._openLeaderboardModal(), 'ui/ico/ico_trophy');
+        mkBtn('🗼', '试炼', false, () => this._openTrialModal(), 'ui/ico/ico_trial');
         // 无尽从底部左槽收进侧栏：锁定态只降透明不禁用，点击落进未解锁拦截
         const endlessBtn = mkBtn('♾️', '无尽', false, () => {
             SoundFx.unlock();
             this._startBattle(true);
-        }, 'ui/ico_endless');
+        }, 'ui/ico/ico_endless');
         endlessBtn.classList.add('endlessHot');
         endlessBtn.title = '波次无限 · 每 5 波里程碑奖励';
         this._endlessHot = endlessBtn;
@@ -614,7 +614,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             c.className = `hot milestone ${st}`;
             const cic = document.createElement('span');
             cic.className = 'ic';
-            this._tex('ui/chest', u => {
+            this._tex('ui/shop/chest', u => {
                 cic.style.backgroundImage = u;
                 cic.style.backgroundSize = 'contain';
                 cic.style.backgroundRepeat = 'no-repeat';

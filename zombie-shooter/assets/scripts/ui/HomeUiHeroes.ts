@@ -600,7 +600,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const coreBtn = document.createElement('button');
         coreBtn.className = 'btn blue hot';
         coreBtn.innerHTML = '<span class="ic">🧬</span><span>核心</span>';
-        this._tex('ui/ico_core', UiPlate.icon(coreBtn.querySelector('.ic') as HTMLElement));
+        this._tex('ui/ico/ico_core', UiPlate.icon(coreBtn.querySelector('.ic') as HTMLElement));
         coreBtn.title = '英雄核心';
         coreBtn.disabled = !owned;
         coreBtn.onclick = (e) => {
@@ -611,7 +611,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const wpnBtn = document.createElement('button');
         wpnBtn.className = 'btn blue hot';
         wpnBtn.innerHTML = '<span class="ic">🔧</span><span>武器</span>';
-        this._tex('ui/ico_weapon', UiPlate.icon(wpnBtn.querySelector('.ic') as HTMLElement));
+        this._tex('ui/ico/ico_weapon', UiPlate.icon(wpnBtn.querySelector('.ic') as HTMLElement));
         wpnBtn.title = '武器强化';
         wpnBtn.disabled = !owned;
         wpnBtn.onclick = (e) => {
@@ -633,7 +633,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const starBtn = document.createElement('button');
         starBtn.className = 'btn blue hot starEntry';
         starBtn.innerHTML = `<span class="ic">⭐</span><span>${owned && rs.stars(def.id) > 0 ? rs.stars(def.id) + '阶' : '升星'}</span>`;
-        this._tex('ui/ico_starup', UiPlate.icon(starBtn.querySelector('.ic') as HTMLElement));
+        this._tex('ui/ico/ico_starup', UiPlate.icon(starBtn.querySelector('.ic') as HTMLElement));
         starBtn.title = '升星（碎片进度与升星操作）';
         starBtn.disabled = !owned;
         starBtn.onclick = (e) => {
@@ -644,7 +644,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const talBtn = document.createElement('button');
         talBtn.className = 'btn blue hot talentEntry2';
         talBtn.innerHTML = '<span class="ic">🌟</span><span>天赋<span class="questRed"></span></span>';
-        this._tex('ui/ico_talent', UiPlate.icon(talBtn.querySelector('.ic') as HTMLElement));
+        this._tex('ui/ico/ico_talent', UiPlate.icon(talBtn.querySelector('.ic') as HTMLElement));
         talBtn.title = '天赋树（可用点数分配）';
         talBtn.onclick = (e) => {
             e.stopPropagation();
@@ -693,7 +693,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const recruitHot = document.createElement('button');
         recruitHot.className = 'hot';
         recruitHot.innerHTML = '<span class="ic">🎖️</span>招募';
-        this._tex('ui/ico_recruit', UiPlate.icon(recruitHot.querySelector('.ic') as HTMLElement));
+        this._tex('ui/ico/ico_recruit', UiPlate.icon(recruitHot.querySelector('.ic') as HTMLElement));
         recruitHot.title = '招募英雄（抽卡）';
         recruitHot.onclick = (e) => {
             e.stopPropagation();
@@ -703,7 +703,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const forgeEntry = document.createElement('button');
         forgeEntry.className = 'hot forgeEntry';
         forgeEntry.innerHTML = '<span class="ic">⚒️</span>工坊';
-        this._tex('ui/ico_forge', UiPlate.icon(forgeEntry.querySelector('.ic') as HTMLElement));
+        this._tex('ui/ico/ico_forge', UiPlate.icon(forgeEntry.querySelector('.ic') as HTMLElement));
         forgeEntry.title = '装备工坊（合成 / 分解）';
         forgeEntry.onclick = (e) => {
             e.stopPropagation();
@@ -770,7 +770,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const forgeHot = document.createElement('button');
         forgeHot.className = 'hot forgeBtn';
         forgeHot.innerHTML = '<span class="ic">⚒️</span>合成';
-        this._tex('ui/ico_forge', UiPlate.icon(forgeHot.querySelector('.ic') as HTMLElement));
+        this._tex('ui/ico/ico_forge', UiPlate.icon(forgeHot.querySelector('.ic') as HTMLElement));
         forgeHot.title = '装备工坊（合成 / 分解）';
         forgeHot.onclick = (e) => {
             e.stopPropagation();

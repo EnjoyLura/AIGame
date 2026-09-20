@@ -1182,7 +1182,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                         }));
                     }
                     if (!list.length) {
-                        c.appendChild(this._popEmpty('暂无任务', undefined, 'ui/ico_task'));
+                        c.appendChild(this._popEmpty('暂无任务', undefined, 'ui/ico/ico_task'));
                     }
                 },
                 ctas: ready.length > 0 ? [{
@@ -1229,7 +1229,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                 subtitle: rank >= 0 ? `当前名次 #${rank + 1} / ${rows.length}` : undefined,
                 build: c => {
                     if (!rows.length) {
-                        c.appendChild(this._popEmpty('榜单暂无数据', '首次出战结算后上榜', 'ui/ico_rank'));
+                        c.appendChild(this._popEmpty('榜单暂无数据', '首次出战结算后上榜', 'ui/ico/ico_rank'));
                         return;
                     }
                     rows.forEach((r, i) => {
@@ -1403,8 +1403,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
             footer.appendChild(b);
             return b;
         };
-        mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary', 'ui/shop_scroll');
-        mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard', 'ui/ico_trophy');
+        mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary', 'ui/shop/shop_scroll');
+        mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard', 'ui/ico/ico_trophy');
         mkFoot('🔧', '载具改装', () => this._openTuningModal());
         page.appendChild(footer);
 

@@ -583,14 +583,14 @@ export abstract class HomeUiCore extends Component {
         pop.onclick = (e) => e.stopPropagation();
         // 弹层底板走九宫格 border-image（面板框图自带边框；XL 满屏演出层保持平铺底色）
         if (size !== 'XL') {
-            this._tex(size === 'S' ? 'ui/panel_sub' : 'ui/panel_main', UiPlate.nineSlice(pop, 'panel'));
+            this._tex(size === 'S' ? 'ui/panel/panel_sub' : 'ui/panel/panel_main', UiPlate.nineSlice(pop, 'panel'));
         }
 
         // —— 1. 头部区（固定）：横幅 / 品质头 / 细标题条 ——
         const closeBtn = () => {
             const x = this._el('div', 'popClose', '✕');
             // 红 X 金属板：contain 适配小方钮，边框隐去由图自带
-            this._tex('ui/btn_close', UiPlate.icon(x, { hideBorder: true }));
+            this._tex('ui/button/btn_close', UiPlate.icon(x, { hideBorder: true }));
             x.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -601,7 +601,7 @@ export abstract class HomeUiCore extends Component {
         const backBtn = () => {
             const b = this._el('div', 'popBack', '‹');
             // 圆形金属小钮做返回键底，‹ 字符压在板面上（keepGlyph：这块的 glyph 是功能符号，不是占位）
-            this._tex('ui/btn_round', u => {
+            this._tex('ui/button/btn_round', u => {
                 UiPlate.icon(b, { color: '#e9f2fb', keepGlyph: true })(u);
             });
             b.onclick = (e) => {
@@ -613,7 +613,7 @@ export abstract class HomeUiCore extends Component {
         if (opts.banner) {
             const head = this._el('div', 'popBanner');
             // 木质标题绶带做横幅底（100% 拉伸铺满，边框/底色交图）
-            this._tex('ui/ribbon_banner', UiPlate.strip(head));
+            this._tex('ui/banner/ribbon_banner', UiPlate.strip(head));
             head.appendChild(this._el('b', undefined, opts.banner));
             if (opts.art) {
                 head.appendChild(this._el('div', 'art', opts.art));
@@ -653,7 +653,7 @@ export abstract class HomeUiCore extends Component {
         } else if (opts.title) {
             const head = this._el('div', 'popTop', opts.title);
             // 金属标题条做细标题底（100% 拉伸铺满）
-            this._tex('ui/bar_title', UiPlate.strip(head));
+            this._tex('ui/banner/bar_title', UiPlate.strip(head));
             if (canBack) {
                 head.insertBefore(backBtn(), head.firstChild);
             }
@@ -687,7 +687,7 @@ export abstract class HomeUiCore extends Component {
             if (opts.help) {
                 const q = this._el('div', 'q', '?');
                 // 圆板备用件做帮助钮底（? 是功能符号，压在板面上）
-                this._tex('ui/btn_round2', UiPlate.icon(q, { hideBorder: true, keepGlyph: true }));
+                this._tex('ui/button/btn_round2', UiPlate.icon(q, { hideBorder: true, keepGlyph: true }));
                 q.onclick = (e) => {
                     e.stopPropagation();
                     opts.help!();
@@ -1304,7 +1304,7 @@ export abstract class HomeUiCore extends Component {
             add.className = 'add';
             add.textContent = '+';
             // 顶栏「+」由文本符号换成在库加号件（尺寸归 .res .add 两层，缺图保留 '+'）
-            this._tex('ui/ico_add', UiPlate.icon(add));
+            this._tex('ui/ico/ico_add', UiPlate.icon(add));
             add.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -1319,9 +1319,9 @@ export abstract class HomeUiCore extends Component {
             reswrap.appendChild(chip);
             this._topRes[id] = b;
         };
-        mkRes('gold', 'ui/res_gold');
-        mkRes('diamond', 'ui/res_diamond');
-        mkRes('stamina', 'ui/res_stamina');
+        mkRes('gold', 'ui/res/res_gold');
+        mkRes('diamond', 'ui/res/res_diamond');
+        mkRes('stamina', 'ui/res/res_stamina');
         bar.appendChild(reswrap);
         // 下排：昵称 + 经验条（+ 进度文案）｜右侧邮箱 / 设置两个小图标
         const identity = document.createElement('div');
@@ -1353,7 +1353,7 @@ export abstract class HomeUiCore extends Component {
         mailBtn.textContent = '📬';
         mailBtn.title = '邮箱';
         // 邮箱铁皮箱图标替换 emoji
-        this._tex('ui/ico_mail', UiPlate.icon(mailBtn, { hideBorder: true }));
+        this._tex('ui/ico/ico_mail', UiPlate.icon(mailBtn, { hideBorder: true }));
         mailBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1366,7 +1366,7 @@ export abstract class HomeUiCore extends Component {
         noticeBtn.textContent = '📣';
         noticeBtn.title = '游戏公告';
         // 军喇叭公告图标替换 emoji
-        this._tex('ui/ico_notice', UiPlate.icon(noticeBtn, { hideBorder: true }));
+        this._tex('ui/ico/ico_notice', UiPlate.icon(noticeBtn, { hideBorder: true }));
         noticeBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1379,7 +1379,7 @@ export abstract class HomeUiCore extends Component {
         gear.textContent = '⚙️';
         gear.title = '设置';
         // 齿轮图标替换 emoji
-        this._tex('ui/ico_setting', UiPlate.icon(gear, { hideBorder: true }));
+        this._tex('ui/ico/ico_setting', UiPlate.icon(gear, { hideBorder: true }));
         gear.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1756,7 +1756,7 @@ export abstract class HomeUiCore extends Component {
                 art: `待领 ${claimable} · 未读 ${unread}`,
                 build: c => {
                     if (!mails.length) {
-                        c.appendChild(this._popEmpty('暂无邮件', '战役与活动奖励会送达这里', 'ui/shop_letter'));
+                        c.appendChild(this._popEmpty('暂无邮件', '战役与活动奖励会送达这里', 'ui/shop/shop_letter'));
                         return;
                     }
                     for (const m of mails) {
@@ -1834,7 +1834,7 @@ export abstract class HomeUiCore extends Component {
             const del = (): void => {
                 this._popConfirm({
                     title: '删除邮件',
-                    icon: 'ui/ico_del',
+                    icon: 'ui/ico/ico_del',
                     desc: m?.kind === 'reward' && !m.claimed ? '附件尚未领取，删除后附件一并作废' : '删除后不可恢复',
                     danger: true,
                     ok: '确认删除',
@@ -1873,7 +1873,7 @@ export abstract class HomeUiCore extends Component {
                 onBack: () => this._openMailModal(),
                 build: c => {
                     if (!m) {
-                        c.appendChild(this._popEmpty('邮件已删除', '返回列表查看其他邮件', 'ui/shop_letter'));
+                        c.appendChild(this._popEmpty('邮件已删除', '返回列表查看其他邮件', 'ui/shop/shop_letter'));
                         return;
                     }
                     ms.markRead(openId);
@@ -1890,7 +1890,7 @@ export abstract class HomeUiCore extends Component {
                         c.appendChild(this._popSec('附件奖励'));
                         c.appendChild(attach.length
                             ? this._popGrid(attach, 4)
-                            : this._popEmpty('附件为空', undefined, 'ui/shop_chest'));
+                            : this._popEmpty('附件为空', undefined, 'ui/shop/shop_chest'));
                         c.appendChild(this._popKV('领取状态', m.claimed ? '已领取' : '未领取', 'free'));
                         if (mailExpiringSoon(m) && !m.claimed) {
                             c.appendChild(this._el('div', 'popWarn', '⏳ 附件 24 小时内过期，过期作废'));
@@ -1984,7 +1984,7 @@ export abstract class HomeUiCore extends Component {
                 c.appendChild(this._popRow({
                     icon: '🎖',
                     iconTex: 'characters/commander',
-                    frameTex: 'ui/avatar_frame',
+                    frameTex: 'ui/frame/avatar_frame',
                     title: '末日指挥官',
                     lines: [`${title} · 基地 LV.${gm.hqLevel()}`],
                     status: `⚔️ ${power.toLocaleString()}`,
@@ -2084,7 +2084,7 @@ export abstract class HomeUiCore extends Component {
                 kind: 'danger',
                 onClick: () => this._popConfirm({
                     title: '重置存档',
-                    icon: 'ui/ico_warn',
+                    icon: 'ui/ico/ico_warn',
                     desc: '所有进度、装备、英雄与货币将被清空，且无法恢复',
                     danger: true,
                     ok: '确认重置',

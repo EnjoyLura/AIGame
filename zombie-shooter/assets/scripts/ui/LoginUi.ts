@@ -224,7 +224,7 @@ export class LoginUi extends Component {
         start.className = 'lgStart';
         start.textContent = '开始游戏';
         // 金板开始按钮：九宫格参数与弹层 CTA 同族（platePw 档：宽度按 --pw 缩放）
-        this._tex('ui/btn_play', u => {
+        this._tex('ui/button/btn_play', u => {
             UiPlate.nineSlice(start, 'platePw')(u);
             start.style.color = '#5a3a08';
             start.style.textShadow = 'none';

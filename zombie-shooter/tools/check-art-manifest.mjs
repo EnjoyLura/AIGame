@@ -5,6 +5,8 @@
  *  - 磁盘上的图必须在 MANIFEST（孤儿 = 上一轮没登记就删/换了）；
  *  - 代码里 AssetLib.frame('…') / _tex('…') 字面量引用的 key 必须已登记
  *    （防「引用了但预载清单没有 → 永远静默占位」的 escort 类 bug）。
+ * key 可以是 1~3 级路径（ui/button/btn_play）：磁盘扫描走 recursive，
+ * 抓 key 的正则字符集含 `/`——两边口径必须同时成立，否则两级 key 整族脱离对账 = 假绿。
  * 用法：node tools/check-art-manifest.mjs
  */
 import fs from 'node:fs';
@@ -102,7 +104,9 @@ for (const p of fs.readdirSync(SCRIPTS, { recursive: true })) {
     // 覆盖面从「只有 _tex(...) 调用」扩到所有形如 '<分类>/<名>' 的字符串字面量：
     // 契约表（UiPlate.PLATE/NAV_PLATE/QUALITY_FRAME）与 iconTex/RES_ICON 之类的槽位同样必须登记，
     // 否则引用一个没登记的 key 会永远静默占位（escort 类 bug）。
-    for (const m of src.matchAll(new RegExp(`'(${TEX_CATS})/[A-Za-z0-9_]+'`, 'g'))) {
+    // 字符集必须含 `/`：key 可以是 ui/button/btn_play 这类两级/三级路径
+    //（2026-09-20 分类迁移），否则两级 key 整族脱离对账 = 假绿。
+    for (const m of src.matchAll(new RegExp(`'(${TEX_CATS})/[A-Za-z0-9_/]+'`, 'g'))) {
         codeRefs.add(m[0].slice(1, -1));
     }
     for (const m of src.matchAll(new RegExp('`(' + TEX_CATS + ')/[A-Za-z0-9_$/{}]*', 'g'))) {
@@ -135,7 +139,7 @@ ok(diskUnused.length === 0,
 
 // ---- 5.7 通用件契约层与规范文档对账（一类通用件一条，文档漏了就报）----
 const plateSrc = fs.readFileSync(path.join(SCRIPTS, 'ui/UiPlate.ts'), 'utf-8');
-const plateKeys = [...new Set([...plateSrc.matchAll(new RegExp(`'(${TEX_CATS})/[A-Za-z0-9_]+'`, 'g'))]
+const plateKeys = [...new Set([...plateSrc.matchAll(new RegExp(`'(${TEX_CATS})/[A-Za-z0-9_/]+'`, 'g'))]
     .map(m => m[0].slice(1, -1)))];
 ok(plateKeys.length >= 15, `UiPlate 契约表解析到 ${plateKeys.length} 个通用件槽位`);
 const specMissing = plateKeys.filter(k => !specSrc.includes(k));

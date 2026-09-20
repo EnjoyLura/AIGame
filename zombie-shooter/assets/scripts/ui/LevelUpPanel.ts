@@ -78,7 +78,7 @@ export class LevelUpPanel extends Component {
             .start();
 
         // 标题横幅：美术就绪即显示（标题文字压在其上）
-        const bannerFrame = AssetLib.frame('ui/banner');
+        const bannerFrame = AssetLib.frame('ui/banner/banner');
         if (bannerFrame && !this._banner.active) {
             const bsp = this._banner.getComponent(Sprite)!;
             bsp.sizeMode = Sprite.SizeMode.CUSTOM;
@@ -99,7 +99,7 @@ export class LevelUpPanel extends Component {
             card.setPosition((i - 1) * 315, 20);
             const op = card.addComponent(UIOpacity);
             this._cardOps.push(op);
-            const cardFrame = AssetLib.frame('ui/panel_card');
+            const cardFrame = AssetLib.frame('ui/panel/panel_card');
             if (cardFrame) {
                 // 卡片底：米白纸质卡（参考《向僵尸开炮》）
                 const bgNode = createUINode('CardBg');
