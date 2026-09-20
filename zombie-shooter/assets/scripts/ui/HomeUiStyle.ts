@@ -994,6 +994,10 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .bagGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(16px * var(--hs,1)); }
 #homeUi .bcell { position: relative; border-radius: calc(18px * var(--hs,1)); background: radial-gradient(circle at 50% 30%, #1a2a4a, var(--c-navy-7));
   border: 1px solid var(--c-line); height: calc(124px * var(--hs,1)); display: flex; align-items: center; justify-content: center; font-size: calc(48px * var(--hs,1)); cursor: pointer; }
+/* 背包格图标位：emoji 与贴图共用这一个方框（贴图到位摘字，尺寸归 CSS，同底部导航口径） */
+#homeUi .bcell i { display: flex; align-items: center; justify-content: center; font-style: normal; line-height: 1;
+  width: calc(72px * var(--hs,1)); height: calc(72px * var(--hs,1)); background-size: contain; }
+#homeUi .bagBar .bcell i { width: calc(64px * var(--hs,1)); height: calc(64px * var(--hs,1)); }
 #homeUi .bcell.r3 { border-color: #3a8ad0; }
 #homeUi .bcell.r4 { border-color: #9a5ce0; }
 #homeUi .bcell.r5 { border-color: var(--c-amber-hi); }

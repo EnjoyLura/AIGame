@@ -299,7 +299,7 @@ export abstract class HomeUiMall extends HomeUiCore {
         this._applyPendingTex();
 
         grid.innerHTML = '';
-        const mkGood = (opt: { ic: string; name: string; tag: string; price: string; r: number; hot?: boolean; disabled?: boolean; onTap: () => void; onBlocked?: () => void }) => {
+        const mkGood = (opt: { ic: string; name: string; tag: string; price: string; r: number; hot?: boolean; disabled?: boolean; icTex?: string; onTap: () => void; onBlocked?: () => void }) => {
             const card = document.createElement('div');
             card.className = `good panel r${opt.r}`;
             if (opt.hot) {
@@ -311,6 +311,10 @@ export abstract class HomeUiMall extends HomeUiCore {
             const ic = document.createElement('div');
             ic.className = 'gIc';
             ic.textContent = opt.ic;
+            if (opt.icTex) {
+                // 货卡图位：emoji 先占位，贴图到位由 icon() 摘掉（缺图不空槽，同底部导航口径）
+                this._tex(opt.icTex, UiPlate.icon(ic));
+            }
             card.appendChild(ic);
             const name = document.createElement('div');
             name.className = 'gName';
@@ -444,8 +448,11 @@ export abstract class HomeUiMall extends HomeUiCore {
             for (const item of ShopData.MATERIALS) {
                 const left = ShopQuota.remaining(item);
                 const soldOut = left <= 0;
+                // 随机包没有确定内容物，不挂具体材料的图（挂上就是骗人）
+                const miscId = item.grantMisc && !item.pickRandom ? item.grantMisc[0].id : '';
                 mkGood({
                     ic: item.grantMisc ? (item.pickRandom ? '💠' : (MAT_IC[item.grantMisc[0].id] ?? '📦')) : '📦',
+                    icTex: UiPlate.MISC_TEX[miscId],
                     name: item.name, tag: item.desc,
                     price: `${item.price.res === 'gold' ? '🪙' : '💎'} ${item.price.amount.toLocaleString()}`,
                     r: 3,

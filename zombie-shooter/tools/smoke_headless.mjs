@@ -127,6 +127,24 @@ console.log('nav ->', await gotoTab('商店'));
 await sleep(2500);
 console.log('shopTabs:', await tabProbe('.shopTabs'));
 await shot('02c-shop-tabs');
+// 2c-2. 切到「材料」货架，验货卡 .gIc 的材料/宝石贴图真的上了屏（同 D20 判据）
+const clickedMat = await evalJs(`(() => {
+  const el = [...document.querySelectorAll('.shopTabs button')].find(e => /材料/.test(e.textContent || ''));
+  if (!el) return 'NOT FOUND';
+  el.click(); return (el.textContent || '').trim();
+})()`);
+console.log('shop tab ->', clickedMat);
+await sleep(2200);
+// 货卡在页签条下方、首屏看不到：把第一张滚进画面再截，否则这张图永远验不到材料贴图
+await evalJs(`document.querySelector('.gIc')?.scrollIntoView({block:'center'}); 1`);
+await sleep(700);
+console.log('gIc:', await evalJs(`JSON.stringify([...document.querySelectorAll('.gIc')].slice(0, 8).map(e => {
+  const cs = getComputedStyle(e);
+  const b = e.getBoundingClientRect();
+  return JSON.stringify(e.textContent || '').slice(0, 8) + '|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+    + '|box=' + Math.round(b.width) + 'x' + Math.round(b.height);
+}))`));
+await shot('02e-shop-mat-goods');
 console.log('nav ->', await gotoTab('英雄'));
 await sleep(2500);
 console.log('bagTabs:', await tabProbe('.bagTabs'));

@@ -181,6 +181,20 @@ export const NAV_PLATE: Record<string, string> = {
 /** 详情品质头 .qi 的品质框：下标 = 品质档 - 1（q1~q4 → 白绿蓝紫） */
 export const QUALITY_FRAME: string[] = ['ui/frame/frame_q0', 'ui/frame/frame_q1', 'ui/frame/frame_q2', 'ui/frame/frame_q3'];
 
+/**
+ * 材料与宝石：`MISC_ITEM_DEFS` 的 id → 贴图 key（背包格 `.bcell i` 与商城货卡 `.gIc` 共用）。
+ *
+ * 表里只列**已出图**的 id，没出图的（`mat_blueprint`）查不到就走 emoji——这不只是回退好看：
+ * 贴图挂起队列只排得空已登记的 key，把没图的 id 也塞进去会留下一条每 400ms 自续重试的空转定时器。
+ * 而 key 必须整串字面量写在这里，`'icons/' + id` 那种拼法 `check-art-manifest` 不认，
+ * 会把已落盘的图判成「在库无归宿」。
+ */
+export const MISC_TEX: Record<string, string> = {
+    mat_stone: 'icons/mat_stone', mat_alloy: 'icons/mat_alloy', mat_core: 'icons/mat_core',
+    gem_fire: 'icons/gem_fire', gem_wind: 'icons/gem_wind', gem_ice: 'icons/gem_ice',
+    gem_thunder: 'icons/gem_thunder',
+};
+
 /** 顶栏资源胶囊：资源 id → 图标槽位 */
 export const RES_ICON: Record<string, string> = {
     gold: 'ui/res/res_gold', diamond: 'ui/res/res_diamond', stamina: 'ui/res/res_stamina',

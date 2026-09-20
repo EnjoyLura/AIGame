@@ -143,10 +143,11 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'icons/status_fire': '状态·灼烧', 'icons/status_ice': '状态·冰冻',
     'icons/status_bolt': '状态·感电', 'icons/status_poison': '状态·中毒',
     'icons/status_lock': '状态·锁定', 'icons/status_search': '状态·侦查',
-    // —— 材料与宝石 ——
-    'icons/mat_stone': '材料·石料', 'icons/mat_alloy': '材料·合金', 'icons/mat_core': '材料·核心',
-    'icons/gem_fire': '宝石·火', 'icons/gem_wind': '宝石·风', 'icons/gem_ice': '宝石·冰',
-    'icons/gem_thunder': '宝石·雷',
+    // —— 材料与宝石 ——（mat_stone/alloy/core + gem_fire/wind/ice/thunder 七件 2026-09-21 已出图并
+    // 接背包格 .bcell 与商城货卡 .gIc，声明移出本表；同批 r19 表多画的第 8 格（琥珀雷宝石）是模型
+    // 自己填的，不在采购单上，丢弃。注意这七件必须用 `--tol 95` 切：绿宝石的亮绿漩涡撞上默认 tol=60
+    // 会被当背景抠穿，见 STYLE-SPEC §8 坑。同族的 mat_blueprint（图纸）没有对应槽位，继续走 emoji——
+    // 挂图前由 AssetLib.hasArt 挡掉，不会进预载清单。）
     // —— 扩展资源与进度条 ——
     'ui/res/res_frag': '资源·英雄碎片', 'ui/res/res_medal': '资源·勋章',
     'ui/res/res_energy': '资源·能量', 'ui/res/res_ticket': '资源·招募券',

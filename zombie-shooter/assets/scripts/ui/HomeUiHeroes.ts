@@ -821,7 +821,17 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 }
                 const cell = document.createElement('div');
                 cell.className = `bcell r${md.tier}`;
-                cell.innerHTML = `${md.ic}<em>×${n}</em>`;
+                // 图标拆成独立 <i>：贴图要挂在它身上并摘 glyph，原来拼 innerHTML 就没地方挂
+                const bi = document.createElement('i');
+                bi.textContent = md.ic;
+                cell.appendChild(bi);
+                const miscTex = UiPlate.MISC_TEX[md.id];
+                if (miscTex) {
+                    this._tex(miscTex, UiPlate.icon(bi));
+                }
+                const em = document.createElement('em');
+                em.textContent = `×${n}`;
+                cell.appendChild(em);
                 cell.onclick = (e) => {
                     e.stopPropagation();
                     SoundFx.play('ui');
