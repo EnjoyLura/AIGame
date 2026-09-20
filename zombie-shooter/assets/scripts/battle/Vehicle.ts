@@ -18,6 +18,9 @@ export class Vehicle extends Component {
     /** UI/世界缩放系数（部署时由 BattleManager 注入） */
     uiScale = 1;
     private _artTried = false;
+    /** 车尾立绘的 Sprite 与当前受损态：换态只换 spriteFrame，尺寸算法一行不动 */
+    private _artSprite: Sprite | null = null;
+    private _damaged = false;
 
     onLoad(): void {
         this._drawPlaceholder();
@@ -26,6 +29,7 @@ export class Vehicle extends Component {
     /** 美术就绪即替换占位（AssetLib 异步，逐帧探测直到成功） */
     update(): void {
         if (this._artTried) {
+            this._syncDamageArt();
             return;
         }
         const frame = AssetLib.frame('scenes/vehicle_tail');
@@ -44,9 +48,30 @@ export class Vehicle extends Component {
         sp.sizeMode = Sprite.SizeMode.CUSTOM;
         sp.trim = false;
         sp.spriteFrame = frame;
+        this._artSprite = sp;
         for (const g of this.node.getComponents(Graphics)) {
             g.clear();
         }
+    }
+
+    /**
+     * 耐久进 danger 档就换上受损车尾：门槛 0.25 与 HUD 车尾条 `.danger` 同一个数，
+     * 让「条变红」和「车被打烂」是同一件事，而不是两套各变各的。缺图就下一帧再试。
+     */
+    private _syncDamageArt(): void {
+        if (!this._artSprite) {
+            return;
+        }
+        const want = this.hp <= this.maxHp * 0.25;
+        if (want === this._damaged) {
+            return;
+        }
+        const frame = AssetLib.frame(want ? 'scenes/vehicle_tail_damaged' : 'scenes/vehicle_tail');
+        if (!frame) {
+            return;
+        }
+        this._damaged = want;
+        this._artSprite.spriteFrame = frame;
     }
 
     resetState(): void {

@@ -57,10 +57,13 @@ let dbgPrinted = 0;
 function noteErr(kind, text) {
   if (!text) return;
   if (kind === 'log') {
-    // 排障：只放行精英徽标的诊断行，且不去重（w=(波次 ec=精英率) 每波都在变）
+    // 排障：只放行精英徽标的诊断行，且不去重（w=(波次 ec=精英率) 每波都在变）；
+    // 另外放行 Bullet.ts 自带的「弹体正式贴图生效」诊断——画布件在 DOM 里量不到，这行就是它的上屏证据
     const t = String(text);
-    if (!/^DBG-AFFIX/.test(t) || dbgSeen.has(t) || dbgPrinted >= 14) return;
-    dbgSeen.add(t); dbgPrinted++;
+    const pass = /^DBG-AFFIX/.test(t) || /^\[Art\] 弹体正式贴图生效/.test(t);
+    if (!pass || (t.startsWith('DBG') && dbgSeen.has(t)) || dbgPrinted >= 14) return;
+    if (t.startsWith('DBG')) dbgSeen.add(t);
+    dbgPrinted++;
     console.log('  [page]', t.slice(0, 200));
     return;
   }
@@ -368,6 +371,14 @@ for (let i = 0; i < 240; i++) {
   await sleep(500);
 }
 
+// 6d. Step6 画布件取景（一）：丧犬走帧。DOM 量不到画布，所以判据换成两条能看的：
+//     ① 序列帧的格子是 305×455（竖窄），静态立绘是 352×279（横宽），_showArt 按 rect 宽高比给宽，
+//        所以上了序列帧的狗明显比静态图瘦高——一张图就能分辨；② Bullet.ts 的「弹体正式贴图生效」
+//        诊断行会随狙击/辐射开火打出（上面的 [page] 过滤放行）。
+await gmClick('狗群');
+await sleep(1600);
+await shot('06d-dog-walk');
+
 // 7. 伤害统计面板：名次奖牌贴图核对（同 D20）。三档应有图且数字留在环心，第 4 名应保持 CSS 板
 await evalJs(`document.querySelector('.statsBtn')?.click(); 1`);
 await sleep(2200);
@@ -490,6 +501,49 @@ console.log('fragRow:', await evalJs(`JSON.stringify([...document.querySelectorA
     + '|box=' + Math.round(b.width) + 'x' + Math.round(b.height);
 }))`));
 await shot('11-frag-row');
+
+// 12. Step6 画布件取景（二）：车尾受损态。这一件要把耐久打到 25% 以下才会换图，而 GM「车打空」
+//     会顺手判负——所以放在整轮最后，重开一局专门拍它，拍完就收工（不再回主城）。
+const startRun = () => evalJs(`(() => {
+  const el = [...document.querySelectorAll('#homeUi .game-button')].find(e => /开始护送/.test(e.textContent || ''));
+  if (el) el.click();
+  return !!el;
+})()`);
+console.log('nav ->', await gotoTab('护送'));
+await sleep(2400);
+await startRun();
+await sleep(2500);
+if (!(await evalJs(`!!document.querySelector('#domHud .waveChip')`))) {
+  await startRun();  // 可能停在出征确认弹层，再点一次
+}
+// HUD 那行「载具 N / MAX」——车尾耐久读数的唯一可见出口
+const vehRatio = () => evalJs(`(() => {
+  const bar = document.querySelector('#domHud .vehicleBar');
+  if (!bar) return 'NO BAR';
+  const t = (bar.textContent || '').replace(/[^\\d\\/]/g, '');
+  const m = t.match(/(\\d+)\\/(\\d+)/);
+  const danger = /danger/.test(bar.className) ? 'Y' : 'N';
+  return (m ? (Number(m[1]) / Math.max(1, Number(m[2]))).toFixed(3) + ' ' + m[1] + '/' + m[2] : 'NO READ ' + JSON.stringify(t)) + ' danger=' + danger;
+})()`);
+console.log('tail 局内:', await waitUntil(`!!document.querySelector('#domHud .waveChip')`, 25000, 'battle hud up'));
+await sleep(3000);
+// 放一群狗拍一张：走帧是否生效看比例（序列帧格 305×455 竖窄，静态立绘 352×279 横宽）。
+// 先把可能还开着的统计面关掉——它会盖住大半个画面，害得这一张拍不到怪。
+await evalJs(`(() => { document.querySelectorAll('.statsClose').forEach(e => e.click()); return 1; })()`);
+await sleep(700);
+await gmClick('狗群');
+await sleep(1500);
+await shot('12a-dogs-wave1');
+await sleep(2600);
+await shot('12b-dogs-later');
+// 受损态要打到 25% 以下才换，而 GM 只有「车打空」这一档、它会顺手判负并把结算面盖满屏幕。
+// 所以顺序是：先让它把耐久打到 0（换图在那一刻已经发生），再把结算面从 DOM 里摘掉，拍没被盖住的场景。
+await gmClick('车打空(失败)');
+await sleep(1200);
+console.log('车尾读数:', await vehRatio());
+await evalJs(`(() => { document.querySelectorAll('#domHud .menuOverlay, #domHud .vignette').forEach(e => e.remove()); return 1; })()`);
+await sleep(500);
+await shot('12-tail-damaged');
 
 ws.close();
 chrome.kill();

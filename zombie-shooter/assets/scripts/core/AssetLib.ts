@@ -106,16 +106,22 @@ const MANIFEST = [
  * 「采购单宿主全量核实」。**出图前先查那张表，别照本行的描述施工。**
  */
 export const RESERVED_SLOTS: Record<string, string> = {
-    // —— 弹道与战斗件 ——
-    'weapons/sniper_bullet': '狙击弹道贴图，待弹道美术',
-    'weapons/laser_beam': '激光束贴图，待弹道美术',
-    'weapons/radiation_bullet': '辐射弹贴图，待弹道美术',
-    'monsters/dog_walk': '丧犬 12 帧行走序列（其余四怪已到位）',
-    'scenes/vehicle_tail_damaged': '车尾受损态（与 vehicle_tail 成套第二态）',
-    'scenes/bg_forest': '关卡主题背景·森林', 'scenes/bg_beach': '关卡主题背景·海滩',
-    'scenes/bg_snow': '关卡主题背景·雪地', 'scenes/bg_cave': '关卡主题背景·洞穴',
-    'fx/coin_burst': '结算金币爆开特效', 'fx/levelup_glow': '升级光柱', 'fx/portal': '传送门',
-    'fx/dmg_word': '伤害飘字底纹（3 色共用）',
+    // —— 弹道与战斗件 ——（sniper_bullet / radiation_bullet / dog_walk / vehicle_tail_damaged
+    // 2026-09-21 已出图并接线，声明移出本表：两枚弹体由 `HeroCombat` 的 visualKey 取用（缺图时回退
+    // `Graphics` 画的程序化弹体）；丧犬走帧由 `Enemy._tryApplyArt` 优先取序列帧、**零代码改动**
+    // （walk 默认就是 6 帧，其余四怪在 `ANIM_FRAME_COUNT` 里显式记 12——将来重出 12 帧要记得补那一行）；
+    // 车尾受损态由 `Vehicle._syncDamageArt` 在耐久进 0.25 档时与完好态互换（与 HUD 条的 .danger 同门槛）。
+    // 下面这 9 件**不是缺图，是缺表现代码**：全工程 grep 连拼 key 的地方都没有，出图也没东西会去读。
+    // 逐条判据见 STYLE-SPEC §9「战斗表现件」。
+    'weapons/laser_beam': '激光束（laser 英雄在 HeroCombat 的 visualKey 三元里没有分支）',
+    'scenes/bg_forest': '关卡主题背景·森林（战斗底图只有 scenes/road 一个消费点，没有按章换背景的代码）',
+    'scenes/bg_beach': '关卡主题背景·海滩（同上，无消费点）',
+    'scenes/bg_snow': '关卡主题背景·雪地（同上，无消费点）',
+    'scenes/bg_cave': '关卡主题背景·洞穴（同上，无消费点）',
+    'fx/coin_burst': '结算金币爆开（结算面是 DOM 弹层，没有粒子/序列帧消费者）',
+    'fx/levelup_glow': '升级光柱（升级走 DOM 横幅 + 画布施法环，没有光柱件槽）',
+    'fx/portal': '传送门（波次衔接是代码淡入淡出，没有"门"这个实体）',
+    'fx/dmg_word': '伤害飘字底纹（飘字是 Label 直接画字，没有底纹节点）',
     // —— 战斗 UI 件 ——（plate_wave 波次牌底 / skill_slot 技能槽底托 / boss_crown 首领徽
     // 2026-09-21 已出图并接线，声明移出本表：前两件一个贴 HUD 的 .waveChip、一个垫画布层技能图标，
     // 第三件是 .bossName 前面那枚从随文 emoji 拆出来的皇冠。r27 表一次出齐。）
