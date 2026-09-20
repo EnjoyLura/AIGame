@@ -366,7 +366,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             return b;
         };
         if (side === 'L') {
-            const signBtn = mkBtn('📅', '签到', true, () => this._openSigninModal());
+            const signBtn = mkBtn('📅', '签到', true, () => this._openSigninModal(), 'ui/ico_signin');
             this._sideSigninRed = signBtn.querySelector('.questRed');
             const questBtn = mkBtn('📋', '任务', true, () => this._openQuestModal(), 'ui/ico_task');
             this._sideQuestRed = questBtn.querySelector('.questRed');
@@ -376,12 +376,12 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         }
         mkBtn('📖', '图鉴', false, () => this._openBestiaryModal(), 'ui/shop_scroll');
         mkBtn('🏆', '排行', false, () => this._openLeaderboardModal(), 'ui/ico_trophy');
-        mkBtn('🗼', '试炼', false, () => this._openTrialModal());
+        mkBtn('🗼', '试炼', false, () => this._openTrialModal(), 'ui/ico_trial');
         // 无尽从底部左槽收进侧栏：锁定态只降透明不禁用，点击落进未解锁拦截
         const endlessBtn = mkBtn('♾️', '无尽', false, () => {
             SoundFx.unlock();
             this._startBattle(true);
-        });
+        }, 'ui/ico_endless');
         endlessBtn.classList.add('endlessHot');
         endlessBtn.title = '波次无限 · 每 5 波里程碑奖励';
         this._endlessHot = endlessBtn;

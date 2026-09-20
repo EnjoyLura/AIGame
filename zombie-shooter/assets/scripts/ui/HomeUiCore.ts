@@ -1127,7 +1127,13 @@ export abstract class HomeUiCore extends Component {
             build: c => {
                 const center = this._el('div', 'popCenter');
                 if (o.icon) {
-                    center.appendChild(this._el('div', 'popIcBig', o.icon));
+                    // 与 _popEmpty 同一条口径：icon 传 'ui/…' 前缀即贴图 key，否则按 emoji 占位
+                    const asKey = o.icon.startsWith('ui/');
+                    const big = this._el('div', 'popIcBig', asKey ? '' : o.icon);
+                    if (asKey) {
+                        this._tex(o.icon, UiPlate.icon(big));
+                    }
+                    center.appendChild(big);
                 }
                 center.appendChild(this._el('div', 'popDesc', o.desc));
                 c.appendChild(center);
@@ -1347,6 +1353,8 @@ export abstract class HomeUiCore extends Component {
             const add = document.createElement('span');
             add.className = 'add';
             add.textContent = '+';
+            // 顶栏「+」由文本符号换成在库加号件（尺寸归 .res .add 两层，缺图保留 '+'）
+            this._tex('ui/ico_add', UiPlate.icon(add));
             add.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -1876,7 +1884,7 @@ export abstract class HomeUiCore extends Component {
             const del = (): void => {
                 this._popConfirm({
                     title: '删除邮件',
-                    icon: '🗑',
+                    icon: 'ui/ico_del',
                     desc: m?.kind === 'reward' && !m.claimed ? '附件尚未领取，删除后附件一并作废' : '删除后不可恢复',
                     danger: true,
                     ok: '确认删除',
@@ -2126,7 +2134,7 @@ export abstract class HomeUiCore extends Component {
                 kind: 'danger',
                 onClick: () => this._popConfirm({
                     title: '重置存档',
-                    icon: '⚠️',
+                    icon: 'ui/ico_warn',
                     desc: '所有进度、装备、英雄与货币将被清空，且无法恢复',
                     danger: true,
                     ok: '确认重置',

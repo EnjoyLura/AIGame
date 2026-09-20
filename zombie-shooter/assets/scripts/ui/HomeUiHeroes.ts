@@ -1,33 +1,16 @@
 import { _decorator, Component, SpriteFrame, sys } from 'cc';
 const { ccclass } = _decorator;
-import { BattleConfig, BUILD_STAMP, GameEvent } from '../config/GameConfig';
-import { eventCenter } from '../core/EventCenter';
 import { GameManager, META_UPGRADES, BUILDINGS } from '../core/GameManager';
-import { AssetLib } from '../core/AssetLib';
-import { GameFlow } from '../core/GameFlow';
 import { AdService } from '../core/AdService';
-import { ShopData, ShopItem, ShopQuota } from '../core/ShopData';
-import { GIFT_PACKS, GiftService, GiftPackDef } from '../core/GiftPackData';
-import { QUEST_DEFS, QuestSystem, QuestDef, ACTIVITY_CHESTS, ACTIVITY_MAX, rewardText } from '../core/QuestSystem';
-import { loadBoard, myScore, boardNote } from '../core/LeaderboardSystem';
-import { SigninSystem, SIGNIN_REWARDS, SigninReward } from '../core/SigninSystem';
-import { BestiarySystem, BESTIARY_DEFS, BestiaryDef } from '../core/BestiarySystem';
-import { MailSystem } from '../core/MailSystem';
 import { SoundFx } from '../core/SoundFx';
 import { HeroSystem, EquipSlot, EQUIP_SLOTS, EQUIP_SLOT_NAMES, EQUIP_TIER_NAMES, EQUIP_TIER_COLORS, WEAPON_CORE_DEFS, WEAPON_ATK_STEP, WEAPON_LEVEL_MAX, EQUIPMENT_DEFS, bagItemName, bagItemValue, AbilitySlot, BagItem, MiscItemDef, MISC_ITEM_DEFS, miscDef, lootRateText, tierRank, EquipTier, LootDrop, lootDropColor, GEM_EFFECTS, gemSlots, gemSocketCost, combineGroupCount, salvageStoneYield, salvageAlloyYield } from '../core/HeroSystem';
 import { HERO_DEFS, ABILITY_LEVEL_DMG_BONUS, HeroDef } from '../battle/HeroDef';
-import { STAGES, FINAL_STAGE_ID, stageInfo, stageWaves, STAGE_DIFFS, stageDiffDef, StageDifficulty } from '../battle/StageData';
-import { TrialSystem, trialFloorDef, trialFloorReward, TRIAL_MAX_FLOOR, TRIAL_MILESTONE_EVERY } from '../core/TrialSystem';
 import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRICE_10, RECRUIT_PITY, RecruitResult } from '../core/RecruitSystem';
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
 import { affixName, affixValueText, affixColor, AFFIX_MAX } from '../core/EquipmentAffix';
-import { DungeonSystem, DungeonId, DUNGEON_DEFS, DUNGEON_TIER_NAMES, DUNGEON_RUNS_PER_DAY, DUNGEON_STAMINA_COST, DUNGEON_WAVES, dungeonDef, dungeonYieldRange, encodeDungeon } from '../core/DungeonSystem';
-import { ExpeditionSystem, ExpeditionId, EXPEDITION_DEFS, EXPEDITION_RUNS_PER_DAY, HERO_ATTR_NAMES, HERO_ATTR_IC, EXP_MULT_MIN, EXP_MULT_MAX, expeditionDef, matchMultiplier, expeditionYieldRange, heroAttrValue } from '../core/ExpeditionSystem';
-import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/VehicleTuningSystem';
-import { BOND_DEFS, activeBonds } from '../core/HeroBond';
-import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { SLOT_EMOJI } from './HomeUiCore';
 import type { PopCta, PopOpts } from './HomeUiCore';
+import * as UiPlate from './UiPlate';
 import { HomeUiMall } from './HomeUiMall';
 
 /**
@@ -616,7 +599,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         fcolR.className = 'fcol hero-quick right';
         const coreBtn = document.createElement('button');
         coreBtn.className = 'btn blue hot';
-        coreBtn.innerHTML = '🧬<span>核心</span>';
+        coreBtn.innerHTML = '<span class="ic">🧬</span><span>核心</span>';
+        this._tex('ui/ico_core', UiPlate.icon(coreBtn.querySelector('.ic') as HTMLElement));
         coreBtn.title = '英雄核心';
         coreBtn.disabled = !owned;
         coreBtn.onclick = (e) => {
@@ -626,7 +610,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         };
         const wpnBtn = document.createElement('button');
         wpnBtn.className = 'btn blue hot';
-        wpnBtn.innerHTML = '🔧<span>武器</span>';
+        wpnBtn.innerHTML = '<span class="ic">🔧</span><span>武器</span>';
+        this._tex('ui/ico_weapon', UiPlate.icon(wpnBtn.querySelector('.ic') as HTMLElement));
         wpnBtn.title = '武器强化';
         wpnBtn.disabled = !owned;
         wpnBtn.onclick = (e) => {
@@ -636,7 +621,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         };
         const skBtn = document.createElement('button');
         skBtn.className = 'btn blue hot skillEntry';
-        skBtn.innerHTML = '⚡<span>技能</span>';
+        skBtn.innerHTML = '<span class="ic">⚡</span><span>技能</span>';
         skBtn.title = '技能养成（普攻/技能/大招升级）';
         skBtn.disabled = !owned;
         skBtn.onclick = (e) => {
@@ -647,7 +632,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         // 升星入口（参考主流卡牌「1阶」角标）：碎片进度与升星操作收进弹窗；未升过星时回落成稿的「升星」
         const starBtn = document.createElement('button');
         starBtn.className = 'btn blue hot starEntry';
-        starBtn.innerHTML = `⭐<span>${owned && rs.stars(def.id) > 0 ? rs.stars(def.id) + '阶' : '升星'}</span>`;
+        starBtn.innerHTML = `<span class="ic">⭐</span><span>${owned && rs.stars(def.id) > 0 ? rs.stars(def.id) + '阶' : '升星'}</span>`;
+        this._tex('ui/ico_starup', UiPlate.icon(starBtn.querySelector('.ic') as HTMLElement));
         starBtn.title = '升星（碎片进度与升星操作）';
         starBtn.disabled = !owned;
         starBtn.onclick = (e) => {
@@ -657,7 +643,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         };
         const talBtn = document.createElement('button');
         talBtn.className = 'btn blue hot talentEntry2';
-        talBtn.innerHTML = '🌟<span>天赋<span class="questRed"></span></span>';
+        talBtn.innerHTML = '<span class="ic">🌟</span><span>天赋<span class="questRed"></span></span>';
+        this._tex('ui/ico_talent', UiPlate.icon(talBtn.querySelector('.ic') as HTMLElement));
         talBtn.title = '天赋树（可用点数分配）';
         talBtn.onclick = (e) => {
             e.stopPropagation();
@@ -706,6 +693,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const recruitHot = document.createElement('button');
         recruitHot.className = 'hot';
         recruitHot.innerHTML = '<span class="ic">🎖️</span>招募';
+        this._tex('ui/ico_recruit', UiPlate.icon(recruitHot.querySelector('.ic') as HTMLElement));
         recruitHot.title = '招募英雄（抽卡）';
         recruitHot.onclick = (e) => {
             e.stopPropagation();
@@ -715,6 +703,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const forgeEntry = document.createElement('button');
         forgeEntry.className = 'hot forgeEntry';
         forgeEntry.innerHTML = '<span class="ic">⚒️</span>工坊';
+        this._tex('ui/ico_forge', UiPlate.icon(forgeEntry.querySelector('.ic') as HTMLElement));
         forgeEntry.title = '装备工坊（合成 / 分解）';
         forgeEntry.onclick = (e) => {
             e.stopPropagation();
@@ -781,6 +770,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const forgeHot = document.createElement('button');
         forgeHot.className = 'hot forgeBtn';
         forgeHot.innerHTML = '<span class="ic">⚒️</span>合成';
+        this._tex('ui/ico_forge', UiPlate.icon(forgeHot.querySelector('.ic') as HTMLElement));
         forgeHot.title = '装备工坊（合成 / 分解）';
         forgeHot.onclick = (e) => {
             e.stopPropagation();

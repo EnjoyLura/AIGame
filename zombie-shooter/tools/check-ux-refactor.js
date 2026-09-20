@@ -147,7 +147,7 @@ ok('英雄页页面显隐走 .on 类（flex 满屏骨架）', (src.match(/#homeU
 
 // 4. 英雄页吸收技能
 ok('_renderSkillCards 存在', /protected _renderSkillCards\(def: HeroDef, onUpgraded\?: \(\) => void\): HTMLDivElement \{/.test(src));
-ok('技能养成改左功能列按钮入口', /skillEntry/.test(src) && /⚡<span>技能<\/span>/.test(src));
+ok('技能养成改左功能列按钮入口（emoji 已包进 .ic 图标位，与其余四钮同字号）', /skillEntry/.test(src) && /<span class="ic">⚡<\/span><span>技能<\/span>/.test(src));
 ok('技能养成已并入英雄养成 XL 页(4-B)', /protected _openHeroGrowModal\(heroId: string, tab = 0\): void/.test(src) && /this\._renderSkillCards\(def, \(\) => this\._popRebuild\(opt\(\)\)\)/.test(src));
 ok('英雄页不再内联技能区块', !/skillHead/.test(src));
 ok('技能弹窗升级原位重建', /this\._refreshTop\(\);\s*\n\s*onUpgraded\?\.\(\)/.test(src));
@@ -251,7 +251,10 @@ ok('招募单抽/十连进商店 rcard', /doPull = \(count: 1 \| 10, free = fals
 ok('英雄页功能钮双列(左:技能/天赋/升星 右:武器/核心)', /fcol\.appendChild\(skBtn\);[\s\S]{0,200}fcol\.appendChild\(talBtn\);[\s\S]{0,200}fcol\.appendChild\(starBtn\)/.test(src)
   && /fcolR\.appendChild\(wpnBtn\);[\s\S]{0,200}fcolR\.appendChild\(coreBtn\)/.test(src)
   && /stage\.appendChild\(fcol\);[\s\S]{0,200}stage\.appendChild\(fcolR\);/.test(src));
-ok('英雄页五钮齐备并汇入养成页(核心1/强化3/技能0/升星/天赋2)', /fcol[\s\S]{0,400}_openHeroGrowModal\(def\.id, 1\)[\s\S]{0,400}_openHeroGrowModal\(def\.id, 3\)[\s\S]{0,400}_openHeroGrowModal\(def\.id, 0\)[\s\S]{0,500}_openStarModal\(def\.id\)[\s\S]{0,400}_openHeroGrowModal\(def\.id, 2\)/.test(src));
+// 五钮齐备：逐个存在性断言，不用 [s\S]{0,N} 定长窗口（接线加几行就假 FAIL，见 AGENTS.md 工具坑）
+ok('英雄页五钮齐备并汇入养成页(核心1/强化3/技能0/升星/天赋2)', ['_openHeroGrowModal(def.id, 1)',
+  '_openHeroGrowModal(def.id, 3)', '_openHeroGrowModal(def.id, 0)', '_openStarModal(def.id)',
+  '_openHeroGrowModal(def.id, 2)'].every((s) => src.includes(s)));
 ok('战力徽章挂立绘下方', /fig\.appendChild\(power\)/.test(src) && !/head\.appendChild\(power\)/.test(src));
 ok('大升星条已删·改弹窗入口', !/className = 'starBar panel'/.test(src) && /_openStarModal\(heroId: string\): void/.test(src) && /starEntry/.test(src));
 ok('战力右侧 ⓘ 详情入口', /pwInfo/.test(src) && /power\.appendChild\(pwInfo\)/.test(src));

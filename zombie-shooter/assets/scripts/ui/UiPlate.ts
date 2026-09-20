@@ -64,13 +64,16 @@ export interface NineSpec {
  *  - plate：大按钮去字底板，源件圆角斜面在 16px 内（slice 取像素值），显示 10px——
  *    slice 用百分比会把板面划进边区、板厚被压扁（四轮实测口径）；
  *  - frame：框件（头像框等），**不带 fill** —— 只画四边、中心留空，
- *    宿主自己的底色/立绘 background 才不会被框图盖掉。
+ *    宿主自己的底色/立绘 background 才不会被框图盖掉；
+ *  - bar：进度条底槽，源件 512×64 的黑边画进 8px（基准图实测描边:条高 ≈1:9），显示 2px。
+ *    **只给条高 ≥10px 的宿主用**——再薄的条，上下两条描边就把内腔吃光了（STYLE-SPEC §9 薄板档）。
  */
-export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame', NineSpec> = {
+export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
     platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
     frame: { slice: '16%', width: 'calc(5px * var(--pu,1))' },
+    bar: { slice: '8 fill', width: 'calc(2px * var(--pu,1))' },
 };
 
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */

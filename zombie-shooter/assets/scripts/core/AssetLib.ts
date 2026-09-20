@@ -111,17 +111,17 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'ui/tab_hero': '页签·英雄（商城货架头）', 'ui/tab_equip': '页签·装备（商城/背包共用）',
     'ui/tab_gem': '页签·宝石（商城/背包共用）', 'ui/tab_mat': '页签·材料',
     'ui/tab_core': '页签·核心（背包）', 'ui/tab_potion': '页签·耗材（背包）',
-    // —— 功能入口图标 ——
-    'ui/ico_add': '顶栏资源 + 加号钮', 'ui/ico_signin': '侧栏·签到', 'ui/ico_codex': '侧栏·图鉴',
-    'ui/ico_trial': '侧栏·试炼塔', 'ui/ico_endless': '侧栏·无尽',
-    'ui/ico_core': '英雄页·核心养成', 'ui/ico_weapon': '英雄页·武器强化', 'ui/ico_skill': '英雄页·技能',
-    'ui/ico_starup': '英雄页·升星', 'ui/ico_talent': '英雄页·天赋',
-    'ui/ico_recruit': '入口·招募', 'ui/ico_forge': '入口·锻造', 'ui/ico_ad': '广告 ▶ 前缀',
+    // —— 功能入口图标 ——（图标第一批 12 件已出图并接线，预留声明于 2026-09-20 移出：
+    // ico_add / ico_signin / ico_trial / ico_endless / ico_core / ico_weapon / ico_starup /
+    // ico_talent / ico_recruit / ico_forge / ico_del / ico_warn）
+    // 下面仍缺图：codex/loot/inbox/empty/sound/mute/info 是「宿主已被当代在库件占着，或要先拆
+    // DOM 结构才挂得上图」，search 是「全工程还没有检索位」——逐条理由见 STYLE-SPEC §9。
+    'ui/ico_codex': '侧栏·图鉴', 'ui/ico_skill': '英雄页·技能', 'ui/ico_ad': '广告 ▶ 前缀',
     'ui/ico_more': '详情 › 链尾',
     'ui/ico_pause': 'HUD·暂停 ❚❚', 'ui/ico_stats': 'HUD·伤害统计', 'ui/ico_undo': '撤销 ↩',
-    'ui/ico_loot': '补给箱 📦', 'ui/ico_del': '删除 🗑', 'ui/ico_inbox': '收件 📭/📧',
+    'ui/ico_loot': '补给箱 📦', 'ui/ico_inbox': '收件 📭/📧',
     'ui/ico_empty': '空态图标（替 popEmpty 的 📭）', 'ui/ico_sound': '设置·音量',
-    'ui/ico_mute': '设置·静音', 'ui/ico_info': '设置·关于 ℹ️', 'ui/ico_warn': '设置·警告 ⚠️',
+    'ui/ico_mute': '设置·静音', 'ui/ico_info': '设置·关于 ℹ️',
     'ui/ico_slider': '设置·音量滑杆', 'ui/ico_check': '登录·协议勾选 ✓',
     'ui/ico_friend': '好友', 'ui/ico_calendar': '日历', 'ui/ico_shop': '商店帐篷', 'ui/ico_search': '放大镜',
     // —— 状态与属性 ——

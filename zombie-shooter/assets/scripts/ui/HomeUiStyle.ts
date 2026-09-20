@@ -37,7 +37,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .res::before { content: ''; position: absolute; inset: calc(5px * var(--hs,1)) 0; background: var(--c-navy-6); transform: skewX(-12deg); }
 #homeUi .res > * { position: relative; z-index: 1; }
 #homeUi .res b { color: var(--c-gold-hi); }
-#homeUi .res .add { width: auto; height: auto; border-radius: 0; background: none; color: var(--c-text-dim);
+#homeUi .res .add { width: calc(14px * var(--hs,1)); height: calc(14px * var(--hs,1)); border-radius: 0; background: none; color: var(--c-text-dim);
   font-size: calc(14px * var(--hs,1)); font-weight: 700; padding: 0 calc(4px * var(--hs,1)); display: flex; align-items: center; justify-content: center; }
 #homeUi .identity { flex: none; display: flex; align-items: center; justify-content: space-between; gap: calc(6px * var(--hs,1));
   height: calc(27px * var(--hs,1)); }
@@ -1169,6 +1169,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-quick .btn { min-width: calc(44px * var(--hs,1)); min-height: calc(44px * var(--hs,1)); padding: 0;
   font-size: calc(9px * var(--hs,1)); gap: calc(1px * var(--hs,1)); }
 #homeUi .hero-quick .btn > span { font-size: calc(9px * var(--hs,1)); }
+#homeUi .hero-quick .btn .ic { width: calc(26px * var(--hs,1)); height: calc(26px * var(--hs,1)); font-size: calc(26px * var(--hs,1)); }
 #homeUi .hero-quick .btn:disabled { opacity: .45; }
 #homeUi .hero-figure { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
 #homeUi .hero-figure::after { content: ''; position: absolute; bottom: calc(26px * var(--hs,1)); height: calc(17px * var(--hs,1));
@@ -1445,7 +1446,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .res > * { position: relative; z-index: 1; }
 #homeUi .res > span:first-child { width: calc(20px * var(--pw,2.5)) !important; height: calc(20px * var(--pw,2.5)) !important; }
 #homeUi .res b { color: #292929; flex: none; font-variant-numeric: tabular-nums; font-weight: 700; }
-#homeUi .res .add { width: auto; height: auto; margin: 0; padding: 0 calc(4px * var(--pw,2.5)); border-radius: 0; background: none;
+#homeUi .res .add { width: calc(14px * var(--pw,2.5)); height: calc(14px * var(--pw,2.5)); margin: 0; padding: 0 calc(4px * var(--pw,2.5)); border-radius: 0; background: none;
   color: #666; font-size: calc(14px * var(--pw,2.5)); display: flex; align-items: center; justify-content: center; }
 #homeUi .identity { display: flex; align-items: center; justify-content: space-between; gap: calc(6px * var(--pw,2.5));
   height: calc(27px * var(--pw,2.5)); }
