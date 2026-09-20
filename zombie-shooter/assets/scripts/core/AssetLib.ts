@@ -21,7 +21,7 @@ const MANIFEST = [
     'ui/shop/chest',
     'ui/nav/nav_mall', 'ui/nav/nav_heroes', 'ui/nav/nav_battle', 'ui/nav/nav_core', 'ui/nav/nav_base',
     'ui/res/res_gold', 'ui/res/res_diamond', 'ui/res/res_stamina',
-    'scenes/vehicle_tail', 'scenes/escort',
+    'scenes/vehicle_tail', 'scenes/escort', 'scenes/recruit',
     // 旧版 UI 素材（2026-09-20 拍板弃用）已移出契约位 → art-spec/reference/legacy-keep/：
     // panel_card/banner/btn_primary/card_frame/icon_frame/panel_frame/panel_metal/banner_orange/
     // btn_gold/btn_cyan/chip_dark。不进包、不登记 MANIFEST；要用回某张就拷回本清单里同 key 的

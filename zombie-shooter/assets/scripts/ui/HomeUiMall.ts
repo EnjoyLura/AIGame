@@ -155,6 +155,16 @@ export abstract class HomeUiMall extends HomeUiCore {
             this._openRecruitModal();
         };
         this._tex('ui/ico/ico_ad', UiPlate.icon(rcard.querySelector('.rcAd .ic') as HTMLElement));
+        // 招募主卡的立绘位原先是「灰底 + 🎖️」，而它旁边那张礼包卡早就换成实拍照片了——
+        // 同一个骨架两套观感，这就是普查里那块最大的灰色空洞。照片到位才摘 emoji（缺图回退照旧）。
+        const rcArt = rcard.querySelector('.offer-art') as HTMLElement;
+        this._tex('scenes/recruit', u => {
+            rcArt.style.backgroundImage = u;
+            rcArt.style.backgroundSize = 'cover';
+            rcArt.style.backgroundPosition = 'center 40%';
+            rcArt.style.backgroundRepeat = 'no-repeat';
+            rcArt.textContent = '';
+        });
         // 抽卡保底条按拍板退回 6px 细线，不贴九宫格：板边会吃光内腔，且加粗会挤动这张主推卡
         const doPull = (count: 1 | 10, free = false) => {
             const cost = count === 10 ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;

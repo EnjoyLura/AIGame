@@ -23,6 +23,7 @@
 | scenes/vehicle_tail | 车尾（战斗下半屏） | 2160×540 | 已有 |
 | scenes/road | 战斗路面底图 | 720×1280 | 已有 |
 | scenes/escort | 护送页/商城场景图 | 848×1264 | 已有（本轮修复：曾被代码引用但未登记，静默占位） |
+| scenes/recruit | 商城「英雄招募」主推卡立绘位（`HomeUiMall` 的 `.offer-art`，与旁边礼包卡同一骨架） | 1024×1536 | 已有（r32 表：图生图自 `scenes/escort` 定实拍质感，prompt 里点名"构图重心偏右、左侧留暗呼吸区"，因为那一侧要叠标题；emoji 只在照片到位那一刻摘除，缺图回退照旧） |
 | ui/shop/chest | 宝箱 | 256 见方 | 已有 |
 | ui/nav/nav_mall · nav_heroes · nav_battle · nav_core · nav_base | 底部导航 5 键（r3 素材表） | 128×128 | 已有 |
 | ui/res/res_gold · res_diamond · res_stamina | 资源图标 3 枚（r3 素材表） | 128×128 | 已有 |
