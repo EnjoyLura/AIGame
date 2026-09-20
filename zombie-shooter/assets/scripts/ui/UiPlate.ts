@@ -75,7 +75,7 @@ export interface NineSpec {
  *    12px 的条配 4px 板边只剩 4px 内腔，等于把一根细线糊成一坨；切片值不变，显示宽度按
  *    12÷52（源件条高）≈0.23 折算成 2px / 4px。
  */
-export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card', NineSpec> = {
+export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
     platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
@@ -86,7 +86,47 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
     // 切片取 24 宁可多切一点进到平整牌面里，也不能少切——少切会把框边像素划进中段拉 smear。
     // 显示宽度 12px 是按卡片最小高 115px×--pu 折算的（同 D21：切片不变、显示宽度跟着宿主尺寸走）。
     card: { slice: '24 fill', width: 'calc(12px * var(--pu,1))' },
+    // 主城按钮族（r24 表）：切片同 card（源件倒角+铆钉约 20px），显示宽度按宿主高度分两档——
+    // 主 CTA / 侧栏入口 / 编队行都是 47~83px 高用 12px；商城购买小键只有 37px，
+    // 12px 上下就吃掉 24px 剩 13px 压字，所以单独一档 7px（上一轮「板压字撤板」就是这么撤的）。
+    btn: { slice: '24 fill', width: 'calc(12px * var(--pu,1))' },
+    btnSm: { slice: '24 fill', width: 'calc(7px * var(--pu,1))' },
 };
+
+/**
+ * 主城按钮族：CSS 选择器 → [贴图 key, 切片档]，**顺序即优先级，取第一个命中的**。
+ *
+ * 由 `HomeUiCore._plateCityButtons()` 在每次切页后整族扫一遍铺板——原来全工程只有 1 个手工
+ * 铺板调用点（解锁大键），其余 `.game-button` / `.hot` / `.hpick` / `.gBuy` 全是 CSS 渐变，
+ * 这就是"按钮类没成套"的根因。按类别一条规则，而不是十几处各写一遍。
+ *
+ * `key: null` 是**显式跳过**：这一档宿主太小，贴任何板都会糊住字（判据见下面 `.game-button.sm` 那行）。
+ * 选中/未选中这类派生态不出二态图（STYLE-SPEC §10），但同族两档选择器可以分别指到已有语义板上，
+ * 于是「选中=金、未选=蓝」——色语义仍由贴图承担，不必为每个态画一张。
+ */
+export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: 'btn' | 'btnSm' }> = [
+    // 难度小键只有 46×22：板厚四倍都不到，贴上去整块糊掉（无头普查实测），显式跳过
+    { sel: '.game-button.sm', key: null, spec: 'btnSm' },
+    // 英雄养成五入（技能/天赋/升星/武器/核心）：实测贴任何一档板都会「板短字长」——
+    // 这五键的图标行高 + 文案比 61px 盒高还高，板只盖住中段一条，⚡ 与「技能」两行露在板外。
+    // 先改 CSS（把键加高或压行高）再接图，口径见 STYLE-SPEC §9 主城按钮族行。
+    { sel: '.btn.blue.hot', key: null, spec: 'btnSm' },
+    { sel: '.diffSeg.on', key: 'ui/button/btn_play', spec: 'btnSm' },
+    { sel: '.diffSeg', key: 'ui/button/btn_cancel', spec: 'btnSm' },
+    // 护送页那个「👥编队」大入口也带 squadEntry，但它属于侧栏一族（btn_side 木箱板），
+    // 英雄/护送页顶部的 4 个号位才是这里要管的方形小键
+    { sel: '.squadEntry.on:not(.hot)', key: 'ui/button/btn_confirm', spec: 'btnSm' },
+    { sel: '.squadEntry:not(.hot)', key: 'ui/button/btn_cancel', spec: 'btnSm' },
+    // 章节左右翻页箭头不贴：它压在关卡实景照片上，而照片本身是深色金属调——板子上去等于把箭头
+    // 融进背景（实测第 1 章那对 dim 箭头直接看不见）。这一族要的是「与照片拉开对比」，属 CSS 活。
+    { sel: '.arrow', key: null, spec: 'btnSm' },
+    { sel: '.game-button.purple', key: 'ui/button/btn_purple', spec: 'btn' },
+    { sel: '.game-button.major', key: 'ui/button/btn_play', spec: 'btn' },
+    { sel: '.game-button', key: 'ui/button/btn_cancel', spec: 'btn' },
+    { sel: '.gBuy', key: 'ui/button/btn_small', spec: 'btnSm' },
+    { sel: '.hpick', key: 'ui/button/btn_row', spec: 'btn' },
+    { sel: '.hot', key: 'ui/button/btn_side', spec: 'btn' },
+];
 
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */
 export function nineSlice(el: HTMLElement, spec: keyof typeof NINE, opts?: { keepBackground?: boolean }): (url: string) => void {

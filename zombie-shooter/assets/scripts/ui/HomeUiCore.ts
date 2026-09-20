@@ -243,6 +243,25 @@ export abstract class HomeUiCore extends Component {
     }
 
 
+    /** 主城按钮族一次性铺板：按 `UiPlate.CITY_BUTTON_PLATE` 的选择器优先级整族扫，切页尾部调一次。
+     *  原来只有「解锁大键」一处手工铺板，`.game-button`（开始护送 / 十连 / 立即查看这些最大的 CTA）、
+     *  侧栏 `.hot` 入口、编队行 `.hpick`、商城 `.gBuy` 全是 CSS 渐变——按钮类不成套就是这么来的。
+     *  表里 `key: null` 的那几档（46×22 难度小键）是**故意不贴**：宿主比板厚四倍还小，贴上去整块糊掉。 */
+    protected _plateCityButtons(): void {
+        const root = this._root;
+        if (!root) {
+            return;
+        }
+        const sel = UiPlate.CITY_BUTTON_PLATE.map(r => r.sel).join(', ');
+        for (const el of Array.from(root.querySelectorAll<HTMLElement>(sel))) {
+            const hit = UiPlate.CITY_BUTTON_PLATE.find(r => el.matches(r.sel));
+            if (hit?.key) {
+                this._tex(hit.key, UiPlate.nineSlice(el, hit.spec));
+            }
+        }
+    }
+
+
     protected _heroWeaponName(id: string): string {
         const def = HERO_DEFS.find(d => d.id === id);
         if (!def) {
@@ -1530,6 +1549,7 @@ export abstract class HomeUiCore extends Component {
             this._refreshBase();
         }
         this._refreshTop();
+        this._plateCityButtons();
         this._applyPendingTex();
     }
 

@@ -175,7 +175,7 @@ export abstract class HomeUiMall extends HomeUiCore {
             '<p>每日免费补给 + 钻石礼包</p>' +
             '<small>限时特惠 · 钻石直购</small></div>' +
             '<div class="offer-buttons"><button class="hot giftDot"><span class="ic">⏰</span><small>限时特惠</small></button>' +
-            '<button class="game-button major giftGo">立即查看</button></div>';
+            '<button class="game-button major purple giftGo">立即查看</button></div>';
         banner.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');

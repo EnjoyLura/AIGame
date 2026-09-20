@@ -61,8 +61,9 @@ const MANIFEST = [
     'scenes/bg_forest', 'scenes/bg_beach', 'scenes/bg_snow', 'scenes/bg_cave',
     'fx/coin_burst', 'fx/levelup_glow', 'fx/portal', 'fx/dmg_word',
     'ui/plate_wave', 'ui/skill_slot', 'ui/boss_crown',
-    // 按钮系补件：特殊(紫)板 + 小圆钮族
+    // 按钮系补件：特殊(紫)板 + 小圆钮族 + 主城按钮族三档（r24 表，按类别一次出齐）
     'ui/button/btn_purple', 'ui/button/btn_home', 'ui/button/btn_help', 'ui/button/btn_refresh',
+    'ui/button/btn_small', 'ui/button/btn_side', 'ui/button/btn_row',
     // 二级页签族（商城货架 4 签 / 背包分类 4 签共用；tab_core 至今没有宿主，理由见 RESERVED_SLOTS 注）
     'ui/ico/tab_hero', 'ui/ico/tab_equip', 'ui/ico/tab_gem', 'ui/ico/tab_mat', 'ui/ico/tab_core', 'ui/ico/tab_potion',
     // 功能入口图标族（主城侧栏 + 英雄养成 + 商城 + HUD + 设置/登录）
@@ -113,9 +114,11 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'fx/coin_burst': '结算金币爆开特效', 'fx/levelup_glow': '升级光柱', 'fx/portal': '传送门',
     'fx/dmg_word': '伤害飘字底纹（3 色共用）',
     'ui/plate_wave': '战斗波次牌底', 'ui/skill_slot': '战斗技能槽底托', 'ui/boss_crown': 'boss 预警徽',
-    // —— 按钮系 ——
-    'ui/button/btn_purple': '特殊/紫色大按钮去字底板（UiPlate.PLATE.purple）',
-    'ui/button/btn_home': '小圆钮·主页', 'ui/button/btn_help': '小圆钮·帮助 ?', 'ui/button/btn_refresh': '小圆钮·刷新 ↻',
+    // —— 按钮系 ——（btn_purple 与小按钮 / 侧栏入口 / 列表行三档 2026-09-21 已出图，
+    // 由 UiPlate.CITY_BUTTON_PLATE 整族铺板，声明移出本表）
+    // 三枚小圆钮仍留单：主页与刷新这两个动作在界面上还没有落点（要建功能才有位置），
+    // 而「帮助 ?」同位已经由 btn_round2 接在 .popMeta .q 上，属于同位重复。
+    'ui/button/btn_home': '小圆钮·主页（还没有主页键落点）', 'ui/button/btn_help': '小圆钮·帮助 ?（同位已有 btn_round2）', 'ui/button/btn_refresh': '小圆钮·刷新 ↻（还没有刷新动作落点）',
     // —— 二级页签 ——（tab_hero/equip/gem/mat/potion 五件 2026-09-20 已出图并接线，声明移出本表）
     // tab_core：图 2026-09-20 已出且合格（r13 表第 5 格，反应堆芯），但**这个页签还没有**——
     // 规范原先写的宿主 `.chTabs` 是死样式（护送页早已改成「章节头 + 左右翻页箭头」，全工程无一处建 DOM），
