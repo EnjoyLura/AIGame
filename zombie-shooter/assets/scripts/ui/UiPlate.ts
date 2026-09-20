@@ -75,7 +75,7 @@ export interface NineSpec {
  *    12px 的条配 4px 板边只剩 4px 内腔，等于把一根细线糊成一坨；切片值不变，显示宽度按
  *    12÷52（源件条高）≈0.23 折算成 2px / 4px。
  */
-export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm', NineSpec> = {
+export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm' | 'chip', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
     platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
@@ -91,6 +91,10 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
     // 12px 上下就吃掉 24px 剩 13px 压字，所以单独一档 7px（上一轮「板压字撤板」就是这么撤的）。
     btn: { slice: '24 fill', width: 'calc(12px * var(--pu,1))' },
     btnSm: { slice: '24 fill', width: 'calc(7px * var(--pu,1))' },
+    // 战斗 HUD 的波次牌（r27 表）：源件 512×256，四角包边铆钉约占 18% 高、12% 宽，
+    // 所以切片按**百分比**给（像素档在横长件上会把包边划进中段拉 smear）。
+    // 显示宽度按 chip 实测高 ~100 CSS px 折算（18% × 100 ≈ 18px，同 D21 口径）。
+    chip: { slice: '18% 12% fill', width: 'calc(14px * var(--pu,1))' },
 };
 
 /**

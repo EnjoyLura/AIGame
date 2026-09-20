@@ -84,6 +84,9 @@ class AbilityIcon {
     private _baseG: Graphics = null!;
     /** 能力内芯图标层（AssetLib 就绪后替换名字首字，缺图回退） */
     private _artNode: Node = null!;
+    /** 槽底托节点（`ui/skill_slot`）：美术就绪前整节点不启用，缺图就只留 Graphics 画的底 */
+    private _socketNode: Node = null!;
+    private _socketApplied = false;
     private _iconApplied = false;
     /** 冷却扇形遮罩层（仅在冷却刻度变化时重画，不逐帧重画） */
     private _maskG: Graphics = null!;
@@ -136,6 +139,17 @@ class AbilityIcon {
         this.node.addComponent(UITransform).setContentSize(ICON_R * 2, ICON_R * 2);
         this.node.setPosition(left ? -COL_X : COL_X, y);
         this._opacity = this.node.addComponent(UIOpacity);
+
+        // 槽底托：Graphics 画的那层底之外再垫一枚金属托（图标是圆形金环+透明四角，方托从四角露出来）。
+        // 建在最底一层，且缺图时整节点不启用——冷却遮罩/充能环的半径口径一律不动。
+        const socketNode = createUINode('Socket');
+        this.node.addChild(socketNode);
+        socketNode.addComponent(UITransform).setContentSize(ICON_R * 2 + 20, ICON_R * 2 + 20);
+        const socketSp = socketNode.addComponent(Sprite);
+        socketSp.sizeMode = Sprite.SizeMode.CUSTOM;
+        socketSp.trim = false;
+        socketNode.active = false;
+        this._socketNode = socketNode;
 
         // 呼吸光效层放最底（只画图标外圈，不影响图标本体）
         const glowNode = createUINode('Glow');
@@ -229,6 +243,15 @@ class AbilityIcon {
         const baseDirty = info.unlocked !== this._lastUnlocked
             || info.level !== this._lastLevel
             || (this._slot === 'ultimate' && full !== this._lastFull);
+        // 底托与内芯走同一种就绪探测（预载常常晚于建条），一次成功就不再重取
+        if (!this._socketApplied) {
+            const socketFrame = AssetLib.frame('ui/skill_slot');
+            if (socketFrame) {
+                this._socketApplied = true;
+                this._socketNode.getComponent(Sprite)!.spriteFrame = socketFrame;
+                this._socketNode.active = true;
+            }
+        }
         // 内芯图标：美术就绪即应用一次（与图标框相同的就绪探测，缺图回退首字）
         if (!this._iconApplied) {
             const iconFrame = AssetLib.frame(`icons/${this._hero.def.id}_${this._slot}`);

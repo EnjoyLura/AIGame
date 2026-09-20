@@ -556,6 +556,13 @@ export abstract class HomeUiMall extends HomeUiCore {
     }
 
 
+    /** 组件：告警行（解锁门槛 / 材料或体力不足）。
+     *  从 `HomeUiCore` 挪下来的理由不是随手：Core 顶在行数棘轮上，而这个组件在 Core 内零调用、
+     *  19 个调用点全在 Mall 及更下游——放在这一层照样人人可用，Core 少 5 行。 */
+    protected _popWarn(text: string): HTMLElement {
+        return this._el('div', 'popWarn', text);
+    }
+
     /** 星级条：原来是一串 `'★'.repeat(n)` 文本——文本星只能整串一个颜色、也贴不了图，
      *  要出图就得拆成逐颗的元素。亮/空两件套同一张表口径（同族异色，不为每档出二态）。
      *  放在 Mall 层的理由同 `_searchBox`：Core 与 Heroes 都已顶到 `check-split` 的行数棘轮预算。 */

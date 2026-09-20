@@ -76,7 +76,7 @@ export class DomHud extends Component {
     private _mailOverlay: HTMLDivElement | null = null;
     /** BOSS 血条（WAVE_BOSS 显示，BOSS_DEAD 收起） */
     private _bossBarEl: HTMLDivElement | null = null;
-    private _bossNameEl: HTMLDivElement | null = null;
+    private _bossNameEl: HTMLElement | null = null;
     private _bossFill: HTMLDivElement | null = null;
     /** 战斗页设置浮窗 */
     private _settingsOverlay: HTMLDivElement | null = null;
@@ -252,7 +252,7 @@ export class DomHud extends Component {
     private _onWaveBoss(name: unknown): void {
         this._flashPopup(`⚠ BOSS 来袭 · ${String(name ?? '')}`);
         if (this._bossNameEl) {
-            this._bossNameEl.textContent = `👑 ${String(name ?? 'BOSS')}`;
+            this._bossNameEl.textContent = String(name ?? 'BOSS');
         }
         if (this._bossFill) {
             this._bossFill.style.width = '100%';
@@ -1077,11 +1077,15 @@ export class DomHud extends Component {
         this._affixRow.className = 'afRow';
         this._affixRow.style.display = 'none';
         waveChip.appendChild(this._affixRow);
+        // 读数牌底板（r27 表）：波次与击杀是同一对读数 chip，只给其中一块换木牌会读成"没做完"，
+        // 所以两枚共用 `ui/plate_wave`——key 名带 wave 是登记时的窄写，台账按 `tab_potion` 那条口径记映射
+        this._tex('ui/plate_wave', UiPlate.nineSlice(waveChip, 'chip'));
         topRight.appendChild(waveChip);
         const killChip = document.createElement('div');
         killChip.className = 'chip killChip';
         killChip.appendChild(this._chipLab('击杀'));
         this._killEl = this._chipVal(killChip, '0');
+        this._tex('ui/plate_wave', UiPlate.nineSlice(killChip, 'chip'));
         topRight.appendChild(killChip);
 
         // 载具耐久：标签 + 轨道条 + 数值（warn/danger/hit 状态）+ 低耐久红晕
@@ -1131,6 +1135,15 @@ export class DomHud extends Component {
         bossBar.style.display = 'none';
         const bossName = document.createElement('div');
         bossName.className = 'bossName';
+        // 皇冠从随文 emoji 拆成独立元素：原来它是 `👑 名字` 字符串里的一个字，
+        // 没有元素就贴不上图（同 Step3 那串 '★'.repeat() 的教训）。缺图时它仍是 👑。
+        const bossCrown = document.createElement('i');
+        bossCrown.className = 'bossCrown';
+        bossCrown.textContent = '👑';
+        this._tex('ui/boss_crown', UiPlate.icon(bossCrown));
+        const bossTitle = document.createElement('span');
+        bossName.appendChild(bossCrown);
+        bossName.appendChild(bossTitle);
         bossBar.appendChild(bossName);
         const bossTrack = document.createElement('div');
         bossTrack.className = 'bossTrack';
@@ -1142,7 +1155,7 @@ export class DomHud extends Component {
         this._barTex(bossTrack, this._bossFill, 'ui/progress/bar_fill_red');
         root.appendChild(bossBar);
         this._bossBarEl = bossBar;
-        this._bossNameEl = bossName;
+        this._bossNameEl = bossTitle;
 
         // 暂停菜单（交互稿 battle.html H2）：顶部状态 chip + 标题 + 三条出路 + 互斥说明
         const pm = document.createElement('div');
@@ -1656,6 +1669,11 @@ export class DomHud extends Component {
   border: calc(2px * var(--s,1)) solid rgba(255,193,7,.45); }
 #domHud .bossName { font-size: calc(30px * var(--s,1)); color: var(--c-coin); letter-spacing: 2px;
   text-shadow: 0 1px 3px rgba(0,0,0,.85); }
+/* BOSS 皇冠徽（从随文 emoji 拆出来的元素）：尺寸只归这里，UiPlate.icon 从不写 inline 宽高 */
+#domHud .bossCrown { display: inline-block; font-style: normal; text-align: center;
+  width: calc(30px * var(--s,1)); height: calc(30px * var(--s,1));
+  font-size: calc(26px * var(--s,1)); line-height: calc(30px * var(--s,1));
+  vertical-align: calc(-3px * var(--s,1)); margin-right: calc(7px * var(--s,1)); }
 #domHud .bossTrack { width: 100%; height: calc(28px * var(--s,1)); border-radius: calc(999px * var(--s,1));
   background: rgba(0,0,0,.5); overflow: hidden; box-shadow: inset 0 calc(2px * var(--s,1)) calc(4px * var(--s,1)) rgba(0,0,0,.5); }
 #domHud .bossFill { height: 100%; border-radius: inherit;

@@ -116,7 +116,9 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'scenes/bg_snow': '关卡主题背景·雪地', 'scenes/bg_cave': '关卡主题背景·洞穴',
     'fx/coin_burst': '结算金币爆开特效', 'fx/levelup_glow': '升级光柱', 'fx/portal': '传送门',
     'fx/dmg_word': '伤害飘字底纹（3 色共用）',
-    'ui/plate_wave': '战斗波次牌底', 'ui/skill_slot': '战斗技能槽底托', 'ui/boss_crown': 'boss 预警徽',
+    // —— 战斗 UI 件 ——（plate_wave 波次牌底 / skill_slot 技能槽底托 / boss_crown 首领徽
+    // 2026-09-21 已出图并接线，声明移出本表：前两件一个贴 HUD 的 .waveChip、一个垫画布层技能图标，
+    // 第三件是 .bossName 前面那枚从随文 emoji 拆出来的皇冠。r27 表一次出齐。）
     // —— 按钮系 ——（btn_purple 与小按钮 / 侧栏入口 / 列表行三档 2026-09-21 已出图，
     // 由 UiPlate.CITY_BUTTON_PLATE 整族铺板，声明移出本表）
     // 三枚小圆钮仍留单：主页与刷新这两个动作在界面上还没有落点（要建功能才有位置），
@@ -179,10 +181,14 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'ui/badge/power_badge': '战力徽章底（宿主 .powerBadge 是 27px 高整宽胶囊，徽章形塞不进；要接得先在胶囊左端开一个 27px 方图位）',
     // row_card（列表行卡底板）2026-09-21 已出图并接商城货卡 `.good.panel`（两处）与 HUD 邮件行
     // `.mailRow.panel`，声明移出本表。
-    // panel_mini 留单：图出了也合格，但 `.mbox` 这两个容器（HomeUiCore.ts:394/435）带 `frame` 类，
-    // 而 `.frame` 有 ::before/::after 装饰伪元素与自己的边框，九宫格板贴上去会跟它们打架。
-    // 要么先给 `.mbox.frame` 定一个「板 + 装饰」的先后口径，要么等一个不带 frame 的小框宿主。
-    'ui/panel/panel_mini': '模块小框底板（.mbox 带 frame 类与装饰伪元素，口径未定，暂不贴）',
+    // panel_mini（模块小框底板）：图合格（r16 表，金属包边 + 四角铆钉 + 平整内芯），**但没有活宿主**——
+    // `.mbox` 全工程只有两个建点（HomeUiCore 的 `_openSheet` / `_openResult`），而这两个方法**零调用点**：
+    // 它们是「全部二级界面已迁新弹层」那条迁移棘轮的桩子（`check-ux-refactor` 断言调用点必须为 0、
+    // `check-ux-layout-bundle` 断言方法还在包里），删不得也用不上。整条 `.mbox/mHead/mClose/mSub/mRow`
+    // 样式族同属那一代遗留。切片件归档 `art-spec/reference/stock/panel/`，键留本表。
+    // ⚠ 教训：**死方法里的引用不算宿主**——`check-art-manifest` 的「在库件必须有归宿」只扫代码引用，
+    // 在这两处加一行就会绿灯，图却永远上不了屏。核宿主要核「谁调用这个建点」，不是「哪里提到这个 key」。
+    'ui/panel/panel_mini': '模块小框底板（唯一建点 _openSheet/_openResult 零调用，是迁移棘轮的桩子）',
     // —— 护送关卡载具 ——（三件 2026-09-21 已出图并接章节头载具牌，声明移出本表）
     // 宿主是 HomeUiStage 章节头左端那一枚（CHAPTER_THEMES[].veh → UiPlate.VEHICLE_TEX 字形对 key）；
     // 选这里而不是场景里那块 .veh，是因为浅色（手机）主题把 .veh 连同 road/dash/mobs 一起 display:none，

@@ -1054,11 +1054,6 @@ export abstract class HomeUiCore extends Component {
         return this._el('div', 'popSec', text);
     }
 
-    /** 组件：告警行（解锁门槛 / 材料或体力不足） */
-    protected _popWarn(text: string): HTMLElement {
-        return this._el('div', 'popWarn', text);
-    }
-
     /** 组件：固定条里的静态信息胶囊（不响应点击：倒计时/口径说明） */
     protected _popInfo(text: string, on = false): HTMLElement {
         return this._el('div', `popChip${on ? ' on' : ''}`, text);

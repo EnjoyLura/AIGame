@@ -294,7 +294,31 @@ console.log('afRow:', await evalJs(`(() => {
   });
   return 'display=' + r.style.display + ' n=' + kids.length + ' [' + kids.join(', ') + ']';
 })()`));
-// 第 1~3 波 eliteChance=0，上面那条只验到「没精英就整行收起」。本关第 4/5 波 ec=0.1，
+// 6c. Step5 战斗 UI 件取景：波次牌底板（.waveChip 换 border-image）与首领徽（.bossCrown，
+//     从 `👑 名字` 那串文本里拆出来的元素）。判据同 D20：bg=Y 且盒尺寸非 0。
+//     技能槽底托在画布层（AbilityBar 的 Sprite），DOM 量不到，只能看战斗截图。
+const hud5 = () => evalJs(`(() => {
+  const crown = document.querySelector('#domHud .bossCrown');
+  const bar = document.querySelector('#domHud .bossBar');
+  const out = [];
+  for (const sel of ['#domHud .waveChip', '#domHud .killChip']) {
+    const chip = document.querySelector(sel);
+    if (!chip) { out.push(sel.replace('#domHud ', '') + '|NOT FOUND'); continue; }
+    const cs = getComputedStyle(chip);
+    const b = chip.getBoundingClientRect();
+    out.push(sel.replace('#domHud .', '') + '|borderImage=' + (/url\\(/.test(cs.borderImageSource || cs.borderImage) ? 'Y' : 'N')
+      + '|box=' + Math.round(b.width) + 'x' + Math.round(b.height));
+  }
+  if (crown) {
+    const cs = getComputedStyle(crown);
+    const b = crown.getBoundingClientRect();
+    out.push('bossCrown|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+      + '|glyph=' + JSON.stringify(crown.textContent) + '|box=' + Math.round(b.width) + 'x' + Math.round(b.height));
+  } else out.push('bossCrown|NOT FOUND');
+  out.push('bossBar=' + (bar ? bar.style.display : 'NO BAR'));
+  return out.join('  ;  ');
+})()`);
+console.log('battleUi:', await hud5());
 // 所以**不打断波次**、原地自然推进（GM「下一波」跳出来的那两波实测整波不刷怪，另记一条待查缺陷），
 // 期间每 4s 补一次车耐久，否则车被打空后读到的都是死局数据。
 const gmClick = (label) => evalJs(`(() => {
@@ -302,11 +326,11 @@ const gmClick = (label) => evalJs(`(() => {
   if (el) el.click();
   return !!el;
 })()`);
+let sawElite = false;
 for (let i = 0; i < 240; i++) {
   if (i % 8 === 0) {
     await gmClick('车回满');
-  }
-  const probe = await evalJs(`(() => {
+  }  const probe = await evalJs(`(() => {
     const r = document.querySelector('#domHud .afRow');
     const wave = document.querySelector('#domHud .waveChip .chipVal');
     const kill = document.querySelector('#domHud .killChip .chipVal');
@@ -316,12 +340,19 @@ for (let i = 0; i < 240; i++) {
     }) : [];
     return JSON.stringify({ wave: (wave && wave.textContent) || '?', kill: (kill && kill.textContent) || '?',
       paused: /paused/.test(document.querySelector('#domHud')?.className || '') ? 'Y' : 'N',
+      boss: (() => { const b = document.querySelector('#domHud .bossBar'); return b && b.style.display !== 'none' ? 'Y' : 'N'; })(),
       display: r ? r.style.display : 'NO ROW', kids });
   })()`);
   const p = JSON.parse(probe);
-  if (p.kids.length) {
+  if (p.kids.length && !sawElite) {
+    sawElite = true;
     console.log(`afRow@wave${p.wave} 击杀${p.kill}: display=${p.display} n=${p.kids.length} [${p.kids.join(', ')}]`);
     await shot('06b-affix-badges');
+  }
+  // BOSS 血条一出现就把首领徽量一遍再收工：那是 .bossCrown 唯一在屏上的时刻
+  if (p.boss === 'Y') {
+    console.log(`bossBar@wave${p.wave}: ` + await hud5());
+    await shot('06c-boss-crown');
     break;
   }
   if (i % 40 === 39) {
