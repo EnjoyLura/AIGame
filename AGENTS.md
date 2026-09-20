@@ -147,3 +147,9 @@ AIG/
 - Git Bash 里 inline `node -e` 写 `\u` 转义会炸：断言/校验脚本一律 Write 成文件再跑。
 - check 脚本断言 FAIL 时，先核对断言正则与当前函数签名是否同步（如 `_renderSkillCards`
   签名演进导致旧正则误报），再怀疑业务代码。
+- 断言写法两条硬规矩（2026-09-20 清基线时踩全）：① **不用 `[s\S]{0,N}` 定长窗口**，函数体一长大就
+  假 FAIL——照 `check-ux-refactor.js`/`check-mail.js` 的 `fnBody(text, sig)` 花括号配平取函数体再断言；
+  ② **读 bundle 的反向断言必须带选择器前缀**：`check-hud-slim` 查「`.xpRow` 旧层已删」裸类名会命中
+  同包的主城 `.xpRow`（HomeUiCore 的合法组件），要写 `#domHud .xpRow`。
+- 拆分欠账用 `check-split.js` 的 `SPLIT_DEBT` 棘轮记（目标 1800 行，当前 Core/Heroes 按实测行号设预算：
+  再写胖就 FAIL，拆薄了提示收紧），别用「把目标改小」假装过关。

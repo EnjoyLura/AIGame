@@ -10,6 +10,23 @@ const hud = read('assets/scripts/ui/DomHud.ts');
 const core = read('assets/scripts/ui/HomeUiCore.ts');
 const style = read('assets/scripts/ui/HomeUiStyle.ts');
 
+// 函数体提取（花括号配平）：沿用 check-ux-refactor.js 的口径，取代 [s\S]{0,N} 定长窗口——
+// 定长窗口在函数体增长后必然误报（本文件 4 条 FAIL 全是这个原因，不是业务回归）
+const fnBody = (text, sig) => {
+    const i = text.indexOf('protected ' + sig);
+    if (i < 0) return '';
+    const v = text.indexOf('): void {', i);
+    if (v < 0) return '';
+    let depth = 0;
+    for (let k = v + 8; k < text.length; k++) {
+        if (text[k] === '{') depth++;
+        else if (text[k] === '}' && --depth === 0) return text.slice(i, k + 1);
+    }
+    return '';
+};
+const mailList = fnBody(core, '_openMailModal');
+const mailDetail = fnBody(core, '_openMailDetail');
+
 // 1. 数据模型：时间戳与有效期
 ok('MailDef 带 ts/expireDays', /ts\?: number;/.test(mail) && /expireDays\?: number;/.test(mail));
 ok('MailState 带 ts/expireAt', /ts: number;/.test(mail) && /expireAt: number;/.test(mail));
@@ -49,10 +66,14 @@ ok('Core import 邮件工具', /import \{ MailSystem, mailTimeText, mailExpiring
 ok('顶栏红点接 hasUnread', /_homeMailBtn\?\.classList\.toggle\('unread', MailSystem\.instance\.hasUnread\(\)\)/.test(core));
 ok('show() 挂每日投放', /protected show\(\): void \{\s*\n\s*if \(this\._root\) \{\s*\n\s*\/\/ 每日\/回归邮件投放[\s\S]{0,200}feedDaily\(\);/.test(core));
 ok('MAIL_NEW 到达 toast+红点', /eventCenter\.on\(GameEvent\.MAIL_NEW, \(def: MailDef\) => \{[\s\S]{0,400}新邮件[\s\S]{0,200}_refreshTop\(\);/.test(core));
-ok('主城弹窗一键领取', /mailClaimAll[\s\S]{0,500}claimAll\(\)/.test(core));
-ok('详情态 markRead + 返回列表', /_openMailModal\(\): void \{[\s\S]{0,900}ms\.markRead\(openId\);[\s\S]{0,2000}↩ 返回列表/.test(core));
-ok('列表/详情两态就地重绘', /const render = \(openId: string \| null\): void => \{[\s\S]{0,300}if \(openId\) \{[\s\S]{0,6000}---- 列表态 ----/.test(core));
-ok('详情附件区+过期警告', /mailDetailAttach[\s\S]{0,1200}mailExpiringSoon\(m\)[\s\S]{0,400}24 小时内过期/.test(core));
+ok('主城弹窗一键领取（CTA 领完就地重绘）', /一键领取（\$\{claimable\} 封）/.test(mailList) &&
+  mailList.includes('ms.claimAll()') && mailList.includes('this._popRebuild(opt())'));
+ok('详情态 markRead + 返回列表出口', mailDetail.includes('ms.markRead(openId)') &&
+  /onBack: \(\) => this\._openMailModal\(\)/.test(mailDetail));
+ok('列表/详情两态：opt() 闭包供就地重绘', /const opt = \(\): PopOpts => \{/.test(mailList) &&
+  mailList.includes('if (openId) {') && /this\._openPop\(opt\(\)\);/.test(mailList));
+ok('详情附件区+过期警告', mailDetail.includes("_popSec('附件奖励')") &&
+  /mailExpiringSoon\(m\) && !m\.claimed/.test(mailDetail) && mailDetail.includes('24 小时内过期'));
 ok('删除邮件走系统接口', /ms\.remove\(openId\);/.test(core));
 
 // 6. 两层 CSS（base --hs,1 + 青瓷 --pw,2.5）
