@@ -200,6 +200,15 @@ export abstract class HomeUiCore extends Component {
         this._pendingTex.push({ key, apply });
     }
 
+    /** 进度条贴图：底槽走 `barThin`（主城四条都是 12px，配 2px/4px 板边才留得出内腔），
+     *  填充走横向拉伸、宽度仍由调用方写 %。缺图整条回退 CSS 底色。 */
+    protected _barTex(track: HTMLElement, fill: HTMLElement | null, fillKey?: string): void {
+        this._tex('ui/progress/bar_track', UiPlate.nineSlice(track, 'barThin'));
+        if (fill && fillKey) {
+            this._tex(fillKey, UiPlate.strip(fill));
+        }
+    }
+
 
     protected _applyPendingTex(): void {
         if (!this._pendingTex.length) {
@@ -863,6 +872,7 @@ export abstract class HomeUiCore extends Component {
             const fill = this._el('i');
             fill.style.width = `${Math.round(Math.max(0, Math.min(1, o.progress)) * 100)}%`;
             pbar.appendChild(fill);
+            this._barTex(pbar, fill, 'ui/progress/bar_fill_green');
             m.appendChild(pbar);
         }
         row.appendChild(m);
@@ -1343,6 +1353,7 @@ export abstract class HomeUiCore extends Component {
         exp.className = 'expbar';
         const fill = document.createElement('i');
         exp.appendChild(fill);
+        this._barTex(exp, fill, 'ui/progress/bar_fill_blue');
         const expnum = document.createElement('span');
         expnum.className = 'expnum';
         xpRow.appendChild(exp);

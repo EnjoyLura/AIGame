@@ -142,13 +142,9 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // —— 扩展资源与进度条 ——
     'ui/res/res_frag': '资源·英雄碎片', 'ui/res/res_medal': '资源·勋章',
     'ui/res/res_energy': '资源·能量', 'ui/res/res_ticket': '资源·招募券',
-    // 进度条一族（r12 表已出图；底槽 + 蓝/红填充已落盘接线，见 STYLE-SPEC §9）：
-    // 下面两件是「图出了但没有可贴的宿主」——green 的候选只有经验条，2026-09-20 拍板经验条
-    // 沿用蓝色系（原 CSS 就是青色 #4dd0e9，换绿等于改配色），故绿件回落到采购单；
-    // yellow 等车尾条的橙色三态件配套（金/橙/红三态由 CSS 类切换，挂内联贴图会把三态吃掉，
-    // 同轮拍板「载具条填充不换成贴图」）。
+    // 进度条一族已整套出采购单：r12 表的底槽 + 绿/黄/蓝/红四色填充全部落盘接线
+    // （HUD 三条底槽与蓝/红填充；主城四条加粗到 12px 后接绿/黄/蓝，见 STYLE-SPEC §9）。
     // 另 bar_cap / bar_node 两个键随批撤掉：底槽件自带圆头端点，节点另有 node_done/next/lock 三件。
-    'ui/progress/bar_fill_green': '进度填充·绿（通用/活动）', 'ui/progress/bar_fill_yellow': '进度填充·黄（体力/活跃度）',
     // —— 框徽角标 ——
     'ui/star_on': '评价星·亮', 'ui/star_off': '评价星·空',
     'ui/lvtag': '等级角标（替 .lvtag CSS）', 'ui/tag_free': '角标·免费',

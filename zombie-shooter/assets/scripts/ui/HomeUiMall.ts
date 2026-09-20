@@ -129,6 +129,8 @@ export abstract class HomeUiMall extends HomeUiCore {
             this._openRecruitModal();
         };
         this._tex('ui/ico/ico_ad', UiPlate.icon(rcard.querySelector('.rcAd .ic') as HTMLElement));
+        this._barTex(rcard.querySelector('.rcBar') as HTMLElement,
+            rcard.querySelector('.rcBar i') as HTMLElement, 'ui/progress/bar_fill_blue');
         const doPull = (count: 1 | 10, free = false) => {
             const cost = count === 10 ? RECRUIT_PRICE_10 : RECRUIT_PRICE_1;
             const diamNow = GameManager.instance.res.get('diamond');

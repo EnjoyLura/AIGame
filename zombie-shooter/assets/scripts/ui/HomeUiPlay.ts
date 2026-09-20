@@ -1132,6 +1132,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
                     const fill = this._el('i');
                     fill.style.width = `${Math.min(100, Math.round(act / ACTIVITY_MAX * 100))}%`;
                     pbar.appendChild(fill);
+                    this._barTex(pbar, fill, 'ui/progress/bar_fill_yellow');
                     box.appendChild(pbar);
                     const chs = this._el('div', 'chs');
                     for (const c of ACTIVITY_CHESTS) {

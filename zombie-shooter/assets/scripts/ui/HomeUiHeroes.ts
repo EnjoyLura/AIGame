@@ -254,6 +254,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     const fill = this._el('i');
                     fill.style.width = `${Math.round((RECRUIT_PITY - rs.pityLeft) / RECRUIT_PITY * 100)}%`;
                     pbar.appendChild(fill);
+                    this._barTex(pbar, fill, 'ui/progress/bar_fill_yellow');
                     box.appendChild(pbar);
                     bar.appendChild(box);
                 },

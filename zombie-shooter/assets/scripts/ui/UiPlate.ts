@@ -71,13 +71,17 @@ export interface NineSpec {
  *    **只给条高 ≥10px 的宿主用**——再薄的条，上下两条描边就把内腔吃光了（STYLE-SPEC §9 薄板档）。
  *    旧口径 `8 fill` / 2px 是照基准图量出来的，对不上这批生成件（8px 只够盖住软边、圆头会被拉进中段），
  *    2026-09-20 按实测改档。
+ *  - barThin：同一张底槽件给 10~16px 的薄宿主用。描边与圆头的**显示宽度要随宿主条高等比缩**，
+ *    12px 的条配 4px 板边只剩 4px 内腔，等于把一根细线糊成一坨；切片值不变，显示宽度按
+ *    12÷52（源件条高）≈0.23 折算成 2px / 4px。
  */
-export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar', NineSpec> = {
+export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
     platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
     frame: { slice: '16%', width: 'calc(5px * var(--pu,1))' },
     bar: { slice: '10 17 10 17 fill', width: 'calc(4px * var(--pu,1)) calc(7px * var(--pu,1))' },
+    barThin: { slice: '10 17 10 17 fill', width: 'calc(2px * var(--pu,1)) calc(4px * var(--pu,1))' },
 };
 
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */
