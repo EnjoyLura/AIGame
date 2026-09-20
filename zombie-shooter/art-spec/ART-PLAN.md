@@ -117,6 +117,12 @@
 | 同上 | `ui/ico/ico_friend` `ui/ico/ico_undo` | ⛔ 切了又删 | 没有该上图的功能位：全工程无好友入口；`↩`/`←` 是弹层二级页的**返回**键、语义不是撤销。两个 key 留在采购单等功能，不等美术 → 见 D18 ③ |
 | 八轮 r11 `gen-output/r11_icons_*.png` | 2 格补出 | ✅ 合格 | 播放三角＝石质（与暂停两石板同族）、对勾＝金色石质；两格都无装饰框、无喇叭，默认 tol 直接抠净（切片目检见 `gen-output/r11_audit.png`） |
 | 图标第二批落盘 | 4 件 | ✅ 已接线 | `ico_ad/slider/pause/stats` 切片进 `textures/ui/ico/` 并接宿主，预留声明同步移出。HUD 两键的图挂 `.hudBtn` **内层 `.ic`**（板面是 CSS 渐变，图直接压按钮会连底一起换掉），为此给 `.hudBtn` 补 `display:flex` 与 `.hudBtn .ic` 尺寸档 |
+| 拆行接线轮 | `ui/ico/ico_sound` `ico_mute` `ico_info` | ✅ 重切落盘 | 三件是第一批切过又删的（当时判「emoji 嵌在长文案里、`dropGlyph` 清不掉」）。这次**按码位回到 r8/r9 源表重切**（`--root ../gen-output/scratch_r8`，只取需要的格、不覆盖已定档件），棋盘底目检三件均无抠穿、无绿边；`ico_info` 的蓝圆牌 `i` 属 §3 已豁免的语义形状，不是装饰框 |
+| 同上 | `ui/ico/ico_sound` `ico_mute` | ✅ 已接线 | 主城设置弹窗音效行 `_popAttr`（`.ai` 34px）。新增 `PopAttrOpts.iconTex`：glyph 仍写 `🔊`/`🔇` 当占位，图到位由 `icon()` 摘掉——这是「状态换图」（静音↔开启两 key），与 §9 禁的「状态显隐」不同。`_popSec('🔊 音效')` 那处 11.5px 不拆，见 §9 ④ |
+| 同上 | `ui/ico/ico_info` | ✅ 已接线 | 战斗页设置浮窗三个小节头 `mkHead(icon, text, tex?)`（`.bSetHead` 30px，改 flex 让图标与标题同行）：音效上 `ico_sound`、关于上 `ico_info`、危险操作复用第一批的 `ico_warn`。HUD 侧统一走 `_iconIc(el, glyph, key?)`，沿用本文件既有的 `_assetBgUrl` 一次性回退口径 |
+| 同上 | `ui/ico/ico_codex` `ico_loot` | ⛔ 撤键 | 用户拍板「图鉴和补给箱不用换」→ 位置继续由当代在库件 `shop_scroll` / `chest` / `shop_chest` 服役，两个 key 从 MANIFEST 与采购单撤掉（§9 ④） |
+| 同上 | `ui/ico/ico_inbox` | ⛔ 撤键 | 拆行时找宿主才发现：邮箱入口已由第一批的 `ico_mail` 上图，剩下的 `📬 邮箱` 是弹层横幅里的随文小符——同位重复（§9 ②） |
+| 同上 | `ui/ico/ico_empty` | ⏸ 仍不接 | 拆行轮只处理了 sound/mute/info 三件；`_popEmpty` 的 14 个调用点仍全部显式传图，默认 📭 分支无人走，挂上去也是假宿主 |
 
 ### 2.2 行数棘轮欠账（`check-split.js` 的 `SPLIT_DEBT`）
 
@@ -237,4 +243,4 @@
 | P0 在库件接线 | ✅ 2026-09-20 | 新增 `UiPlate.frame()`（border-image 无 fill，框与宿主背景共存）+ `PopRowOpts.frameTex`；avatar_frame→个人主页名片行、btn_round2→帮助 ? 钮、ico_task→侧栏任务、ico_trophy→排行/排行榜、shop_scroll→图鉴/怪物图鉴、shop_gift→侧栏礼包、shop_chest→商城每日免费；`mkBtn/mkFoot` 增贴图槽（后续新图标传 key 即可）；侧栏 `.ic` 两层补齐 box 尺寸使图与字形同 footprint；checker 17 组（加「在库件必须有归宿」+ 修清单自引用/块注释两个口径漏洞），退役候选 10 件入表待拍板 |
 | 全绿基线（批量替换前置） | ✅ 2026-09-20 | 12 条历史 FAIL 归零：`check-mail` 4 条定长窗口断言改 `fnBody` 函数体提取（签名已演进为 `_openMailModal(openId)`、`mailClaimAll` 类已废）；`check-split` 2 条落位锚点同步现实（`_buildNoticeBar` 随走马灯删除→改盯 `_buildTopbar`、`_openTuningModal(onBack?)` 签名），行数欠账改 `SPLIT_DEBT` 棘轮；`check-hud-slim` 4 条按现版 HUD 重写（顶栏 122px + `--safeTop` 双保险、levelBadge 独立胶囊、bossBar 让位 139px），并把裸 `.xpRow` 反向断言收进 `#domHud` 前缀（同包主城同名类会误命中）。批量替换期自此每轮 FAIL 数即真回归数 |
 | 真机反馈修复（板压字 / 锁徽压字） | ✅ 2026-09-20 | 用户截图指出两处：① 英雄养成五入贴蓝板后文字压在板面上——44~56px 小方键本就不足板厚四倍，撤板回 CSS 底色，主城板族范围收窄到 `.btn.big`；顺带查出主城没有 `--pu` 导致板厚恒 10px 不随手机缩放，`.btn` 两层补齐；② 编队条未解锁行卡的 🔒 沿用大头像条的 `translate(32px,-80px)` 摆位，压在名字上——改 `.hero-roster .hpick.lock::after` 为随行内联（两层，靠特异性压过通用规则）。规范同步：§9 薄板档补实测依据与闸门、D10/D10b 改写 |
-| 图标类进版两批（批3 主体） | ✅ 2026-09-20 | 两批共 20 个候选键：16 件出图并接线（第一批 12 走 `mkBtn`/`.ic` 槽，第二批 `ico_ad/slider/pause/stats` 走商城看广告键、设置音量行、HUD 左上两键），4 件撤键（`ico_more`/`ico_check` 随文小状态符、`ico_calendar`/`ico_shop` 同位重复），3 件留采购单等功能（`ico_friend`/`ico_undo`/`ico_search`），8 件等宿主决策（第一批遗留，理由在 §9）。逐格判决见 §2.1，槽位判据沉淀成 D18 |
+| 图标类进版三批（批3 主体） | ✅ 2026-09-20 | 三批共 23 个候选键：**19 件出图并接线**（第一批 12 走 `mkBtn`/`.ic` 槽；第二批 `ico_ad/slider/pause/stats` 走商城看广告键、设置音量行、HUD 左上两键；拆行轮 `ico_sound/mute/info` 走设置行图标列与 HUD 小节头，另在 HUD 危险操作头复用一次 `ico_warn`），**7 件撤键**（`ico_more`/`ico_check` 随文小状态符、`ico_calendar`/`ico_shop`/`ico_inbox` 同位重复、`ico_codex`/`ico_loot` 拍板保留旧图），**3 件留采购单等功能**（`ico_friend`/`ico_undo`/`ico_search`），**1 件假宿主**（`ico_empty`）。逐格判决见 §2.1，槽位判据沉淀成 D18 |

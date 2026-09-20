@@ -74,6 +74,8 @@ export interface PopRowOpts {
 /** 属性行：图标 + 说明（**xx** 高亮）+ 行尾动作按钮 / 空插槽 */
 export interface PopAttrOpts {
     icon?: string;
+    /** 同位贴图槽：glyph 先占位，图到位由 `UiPlate.icon()` 摘掉（缺图不空槽） */
+    iconTex?: string;
     text: string;
     action?: { label: string; kind?: 'gold' | 'info'; onClick: () => void };
     slot?: boolean;
@@ -900,7 +902,11 @@ export abstract class HomeUiCore extends Component {
     /** 组件：属性行（说明里的 **xx** 高亮为 em，行尾可挂动作按钮或空插槽） */
     protected _popAttr(o: PopAttrOpts): HTMLElement {
         const row = this._el('div', `popAttr${o.empty ? ' empty' : ''}`);
-        row.appendChild(this._el('div', 'ai', o.empty ? '＋' : o.icon ?? '🔹'));
+        const ai = this._el('div', 'ai', o.empty ? '＋' : o.icon ?? '🔹');
+        if (o.iconTex) {
+            this._tex(o.iconTex, UiPlate.icon(ai));
+        }
+        row.appendChild(ai);
         const at = this._el('div', 'at');
         at.innerHTML = this._esc(o.text).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>');
         row.appendChild(at);
@@ -2031,6 +2037,7 @@ export abstract class HomeUiCore extends Component {
                 c.appendChild(this._popSec('🔊 音效'));
                 c.appendChild(this._popAttr({
                     icon: SoundFx.muted ? '🔇' : '🔊',
+                    iconTex: SoundFx.muted ? 'ui/ico/ico_mute' : 'ui/ico/ico_sound',
                     text: `战斗与界面音效 **${SoundFx.muted ? '已静音' : '已开启'}**`,
                     action: {
                         label: SoundFx.muted ? '开启' : '静音',

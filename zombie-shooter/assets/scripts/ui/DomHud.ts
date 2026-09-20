@@ -732,14 +732,15 @@ export class DomHud extends Component {
     }
 
     private _fillSettings(panel: HTMLDivElement): void {
-        const mkHead = (icon: string, text: string): HTMLDivElement => {
+        const mkHead = (icon: string, text: string, tex?: string): HTMLDivElement => {
             const h = document.createElement('div');
             h.className = 'bSetHead';
-            h.textContent = `${icon} ${text}`;
+            this._iconIc(h, icon, tex);
+            h.appendChild(document.createTextNode(` ${text}`));
             return h;
         };
         // 音效
-        panel.appendChild(mkHead('🔊', '音效'));
+        panel.appendChild(mkHead('🔊', '音效', 'ui/ico/ico_sound'));
         const soundRow = document.createElement('div');
         soundRow.className = 'bSetRow';
         soundRow.innerHTML = '<span>战斗与界面音效</span>';
@@ -785,14 +786,14 @@ export class DomHud extends Component {
         volRow.appendChild(volWrap);
         panel.appendChild(volRow);
         // 关于
-        panel.appendChild(mkHead('ℹ️', '关于'));
+        panel.appendChild(mkHead('ℹ️', '关于', 'ui/ico/ico_info'));
         const about = document.createElement('div');
         about.className = 'bSetRow col';
         about.innerHTML = `<div class="bSetLine"><span>版本</span><b>${BUILD_STAMP}</b></div>` +
             `<div class="bSetLine"><span>游戏</span><b>末日航线 · 尸潮突围</b></div>`;
         panel.appendChild(about);
         // 危险区
-        panel.appendChild(mkHead('⚠️', '危险操作'));
+        panel.appendChild(mkHead('⚠️', '危险操作', 'ui/ico/ico_warn'));
         const resetBtn = document.createElement('button');
         resetBtn.className = 'bSetBtn reset';
         resetBtn.textContent = '🗑️ 重置全部存档';
@@ -1358,12 +1359,12 @@ export class DomHud extends Component {
 
     /** 图标位贴图：glyph 挂内层 `.ic`，贴图到位即摘。HUD 键的底是 CSS 渐变板面，
      *  图直接压在按钮上会连板面一起换掉，所以图只能挂子元素（尺寸仍归 CSS）。 */
-    private _iconIc(btn: HTMLElement, glyph: string, key: string): void {
+    private _iconIc(btn: HTMLElement, glyph: string, key?: string): void {
         const ic = document.createElement('span');
         ic.className = 'ic';
         ic.textContent = glyph;
         btn.appendChild(ic);
-        const url = this._assetBgUrl(key);
+        const url = key ? this._assetBgUrl(key) : null;
         if (url) {
             UiPlate.icon(ic)(url);
         }
@@ -1489,10 +1490,13 @@ export class DomHud extends Component {
   background: linear-gradient(180deg, #344652 0%, var(--c-navy-9) 55%, #1b2630 100%);
   color: var(--c-ice-2); font-size: calc(39px * var(--s,1)); line-height: 1;
   box-shadow: 0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.45), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.28); }
-/* 键内图标位：尺寸只归这里（贴图到位摘 glyph，缺图 glyph 仍按 font-size 占位并居中） */
-#domHud .hudBtn .ic { display: flex; align-items: center; justify-content: center;
-  width: calc(56px * var(--s,1)); height: calc(56px * var(--s,1));
-  font-size: calc(39px * var(--s,1)); line-height: 1; }
+/* 键/小节头里的图标位：尺寸只归这里（贴图到位摘 glyph，缺图 glyph 仍按 font-size 占位并居中） */
+#domHud .hudBtn .ic, #domHud .bSetHead .ic {
+  display: flex; align-items: center; justify-content: center; line-height: 1; }
+#domHud .hudBtn .ic { width: calc(56px * var(--s,1)); height: calc(56px * var(--s,1));
+  font-size: calc(39px * var(--s,1)); }
+#domHud .bSetHead .ic { width: calc(30px * var(--s,1)); height: calc(30px * var(--s,1));
+  font-size: calc(30px * var(--s,1)); }
 #domHud .vehicleBar { position: absolute; left: 50%;
   transform: translateX(-50%); width: calc(480px * var(--s,1)); height: calc(40px * var(--s,1));
   display: flex; align-items: center; gap: calc(12px * var(--s,1)); padding: 0 calc(20px * var(--s,1));
@@ -1642,7 +1646,8 @@ export class DomHud extends Component {
 #domHud .mailClaimBtn { min-width: calc(320px * var(--s,1)); margin-top: calc(20px * var(--s,1));
   font-size: calc(30px * var(--s,1)); padding: calc(16px * var(--s,1)) calc(30px * var(--s,1)); }
 #domHud .mailClaimBtn:disabled { filter: grayscale(.6); }
-#domHud .bSetHead { width: 100%; text-align: left; font-size: calc(30px * var(--s,1)); color: var(--c-gold-hi);
+#domHud .bSetHead { display: flex; align-items: center; gap: calc(6px * var(--s,1));
+  width: 100%; text-align: left; font-size: calc(30px * var(--s,1)); color: var(--c-gold-hi);
   margin: calc(20px * var(--s,1)) 0 calc(10px * var(--s,1)); }
 #domHud .bSetRow { display: flex; align-items: center; justify-content: space-between; width: 100%;
   padding: calc(14px * var(--s,1)) calc(4px * var(--s,1)); font-size: calc(26px * var(--s,1)); color: var(--c-ice-1); }
