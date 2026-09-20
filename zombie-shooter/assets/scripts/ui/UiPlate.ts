@@ -61,8 +61,7 @@ export interface NineSpec {
 /**
  * 九宫格件的参数档（改动必须与 STYLE-SPEC §9 同步，否则美术按文档出图会切坏）：
  *  - panel：弹层底板，源 512 方图四角约 61px（=12%），显示 16px；
- *  - plate：大按钮去字底板，源件圆角斜面在 16px 内（slice 取像素值），显示 10px——
- *    slice 用百分比会把板面划进边区、板厚被压扁（四轮实测口径）；
+ *  - plate：大按钮去字底板，切片按百分比包住包边与铆钉（详见下面 plate 行的注释），显示 11px；
  *  - frame：框件（头像框等），**不带 fill** —— 只画四边、中心留空，
  *    宿主自己的底色/立绘 background 才不会被框图盖掉；
  *  - bar：进度条底槽。**四边切片值不同**——`tools/measure_nine.py` 量 r12 表切出的 `bar_track`（512×64）
@@ -77,8 +76,16 @@ export interface NineSpec {
  */
 export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm' | 'chip', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
-    plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
-    platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
+    // 按钮板族（plate / platePw / btn / btnSm 共用同一批 r24 去字板）：切片一律**按百分比**。
+    // 两件事都是实测出来的，改之前先读：
+    //  ① 像素档（旧 `16 fill` / `24 fill`）在横长板件上会把包边划进中段拉 smear——同 chip 那条理由；
+    //  ② 更致命的是切片值必须**大于源件的透明边**、并且**包住铆钉**。`tools/slice_sheet.py` 旧版把每件
+    //    方化成正方形画布，横长板件上下各带 22% 的 alpha=0 空边；16px 只够切进空边里，透明行被划进
+    //    可拉伸的中段 → 板面只渲染出宿主盒子高的 55%，字从板的上下沿溢出去（2026-09-21 弹层 CTA 实测）。
+    //    现在板件已按 alpha 包围盒裁紧（`tools/trim_alpha.py`），32% 22% 是把四角铆钉整块留在角区量的：
+    //    btn_play 364×210 的铆钉占 x≤23%、y≤32%，取 32%×22% 让铆钉进角区、中段只剩平整牌面。
+    plate: { slice: '32% 22% fill', width: 'calc(11px * var(--pu,1))' },
+    platePw: { slice: '32% 22% fill', width: 'calc(11px * var(--pw,2.5))' },
     frame: { slice: '16%', width: 'calc(5px * var(--pu,1))' },
     bar: { slice: '10 17 10 17 fill', width: 'calc(4px * var(--pu,1)) calc(7px * var(--pu,1))' },
     barThin: { slice: '10 17 10 17 fill', width: 'calc(2px * var(--pu,1)) calc(4px * var(--pu,1))' },
@@ -86,11 +93,11 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
     // 切片取 24 宁可多切一点进到平整牌面里，也不能少切——少切会把框边像素划进中段拉 smear。
     // 显示宽度 12px 是按卡片最小高 115px×--pu 折算的（同 D21：切片不变、显示宽度跟着宿主尺寸走）。
     card: { slice: '24 fill', width: 'calc(12px * var(--pu,1))' },
-    // 主城按钮族（r24 表）：切片同 card（源件倒角+铆钉约 20px），显示宽度按宿主高度分两档——
-    // 主 CTA / 侧栏入口 / 编队行都是 47~83px 高用 12px；商城购买小键只有 37px，
-    // 12px 上下就吃掉 24px 剩 13px 压字，所以单独一档 7px（上一轮「板压字撤板」就是这么撤的）。
-    btn: { slice: '24 fill', width: 'calc(12px * var(--pu,1))' },
-    btnSm: { slice: '24 fill', width: 'calc(7px * var(--pu,1))' },
+    // 主城按钮族（r24 表）：切片与 plate 同档（同一批去字板，见上面 plate 的注释），
+    // 显示宽度按宿主高度分两档——主 CTA / 侧栏入口 / 编队行都是 47~83px 高用 12px；商城购买小键只有 37px，
+    // 12px 上下就吃掉 24px 剩 13px 压字，所以单独一档 8px（上一轮「板压字撤板」就是这么撤的）。
+    btn: { slice: '32% 22% fill', width: 'calc(12px * var(--pu,1))' },
+    btnSm: { slice: '32% 22% fill', width: 'calc(8px * var(--pu,1))' },
     // 战斗 HUD 的波次牌（r27 表）：源件 512×256，四角包边铆钉约占 18% 高、12% 宽，
     // 所以切片按**百分比**给（像素档在横长件上会把包边划进中段拉 smear）。
     // 显示宽度按 chip 实测高 ~100 CSS px 折算（18% × 100 ≈ 18px，同 D21 口径）。
@@ -111,10 +118,11 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
 export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: 'btn' | 'btnSm' }> = [
     // 难度小键只有 46×22：板厚四倍都不到，贴上去整块糊掉（无头普查实测），显式跳过
     { sel: '.game-button.sm', key: null, spec: 'btnSm' },
-    // 英雄养成五入（技能/天赋/升星/武器/核心）：实测贴任何一档板都会「板短字长」——
-    // 这五键的图标行高 + 文案比 61px 盒高还高，板只盖住中段一条，⚡ 与「技能」两行露在板外。
-    // 先改 CSS（把键加高或压行高）再接图，口径见 STYLE-SPEC §9 主城按钮族行。
-    { sel: '.btn.blue.hot', key: null, spec: 'btnSm' },
+    // 英雄养成五入（技能/天赋/升星/武器/核心）：这一档原来被显式跳过，理由是「板只盖住中段一条，
+    // ⚡ 与「技能」两行露在板外」。2026-09-21 查明那条理由是**透明边 bug 的副作用**——板件上下各垫了
+    // 22% 的 alpha=0 空边，板面只渲染出宿主盒高的 55%，看着就像"板比键短"。裁紧 + 改档后重测：
+    // 61px 盒高配 btnSm 档（11px 边框）剩 39px 平牌面，两行内容放得下，于是接回蓝板。
+    { sel: '.btn.blue.hot', key: 'ui/button/btn_cancel', spec: 'btnSm' },
     { sel: '.diffSeg.on', key: 'ui/button/btn_play', spec: 'btnSm' },
     { sel: '.diffSeg', key: 'ui/button/btn_cancel', spec: 'btnSm' },
     // 护送页那个「👥编队」大入口也带 squadEntry，但它属于侧栏一族（btn_side 木箱板），

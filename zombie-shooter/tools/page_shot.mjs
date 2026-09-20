@@ -106,14 +106,23 @@ const faces = await evalJs(`JSON.stringify([...document.querySelectorAll('#homeU
   const bg = /url\\(/.test(cs.backgroundImage);
   if (!nine && !bg && cs.backgroundColor === 'rgba(0, 0, 0, 0)' && !/gradient/.test(cs.backgroundImage) && !cs.borderColor.startsWith('rgb')) return null;
   return { cls: e.className || '(无类名)', txt: (e.textContent || '').trim().slice(0, 14),
-    w: Math.round(b.width), h: Math.round(b.height), nine, bg,
+    w: Math.round(b.width), h: Math.round(b.height), sw: e.scrollWidth, nine, bg,
+    // 板比字短这类缺陷要能一眼分辨：border-image 到底吃了多宽、内边距多少、文字实际多宽
+    biw: nine ? cs.borderTopWidth + '/' + cs.borderImageWidth : '',
+    pad: nine ? cs.paddingLeft : '',
+    tw: nine ? Math.round((e.firstChild && e.firstChild.nodeType === 3
+      ? (() => { const r = document.createRange(); r.selectNodeContents(e); return r.getBoundingClientRect().width; })()
+      : 0)) : 0,
     grad: /gradient/.test(cs.backgroundImage), bw: cs.borderTopWidth, bc: cs.borderTopColor };
 }).filter(Boolean))`);
 const list = JSON.parse(faces);
 console.log(`\n===== ${page} 有底的面 ${list.length} 块：九宫格 ${list.filter(f => f.nine).length} / 背景图 ${list.filter(f => f.bg && !f.nine).length} / 纯色渐变 ${list.filter(f => !f.nine && !f.bg).length}`);
 for (const f of list) {
   const tag = f.nine ? '九宫格' : f.bg ? '背景图' : (f.grad ? '渐变' : '纯色');
-  console.log(`   ${f.cls}｜${f.txt}  ${f.w}x${f.h} ${tag}${f.bw !== '0px' ? ' bd=' + f.bw + ' ' + f.bc : ''}`);
+  // sw>w = 内容比盒子宽（文字溢出板面），这类缺陷光看截图容易误判成"板太短"，直接量出来
+  const over = f.sw > f.w + 1 ? ` 内容宽=${f.sw} 溢出` : '';
+  const nine = f.nine ? ` bd=${f.biw} pad=${f.pad} 文字宽=${f.tw}` : '';
+  console.log(`   ${f.cls}｜${f.txt}  ${f.w}x${f.h} ${tag}${f.bw !== '0px' && !f.nine ? ' bd=' + f.bw + ' ' + f.bc : ''}${nine}${over}`);
 }
 const r = await send('Page.captureScreenshot', { format: 'png' });
 writeFileSync(out, Buffer.from(r.data, 'base64'));

@@ -101,14 +101,22 @@ def sort_row_major(blobs, sheet_h):
     return out
 
 
-def extract(im: Image.Image, box, size, margin_pct: int) -> Image.Image:
+def extract(im: Image.Image, box, size, margin_pct: int, tight: bool = False) -> Image.Image:
     """单件：裁切 → 内容包围盒 → 留边画布 → LANCZOS 缩放。
-    size 为 int 时方化画布；为 'WxH' 时按目标比例画布、内容等比 fit 不拉伸（绶带/横幅/场景件用）。"""
+    size 为 int 时方化画布；为 'WxH' 时按目标比例画布、内容等比 fit 不拉伸（绶带/横幅/场景件用）。
+    tight=True 时**不方化**，直接输出内容包围盒（只留 margin% 的边）——九宫格板件必须走这条：
+    方化会给横长板件上下各垫一大圈 alpha=0，切片值小于那圈空边时透明行被划进可拉伸的中段，
+    板面只渲染出宿主盒子高的一半（2026-09-21 弹层 CTA「字溢出板面」的真因，判据见 STYLE-SPEC §9）。"""
     cell = im.crop(box[:4])
     bbox = cell.getbbox()
     if not bbox:
         raise ValueError('empty cell')
     cell = cell.crop(bbox)
+    if tight:
+        m = max(1, int(round(max(cell.size) * margin_pct / 100)))
+        canvas = Image.new('RGBA', (cell.width + m * 2, cell.height + m * 2), (0, 0, 0, 0))
+        canvas.paste(cell, (m, m))
+        return canvas
     if isinstance(size, str) and 'x' in size:
         tw, th = (int(v) for v in size.split('x'))
         m = 1 + margin_pct / 100
@@ -137,6 +145,8 @@ def main() -> int:
                     help='掩膜膨胀半径（÷4 尺度像素，默认 6≈24px 全分辨率）；相邻件粘连时调小')
     ap.add_argument('--margin', type=int, default=6, help='单件留边 %%')
     ap.add_argument('--expect', type=int, default=0, help='期望件数（0=不校验）')
+    ap.add_argument('--tight', action='store_true',
+                    help='按内容包围盒输出、不方化画布（九宫格板件必用，理由见 extract 文档）')
     args = ap.parse_args()
 
     im = key_green(Image.open(args.sheet), args.tol)
@@ -161,7 +171,7 @@ def main() -> int:
     for (name, sz), box in zip(slots, ordered):
         out = root / f'{name}.png'
         out.parent.mkdir(parents=True, exist_ok=True)
-        piece = extract(im, box, sz if 'x' in sz else int(sz), args.margin)
+        piece = extract(im, box, sz if 'x' in sz else int(sz), args.margin, args.tight)
         piece.save(out)
         print(f'OK   {name}.png  <- box{tuple(box[:4])}  {piece.size[0]}x{piece.size[1]}')
     return 0

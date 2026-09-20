@@ -229,7 +229,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 弹层底板 M/L | `.pop`（非 S） | `ui/panel/panel_main` | 面板框 16px | border-image | `panel` = slice `12% fill` / width 16px×--pu | 1 | ✅ 已接 |
 | 列表行卡底板 | 商城货卡 `.good.panel`（`HomeUiMall.ts:304` 普通货卡 + `:496` 广告卡两处）｜战斗 HUD 邮件行 `.mailRow.panel`（`DomHud.ts:570`） | `ui/panel/row_card` | 卡片最小高 115px×--pu；HUD 那层 `--pu` 就是 `--s` | `nineSlice(el,'card')` | `card` = slice `24 fill` / width 12px×--pu | 1 | ✅ r16 表出图（两件焊死在一起，`--dilate 2` 才切得开）。**稀有度色标在内层 `.gIc` 的边框上、不在卡片本身**，所以贴板只吃掉卡片自己的中性边，不抢品质色。同批的 `panel_mini` **没落盘**——当时写的理由是「跟 `.frame` 的装饰伪元素打架」，Step5 复核后**这条理由作废**：真正的理由是它的两个建点零调用（结案见本节末「模块小框底板」那行）。`skillCard.panel` 也带 `frame`，同样跳过 |
 | 弹层底板 S | `.pop.S` | `ui/panel/panel_sub` | 同上 | border-image | `panel` | 1 | ✅ 已接 |
-| 大按钮（CTA/登录 START） | `.popBtn` / `.lgStart` | 见下方按钮语义行 | 板框 10px | border-image | `plate` = slice `16 fill` / 10px×--pu（登录 `platePw` 按 --pw） | 1（态由 CSS 派生，见 §10） | ✅ 已接 |
+| 大按钮（CTA/登录 START） | `.popBtn` / `.lgStart` | 见下方按钮语义行 | 板框 11px | border-image | `plate` = slice `32% 22% fill` / 11px×--pu（登录 `platePw` 按 --pw）；2026-09-21 由 `16 fill`/10px 改档，理由见「板件不许留透明边」 | 1（态由 CSS 派生，见 §10） | ✅ 已接 |
 | 细标题条 | `.popTop` | `ui/banner/bar_title` | 高 41px×--pu | `strip`（100% 100% 拉伸） | — | 1 | ✅ 已接 |
 | 横幅绶带 | `.popBanner` | `ui/banner/ribbon_banner` | 高 45px×--pu | `strip` | — | 1 | ✅ 已接 |
 | 弹窗标题绶带（备用） | — | `ui/banner/ribbon_title` | 未接 | `strip` | — | 1 | 📦 在库待接（与 ribbon_banner 二择一，暂留备用） |
@@ -246,7 +246,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 头像框 | 见下方「行图标外框（框件族）」行：`frame()` 变体已落地并接在名片行 | `ui/frame/avatar_frame` | 40px×--pu | `frame`（border-image 无 fill，不抢 iconTex 的 background） | `frame` | 1 | ✅ 本轮接线；顶栏小位待 clip-path 定案 |
 | 段位徽章 ×7 | 待开：段位/成就展示位 | 已移出包 → `art-spec/reference/stock/rank/`（原 `ui/rank1`…`ui/rank7`） | 128px 见方 | `icon` | — | 1 | 📦 在库无宿主，2026-09-21 移出包（**当前无段位 UI**，见 ART-PLAN §5 决策） |
 | 名次奖牌 ×3 | **实测宿主只有 1 处**：战斗 HUD 伤害统计 `#domHud .statRank.rank1/2/3`（两个建点：建行 `DomHud.ts:1249`、重排名 `:881`）。规范原先并列写的另两个都贴不了——`.popRow .tag`（排行榜弹窗前三那格）实测只有 10.5px×--hs / 26px×--pw，是塞在胶囊里的随文小符号，128px 位图缩到那儿只会糊（同上面「不该出图」判据①）；`.lbRank .medal` 是**死样式**，而且整块排行榜 CSS（`HomeUiStyle.ts:548~565`、`1880~1893`：`lbEntry/lbBox/lbMy/lbList/lbRow/lbRank/lbIc/lbName/lbScore`）全是孤儿，live 排行榜走的是通用 `_popRow` | `ui/badge/medal1` `ui/badge/medal2` `ui/badge/medal3`（三件全部落盘接线） | 56px×--s（奖牌含骷髅与双翼，`contain` 后在 540 视口视觉约 30 CSS px） | `icon`（`keepGlyph` + `hideBorder` + `color` 换墨，见「状态」列） | — | **3**（一族三件不是二态：金/银/铜各一件，第 4 名起没有奖牌） | ✅ r14 一张表 3 格、棋盘底目检 3/3 合格（**环心镂空是出图时就要求的空位，不是抠穿**——名次数字要叠在环里）。数字保留、墨色换成同档金属色（`--c-gold-bright`/`--c-text-ice`/`--c-amber`，走令牌不写 hex），字号从 34 缩到 20×--s 才塞得进环；第 4 名不贴图也不改色，仍是 CSS 深色板。缺图时三样都不改，观感回到改版前 |
-| 主城按钮族（按类别整族铺，不再一处处手工接） | 主 CTA `.game-button`（开始护送 / 十连 / 单抽 / 立即查看 / 难度小键）｜侧栏与入口 `.hot`（招募 / 工坊 / 合成 / 每日免费 / 限时特惠 / 值班卡 / 里程碑 / 编队，约 10 处）｜编队行 `.hpick`（4 行）｜商城购买小键 `.btn.gBuy`｜难度段 `.diffSeg`（三档）｜编队号位 `.squadEntry`（四格） | 主 CTA 复用 `PLATE`：`.major` → `ui/button/btn_play`、普通 → `ui/button/btn_cancel`、带 `.purple` → `ui/button/btn_purple`；新增三档 `ui/button/btn_side`（侧栏）、`ui/button/btn_row`（编队行）、`ui/button/btn_small`（小键）；派生态走同族两条选择器指到不同语义板（`.diffSeg.on` → 金、`.diffSeg` → 蓝；`.squadEntry.on` → `btn_confirm`、其余 → `btn_cancel`），不为每个态出二态图（§10） | 普查实测：主 CTA 203×47 与 307×72、`.hot` 61×50~169×83、`.hpick` 127×47、`.gBuy` 151×37、`.diffSeg` 103×42、`.squadEntry` 40×39（均 ×层缩放） | `nineSlice`，切片一律 `btn` 档 = `24 fill`，显示宽度两档：`btn` 12px（≥47px 高的面）/ `btnSm` 7px（37~42px 高的面与 40px 方格） | `btn` / `btnSm` | 1（禁用态同板 + CSS filter，见 §10） | ✅ r24 一张 4列2行表出齐 8 块板（同族异色、中央全部平整无镂空——上一轮「留出空位」被读成「挖洞」的措辞已改）。**根因**：全工程原来只有 1 个手工铺板调用点（解锁大键），`.game-button` 这一族最大的 CTA 从来没做过板，所以界面看着"美术没进版"。现由 `UiPlate.CITY_BUTTON_PLATE`（选择器 → key + 档，顺序即优先级，`key: null` = 显式跳过）在 `_switchPage` 尾部整族扫一遍，扫描用的选择器直接由本表拼出，加一档不用再改代码。紫色档 `btn_purple` 的 `PLATE.purple` 映射原来零调用点，本轮由礼包 CTA「立即查看」挂上 `.purple` 才真正用上。**三处实测跳过**：① `.game-button.sm`（里程碑「领取」46×22）比板厚四倍还小，贴上去整块糊掉；② 英雄养成五入 `.btn.blue.hot`（61×61）板只盖住中段一条——那五键的图标行高 + 文案比盒高还长，⚡ 与「技能」两行露在板外，**要先改 CSS（加高或压行高）再接图**；③ 章节翻页 `.arrow` 压在关卡实景照片上，照片本身是深色金属调，板子上去等于把箭头融进背景 |
+| 主城按钮族（按类别整族铺，不再一处处手工接） | 主 CTA `.game-button`（开始护送 / 十连 / 单抽 / 立即查看 / 难度小键）｜侧栏与入口 `.hot`（招募 / 工坊 / 合成 / 每日免费 / 限时特惠 / 值班卡 / 里程碑 / 编队，约 10 处）｜编队行 `.hpick`（4 行）｜商城购买小键 `.btn.gBuy`｜难度段 `.diffSeg`（三档）｜编队号位 `.squadEntry`（四格） | 主 CTA 复用 `PLATE`：`.major` → `ui/button/btn_play`、普通 → `ui/button/btn_cancel`、带 `.purple` → `ui/button/btn_purple`；新增三档 `ui/button/btn_side`（侧栏）、`ui/button/btn_row`（编队行）、`ui/button/btn_small`（小键）；派生态走同族两条选择器指到不同语义板（`.diffSeg.on` → 金、`.diffSeg` → 蓝；`.squadEntry.on` → `btn_confirm`、其余 → `btn_cancel`），不为每个态出二态图（§10） | 普查实测：主 CTA 203×47 与 307×72、`.hot` 61×50~169×83、`.hpick` 127×47、`.gBuy` 151×37、`.diffSeg` 103×42、`.squadEntry` 40×39（均 ×层缩放） | `nineSlice`，切片一律 `btn` 档 = `32% 22% fill`（百分比而非像素：这一族源件尺寸从 226×256 到 540×256 差得远，像素档一档通用不了），显示宽度两档：`btn` 12px（≥47px 高的面）/ `btnSm` 8px（37~42px 高的面与 40px 方格） | `btn` / `btnSm` | 1（禁用态同板 + CSS filter，见 §10） | ✅ r24 一张 4列2行表出齐 8 块板（同族异色、中央全部平整无镂空——上一轮「留出空位」被读成「挖洞」的措辞已改）。**根因**：全工程原来只有 1 个手工铺板调用点（解锁大键），`.game-button` 这一族最大的 CTA 从来没做过板，所以界面看着"美术没进版"。现由 `UiPlate.CITY_BUTTON_PLATE`（选择器 → key + 档，顺序即优先级，`key: null` = 显式跳过）在 `_switchPage` 尾部整族扫一遍，扫描用的选择器直接由本表拼出，加一档不用再改代码。紫色档 `btn_purple` 的 `PLATE.purple` 映射原来零调用点，本轮由礼包 CTA「立即查看」挂上 `.purple` 才真正用上。**三处实测跳过**：① `.game-button.sm`（里程碑「领取」46×22）比板厚四倍还小，贴上去整块糊掉；② ~~英雄养成五入 `.btn.blue.hot`（61×61）板只盖住中段一条~~ **该跳过已于 2026-09-21 翻案**：那条观察是真的，但归因错了——板只盖中段是因为板件上下各垫了 22% 的 alpha=0 空边（见本节末「板件不许留透明边」），不是宿主太矮。裁紧改档后重测，61px 盒高减两侧 11px 边框剩 39px 平牌面，⚡ 与「技能」两行放得下，五入已接回蓝板 `ui/button/btn_cancel`；③ 章节翻页 `.arrow` 压在关卡实景照片上，照片本身是深色金属调，板子上去等于把箭头融进背景（这条与透明边无关，仍然成立） |
 | 进度条（底槽 / 填充） | **实测宿主 7 条**：HUD 四条 `.xpBar`（25px，底槽+蓝填充）、`.vehTrack`（20px，只贴底槽）、`.bossTrack`（28px，底槽+红填充）、`.statBar`（20px，只贴底槽）；主城三条同轮加粗后接入——`.expbar` 顶栏指挥官经验（10px，底槽+蓝）、`.popRow .pbar` 弹层行进度（12px，底槽+绿）、`.popAct .bar` 弹层活跃/保底（12px，底槽+黄，两处调用点）；抽卡保底条 `.offer-copy .rcBar` **退回 6px 不贴**（加粗会挤动那张主推卡，6px 也配不出内腔）。另 `.qBar/.biBar/.talentBar/.prosBar/.actBar/.starBar` 六条是**死样式**（全工程无一处建 DOM），`.popBar`/`.bagBar` 名不符（弹层底栏与背包容器，不是进度条） | `ui/progress/bar_track` `ui/progress/bar_fill_blue` `ui/progress/bar_fill_red` `ui/progress/bar_fill_green` `ui/progress/bar_fill_yellow`（五件全部落盘接线） | 底槽条高 12~28px；填充件横向拉伸、宽度仍由 JS 写 % | 底槽 HUD 四条 `nineSlice(el,'bar')`、主城四条 `nineSlice(el,'barThin')`，填充一律 `strip`；两条不贴图的理由：`.vehicleFill` 的色是 `.warn/.danger` 三态由 CSS 类切（内联贴图会吃掉三态，**2026-09-20 拍板不换**），`.statBarFill` 的色由 JS 按英雄身份色内联写（`DomHud.ts:894`） | `bar` / `barThin`（✅ 2026-09-20 按 `tools/measure_nine.py` 实测改档：切片同为 `10 17 10 17 fill`，显示宽度随宿主条高折算——20~28px 用 4px 与 7px、10~16px 用 2px 与 4px，均 ×--pu） | 1 | ✅ 底槽八条 + 四色填充全部接线；HUD 层补 `--pu: var(--s,1)` 令牌（同 D10b 的口径），否则板厚不随 HUD 缩放。⚠ 经验条原色是青 `#4dd0e9`，同轮拍板**沿用蓝**：族内四色只是出图侧的归类，落到具体宿主要让位于「换图不换观感」 |
 | 二级页签图标 | **实测 7 个位置、5 个键**：商城 `.shopTabs` 四签（英雄/装备/宝石/材料）+ 背包 `.bagTabs` 四签（装备/宝石/材料/道具），其中装备/宝石/材料三签两处共用同一件。规范原先写的第三个宿主 `.chTabs`（章节页签）是**死样式**——护送页早已改成「章节头 + 场景内侧左右翻页箭头」（`HomeUiStage.ts:68` 的注释就写着「替代原五章页签」），全工程无一处建这个 DOM | `ui/ico/tab_hero` `ui/ico/tab_equip` `ui/ico/tab_gem` `ui/ico/tab_mat` `ui/ico/tab_potion`（五件落盘接线） | 图标 20px×--hs ｜ 20px×--pw。两套页签都并进了 34~56 高的 `.flat-tabs` 条带、文字只有 12 号，图标取 20 才能与文字并排且不撑高行（原先粗写的「20~34px」是照 `.hot .ic` 抄的，那个位置有 56 高） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1（选中态走 CSS，见 §10） | ✅ r13 一张表出齐 6 格，棋盘底目检 6/6 无抠穿、无绿边、无邻居碎件并入，5 件落盘。⚠ **`tab_core` 图合格但没有这个页签**：背包第四签的真名是「道具」（`item` 分类 = 非装备/宝石/材料的消耗品，贴图沿用 `tab_potion`，医疗包读得出「耗材」），武器核心只是养成弹窗里的一行、不是页签，硬套 `tab_` 键等于给同一个位置挂两套语义 —— 键留在采购单，切片件归档在 `art-spec/reference/stock/ico/tab_core.png` 不落盘（2026-09-20 拍板「核心页签功能我后面做」：`MANIFEST` 与本表那行都不删，界面建好当天拷回 `assets/resources/textures/ui/ico/` 再删 `RESERVED_SLOTS` 一行即生效） |
 | 功能图标·第一批 12 件 | 侧栏 `.side-tools .hot .ic`（签到/试炼/无尽）｜英雄页 `.hero-quick .btn .ic`（核心/武器/升星/天赋）+ `.hero-tools .hot .ic`（招募/工坊，两处：页头与背包行）｜顶栏 `.res .add`（加号）｜确认弹窗 `.popIcBig`（删除/警告） | `ui/ico/ico_signin` `ui/ico/ico_trial` `ui/ico/ico_endless` `ui/ico/ico_core` `ui/ico/ico_weapon` `ui/ico/ico_starup` `ui/ico/ico_talent` `ui/ico/ico_recruit` `ui/ico/ico_forge` `ui/ico/ico_add` `ui/ico/ico_del` `ui/ico/ico_warn` | 侧栏与英雄页 23~26px、顶栏加号 14px、弹窗大图标 62px（各 ×层缩放） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1 | ✅ 图标第一批落盘接线（2026-09-20）。⚠ 英雄页「技能」键按「除技能外不换」保留 emoji，但已一并包进 `.ic` span 以对齐字号。**2026-09-21 追撤 `ui/ico/ico_skill` 键**：技能这一族用户明令不换图，那这个键永远不会有人填，留在 MANIFEST 里就是一条永远缺文件的空槽（预载白发请求、对账永久挂账），已从 `MANIFEST` 与 `RESERVED_SLOTS` 双双删除 |
@@ -308,7 +308,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 
 | 档 | 用途 | 源件建议 | slice / 显示 |
 |---|---|---|---|
-| `plate`（已定） | 弹层 CTA、`.btn.big`、登录 START | 高 ≥40px@1x | `16 fill` / 10px×--pu |
+| `plate`（已定） | 弹层 CTA、`.btn.big`、登录 START | 高 ≥40px@1x | `32% 22% fill` / 11px×--pu（2026-09-21 改档，依据见下「板件不许留透明边」） |
 | `bar`（**已定档 → 同日按生成件改档**，依据见下） | 进度条底槽 `ui/progress/bar_track` | 512×64，上下描边各 10px、左右圆头各 17px | `10 17 10 17 fill` / 4px 与 7px×--pu |
 | `barThin`（**同档切片、薄宿主专用显示宽度**） | 10~16px 的薄条（主城四条 12px） | 同一张 `bar_track` | `10 17 10 17 fill` / 2px 与 4px×--pu |
 | `chip`（**未定档、不进 NINE**） | `.good .gBuy` 27px、`.gBuy` 44~56px、`.hero-quick` 五入 44px | 128×128，斜面画进 12px | 建议 `12 fill` / 6px×--pu，待样张实测 |
@@ -339,6 +339,37 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 
 基准图那三条条体中间嵌着字（`120/120` `68%` `3/3`），所以它只能用来定比例，**不能当切片源**；
 真正上屏的 `ui/progress/bar_track` 必须另出干净件（批5）。
+
+#### 板件不许留透明边，切片值必须大于透明边并包住铆钉（2026-09-21，弹层 CTA「字溢出板面」的真因）
+
+现场：升星弹窗底部那颗禁用 CTA「还差 20 片」，字从木板的上下沿探出去。第一反应是「板太窄/字太长」，
+但 `tools/page_shot.mjs` 的普查把三个数都量了出来：盒 165×59、内边距 30.46px、文字实需 100px——
+**横向差 65px，字根本没溢出**。溢出的是**竖向**：木板只渲染出盒子高的约 55%，字压在板上下的空白里。
+
+往源头查，两件事叠在一起才成立：
+
+1. **`tools/slice_sheet.py` 旧版把每件方化**。`extract()` 取完内容包围盒后，按「最长边 ×(1+margin)」
+   铺一张**正方形**画布再把件居中贴回去。方形图标这么干没事；横长的板件因此上下各垫一大圈 alpha=0——
+   `ui/button/btn_play.png` 量出来是 384×384 的方图，真正的木板只有 **364×210**，上下各 87px 空边（23%）。
+2. **切片档小于那圈空边**。`plate` 当时是 `16 fill`：16px 全落在 87px 的空边里，于是透明行被划进
+   **可拉伸的中段**，中段按宿主高度铺开时木板只占中段的一部分 → 板面缩水到宿主盒高的 55%。
+
+所以修的是两刀，缺一不可：
+
+- **裁**：`python tools/trim_alpha.py --apply <板件...>` 按 alpha 包围盒（阈值 8，保留抠像软边）裁掉空边。
+  本轮裁了 9 件（按钮族 7 + `ui/panel/panel_sub` + `ui/frame/avatar_frame`）。
+  `ui/progress/bar_track` **故意没裁**——它的 `10 17 10 17` 档是按 512×64 量的，且 HUD 四条进度条已目检过，
+  裁了要连着改档重验，与本轮无关；9% 的空边对一根 20~28px 的条不致命。
+- **改档**：切片一律改**百分比**（`32% 22% fill`），因为按钮族那几件源件尺寸差得远
+  （`btn_play` 364×210、`btn_small` 226×256 是竖的、`btn_row` 540×256），像素档不可能一档通用；
+  百分比才跟得上。32%×22% 是照 `btn_play` 的铆钉位置量的：铆钉占 x≤23%、y≤32%，
+  取这个数让**四枚铆钉整块留在角区**（角区不拉伸），中段只剩平整牌面。
+  判据同 `chip` 那条：**不能被拉伸的东西（包边、铆钉、斜角）必须整个落在角区里**。
+
+以后出板件的表，切片这一步**必须带 `--tight`**（`python tools/slice_sheet.py <表> --slots ... --tight`），
+它跳过方化、按内容包围盒输出。检查办法：`python tools/trim_alpha.py --check <板件...>`，
+任一边的透明边 >6% 就是切片档的雷。量取值用 `python tools/measure_plate.py <板件...>`，
+看布局用 `python tools/ascii_alpha.py <板件...>`（把 alpha 降采样成 ASCII，铆钉占第几格一眼可见）。
 
 ### 进度条与页签的出图口径（批5 / 批1 追加，出图前只需读这段）
 
