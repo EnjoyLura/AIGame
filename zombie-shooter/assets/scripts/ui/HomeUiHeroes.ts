@@ -669,6 +669,8 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         fcol.appendChild(starBtn);
         fcolR.appendChild(wpnBtn);
         fcolR.appendChild(coreBtn);
+        // 主城养成五入：按 class 语义贴去字底板（蓝板；缺图保留 CSS 渐变，glyph 前缀不动）
+        [coreBtn, wpnBtn, skBtn, starBtn, talBtn].forEach(b => this._plateCityBtn(b));
         this._talentRedEl = talBtn.querySelector('.questRed') as HTMLElement;
         this._refreshTalentRed();
         stage.appendChild(fcol);
@@ -729,6 +731,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         if (!owned) {
             const unlock = document.createElement('button');
             unlock.className = 'btn gold big';
+            this._plateCityBtn(unlock);
             unlock.textContent = `🔓 前往商店解锁（🪙 ${(HeroSystem.HERO_PRICES[def.id] ?? 0).toLocaleString()}）`;
             unlock.onclick = (e) => {
                 e.stopPropagation();

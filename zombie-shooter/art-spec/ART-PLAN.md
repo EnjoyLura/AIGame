@@ -132,6 +132,10 @@
 | D7 | **贴图与 glyph 混排收口**：贴图到位由 `UiPlate.icon()` 摘 glyph，缺图保留 glyph 回退；页签青瓷层原 `font-size:0`（会把缺图页签变成空槽）已改为按档显示 emoji 占位，两层口径一致 | HomeUiStyle/HomeUiCore |
 | D8 | **在库件必须有归宿**（P0 接线轮）：`check-art-manifest` 新增断言——磁盘每张图要么被代码引用（含 `characters/hero_${id}` 这类模板拼 key 的前缀族），要么在 STYLE-SPEC §9「在库无归宿件」表里有一句说法。引用扫描同时修掉两个口径漏洞：清单自身不再算作"引用"、块注释里的 key 不算引用 | STYLE-SPEC §9 + checker |
 | D9 | **接线只接当前世代**：P0 只接 r4/r6 套件件（与新基准同族）；r1/r2 老一代板（panel_metal/panel_frame/panel_card/card_frame/icon_frame/btn_gold/btn_cyan/chip_dark/banner/banner_orange/btn_primary）**不为消化库存而硬塞进 r6 宿主**，一并列退役候选等拍板 | STYLE-SPEC §9 |
+| D10 | **主城按钮并入同一板族**：`.btn.gold/.blue/.adBtn/.dark` 经 `UiPlate.CITY_PLATE` + `HomeUiCore._plateCityBtn()` 复用弹层 `PLATE` 板（已接英雄养成五入与解锁大键）；`.gBuy` 小胶囊**暂不贴**——件高不足 10px 斜面四倍，硬贴会糊字，需 §9「薄板档 `bar`」定档后再吃 | STYLE-SPEC §9 薄板档 |
+| D11 | **四套页签不合一**：`.popTabs`（弹层文字档）与 `.shopTabs/.bagTabs/.chTabs`（主城图形档）布局职责不同，只统一「图标位 + 选中态走 CSS」口径；二级页签按 `ui/tab_*` 六 key 一次成表 | STYLE-SPEC §9 |
+| D12 | **进度条与状态图标族的排产闸门**：进度条族先定 `bar` 薄板档（源件 512×64、四角 3~4px）再出图，底槽 + 四色填充 + 端头 + 节点共 16 个宿主已列表；状态图标族 `icons/status_*` **延后**（战斗 buff 无 DOM 图形位，出图会白出），只挂预留不排产 | STYLE-SPEC §9 |
+| D13 | **旧版 UI 素材归档而非删除**（2026-09-20 用户拍板）：11 件 r1/r2 件移入 `art-spec/reference/legacy-keep/`（不占 `textures/` 契约位、不进包、不被 checker 要求归宿），内容件（技能图标 12 / 走帧 4 / 弹道 / fx / 路面）**留用不弃**；要换回某张旧图 = 从归档目录拷回同名 key 重建 | ASSET-MANIFEST §A/§E |
 
 ## 6. 进度跟踪
 

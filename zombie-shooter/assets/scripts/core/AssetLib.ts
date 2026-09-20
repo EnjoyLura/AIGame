@@ -14,16 +14,18 @@ const MANIFEST = [
     'weapons/sniper_bullet', 'weapons/laser_beam', 'weapons/radiation_bullet',
     'monsters/boar',
     'scenes/road',
-    'ui/panel_card',
-    'ui/banner',
-    // 主城 UI 贴图套件（九宫格面板/按钮/横幅/图标，video_to_sheet 同源管线产出）
-    'ui/panel_metal', 'ui/banner_orange', 'ui/btn_gold', 'ui/btn_cyan', 'ui/chip_dark', 'ui/chest',
+    // 战斗内升级面（LevelUpPanel 用画布 Sprite 直接取帧）仍在服役的两件旧板：
+    // 归档时被 check-art-manifest 的「代码引用未登记」当场拦下。要换新族得单开战斗面一轮。
+    'ui/banner', 'ui/panel_card',
+    // 主城 UI 贴图套件（页签/资源图标/宝箱沿用；r1/r2 的板类件已归档，见下方注）
+    'ui/chest',
     'ui/nav_mall', 'ui/nav_heroes', 'ui/nav_battle', 'ui/nav_core', 'ui/nav_base',
     'ui/res_gold', 'ui/res_diamond', 'ui/res_stamina',
     'scenes/vehicle_tail', 'scenes/escort',
-    // 在库备用件（代码暂未引用，登记以保持清单↔磁盘一致；下一轮美术可直接取用）
-    'ui/btn_primary', 'ui/card_frame', 'ui/icon_frame', 'ui/panel_frame',
-    // 四轮素材表批量件（r4_icons 一次成型，未接线备用）：按钮系/头像框/标题绶带 + 商城货架/功能图标
+    // 旧版 UI 素材（2026-09-20 拍板弃用）已移出契约位 → art-spec/reference/legacy-keep/：
+    // panel_card/banner/btn_primary/card_frame/icon_frame/panel_frame/panel_metal/banner_orange/
+    // btn_gold/btn_cyan/chip_dark。不进包、不登记 MANIFEST；要用回某张就拷回 ui/<key>.png 再登记。
+    // 四轮素材表批量件（r4_icons 一次成型）：按钮系/头像框/标题绶带 + 商城货架/功能图标
     'ui/btn_play', 'ui/btn_confirm', 'ui/btn_cancel', 'ui/btn_close',
     'ui/avatar_frame', 'ui/ribbon_title',
     // 六轮素材（r6_panels）：弹层面板底板/横标题绶带/标题条

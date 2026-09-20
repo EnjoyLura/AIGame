@@ -174,3 +174,21 @@ export const QUALITY_FRAME: string[] = ['ui/frame_q0', 'ui/frame_q1', 'ui/frame_
 export const RES_ICON: Record<string, string> = {
     gold: 'ui/res_gold', diamond: 'ui/res_diamond', stamina: 'ui/res_stamina',
 };
+
+/**
+ * 主城按钮 CSS 变体 → 去字底板（与 `.btn.gold/.blue/.adBtn/.dark` 同名，出图即按板走）。
+ * 主城键的墨色仍由 CSS 决定（板子只给底），所以此处不配 color；缺图保留 CSS 渐变。
+ */
+export const CITY_PLATE: Record<string, string> = {
+    gold: 'ui/btn_play', blue: 'ui/btn_cancel', adBtn: 'ui/btn_video', dark: 'ui/btn_cancel',
+};
+
+/** 按 class 取主城按钮语义档（多档并存时取第一个命中的色语义，sm/big 只是尺寸修饰不参与） */
+export function cityKind(el: HTMLElement): string | null {
+    for (const kind of ['gold', 'blue', 'adBtn', 'dark']) {
+        if (el.classList.contains(kind)) {
+            return kind;
+        }
+    }
+    return null;
+}

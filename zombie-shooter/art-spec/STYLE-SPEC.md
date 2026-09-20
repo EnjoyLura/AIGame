@@ -191,6 +191,9 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 头像框 | 见下方「行图标外框（框件族）」行：`frame()` 变体已落地并接在名片行 | `ui/avatar_frame` | 40px×--pu | `frame`（border-image 无 fill，不抢 iconTex 的 background） | `frame` | 1 | ✅ 本轮接线；顶栏小位待 clip-path 定案 |
 | 段位徽章 ×7 | 待开：段位/成就展示位 | `ui/rank1`…`ui/rank7` | 128px 见方 | `icon` | — | 1 | 📦 在库待接（**当前无段位 UI**，见 ART-PLAN §5 决策） |
 | 名次奖牌 ×3 | 排行榜 `.popRow .tag` / HUD `.statRank` | `ui/medal1` `ui/medal2` `ui/medal3` | 32~56px | `icon` | — | 1 | ✗ 待生图（现在分别是 🥇🥈🥉 emoji 与 CSS 渐变块） |
+| 主城按钮（页内手工建的键） | `.btn.gold` / `.btn.blue` / `.btn.adBtn` / `.btn.dark` | 复用 `PLATE`：金 `ui/btn_play`、蓝 `ui/btn_cancel`、广告 `ui/btn_video` | 高 44~50px×--pw | `nineSlice(el,'plate')`（墨色仍由 CSS 定） | `plate` | 1 | ✅ 本轮接线（英雄养成五入 + 解锁大键；`.gBuy` 小胶囊见下「薄板档」） |
+| 进度条（底槽 / 填充 / 端头） | 见下方「进度条与页签的出图口径」 | `ui/bar_track` `ui/bar_fill_green` `ui/bar_fill_yellow` `ui/bar_fill_blue` `ui/bar_fill_red` `ui/bar_cap` `ui/bar_node` | 条高 8~14px×--pu（HUD 侧 8~12px×--s） | 底槽 `nineSlice`（薄板档）+ 填充 `strip`（100% 100%，宽度由 JS 写 %） | 待定档 `bar` | 1 | ✗ 待生图 + 批5 接线（契约先定，见下） |
+| 二级页签图标 | `.shopTabs`（商城）/ `.bagTabs`（背包）/ `.chTabs`（章节）的图标位 | `ui/tab_hero` `ui/tab_equip` `ui/tab_gem` `ui/tab_mat` `ui/tab_core` `ui/tab_potion` | 与 `.hot .ic` 同口径（图标 20~34px 方） | `icon`（尺寸归 CSS） | — | 1（选中态 CSS，见 §10） | ✗ 待生图（宿主已定，出图即按 `mkBtn` 的 tex 槽接） |
 
 ### 按钮语义 → 去字底板（`UiPlate.PLATE`，唯一映射）
 
@@ -204,9 +207,41 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | `grey` | `ui/btn_cancel` | 置灰次级键（沿用蓝板 + §10 派生态） | ✅ 已接 |
 | `purple` | `ui/btn_purple` | 特殊：限时/首充/超值 | ✗ 待生图（缺图回退 CSS 底色） |
 
-> 旧一代板 `ui/btn_gold` `ui/btn_cyan` `ui/panel_metal` `ui/panel_frame` `ui/panel_card` `ui/card_frame`
-> `ui/icon_frame` `ui/btn_primary` `ui/chip_dark` `ui/banner` `ui/banner_orange` 全在库、无宿主：
-> **本表未列即视为备用件**，要么在本表登记宿主后再接，要么整族删除，不允许继续「预载但不引用」。
+> **旧一代板已归档**（2026-09-20 拍板弃用）：`panel_metal` `panel_frame` `card_frame`
+> `icon_frame` `btn_primary` `btn_gold` `btn_cyan` `chip_dark` `banner_orange` 共 9 件移出
+> （另 `ui/banner` `ui/panel_card` 因 `LevelUpPanel` 画布取帧仍在服役而放回在库，见 ASSET-MANIFEST §E）
+> `textures/` 契约位，改放 `art-spec/reference/legacy-keep/`（不进包、不登记、看中了可原样拷回）。
+> 留下来的规矩仍然成立：**在库件必须有归宿**——要么在本表登记宿主后接上，要么列退役候选，
+> 不允许「预载但不引用」这种第三态（`check-art-manifest` 的 5.6 断言在盯）。
+
+### 薄板档：小尺寸键为什么现在不能贴常规板
+
+`.btn.gold.gBuy`（商城商品卡的购买键，青瓷层高约 27px×--hs）与 HUD 上的细进度条，**件高不足 10px 圆角
+斜面厚度的四倍**，硬贴 `plate` 档会把板厚吃进板面（看着像一整块药丸边框糊住文字）。
+所以按钮板/进度条这类件出图时要**同时给两档**：
+
+| 档 | 用途 | 源件建议 | slice / 显示 |
+|---|---|---|---|
+| `plate`（已定） | 弹层 CTA、主城大键、登录 START | 高 ≥40px@1x | `16 fill` / 10px×--pu |
+| `bar`（待批5 定档） | 进度条底槽、端头、小胶囊键 | 高 8~14px@1x，**四角只画 3~4px** | 建议 `6 fill` / 4px×--pu，实测后写回本表与 `UiPlate.NINE` |
+
+`UiPlate.NINE` 里没有的档 = 不许接线：先补本表一行、再加 NINE 一档、最后接宿主，顺序不许多。
+
+### 进度条与页签的出图口径（批5 / 批1 追加，出图前只需读这段）
+
+- **底槽 `ui/bar_track`**：横向九宫格条，中间为**内凹暗槽**、两端留圆头；建议源件 512×64，
+  按上表 `bar` 档切。宿主写 `.qBar/.actBar/.rcBar/.talentBar/.biBar/.prosBar/.expbar/.pbar/.starBar/
+  .popBar/.bagBar`（主城，11 条）与 `#domHud .xpBar/.vehicleBar/.bossBar` 及每英雄伤害占比 fill（HUD，共 5 条）。
+- **填充 `ui/bar_fill_green|yellow|blue|red`**：**纯横向可拉伸的色带件**（不带高光边、不带圆头，
+  圆头交给 track 与 cap），宽度由 JS 按百分比写；四色语义 = 绿通用/经验、黄体力/活跃、蓝冷却/科技、红危险/boss。
+- **端头 `ui/bar_cap`、节点 `ui/bar_node`**：端头是 cap 小方件（contain）；节点是关卡进度上的宝箱里程碑。
+- **二级页签图标**：商城 `.shopTabs`（英雄/装备/宝石/材料）与背包 `.bagTabs`（装备/宝石/核心/耗材）、
+  章节 `.chTabs` 各给一个图标位（20~34px 方，`icon` 口径，尺寸写进对应层的 CSS）。
+  **四套页签不合并**（`.popTabs` 是弹层文字档、另三套是主城图形档，布局职责不同），
+  只统一「图标位 + 选中态走 CSS」这一条口径；出图按 `ui/tab_*` 六个 key 一次成表。
+- **状态图标族 `icons/status_*`**：**本轮判定延后**——战斗内 buff/debuff 目前是画布/文字表现
+  （`ui/HUD.ts` Graphics 与飘字），没有可贴的 DOM 图形位，出图会白出。等战斗 HUD 图形化那一轮再定宿主；
+  在此之前它们只是 `RESERVED_SLOTS` 里的挂名项，不排产。
 
 ### 在库无归宿件（退役候选 / 待接，等拍板）
 

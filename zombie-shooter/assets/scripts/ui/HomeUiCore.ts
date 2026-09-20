@@ -233,6 +233,17 @@ export abstract class HomeUiCore extends Component {
     }
 
 
+    /** 主城 .btn 语义变体 → 去字底板：按 class 查 UiPlate.CITY_PLATE，缺图保留 CSS 渐变。
+     *  弹层 CTA 走 _openPop 的 kind 路由，这里是主城页内手工建的键（商城购买 / 英雄养成五入）。 */
+    protected _plateCityBtn(el: HTMLElement): void {
+        const kind = UiPlate.cityKind(el);
+        if (!kind) {
+            return;
+        }
+        this._tex(UiPlate.CITY_PLATE[kind], UiPlate.nineSlice(el, 'plate'));
+    }
+
+
     protected _heroWeaponName(id: string): string {
         const def = HERO_DEFS.find(d => d.id === id);
         if (!def) {

@@ -8,7 +8,7 @@
 
 清单里暂无文件的 key 属「预留槽位」（缺图回退占位，图到位即生效）——这正是逐张补图、随时可进的机制。风格与尺寸要求见 [STYLE-SPEC.md](./STYLE-SPEC.md)。
 
-## A. 在库槽位（96 张图，png/jpg）
+## A. 在库槽位（87 张图，png/jpg；r1/r2 旧版 9 件已归档见 §E）
 
 | key | 用途 | 现尺寸 | 状态 |
 |---|---|---|---|
@@ -23,14 +23,19 @@
 | scenes/vehicle_tail | 车尾（战斗下半屏） | 2160×540 | 已有 |
 | scenes/road | 战斗路面底图 | 720×1280 | 已有 |
 | scenes/escort | 护送页/商城场景图 | 848×1264 | 已有（本轮修复：曾被代码引用但未登记，静默占位） |
-| ui/panel_card | 弹窗卡牌底板 | 768×1152 | 已有 |
-| ui/panel_metal | 九宫格面板 | 512×512 | 已有 |
-| ui/banner · banner_orange | 横幅/标题板 | 1440×488 / 512×512 | 已有 |
-| ui/btn_gold · btn_cyan | 金/青按钮 | 384 / 256 见方 | 已有 |
-| ui/chip_dark · chest | 深色芯片 / 宝箱 | 384 / 256 见方 | 已有 |
-| ui/nav_mall · nav_heroes · nav_battle · nav_core · nav_base | 底部导航 5 键 | 128×128 | 已有 |
-| ui/res_gold · res_diamond · res_stamina | 资源图标 3 枚 | 128×128 | 已有 |
-| ui/btn_primary · card_frame · icon_frame · panel_frame | 在库备用件（代码暂未引用） | 640×199 / 730×1152 / 256×254 / 1024×466 | 备用，下一轮可取用 |
+| ui/chest | 宝箱 | 256 见方 | 已有 |
+| ui/nav_mall · nav_heroes · nav_battle · nav_core · nav_base | 底部导航 5 键（r3 素材表） | 128×128 | 已有 |
+| ui/res_gold · res_diamond · res_stamina | 资源图标 3 枚（r3 素材表） | 128×128 | 已有 |
+| ui/panel_main · panel_sub | 弹层九宫格底板两档（M/L 与 S） | 512×512 | 已有，已上屏 |
+| ui/ribbon_banner · bar_title · ribbon_title | 横幅绶带 / 细标题条 / 备用绶带 | 512 级 | 前两件已上屏，`ribbon_title` 待宿主 |
+| ui/btn_play · btn_confirm · btn_cancel · btn_close · btn_danger · btn_video · btn_round · btn_round2 | 按钮板八件（弹层 CTA / 主城键 + 小圆钮） | 256~384 | 已上屏（purple/薄板档见 §9） |
+| ui/avatar_frame · frame_q0 · frame_q1 · frame_q2 · frame_q3 | 头像框 + 品质框四档 | 256~512 | 已上屏（名片行 / `.popQ .qi`） |
+| ui/frame_bronze · frame_silver · frame_gold · rank1~rank7 · ico_trophy · ico_lock · ico_achieve | 三档头像框 + 段位徽章七档 + 三件功能图标 | 128~512 | trophy 已上屏；其余无宿主，处置见 §9「在库无归宿件」 |
+| ui/ico_mail · ico_notice · ico_setting · ico_task · ico_rank | 功能图标 5 枚 | 128 | 已上屏（rank 作 popEmpty 空态图） |
+| ui/shop_gift · shop_chest · shop_scroll · shop_letter | 礼盒 / 宝箱 / 卷轴 / 信件 | 256 | 前三已上屏，letter 作空态图 |
+
+> **r1/r2 旧版 UI 板类件 11 件已归档**到 `art-spec/reference/legacy-keep/`（2026-09-20 拍板弃用，
+> 清单与「拷回即复活」的做法见该目录 README.md），不再登记在 MANIFEST、不进包。
 
 > **接线状态不在本表维护**：A 表按轮次增量记录「key ↔ 用途 ↔ 尺寸」；某件是否已上屏、宿主是哪个
 > CSS class、切片参数是多少，一律看 [STYLE-SPEC.md §9 通用件契约表](./STYLE-SPEC.md)
@@ -80,10 +85,8 @@ UI 走 glyph/CSS 回退、图落地后**必须从 `RESERVED_SLOTS` 删掉该行*
 4. **内容与资源图标**：材料 3 + 宝石 4 + 扩展资源 4 + 载具 3 + 评价星 2 + 名次奖牌 3 ✗。
 5. **按钮**：六色语义板 5 色已接 ✅（紫板 ✗）；小圆钮 close/round ✅、**round2 ✅（P0 接帮助 ? 钮）**、
    home/help/refresh ✗。
-6. **面板与底板**：pop 底板两档 ✅、标题条/绶带 ✅、ribbon_title 📦；行卡底板、模块小框 ✗；
-   旧一代板（panel_metal/panel_frame/panel_card/card_frame/icon_frame/btn_primary/chip_dark/banner*）
-   在库无宿主 —— **要么登记宿主要么整族删**，不许继续「预载不引用」
-   （`check-art-manifest` 的「在库件必须有归宿」断言已在盯这条）。
+6. **面板与底板**：pop 底板两档 ✅、标题条/绶带 ✅、ribbon_title 📦（待宿主）；行卡底板、模块小框 ✗；
+   小尺寸键（`.gBuy` 一类的薄板档）待 §9 定 `bar` 档后才能贴。
 7. **框·徽·角标**：品质框 frame_q0-q3 ✅（接 `.popQ .qi`）；**头像框 avatar_frame ✅（P0 接 `.popRow .ic`
    名片行，走 `UiPlate.frame()` 无 fill 变体）**；顶栏 43px 位仍不接（`.pAvatar > div` 有 clip-path 多边形，
    框图被裁，需先定框与切角的关系）；段位徽章 rank1-7 与铜银金头像框 frame_bronze/silver/gold 📦 无宿主
@@ -92,3 +95,19 @@ UI 走 glyph/CSS 回退、图落地后**必须从 `RESERVED_SLOTS` 删掉该行*
 9. **战斗内容**：三英雄弹道（sniper/laser/radiation）+ 丧犬走帧 + 车尾受损态 + 主题背景 ×4 +
    飘字底/波次牌/技能槽/boss 徽 + 金币爆/升级光/传送门 ✗（批7~9）。
 10. **技能图标 ×12**：一轮版在库，STYLE-SPEC 标「待换肤」，2026-09-20 用户豁免本轮不换。
+
+## E. 归档位（弃用但不删除）
+
+`art-spec/reference/legacy-keep/` —— UI 规范与生图规范固化之前零散产出的 **9 件旧版 UI 板类件**
+（panel_metal / panel_frame / card_frame / icon_frame / btn_primary / btn_gold / btn_cyan /
+chip_dark / banner_orange，png 与 .meta 成对存放）。
+
+原本列入弃用清单的 `ui/banner` 与 `ui/panel_card` **放回在库**：战斗内升级面 `LevelUpPanel.ts:81,102`
+用 `AssetLib.frame()` 直接取它们的画布帧，移出契约位后被 `check-art-manifest` 的「代码引用未登记」
+当场拦下。换成现行 `ribbon_banner`/`panel_main` 族属战斗面改动，要单开一轮。
+
+- 移出原因：2026-09-20 拍板「旧版美术不再使用」，但**不静默删除**——满意哪张随时按原名拷回
+  `assets/resources/textures/ui/<key>.png` + 在 MANIFEST 登记该行，构建后即全游戏生效（详见该目录 README.md）。
+- 归档件**不在** `MANIFEST`/`RESERVED_SLOTS` 里，也**不受** `check-art-manifest` 扫描（该检查只认
+  `assets/resources/textures/` 下的文件），因此不会报孤儿、不进构建包。
+- 内容件（技能图标 12 / 怪物走帧 4 / 步枪弹道与 fx / road 路面）与上面两件旧板**留用不弃**，仍按 A 表在库管理。
