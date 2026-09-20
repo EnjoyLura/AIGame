@@ -33,6 +33,8 @@ function parseReserved(src) {
 }
 const RESERVED = parseReserved(libSrc);
 const TEX_CATS = 'ui|icons|monsters|characters|scenes|weapons|fx';
+/** 规范文档：§9 通用件契约表是「槽位 ↔ 宿主」的对账终点，在库件必须在这里有个说法 */
+const specSrc = fs.readFileSync(path.join(ART_SPEC, 'STYLE-SPEC.md'), 'utf-8');
 
 let fail = 0;
 let checked = 0;
@@ -71,10 +73,28 @@ ok(orphans.length === 0,
     `磁盘孤儿（在库未登记，登记进 MANIFEST 或删除）：${orphans.length ? orphans.join(', ') : '无'}`);
 
 // ---- 5. 代码引用必须已登记（含契约表 UiPlate 与 iconTex/贴图槽的字面量）----
+// 扫描口径：① 去掉块注释与 // 行注释（注释里提 key 不算引用）；
+// ② AssetLib 只切掉 MANIFEST / RESERVED_SLOTS 两段声明——清单不是"引用"，
+//    但同文件里 `this.frame('fx/mortar')` 这类是真引用；
+// ③ 模板串按 `${` 截断取前缀，覆盖 `characters/hero_${id}`、`monsters/${id}_${action}`
+//    这类运行期拼 key 的族（否则整族走动态取图的件会被误判成孤儿）。
+function cutBlock(src, startMarker, endMarker) {
+    const i = src.indexOf(startMarker);
+    if (i < 0) return src;
+    const j = src.indexOf(endMarker, i);
+    return j < 0 ? src : src.slice(0, i) + src.slice(j + endMarker.length);
+}
 const codeRefs = new Set();
+const prefixRefs = new Set();
 for (const p of fs.readdirSync(SCRIPTS, { recursive: true })) {
-    if (!p.toString().endsWith('.ts')) continue;
-    const src = fs.readFileSync(path.join(SCRIPTS, p), 'utf-8')
+    const rel = p.toString().replace(/\\/g, '/');
+    if (!rel.endsWith('.ts')) continue;
+    let src = fs.readFileSync(path.join(SCRIPTS, rel), 'utf-8');
+    if (rel.endsWith('core/AssetLib.ts')) {
+        src = cutBlock(src, 'const MANIFEST = [', '\n];');
+        src = cutBlock(src, 'export const RESERVED_SLOTS', '\n};');
+    }
+    src = src.replace(/\/\*[\s\S]*?\*\//g, '')
         .split('\n').filter(l => !l.trim().startsWith('//')).join('\n');
     for (const m of src.matchAll(/'(?:AssetLib\.frame|_tex)\(\s*'([\w/]+)'\s*[,)]/g)) {
         codeRefs.add(m[1]);
@@ -85,7 +105,14 @@ for (const p of fs.readdirSync(SCRIPTS, { recursive: true })) {
     for (const m of src.matchAll(new RegExp(`'(${TEX_CATS})/[A-Za-z0-9_]+'`, 'g'))) {
         codeRefs.add(m[0].slice(1, -1));
     }
+    for (const m of src.matchAll(new RegExp('`(' + TEX_CATS + ')/[A-Za-z0-9_$/{}]*', 'g'))) {
+        const prefix = m[0].slice(1).split('${')[0];
+        if (prefix.length > 4) {
+            prefixRefs.add(prefix);
+        }
+    }
 }
+const referenced = k => codeRefs.has(k) || [...prefixRefs].some(p => p.length > 4 && k.startsWith(p));
 const unregistered = [...codeRefs].filter(k => !manifestKeys.includes(k));
 ok(unregistered.length === 0,
     `代码引用未登记（会永远静默占位）：${unregistered.length ? unregistered.join(', ') : '无'}`);
@@ -100,9 +127,14 @@ const homeCoreSrc = fs.readFileSync(path.join(SCRIPTS, 'ui/HomeUiCore.ts'), 'utf
 ok(/_pendingTexTimer/.test(homeCoreSrc) && /this\._applyPendingTex\(\);\s*\n\s*\},\s*400\)/.test(homeCoreSrc),
     'HomeUiCore 挂起纹理自续排水（_pendingTexTimer 400ms 重排）');
 
-// ---- 5.6 通用件契约层 ↔ 规范文档对账（一类通用件一条，文档漏了就报）----
+// ---- 5.6 在库件必须有归宿：被代码引用，或在 STYLE-SPEC §9 显式登记（含退役候选）----
+// 「预载但不引用」的件会一直白占包体与心智负担：要么接、要么列退役候选删掉，不允许第三种状态。
+const diskUnused = diskKeys.filter(k => !RESERVED[k] && !referenced(k) && !specSrc.includes(k));
+ok(diskUnused.length === 0,
+    `在库无归宿件（既不被引用也未在 §9 登记，接宿主或列退役候选）：${diskUnused.length ? diskUnused.join(', ') : '无'}`);
+
+// ---- 5.7 通用件契约层与规范文档对账（一类通用件一条，文档漏了就报）----
 const plateSrc = fs.readFileSync(path.join(SCRIPTS, 'ui/UiPlate.ts'), 'utf-8');
-const specSrc = fs.readFileSync(path.join(ART_SPEC, 'STYLE-SPEC.md'), 'utf-8');
 const plateKeys = [...new Set([...plateSrc.matchAll(new RegExp(`'(${TEX_CATS})/[A-Za-z0-9_]+'`, 'g'))]
     .map(m => m[0].slice(1, -1)))];
 ok(plateKeys.length >= 15, `UiPlate 契约表解析到 ${plateKeys.length} 个通用件槽位`);
@@ -110,7 +142,7 @@ const specMissing = plateKeys.filter(k => !specSrc.includes(k));
 ok(specMissing.length === 0,
     `UiPlate 槽位未登记进 STYLE-SPEC 契约表：${specMissing.length ? specMissing.join(', ') : '无'}`);
 
-// ---- 5.7 九宫格参数单源：页面里不再手写 borderImage*（切坏角 = 美术白出图）----
+// ---- 5.8 九宫格参数单源：页面里不再手写 borderImage*（切坏角 = 美术白出图）----
 const handWritten = [];
 for (const p of fs.readdirSync(path.join(SCRIPTS, 'ui'), { recursive: true })) {
     const f = p.toString();

@@ -67,6 +67,8 @@ export interface PopCta {
 export interface PopRowOpts {
     icon?: string;
     iconTex?: string;
+    /** 行图标外框槽位（头像框/品质框）：走 border-image 无 fill，与 iconTex 的 background 共存 */
+    frameTex?: string;
     title: string;
     tag?: string;
     lines?: PopText[];
@@ -723,6 +725,8 @@ export abstract class HomeUiCore extends Component {
             meta.appendChild(this._el('span', undefined, opts.subtitle));
             if (opts.help) {
                 const q = this._el('div', 'q', '?');
+                // 圆板备用件做帮助钮底（? 是功能符号，压在板面上）
+                this._tex('ui/btn_round2', UiPlate.icon(q, { hideBorder: true, keepGlyph: true }));
                 q.onclick = (e) => {
                     e.stopPropagation();
                     opts.help!();
@@ -924,6 +928,10 @@ export abstract class HomeUiCore extends Component {
         }
         if (o.iconTex) {
             this._tex(o.iconTex, UiPlate.icon(ic, { size: 'cover' }));
+        }
+        if (o.frameTex) {
+            // 框件后挂：只吃 border 区，不覆盖 iconTex 写进去的背景
+            this._tex(o.frameTex, UiPlate.frame(ic));
         }
         return row;
     }
@@ -2007,6 +2015,7 @@ export abstract class HomeUiCore extends Component {
                 c.appendChild(this._popRow({
                     icon: '🎖',
                     iconTex: 'characters/commander',
+                    frameTex: 'ui/avatar_frame',
                     title: '末日指挥官',
                     lines: [`${title} · 基地 LV.${gm.hqLevel()}`],
                     status: `⚔️ ${power.toLocaleString()}`,

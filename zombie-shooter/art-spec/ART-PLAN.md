@@ -130,6 +130,8 @@
 | D5 | **预留槽位进代码即采购单**：`AssetLib.RESERVED_SLOTS`（103 项）是预留唯一真源，预载跳过这些 key（不再白发 100+ 个失败请求）；图落地必须删声明 | AssetLib.ts + check-art-manifest |
 | D6 | **在库无宿主件必须收口**：旧一代板（panel_metal / panel_frame / panel_card / card_frame / icon_frame / btn_primary / btn_gold / btn_cyan / chip_dark / banner / banner_orange / btn_round2 / avatar_frame / ribbon_title / frame_bronze~gold / rank1-7 / ico_trophy / ico_lock / ico_achieve / shop_scroll）下一轮要么按 §9 登记宿主接线，要么整族删除，不允许长期「预载但不引用」 | 本节 |
 | D7 | **贴图与 glyph 混排收口**：贴图到位由 `UiPlate.icon()` 摘 glyph，缺图保留 glyph 回退；页签青瓷层原 `font-size:0`（会把缺图页签变成空槽）已改为按档显示 emoji 占位，两层口径一致 | HomeUiStyle/HomeUiCore |
+| D8 | **在库件必须有归宿**（P0 接线轮）：`check-art-manifest` 新增断言——磁盘每张图要么被代码引用（含 `characters/hero_${id}` 这类模板拼 key 的前缀族），要么在 STYLE-SPEC §9「在库无归宿件」表里有一句说法。引用扫描同时修掉两个口径漏洞：清单自身不再算作"引用"、块注释里的 key 不算引用 | STYLE-SPEC §9 + checker |
+| D9 | **接线只接当前世代**：P0 只接 r4/r6 套件件（与新基准同族）；r1/r2 老一代板（panel_metal/panel_frame/panel_card/card_frame/icon_frame/btn_gold/btn_cyan/chip_dark/banner/banner_orange/btn_primary）**不为消化库存而硬塞进 r6 宿主**，一并列退役候选等拍板 | STYLE-SPEC §9 |
 
 ## 6. 进度跟踪
 
@@ -142,3 +144,4 @@
 | P3 内容图标（批4/6/10） | 部分 | 批6 ✅；批4 状态图标无接线目标本轮跳过；批10 用户豁免不换 |
 | P4 资源进度与特效（批5/9） | 未开始 | 无接线目标/动 CSS 骨架风险高，留待下轮 |
 | 规范固化轮（进版前置） | ✅ 2026-09-20 | UiPlate 契约层（语义→板 / NINE 切片档 / icon 摘 glyph）；`PLATE` 取代文案正则、`ad` 显式化；禁用态改「同板 + CSS filter 派生」；品质框 frame_q* 上屏 `.popQ .qi`；`RESERVED_SLOTS` 103 项预留进代码＝采购单（预载跳过）；checker 从 10 组扩到 16 组（加「代码引用扫描扩到所有槽位字面量」「UiPlate↔STYLE-SPEC §9 对账」「禁止页面手写 borderImage」「预留必须进 MANIFEST」）；揪出幽灵引用 `monsters/crawler` 已删 |
+| P0 在库件接线 | ✅ 2026-09-20 | 新增 `UiPlate.frame()`（border-image 无 fill，框与宿主背景共存）+ `PopRowOpts.frameTex`；avatar_frame→个人主页名片行、btn_round2→帮助 ? 钮、ico_task→侧栏任务、ico_trophy→排行/排行榜、shop_scroll→图鉴/怪物图鉴、shop_gift→侧栏礼包、shop_chest→商城每日免费；`mkBtn/mkFoot` 增贴图槽（后续新图标传 key 即可）；侧栏 `.ic` 两层补齐 box 尺寸使图与字形同 footprint；checker 17 组（加「在库件必须有归宿」+ 修清单自引用/块注释两个口径漏洞），退役候选 10 件入表待拍板 |

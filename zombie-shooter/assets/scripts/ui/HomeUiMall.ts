@@ -30,6 +30,7 @@ import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData
 import { MALL_AD_STAMINA, SLOT_EMOJI } from './HomeUiCore';
 import { HomeUiCore } from './HomeUiCore';
 import type { PopOpts } from './HomeUiCore';
+import * as UiPlate from './UiPlate';
 
 /**
  * 商店页：礼包 banner + 四页签商品网格 + 广告补给卡 + 礼包弹窗。
@@ -95,6 +96,8 @@ export abstract class HomeUiMall extends HomeUiCore {
         const freeHot = document.createElement('button');
         freeHot.className = 'hot giftDot';
         freeHot.innerHTML = '<span class="ic">🎁</span><span class="freeTxt">每日免费</span>';
+        // 在库宝箱顶掉 emoji 占位（礼盒图标已给侧栏「礼包」键，两处不同件不混用）
+        this._tex('ui/shop_chest', UiPlate.icon(freeHot.querySelector('.ic') as HTMLElement));
         freeHot.title = '每日免费补给（限时礼包）';
         freeHot.onclick = (e) => {
             e.stopPropagation();

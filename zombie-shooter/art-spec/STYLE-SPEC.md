@@ -180,13 +180,15 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 弹窗标题绶带（备用） | — | `ui/ribbon_title` | 未接 | `strip` | — | 1 | 📦 在库待接（与 ribbon_banner 二择一，暂留备用） |
 | 关闭钮 | `.popClose` | `ui/btn_close` | 30px×--pu 方 | `icon`（contain + 摘 glyph + 隐边框） | — | 1 | ✅ 已接 |
 | 返回钮 | `.popBack` | `ui/btn_round` | 30px×--pu 方 | `icon` + `keepGlyph`（‹ 是功能符号不是占位，压在板面上）+ 字色改写 | — | 1 | ✅ 已接 |
-| 小圆钮备用件 | — | `ui/btn_round2` | 30px×--pu 方 | `icon` | — | 1 | 📦 在库待接（帮助/主页/刷新键的同类板） |
+| 小圆钮备用件 | `.popMeta .q`（帮助 ?） | `ui/btn_round2` | 17px×--pu 圆 | `icon` + `keepGlyph`（? 是符号）+ 隐边框 | — | 1 | ✅ 本轮接线 |
+| 行图标外框（框件族） | `.popRow .ic`（`frameTex`） | `ui/avatar_frame`（名片行） | 40px×--pu 方 | **`frame`** = border-image slice `16%`（**无 fill**）/ width 5px×--pu，保背景 | `frame` | 1 | ✅ 本轮接线（顶栏 43px 位不接：`.pAvatar > div` 有 `clip-path` 多边形，框图会被裁，需先定框/切角关系） |
+| 入口图标槽（侧栏/页脚键） | `.hot .ic`（`mkBtn`/`mkFoot` 的 tex 参数） | `ui/ico_task` `ui/ico_trophy` `ui/shop_scroll` `ui/shop_gift` `ui/shop_chest` | 34px×--pu（侧栏覆写 56px×--hs / 24px×--pw 与字形同框） | `icon`（尺寸归 CSS，两层同 footprint） | — | 1 | ✅ 本轮接线（新入口图标直接传 key，不再加机制） |
 | 底部主导航 5 签 | `.tab .ticon` | `ui/nav_mall` `ui/nav_heroes` `ui/nav_battle` `ui/nav_core` `ui/nav_base` | 102px×--hs ｜ 41px×--pw | `icon`（尺寸交 CSS） | — | 1（选中态 CSS 强调，见 §10） | ✅ 已接（查 `NAV_PLATE`） |
 | 顶栏资源胶囊 3 枚 | `.res > span:first-child` | `ui/res_gold` `ui/res_diamond` `ui/res_stamina` | 22px×--hs ｜ 20px×--pw | `icon`（尺寸交 CSS） | — | 1 | ✅ 已接（查 `RES_ICON`） |
 | 详情品质头·图标框 | `.popQ .qi` | `ui/frame_q0` `ui/frame_q1` `ui/frame_q2` `ui/frame_q3` | 58px×--pu 方 | `icon`（contain + keepGlyph，框压在道具 glyph 外圈） | — | 1 | ✅ 本轮接线（CSS 白边降为缺图回退） |
 | 行图标贴图槽 | `.popRow .ic`（`iconTex`） | 动态 key（立绘/怪图/礼盒…） | 40px×--pu | `icon`（cover） | — | 1 | ✅ 已接 |
 | 空态图 | `.popEmpty .ei` | 动态 key（`ui/` 前缀即视为槽位） | 44px×--pu | `icon`（contain） | — | 1 | ✅ 已接 |
-| 头像框 | 个人主页大位 | `ui/avatar_frame` | — | **需 `frame` 变体**：border-image 无 `fill`（行图标已占 background，框再走 background 会互相盖掉） | 待定 | 1 | 📦 在库待接（接法已定，等目检框厚/分辨率） |
+| 头像框 | 见下方「行图标外框（框件族）」行：`frame()` 变体已落地并接在名片行 | `ui/avatar_frame` | 40px×--pu | `frame`（border-image 无 fill，不抢 iconTex 的 background） | `frame` | 1 | ✅ 本轮接线；顶栏小位待 clip-path 定案 |
 | 段位徽章 ×7 | 待开：段位/成就展示位 | `ui/rank1`…`ui/rank7` | 128px 见方 | `icon` | — | 1 | 📦 在库待接（**当前无段位 UI**，见 ART-PLAN §5 决策） |
 | 名次奖牌 ×3 | 排行榜 `.popRow .tag` / HUD `.statRank` | `ui/medal1` `ui/medal2` `ui/medal3` | 32~56px | `icon` | — | 1 | ✗ 待生图（现在分别是 🥇🥈🥉 emoji 与 CSS 渐变块） |
 
@@ -205,6 +207,18 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 > 旧一代板 `ui/btn_gold` `ui/btn_cyan` `ui/panel_metal` `ui/panel_frame` `ui/panel_card` `ui/card_frame`
 > `ui/icon_frame` `ui/btn_primary` `ui/chip_dark` `ui/banner` `ui/banner_orange` 全在库、无宿主：
 > **本表未列即视为备用件**，要么在本表登记宿主后再接，要么整族删除，不允许继续「预载但不引用」。
+
+### 在库无归宿件（退役候选 / 待接，等拍板）
+
+`check-art-manifest` 的「在库件必须有归宿」断言就是冲这张表去的：每张在库图要么被代码引用，
+要么在这里有一句说法（接谁的宿主、为什么还没接）。**下一轮要么接线、要么整族删，不留第三种状态。**
+
+| key | 原意 | 为什么还没接 | 建议 |
+|---|---|---|---|
+| `ui/frame_bronze` `ui/frame_silver` `ui/frame_gold` | 铜/银/金三档头像框 | 分档需要段位或段位化等级数据源，现在只有单档 `ui/avatar_frame` 有宿主 | 待段位功能开；否则退役 |
+| `ui/rank1` `ui/rank2` `ui/rank3` `ui/rank4` `ui/rank5` `ui/rank6` `ui/rank7` | 段位徽章七档（青铜→王者） | 游戏里没有段位字段与展示位（D4）；排行榜前三是「名次」另族 `ui/medal1~3` | 待段位玩法开；否则退役 |
+| `ui/ico_achieve` | 成就入口图标 | 主城无成就入口（成就只在活动/任务里以行卡出现） | 开成就页再接，否则退役 |
+| `ui/ico_lock` | 锁定态图标 | 现有 🔒 全是文案内嵌 emoji（如「🔒 需先将前置节点点满」），没有独立图形位；节点三态属预留族 `ui/node_done/next/lock` | 随批4 节点图形化一起接 |
 
 ## 10. 态策略（一族一件，不为每态出图）
 

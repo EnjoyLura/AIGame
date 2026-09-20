@@ -823,7 +823,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .side-tools .hot { position: relative; width: calc(136px * var(--hs,1)); min-height: calc(141px * var(--hs,1)); display: flex;
   flex-direction: column; align-items: center; justify-content: center; gap: calc(4px * var(--hs,1));
   background: none; border: 0; color: var(--c-gold-hi); font-family: inherit; font-size: calc(28px * var(--hs,1)); font-weight: 700; cursor: pointer; }
-#homeUi .side-tools .hot .ic { font-size: calc(56px * var(--hs,1)); line-height: 1; }
+#homeUi .side-tools .hot .ic { width: calc(56px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(56px * var(--hs,1)); line-height: 1; }
 #homeUi .side-tools .hot .questRed { display: none; position: absolute; top: calc(16px * var(--hs,1)); right: calc(14px * var(--hs,1));
   width: calc(20px * var(--hs,1)); height: calc(20px * var(--hs,1)); border-radius: 50%; background: #ff4d4d; border: 1px solid #fff; }
 #homeUi .side-tools .hot .questRed.on, #homeUi .side-tools .hot .questRed.dotOn { display: block; }
@@ -1672,7 +1672,8 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .side-tools.right { right: calc(3px * var(--pw,2.5)); }
 #homeUi .side-tools .hot { width: calc(49px * var(--pw,2.5)); min-height: calc(51px * var(--pw,2.5)); gap: 0;
   color: #2c4a59; font-size: calc(10px * var(--pw,2.5)); font-weight: 700; }
-#homeUi .side-tools .hot .ic { font-size: calc(24px * var(--pw,2.5)); }
+/* 侧栏键图标框 = 字形尺寸：贴图（contain 吃 width/height）与 emoji 占位同一 footprint，换图不跳大小 */
+#homeUi .side-tools .hot .ic { width: calc(24px * var(--pw,2.5)); height: calc(24px * var(--pw,2.5)); font-size: calc(24px * var(--pw,2.5)); }
 #homeUi .side-tools .hot .questRed { top: calc(-2px * var(--pw,2.5)); right: calc(5px * var(--pw,2.5));
   width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); background: #d9534f; border: 1px solid #fff; }
 /* 无尽收进侧栏后仍需「锁定只降透明」：.off 规则原本只覆盖底栏与编队条 */

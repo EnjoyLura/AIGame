@@ -59,19 +59,22 @@ export interface NineSpec {
 }
 
 /**
- * 三类九宫格件的参数（改动必须与 STYLE-SPEC §9 同步，否则美术按文档出图会切坏）：
+ * 九宫格件的参数档（改动必须与 STYLE-SPEC §9 同步，否则美术按文档出图会切坏）：
  *  - panel：弹层底板，源 512 方图四角约 61px（=12%），显示 16px；
  *  - plate：大按钮去字底板，源件圆角斜面在 16px 内（slice 取像素值），显示 10px——
- *    slice 用百分比会把板面划进边区、板厚被压扁（四轮实测口径）。
+ *    slice 用百分比会把板面划进边区、板厚被压扁（四轮实测口径）；
+ *  - frame：框件（头像框等），**不带 fill** —— 只画四边、中心留空，
+ *    宿主自己的底色/立绘 background 才不会被框图盖掉。
  */
-export const NINE: Record<'panel' | 'plate' | 'platePw', NineSpec> = {
+export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
     platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
+    frame: { slice: '16%', width: 'calc(5px * var(--pu,1))' },
 };
 
-/** 九宫格底板回填器（面板 / 大按钮共用一条管线） */
-export function nineSlice(el: HTMLElement, spec: keyof typeof NINE): (url: string) => void {
+/** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */
+export function nineSlice(el: HTMLElement, spec: keyof typeof NINE, opts?: { keepBackground?: boolean }): (url: string) => void {
     const n = NINE[spec];
     return (url: string) => {
         el.style.borderImageSource = url;
@@ -79,8 +82,15 @@ export function nineSlice(el: HTMLElement, spec: keyof typeof NINE): (url: strin
         el.style.borderImageWidth = n.width;
         el.style.borderImageRepeat = 'stretch';
         el.style.borderColor = 'transparent';
-        el.style.background = 'none';
+        if (!opts?.keepBackground) {
+            el.style.background = 'none';
+        }
     };
+}
+
+/** 框件回填器：保留宿主背景（立绘/底色在框内），CSS 描边退为缺图回退 */
+export function frame(el: HTMLElement): (url: string) => void {
+    return nineSlice(el, 'frame', { keepBackground: true });
 }
 
 export interface IconOpts {

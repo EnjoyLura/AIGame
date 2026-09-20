@@ -29,6 +29,7 @@ import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiHeroes } from './HomeUiHeroes';
 import type { PopOpts } from './HomeUiCore';
+import * as UiPlate from './UiPlate';
 
 const CHAPTER_THEMES: Array<{ veh: string; mobs: string[] }> = [
     { veh: '🚚', mobs: ['🐺', '🐗', '🦅'] },
@@ -343,10 +344,14 @@ export abstract class HomeUiStage extends HomeUiHeroes {
      * 收进场景内后随页面显隐，无需 _switchPage 再切 on 类。
      */
     protected _buildSideTools(rail: HTMLDivElement, side: 'L' | 'R'): void {
-        const mkBtn = (ic: string, label: string, red: boolean, onTap: () => void): HTMLButtonElement => {
+        const mkBtn = (ic: string, label: string, red: boolean, onTap: () => void, tex?: string): HTMLButtonElement => {
             const b = document.createElement('button');
             b.className = 'hot toolHot';
             b.innerHTML = `<span class="ic">${ic}</span><span>${label}</span>`;
+            // 在库图标到位即顶掉 emoji 占位（尺寸归 .side-tools .hot .ic，两层同 footprint）
+            if (tex) {
+                this._tex(tex, UiPlate.icon(b.querySelector('.ic') as HTMLElement));
+            }
             b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.unlock();
@@ -363,14 +368,14 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         if (side === 'L') {
             const signBtn = mkBtn('📅', '签到', true, () => this._openSigninModal());
             this._sideSigninRed = signBtn.querySelector('.questRed');
-            const questBtn = mkBtn('📋', '任务', true, () => this._openQuestModal());
+            const questBtn = mkBtn('📋', '任务', true, () => this._openQuestModal(), 'ui/ico_task');
             this._sideQuestRed = questBtn.querySelector('.questRed');
-            const giftBtn = mkBtn('🎁', '礼包', true, () => this._openGiftModal());
+            const giftBtn = mkBtn('🎁', '礼包', true, () => this._openGiftModal(), 'ui/shop_gift');
             this._sideGiftRed = giftBtn.querySelector('.questRed');
             return;
         }
-        mkBtn('📖', '图鉴', false, () => this._openBestiaryModal());
-        mkBtn('🏆', '排行', false, () => this._openLeaderboardModal());
+        mkBtn('📖', '图鉴', false, () => this._openBestiaryModal(), 'ui/shop_scroll');
+        mkBtn('🏆', '排行', false, () => this._openLeaderboardModal(), 'ui/ico_trophy');
         mkBtn('🗼', '试炼', false, () => this._openTrialModal());
         // 无尽从底部左槽收进侧栏：锁定态只降透明不禁用，点击落进未解锁拦截
         const endlessBtn = mkBtn('♾️', '无尽', false, () => {

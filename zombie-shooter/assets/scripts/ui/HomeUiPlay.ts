@@ -29,6 +29,7 @@ import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiStage } from './HomeUiStage';
 import type { PopCta, PopOpts } from './HomeUiCore';
+import * as UiPlate from './UiPlate';
 
 /**
  * 玩法大厅：每日任务/签到横幅 + 试炼/副本/远征/图鉴/排行入口卡
@@ -1382,10 +1383,14 @@ export abstract class HomeUiPlay extends HomeUiStage {
         // 页脚三快捷：怪物图鉴 / 排行榜 / 载具改装
         const footer = document.createElement('div');
         footer.className = 'action-footer';
-        const mkFoot = (ic: string, label: string, onTap: () => void, key?: string): HTMLButtonElement => {
+        const mkFoot = (ic: string, label: string, onTap: () => void, key?: string, tex?: string): HTMLButtonElement => {
             const b = document.createElement('button');
             b.className = 'hot';
             b.innerHTML = `<span class="ic">${ic}</span>${label}`;
+            // 在库图标到位即顶掉 emoji 占位（.hot .ic 已是 34px 方框，尺寸归 CSS）
+            if (tex) {
+                this._tex(tex, UiPlate.icon(b.querySelector('.ic') as HTMLElement));
+            }
             b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -1398,8 +1403,8 @@ export abstract class HomeUiPlay extends HomeUiStage {
             footer.appendChild(b);
             return b;
         };
-        mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary');
-        mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard');
+        mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary', 'ui/shop_scroll');
+        mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard', 'ui/ico_trophy');
         mkFoot('🔧', '载具改装', () => this._openTuningModal());
         page.appendChild(footer);
 
