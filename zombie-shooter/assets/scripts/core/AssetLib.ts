@@ -68,11 +68,10 @@ const MANIFEST = [
     // 功能入口图标族（主城侧栏 + 英雄养成 + 商城 + HUD + 设置/登录）
     'ui/ico/ico_add', 'ui/ico/ico_signin', 'ui/ico/ico_codex', 'ui/ico/ico_trial', 'ui/ico/ico_endless',
     'ui/ico/ico_core', 'ui/ico/ico_weapon', 'ui/ico/ico_skill', 'ui/ico/ico_starup', 'ui/ico/ico_talent',
-    'ui/ico/ico_recruit', 'ui/ico/ico_forge', 'ui/ico/ico_ad', 'ui/ico/ico_more',
+    'ui/ico/ico_recruit', 'ui/ico/ico_forge', 'ui/ico/ico_ad',
     'ui/ico/ico_pause', 'ui/ico/ico_stats', 'ui/ico/ico_undo', 'ui/ico/ico_loot', 'ui/ico/ico_del',
     'ui/ico/ico_inbox', 'ui/ico/ico_empty', 'ui/ico/ico_sound', 'ui/ico/ico_mute', 'ui/ico/ico_info',
-    'ui/ico/ico_warn', 'ui/ico/ico_slider', 'ui/ico/ico_check', 'ui/ico/ico_friend', 'ui/ico/ico_calendar',
-    'ui/ico/ico_shop', 'ui/ico/ico_search',
+    'ui/ico/ico_warn', 'ui/ico/ico_slider', 'ui/ico/ico_friend', 'ui/ico/ico_search',
     // 状态与属性图标族
     'icons/status_shield', 'icons/status_sword', 'icons/status_heart', 'icons/status_skull',
     'icons/status_fire', 'icons/status_ice', 'icons/status_bolt', 'icons/status_poison',
@@ -117,19 +116,22 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'ui/ico/tab_hero': '页签·英雄（商城货架头）', 'ui/ico/tab_equip': '页签·装备（商城/背包共用）',
     'ui/ico/tab_gem': '页签·宝石（商城/背包共用）', 'ui/ico/tab_mat': '页签·材料',
     'ui/ico/tab_core': '页签·核心（背包）', 'ui/ico/tab_potion': '页签·耗材（背包）',
-    // —— 功能入口图标 ——（图标第一批 12 件已出图并接线，预留声明于 2026-09-20 移出：
-    // ico_add / ico_signin / ico_trial / ico_endless / ico_core / ico_weapon / ico_starup /
-    // ico_talent / ico_recruit / ico_forge / ico_del / ico_warn）
+    // —— 功能入口图标 ——（图标两批共 16 件已出图并接线，预留声明已移出本表：
+    // 第一批 ico_add / ico_signin / ico_trial / ico_endless / ico_core / ico_weapon / ico_starup /
+    // ico_talent / ico_recruit / ico_forge / ico_del / ico_warn；第二批 ico_ad / ico_slider /
+    // ico_pause / ico_stats）
+    // 第二批另有 5 个键随批撤掉（图出了，但没有该上图的位置，逐条见 STYLE-SPEC §9）：
+    // ico_more（详情 › 链尾）与 ico_check（勾选/选中态）是随文变色、随文基线的小状态符，
+    // 该留作字符——128px 位图缩到 10~14px 只会更糊；ico_calendar 与 ico_signin 是同一个键、
+    // ico_shop 的底部商店页签已由 nav_mall 上图，都是同位重复。
     // 下面仍缺图：codex/loot/inbox/empty/sound/mute/info 是「宿主已被当代在库件占着，或要先拆
-    // DOM 结构才挂得上图」，search 是「全工程还没有检索位」——逐条理由见 STYLE-SPEC §9。
-    'ui/ico/ico_codex': '侧栏·图鉴', 'ui/ico/ico_skill': '英雄页·技能', 'ui/ico/ico_ad': '广告 ▶ 前缀',
-    'ui/ico/ico_more': '详情 › 链尾',
-    'ui/ico/ico_pause': 'HUD·暂停 ❚❚', 'ui/ico/ico_stats': 'HUD·伤害统计', 'ui/ico/ico_undo': '撤销 ↩',
+    // DOM 结构才挂得上图」，friend/undo/search 是「全工程还没有对应的功能位」——逐条理由见 STYLE-SPEC §9。
+    'ui/ico/ico_codex': '侧栏·图鉴', 'ui/ico/ico_skill': '英雄页·技能',
     'ui/ico/ico_loot': '补给箱 📦', 'ui/ico/ico_inbox': '收件 📭/📧',
     'ui/ico/ico_empty': '空态图标（替 popEmpty 的 📭）', 'ui/ico/ico_sound': '设置·音量',
     'ui/ico/ico_mute': '设置·静音', 'ui/ico/ico_info': '设置·关于 ℹ️',
-    'ui/ico/ico_slider': '设置·音量滑杆', 'ui/ico/ico_check': '登录·协议勾选 ✓',
-    'ui/ico/ico_friend': '好友', 'ui/ico/ico_calendar': '日历', 'ui/ico/ico_shop': '商店帐篷', 'ui/ico/ico_search': '放大镜',
+    'ui/ico/ico_friend': '好友（全工程还没有好友位）', 'ui/ico/ico_undo': '撤销 ↩（现有 ↩ 是返回键）',
+    'ui/ico/ico_search': '放大镜',
     // —— 状态与属性 ——
     'icons/status_shield': '状态·盾/护甲', 'icons/status_sword': '状态·剑/攻击',
     'icons/status_heart': '状态·心/生命', 'icons/status_skull': '状态·骷髅/致死',

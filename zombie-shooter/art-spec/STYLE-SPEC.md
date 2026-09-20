@@ -157,7 +157,12 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
    行主序排序 → 裁边/补安全边距/缩放 → 直接写入 `assets/resources/textures/<key>.png`（换图不换 key）。
    参数：`--expect 15` 校验格数、`--margin 6` 安全边距百分比、`--tol 60` 绿幕容差、
    `--dilate 6` 掩膜膨胀半径、`--root` 指定资源根。
-3. **验收**：切片件与基准图2并排比对，过 §6 清单（素材表版主要看 5/6/8/9 条）。
+3. **验收**：**源表看着好不等于切片件好**——抠绿损伤（去绿染洗出的白斑、绿主体被吃掉一块）只有落盘后才看得见，
+   所以逐格判定要看切片件：`python tools/contact_sheet.py ../gen-output/r10_audit.png <若干 key.png> --cols 3`
+   把整批切片拼成一张棋盘底对照图（棋盘格 = 透明），一次目检。棋盘底上能直接看出
+   ① 主体有没有被抠穿（`ico_check` 的绿对勾在源表上完好、切片后条身全是白斑），
+   ② 描边有没有残留绿边，③ 有没有把邻居的碎件并进来。
+   再过 §6 清单（素材表版主要看 5/6/8/9 条）与基准图2并排比对。
 4. **落地**：构建 → `check-art-manifest` → 浏览器烟测 → 提交。
 5. **审后分流与补出循环**（一类没清零就不进下一类）：整表很少 20/20 全合格，正确处置不是重出整表——
 
@@ -244,7 +249,17 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 进度条（底槽 / 填充 / 端头） | 见下方「进度条与页签的出图口径」 | `ui/progress/bar_track` `ui/progress/bar_fill_green` `ui/progress/bar_fill_yellow` `ui/progress/bar_fill_blue` `ui/progress/bar_fill_red` `ui/progress/bar_cap` `ui/progress/bar_node` | **宿主条高 ≥10px 才可贴**（实测现存 3~14px，见薄板档） | 底槽 `nineSlice(el,'bar')` + 填充 `strip`（100% 100%，宽度由 JS 写 %） | `bar`（✅ 本轮定档 `8 fill` / 2px×--pu） | 1 | ⚠ 档已定、图未出；宿主要先过 10px 高度筛，薄的那几条不接 |
 | 二级页签图标 | `.shopTabs`（商城）/ `.bagTabs`（背包）/ `.chTabs`（章节）的图标位 | `ui/ico/tab_hero` `ui/ico/tab_equip` `ui/ico/tab_gem` `ui/ico/tab_mat` `ui/ico/tab_core` `ui/ico/tab_potion` | 与 `.hot .ic` 同口径（图标 20~34px 方） | `icon`（尺寸归 CSS） | — | 1（选中态 CSS，见 §10） | ✗ 待生图（宿主已定，出图即按 `mkBtn` 的 tex 槽接） |
 | 功能图标·第一批 12 件 | 侧栏 `.side-tools .hot .ic`（签到/试炼/无尽）｜英雄页 `.hero-quick .btn .ic`（核心/武器/升星/天赋）+ `.hero-tools .hot .ic`（招募/工坊，两处：页头与背包行）｜顶栏 `.res .add`（加号）｜确认弹窗 `.popIcBig`（删除/警告） | `ui/ico/ico_signin` `ui/ico/ico_trial` `ui/ico/ico_endless` `ui/ico/ico_core` `ui/ico/ico_weapon` `ui/ico/ico_starup` `ui/ico/ico_talent` `ui/ico/ico_recruit` `ui/ico/ico_forge` `ui/ico/ico_add` `ui/ico/ico_del` `ui/ico/ico_warn` | 侧栏与英雄页 23~26px、顶栏加号 14px、弹窗大图标 62px（各 ×层缩放） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1 | ✅ 图标第一批落盘接线（2026-09-20）。⚠ 英雄页「技能」键按「除技能外不换」保留 emoji，但已一并包进 `.ic` span 以对齐字号 |
+| 功能图标·第二批 4 件 | 商城主推「看广告」键 `.offer-buttons .hot.rcAd .ic`（播放三角）｜设置弹窗音量行 `.popAttr .ai`（滑杆）｜战斗 HUD 左上两键 `.hudBtn.pauseBtn .ic` `.hudBtn.statsBtn .ic` | `ui/ico/ico_ad` `ui/ico/ico_slider` `ui/ico/ico_pause` `ui/ico/ico_stats` | rcAd 23px、`.ai` 34px、HUD 键内 56px（均 ×层缩放） | `icon`（HUD 两键的图挂**内层 `.ic`**：`.hudBtn` 的底是 CSS 渐变板面，图直接压在按钮上会连板面一起换掉） | — | 1 | ✅ 图标第二批落盘接线（2026-09-20）。HUD 两键沿用本文件既有 `_assetBgUrl` 一次性回退口径：贴图未就绪时 glyph 留着 |
 | 功能图标·待接 8 件 | 见「状态」列逐条 | `ui/ico/ico_codex` `ui/ico/ico_loot` `ui/ico/ico_inbox` `ui/ico/ico_empty` `ui/ico/ico_sound` `ui/ico/ico_mute` `ui/ico/ico_info` `ui/ico/ico_search` | 同上口径 | `icon` | — | 1 | ✗ **图未落盘**（切过又删，源表留在 `gen-output/`，接线那轮重切即可）：codex/loot 的宿主正被当代在库件 `ui/shop/shop_scroll` / `ui/shop/chest` / `ui/shop/shop_chest` 占着，换过去要先给那三件定退役；inbox/sound/mute/info 的 emoji 嵌在长文案里、`dropGlyph` 清不掉，要先拆出 `<span class="ic">`；empty 的 14 个调用点全部显式传图，默认 📭 分支无人走（挂上去也是假宿主）；search 全工程还没有检索位，属功能缺口不是美术缺口 |
+| 功能图标·缺功能位 3 件 | 无 | `ui/ico/ico_friend` `ui/ico/ico_undo` `ui/ico/ico_search` | 同上口径 | `icon` | — | 1 | ✗ 键留在采购单、图不落盘：friend 全工程没有好友/社交入口；undo 现有的 `↩`/`←` 是弹层二级页的**返回**键（`HomeUiCore._popBar`），语义不是撤销，给它上图会把「返回上级 / 返回上一页」两档压成同一个符号；search 见上一行 |
+
+> **有些槽位不该出图**（2026-09-20 第二批定，同批撤掉的 4 个键都属这几类）：
+> ① **随文小状态符**留字符——`›`（详情链尾）、`✓`（登录协议勾选、网格选中角标）、`✅`（签到已领格）
+> 这类符号跟着文字色和基线走，还要随布尔值显隐；128px 位图缩到 10~14px 只会更糊，
+> 且贴图一旦挂上就不随 `.on`/`.sel` 状态变化（内联样式压过类规则）。
+> ② **同一个键不重复出图**——日历与 `ico_signin` 是侧栏同一个签到键，商店帐篷与底部页签的
+> `nav_mall` 是同一个入口，出了也是两份图抢一个位置。
+> ③ **先有功能位再出图**——好友、放大镜这类，缺的是界面不是美术。
 
 ### 按钮语义 → 去字底板（`UiPlate.PLATE`，唯一映射）
 

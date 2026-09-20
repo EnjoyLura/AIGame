@@ -2045,7 +2045,9 @@ export abstract class HomeUiCore extends Component {
                     }
                 }));
                 const volRow = this._el('div', 'popAttr');
-                volRow.appendChild(this._el('div', 'ai', '🎚'));
+                const volIc = this._el('div', 'ai', '🎚');
+                volRow.appendChild(volIc);
+                this._tex('ui/ico/ico_slider', UiPlate.icon(volIc));
                 const at = this._el('div', 'at');
                 at.style.display = 'flex';
                 at.style.alignItems = 'center';

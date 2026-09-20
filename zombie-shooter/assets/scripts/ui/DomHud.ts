@@ -978,8 +978,13 @@ export class DomHud extends Component {
         const topLeft = document.createElement('div');
         topLeft.className = 'topLeft';
         top.appendChild(topLeft);
-        topLeft.appendChild(this._button('❚❚', () => this._togglePause(), 'pauseBtn'));
-        topLeft.appendChild(this._button('📊', () => this._toggleStats(), 'statsBtn'));
+        const pauseBtn = this._button('', () => this._togglePause(), 'pauseBtn');
+        this._iconIc(pauseBtn, '❚❚', 'ui/ico/ico_pause');
+        topLeft.appendChild(pauseBtn);
+        const statsBtn = this._button('', () => this._toggleStats(), 'statsBtn');
+        this._iconIc(statsBtn, '📊', 'ui/ico/ico_stats');
+        topLeft.appendChild(statsBtn);
+
         // 经验区：等级徽章在左、经验条 flex:1 撑满按钮与右侧 chip 之间
         const xpWrap = document.createElement('div');
         xpWrap.className = 'xpWrap';
@@ -1351,6 +1356,19 @@ export class DomHud extends Component {
         return btn;
     }
 
+    /** 图标位贴图：glyph 挂内层 `.ic`，贴图到位即摘。HUD 键的底是 CSS 渐变板面，
+     *  图直接压在按钮上会连板面一起换掉，所以图只能挂子元素（尺寸仍归 CSS）。 */
+    private _iconIc(btn: HTMLElement, glyph: string, key: string): void {
+        const ic = document.createElement('span');
+        ic.className = 'ic';
+        ic.textContent = glyph;
+        btn.appendChild(ic);
+        const url = this._assetBgUrl(key);
+        if (url) {
+            UiPlate.icon(ic)(url);
+        }
+    }
+
     private _chipLab(text: string): HTMLSpanElement {
         const el = document.createElement('span');
         el.className = 'chipLab';
@@ -1465,11 +1483,16 @@ export class DomHud extends Component {
 #domHud .buildStamp { position: absolute; left: calc(16px * var(--s,1)); bottom: calc(10px * var(--s,1));
   font-size: calc(22px * var(--s,1)); color: #c3ced5; letter-spacing: .5px;
   padding: 2px 4px; border-radius: 3px; background: rgba(15,22,30,.75); }
-#domHud .hudBtn { border-radius: calc(22px * var(--s,1)); border: calc(2px * var(--s,1)) solid var(--c-cyan-soft);
+#domHud .hudBtn { display: flex; align-items: center; justify-content: center;
+  border-radius: calc(22px * var(--s,1)); border: calc(2px * var(--s,1)) solid var(--c-cyan-soft);
   width: calc(105px * var(--s,1)); height: calc(94px * var(--s,1)); padding: 0;
   background: linear-gradient(180deg, #344652 0%, var(--c-navy-9) 55%, #1b2630 100%);
   color: var(--c-ice-2); font-size: calc(39px * var(--s,1)); line-height: 1;
   box-shadow: 0 calc(4px * var(--s,1)) 0 rgba(0,0,0,.45), inset 0 calc(2px * var(--s,1)) 0 rgba(255,255,255,.28); }
+/* 键内图标位：尺寸只归这里（贴图到位摘 glyph，缺图 glyph 仍按 font-size 占位并居中） */
+#domHud .hudBtn .ic { display: flex; align-items: center; justify-content: center;
+  width: calc(56px * var(--s,1)); height: calc(56px * var(--s,1));
+  font-size: calc(39px * var(--s,1)); line-height: 1; }
 #domHud .vehicleBar { position: absolute; left: 50%;
   transform: translateX(-50%); width: calc(480px * var(--s,1)); height: calc(40px * var(--s,1));
   display: flex; align-items: center; gap: calc(12px * var(--s,1)); padding: 0 calc(20px * var(--s,1));
