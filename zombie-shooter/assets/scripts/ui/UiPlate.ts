@@ -75,13 +75,17 @@ export interface NineSpec {
  *    12px 的条配 4px 板边只剩 4px 内腔，等于把一根细线糊成一坨；切片值不变，显示宽度按
  *    12÷52（源件条高）≈0.23 折算成 2px / 4px。
  */
-export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin', NineSpec> = {
+export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     plate: { slice: '16 fill', width: 'calc(10px * var(--pu,1))' },
     platePw: { slice: '16 fill', width: 'calc(10px * var(--pw,2.5))' },
     frame: { slice: '16%', width: 'calc(5px * var(--pu,1))' },
     bar: { slice: '10 17 10 17 fill', width: 'calc(4px * var(--pu,1)) calc(7px * var(--pu,1))' },
     barThin: { slice: '10 17 10 17 fill', width: 'calc(2px * var(--pu,1)) calc(4px * var(--pu,1))' },
+    // 列表行卡 / 模块小框（r16 表两件）：源件 640×384 与 512×512 的钢框都是 ~20px 厚，
+    // 切片取 24 宁可多切一点进到平整牌面里，也不能少切——少切会把框边像素划进中段拉 smear。
+    // 显示宽度 12px 是按卡片最小高 115px×--pu 折算的（同 D21：切片不变、显示宽度跟着宿主尺寸走）。
+    card: { slice: '24 fill', width: 'calc(12px * var(--pu,1))' },
 };
 
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */

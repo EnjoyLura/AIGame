@@ -568,6 +568,8 @@ export class DomHud extends Component {
         for (const m of mails) {
             const row = document.createElement('div');
             row.className = 'mailRow panel' + (m.read ? '' : ' unread') + (m.kind === 'reward' && !m.claimed ? ' claimable' : '');
+            // 行卡底板与商城货卡同件（HUD 那层的 --pu 就是 --s，见 #domHud 令牌声明）
+            this._tex('ui/panel/row_card', UiPlate.nineSlice(row, 'card'));
             const ic = document.createElement('div');
             ic.className = 'mailIc';
             // 六轮素材：奖励行用礼盒、系统行用军喇叭（AssetLib 已登记；未就绪回退 emoji）

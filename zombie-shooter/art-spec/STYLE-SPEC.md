@@ -227,6 +227,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 通用件 | CSS 宿主 | 槽位 key | 1x 显示 | 适配 | 切片档（UiPlate.NINE） | 态数 | 状态 |
 |---|---|---|---|---|---|---|---|
 | 弹层底板 M/L | `.pop`（非 S） | `ui/panel/panel_main` | 面板框 16px | border-image | `panel` = slice `12% fill` / width 16px×--pu | 1 | ✅ 已接 |
+| 列表行卡底板 | 商城货卡 `.good.panel`（`HomeUiMall.ts:304` 普通货卡 + `:496` 广告卡两处）｜战斗 HUD 邮件行 `.mailRow.panel`（`DomHud.ts:570`） | `ui/panel/row_card` | 卡片最小高 115px×--pu；HUD 那层 `--pu` 就是 `--s` | `nineSlice(el,'card')` | `card` = slice `24 fill` / width 12px×--pu | 1 | ✅ r16 表出图（两件焊死在一起，`--dilate 2` 才切得开）。**稀有度色标在内层 `.gIc` 的边框上、不在卡片本身**，所以贴板只吃掉卡片自己的中性边，不抢品质色。同批的 `panel_mini` **没落盘**：宿主 `.mbox` 带 `frame` 类、有 ::before/::after 装饰伪元素，板贴上去跟它们打架，先留采购单等口径定下来。`skillCard.panel` 也带 `frame`，同样跳过 |
 | 弹层底板 S | `.pop.S` | `ui/panel/panel_sub` | 同上 | border-image | `panel` | 1 | ✅ 已接 |
 | 大按钮（CTA/登录 START） | `.popBtn` / `.lgStart` | 见下方按钮语义行 | 板框 10px | border-image | `plate` = slice `16 fill` / 10px×--pu（登录 `platePw` 按 --pw） | 1（态由 CSS 派生，见 §10） | ✅ 已接 |
 | 细标题条 | `.popTop` | `ui/banner/bar_title` | 高 41px×--pu | `strip`（100% 100% 拉伸） | — | 1 | ✅ 已接 |

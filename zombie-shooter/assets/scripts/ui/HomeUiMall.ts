@@ -302,6 +302,8 @@ export abstract class HomeUiMall extends HomeUiCore {
         const mkGood = (opt: { ic: string; name: string; tag: string; price: string; r: number; hot?: boolean; disabled?: boolean; icTex?: string; onTap: () => void; onBlocked?: () => void }) => {
             const card = document.createElement('div');
             card.className = `good panel r${opt.r}`;
+            // 行卡底板：稀有度色标在内层 .gIc 的边框上，贴板只换卡片自身的边与底，两者不打架
+            this._tex('ui/panel/row_card', UiPlate.nineSlice(card, 'card'));
             if (opt.hot) {
                 const hot = document.createElement('span');
                 hot.className = 'gHot';
@@ -492,6 +494,7 @@ export abstract class HomeUiMall extends HomeUiCore {
             // 广告补给卡
             const adCard = document.createElement('div');
             adCard.className = 'good panel adCard';
+            this._tex('ui/panel/row_card', UiPlate.nineSlice(adCard, 'card'));
             const adIc = document.createElement('div');
             adIc.className = 'gIc';
             adIc.textContent = '📺';

@@ -162,7 +162,12 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // 名次奖牌三件（medal1/2/3）2026-09-20 已出图并接 HUD 伤害统计 `.statRank`，声明移出本表；
     // 排行榜弹窗那处按「随文小符号不出图」判死，理由见 STYLE-SPEC §9 名次奖牌行。
     'ui/badge/power_badge': '战力徽章底',
-    'ui/panel/row_card': '列表行卡底板（任务/邮件/货架条目）', 'ui/panel/panel_mini': '模块小框底板（.mbox）',
+    // row_card（列表行卡底板）2026-09-21 已出图并接商城货卡 `.good.panel`（两处）与 HUD 邮件行
+    // `.mailRow.panel`，声明移出本表。
+    // panel_mini 留单：图出了也合格，但 `.mbox` 这两个容器（HomeUiCore.ts:394/435）带 `frame` 类，
+    // 而 `.frame` 有 ::before/::after 装饰伪元素与自己的边框，九宫格板贴上去会跟它们打架。
+    // 要么先给 `.mbox.frame` 定一个「板 + 装饰」的先后口径，要么等一个不带 frame 的小框宿主。
+    'ui/panel/panel_mini': '模块小框底板（.mbox 带 frame 类与装饰伪元素，口径未定，暂不贴）',
     // —— 护送关卡卡载具 ——
     'icons/vehicle_truck': '关卡载具·卡车', 'icons/vehicle_ship': '关卡载具·运输船',
     'icons/vehicle_hauler': '关卡载具·重卡',
