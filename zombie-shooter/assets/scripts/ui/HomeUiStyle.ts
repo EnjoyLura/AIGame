@@ -1224,6 +1224,15 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .screen.sHeroes .bag-head .hot { flex-direction: row; gap: calc(3px * var(--hs,1)); min-height: calc(28px * var(--hs,1));
   min-width: calc(44px * var(--hs,1)); font-size: calc(10px * var(--hs,1)); }
 #homeUi .screen.sHeroes .bag-head .hot .ic { width: calc(18px * var(--hs,1)); height: calc(18px * var(--hs,1)); font-size: calc(18px * var(--hs,1)); }
+/* 背包检索框（.uiSearch）：图标位尺寸归 CSS，贴图挂上去只换 backgroundImage 不改盒子 */
+#homeUi .uiSearch { box-sizing: border-box; display: flex; align-items: center; gap: calc(3px * var(--hs,1));
+  height: calc(24px * var(--hs,1)); padding: 0 calc(7px * var(--hs,1)); max-width: calc(120px * var(--hs,1));
+  border-radius: calc(12px * var(--hs,1)); background: var(--c-navy-3);
+  border: 1px solid var(--c-line); }
+#homeUi .uiSearch i { flex: none; display: block; width: calc(14px * var(--hs,1)); height: calc(14px * var(--hs,1));
+  font-size: calc(14px * var(--hs,1)); line-height: 1; }
+#homeUi .uiSearch input { width: calc(72px * var(--hs,1)); min-width: 0; border: 0; outline: 0; background: none;
+  font-family: inherit; font-size: calc(10px * var(--hs,1)); color: var(--c-text-hi); }
 #homeUi .screen.sHeroes .bag-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
   overscroll-behavior: contain; padding: calc(3px * var(--hs,1)) calc(6px * var(--hs,1)) calc(7px * var(--hs,1)); touch-action: pan-y; }
 #homeUi .screen.sHeroes .bag-grid { display: grid; grid-template-columns: repeat(6, minmax(0,1fr));
@@ -2813,6 +2822,13 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   min-width: calc(44px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); color: var(--c-deep-teal); }
 #homeUi .screen.sHeroes .bag-head .hot .ic { width: calc(18px * var(--pw,2.5)); height: calc(18px * var(--pw,2.5));
   font-size: calc(16px * var(--pw,2.5)); line-height: calc(18px * var(--pw,2.5)); }
+/* 青瓷层的检索框：深色底与亮边框是 base 层的观感，手机上要换成浅底细线（同 select 的处理） */
+#homeUi .uiSearch { height: calc(28px * var(--pw,2.5)); padding: 0 calc(7px * var(--pw,2.5));
+  max-width: calc(120px * var(--pw,2.5)); background: #fff; border-color: #b9c9d4; }
+#homeUi .uiSearch i { width: calc(14px * var(--pw,2.5)); height: calc(14px * var(--pw,2.5));
+  font-size: calc(14px * var(--pw,2.5)); }
+#homeUi .uiSearch input { width: calc(72px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5));
+  color: var(--c-deep-teal); }
 #homeUi .screen.sHeroes .bag-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
   overscroll-behavior: contain; scrollbar-width: thin; padding: calc(3px * var(--pw,2.5)) calc(6px * var(--pw,2.5)) calc(7px * var(--pw,2.5));
   touch-action: pan-y; }

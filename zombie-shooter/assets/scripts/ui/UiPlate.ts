@@ -245,6 +245,24 @@ export const RES_ICON: Record<string, string> = {
 };
 
 /**
+ * 状态与属性图标族：词缀 id → 贴图 key。精英词缀（`battle/MonsterAffix`）与装备词缀
+ * （`core/EquipmentAffix`）共用这一张表，两边 id 不撞（前者裸名、后者带 `af_` 前缀）。
+ *
+ * 只列**已出图且有对得上语义**的 id：`status_ice` / `status_poison` 两件图出了也合格，
+ * 但全工程没有冰冻/中毒机制（无 DoT 系统），硬找位置挂就是假宿主——切片件归档在
+ * `art-spec/reference/stock/ico/`，键留在 `RESERVED_SLOTS`（同 `tab_core` 口径）。
+ * 表里查不到的词缀（压制/分裂以外的几档）继续走 emoji，`_popAttr` 与 HUD 徽标都按缺图回退。
+ */
+export const STATUS_TEX: Record<string, string> = {
+    // 精英词缀：迅捷=闪电、坚甲=胸甲、治疗=心、分裂=骷髅、狂暴=火焰
+    swift: 'icons/status_bolt', armor: 'icons/status_shield', heal: 'icons/status_heart',
+    split: 'icons/status_skull', frenzy: 'icons/status_fire',
+    // 装备词缀：狂暴=火、精准=分划板、迅捷=闪电、鹰眼=望远镜、穿甲=弹头、铁壁=胸甲
+    af_rage: 'icons/status_fire', af_precise: 'icons/status_lock', af_swift: 'icons/status_bolt',
+    af_eagle: 'icons/status_search', af_pierce: 'icons/status_sword', af_bulwark: 'icons/status_shield',
+};
+
+/**
  * 主城按钮 CSS 变体 → 去字底板（与 `.btn.gold/.blue/.adBtn/.dark` 同名，出图即按板走）。
  * 主城键的墨色仍由 CSS 决定（板子只给底），所以此处不配 color；缺图保留 CSS 渐变。
  */

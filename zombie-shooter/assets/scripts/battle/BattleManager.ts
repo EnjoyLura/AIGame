@@ -157,6 +157,9 @@ export class BattleManager extends Component {
     get difficulty(): StageDifficulty { return this._difficulty; }
     get difficultyDef(): StageDiffDef { return stageDiffDef(this._difficulty); }
 
+    /** HUD 精英词缀徽标用：场上存活怪（只读，DOM 层不许多处改） */
+    get liveEnemies(): readonly Enemy[] { return this._enemies; }
+
     /** 结算口径：无尽模式失败时用 GAME_OVER 面板展示无尽波数 */
     get isEndless(): boolean { return this._endless; }
 

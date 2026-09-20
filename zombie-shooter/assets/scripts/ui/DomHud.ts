@@ -13,6 +13,7 @@ import { HERO_DEFS } from '../battle/HeroDef';
 import { UI_TOKENS_CSS } from './UiTheme';
 import * as UiPlate from './UiPlate';
 import { MailSystem, MailState, mailTimeText, mailExpiringSoon } from '../core/MailSystem';
+import { monsterAffix } from '../battle/MonsterAffix';
 import { DungeonReward, dungeonDef, DUNGEON_TIER_NAMES } from '../core/DungeonSystem';
 
 /** 名次奖牌三档：key 与「环心数字」的墨色成对登记。墨色走 UiTheme 令牌（不落 hex），
@@ -50,6 +51,10 @@ export class DomHud extends Component {
 
     private _root: HTMLDivElement | null = null;
     private _waveEl: HTMLDivElement | null = null;
+    /** 波次 chip 底下的本波精英词缀徽标行（一行一枚，随场上存活怪增减） */
+    private _affixRow: HTMLDivElement | null = null;
+    private _affixShown = new Map<string, HTMLDivElement>();
+    private _affixTick = 0;
     private _killEl: HTMLDivElement | null = null;
     private _levelEl: HTMLDivElement | null = null;
     private _xpFill: HTMLDivElement | null = null;
@@ -151,6 +156,12 @@ export class DomHud extends Component {
         if (bm) {
             // 战斗暂停（含升级选卡）→ 冻结 DOM 伤害数字动画
             this._root.classList.toggle('paused', bm.isPaused);
+            // 词缀徽标 0.4s 刷一次：场上怪进出是逐帧变化的，每帧重排 DOM 没必要
+            this._affixTick -= dt;
+            if (this._affixTick <= 0) {
+                this._affixTick = 0.4;
+                this._refreshAffixes(bm);
+            }
             // 统计浮窗打开期间每 0.5s 实时刷新
             if (this._statsOverlay && this._statsOverlay.style.display === 'flex') {
                 this._statsRefresh -= dt;
@@ -160,6 +171,44 @@ export class DomHud extends Component {
                 }
             }
         }
+    }
+
+    /** 本波精英词缀徽标：把场上存活怪身上的词缀各摆一枚进波次 chip 底下。
+     *  贴图走 `_tex` 挂起队列（D20：HUD 建 DOM 时预载常常还没回来，一次性取 URL 会永久留 glyph）；
+     *  缺图就留 emoji 占位，emoji 同时是「这一档是什么」的文字说明，摘除时机由 `UiPlate.icon` 负责。 */
+    private _refreshAffixes(bm: BattleManager): void {
+        const row = this._affixRow;
+        if (!row) {
+            return;
+        }
+        const live = new Set<string>();
+        for (const e of bm.liveEnemies) {
+            if (e.affixId) {
+                live.add(e.affixId);
+            }
+        }
+        for (const [id, el] of this._affixShown) {
+            if (!live.has(id)) {
+                el.remove();
+                this._affixShown.delete(id);
+            }
+        }
+        for (const id of live) {
+            if (this._affixShown.has(id)) {
+                continue;
+            }
+            const chip = document.createElement('div');
+            chip.className = 'afIc';
+            chip.title = monsterAffix(id)?.name ?? id;
+            chip.textContent = monsterAffix(id)?.ic ?? '';
+            const tex = UiPlate.STATUS_TEX[id];
+            if (tex) {
+                this._tex(tex, UiPlate.icon(chip));
+            }
+            row.appendChild(chip);
+            this._affixShown.set(id, chip);
+        }
+        row.style.display = this._affixShown.size ? 'flex' : 'none';
     }
 
     // ================= 事件响应 =================
@@ -1022,6 +1071,12 @@ export class DomHud extends Component {
         waveChip.className = 'chip waveChip';
         waveChip.appendChild(this._chipLab('波次'));
         this._waveEl = this._chipVal(waveChip, '3 / 10');
+        // 本波精英词缀徽标：精英头顶那枚画布徽只说「这一只」带什么词缀，玩家看不到整波有哪些词缀。
+        // 波次 chip 底下补一行，场上存活怪出现过的词缀各一枚，怪死光就整行收起。
+        this._affixRow = document.createElement('div');
+        this._affixRow.className = 'afRow';
+        this._affixRow.style.display = 'none';
+        waveChip.appendChild(this._affixRow);
         topRight.appendChild(waveChip);
         const killChip = document.createElement('div');
         killChip.className = 'chip killChip';
@@ -1544,6 +1599,12 @@ export class DomHud extends Component {
 #domHud .chipLab { font-size: calc(24px * var(--s,1)); color: var(--c-dim-1); letter-spacing: 1px; }
 #domHud .chipVal { font-size: calc(30px * var(--s,1)); color: var(--c-ice-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #domHud .waveChip { border-color: rgba(255,204,85,.4); }
+/* 本波精英词缀徽标行（波次 chip 底下第三行）：尺寸只归 CSS——UiPlate.icon 从不写 inline 宽高。
+   缺图时里面是 emoji（同画布头顶徽那批字），图到位由 icon() 摘掉 */
+#domHud .afRow { display: flex; gap: calc(5px * var(--s,1)); margin-top: calc(4px * var(--s,1)); }
+#domHud .afIc { box-sizing: border-box; width: calc(26px * var(--s,1)); height: calc(26px * var(--s,1));
+  display: flex; align-items: center; justify-content: center;
+  font-size: calc(20px * var(--s,1)); line-height: 1; }
 #domHud .waveChip .chipVal { color: var(--c-gold-bright); font-weight: 800; }
 /* 经验区并入顶栏中段：等级徽章在左、经验条 flex:1 撑满按钮与 chip 之间 */
 #domHud .topbar .xpWrap { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: calc(14px * var(--s,1)); }

@@ -925,6 +925,33 @@ export abstract class HomeUiPlay extends HomeUiStage {
         this.hide();
     }
 
+    /** 好友（社交系统还没做，但入口这一轮先落地）：图标与位置都是真的，点开有说明、有出路，
+     *  不是静默吞点击的死键。功能上线时把 build 里的两行换成好友列表即可，键位不用动。 */
+    protected _openFriendsModal(): void {
+        this._openPop({
+            tier: 3,
+            size: 'M',
+            banner: '好友',
+            art: '开发中',
+            show: { icon: '👥', name: '好友', sub: '社交系统 · 尚未开放' },
+            build: c => {
+                c.appendChild(this._popAttr({
+                    icon: '👥',
+                    iconTex: 'ui/ico/ico_friend',
+                    text: '**好友系统开发中** 上线后可加好友、看好友编队、互赠体力'
+                }));
+                c.appendChild(this._popAttr({
+                    icon: '🏆',
+                    iconTex: 'ui/ico/ico_trophy',
+                    text: '现在就能比的是**排行榜**：出战结算自动上榜'
+                }));
+            },
+            // 文案不带空格：金字板（btn_play）按 7 个字符宽就撑不下了，「去 看 排 行 榜」实测压出板外
+            ctas: [{ label: '去看排行榜', kind: 'gold', onClick: () => this._openLeaderboardModal() }],
+            note: '好友开放后会在此入口挂红点提示，不必反复点开'
+        });
+    }
+
     /** 怪物图鉴（UX 布局稿：L3·L 列表型）：完成度头部 + 怪物条目（未解锁剪影/未遭遇）+ 点条目进详情 */
     protected _openBestiaryModal(): void {
         const bs = BestiarySystem.instance;
@@ -1381,7 +1408,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         page.appendChild(exp);
         this._expTextEl = exp.querySelector('.expedition-text small') as HTMLElement;
 
-        // 页脚三快捷：怪物图鉴 / 排行榜 / 载具改装
+        // 页脚四快捷：怪物图鉴 / 排行榜 / 好友 / 载具改装
         const footer = document.createElement('div');
         footer.className = 'action-footer';
         const mkFoot = (ic: string, label: string, onTap: () => void, key?: string, tex?: string): HTMLButtonElement => {
@@ -1407,6 +1434,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary', 'ui/shop/shop_scroll');
         mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard', 'ui/ico/ico_trophy');
         mkFoot('🔧', '载具改装', () => this._openTuningModal());
+        mkFoot('👥', '好友', () => this._openFriendsModal(), undefined, 'ui/ico/ico_friend');
         page.appendChild(footer);
 
         root.appendChild(page);

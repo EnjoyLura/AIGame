@@ -67,16 +67,18 @@ const MANIFEST = [
     // 二级页签族（商城货架 4 签 / 背包分类 4 签共用；tab_core 至今没有宿主，理由见 RESERVED_SLOTS 注）
     'ui/ico/tab_hero', 'ui/ico/tab_equip', 'ui/ico/tab_gem', 'ui/ico/tab_mat', 'ui/ico/tab_core', 'ui/ico/tab_potion',
     // 功能入口图标族（主城侧栏 + 英雄养成 + 商城 + HUD + 设置/登录）
+    // ico_skill 已撤键：技能这一族按用户明令「除技能外不换」保留 emoji，键留着就是永远填不满的洞
     'ui/ico/ico_add', 'ui/ico/ico_signin', 'ui/ico/ico_trial', 'ui/ico/ico_endless',
-    'ui/ico/ico_core', 'ui/ico/ico_weapon', 'ui/ico/ico_skill', 'ui/ico/ico_starup', 'ui/ico/ico_talent',
+    'ui/ico/ico_core', 'ui/ico/ico_weapon', 'ui/ico/ico_starup', 'ui/ico/ico_talent',
     'ui/ico/ico_recruit', 'ui/ico/ico_forge', 'ui/ico/ico_ad',
     'ui/ico/ico_pause', 'ui/ico/ico_stats', 'ui/ico/ico_undo', 'ui/ico/ico_del',
     'ui/ico/ico_empty', 'ui/ico/ico_sound', 'ui/ico/ico_mute', 'ui/ico/ico_info',
     'ui/ico/ico_warn', 'ui/ico/ico_slider', 'ui/ico/ico_friend', 'ui/ico/ico_search',
-    // 状态与属性图标族
+    // 状态与属性图标族（精英词缀 + 装备词缀共用，见 UiPlate.STATUS_TEX）
+    // status_ice / status_poison 留单：图合格但全工程没有冰冻/中毒机制（无 DoT 系统），切片件在 stock/ico/
     'icons/status_shield', 'icons/status_sword', 'icons/status_heart', 'icons/status_skull',
-    'icons/status_fire', 'icons/status_ice', 'icons/status_bolt', 'icons/status_poison',
-    'icons/status_lock', 'icons/status_search',
+    'icons/status_fire', 'icons/status_bolt', 'icons/status_lock', 'icons/status_search',
+    'icons/status_ice', 'icons/status_poison',
     // 材料与宝石图标族（商城货柜 / 背包装备）
     'icons/mat_stone', 'icons/mat_alloy', 'icons/mat_core',
     'icons/gem_fire', 'icons/gem_wind', 'icons/gem_ice', 'icons/gem_thunder',
@@ -97,7 +99,7 @@ const MANIFEST = [
  * 图落地后必须把该 key 从本表删除（`tools/check-art-manifest.mjs` 会盯过时声明）。
  * 预载阶段跳过本表 key，避免为不存在的图白发请求。
  *
- * ⚠ 2026-09-21 全量核实：**本表剩下的 43 个键里有 31 个下面写的「宿主」其实不存在**
+ * ⚠ 2026-09-21 全量核实 + 同日两轮进版后：**本表剩下的 41 个键里，多数写的「宿主」其实不存在**
  * （只有一条 CSS 规则、没有任何一行代码建这个元素，与 `.chTabs`/`.lbRank` 同一失效模式）。
  * 逐条判决（谁能出图、谁要先改 DOM、谁该撤键）见 `art-spec/STYLE-SPEC.md` §9
  * 「采购单宿主全量核实」。**出图前先查那张表，别照本行的描述施工。**
@@ -135,17 +137,17 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // ——128px 位图缩到 10~14px 只会更糊；ico_calendar 与 ico_signin 是同一个键、ico_shop 的底部商店
     // 页签已由 nav_mall 上图、ico_inbox 的邮箱入口已由 ico_mail 上图，都是同位重复；ico_codex（图鉴）
     // 与 ico_loot（补给箱）经拍板保留当代在库件 shop_scroll / chest / shop_chest，不换。
-    // 下面仍缺图：empty 是「14 个调用点全部显式传图，默认 📭 分支挂上去也是假宿主」，
-    // friend/undo/search 是「全工程还没有对应的功能位」——逐条理由见 STYLE-SPEC §9。
-    'ui/ico/ico_skill': '英雄页·技能', 'ui/ico/ico_empty': '空态图标（替 popEmpty 的 📭）',
-    'ui/ico/ico_friend': '好友（全工程还没有好友位）', 'ui/ico/ico_undo': '撤销 ↩（现有 ↩ 是返回键）',
-    'ui/ico/ico_search': '放大镜',
-    // —— 状态与属性 ——
-    'icons/status_shield': '状态·盾/护甲', 'icons/status_sword': '状态·剑/攻击',
-    'icons/status_heart': '状态·心/生命', 'icons/status_skull': '状态·骷髅/致死',
-    'icons/status_fire': '状态·灼烧', 'icons/status_ice': '状态·冰冻',
-    'icons/status_bolt': '状态·感电', 'icons/status_poison': '状态·中毒',
-    'icons/status_lock': '状态·锁定', 'icons/status_search': '状态·侦查',
+    // 2026-09-21 图标类整批进版：ico_empty / ico_friend / ico_search 三件出图并接线，声明移出本表——
+    // empty 改成 `_popEmpty` 的默认件（原来 15 个调用点全部显式传图，默认分支没人走），
+    // friend 是这一轮新建的行动页页脚入口（功能未开放但弹窗有说明有出路），
+    // search 是这一轮新建的背包检索框。只有 ico_undo 仍留单：全工程没有可撤销的动作，
+    // 造一个「撤销」键点下去无事发生就是死键，方案与判据见 STYLE-SPEC §9。
+    'ui/ico/ico_undo': '撤销 ↩（现有 ↩ 是返回键；全工程暂无可撤销操作）',
+    // —— 状态与属性 ——（精英词缀 + 装备词缀共用 UiPlate.STATUS_TEX 一张表，八件 2026-09-21 已出图接线）
+    // 这两件图合格但没有对应的游戏机制：战斗里没有冰冻/中毒这类持续伤害，挂上去就是假宿主。
+    // 切片件在 art-spec/reference/stock/ico/，等异常状态机制上线拷回 textures/icons/ 并删掉本两行。
+    'icons/status_ice': '状态·冰冻（无冰冻机制，图在 stock/ico/）',
+    'icons/status_poison': '状态·中毒（无中毒机制，图在 stock/ico/）',
     // —— 材料与宝石 ——（mat_stone/alloy/core + gem_fire/wind/ice/thunder 七件 2026-09-21 已出图并
     // 接背包格 .bcell 与商城货卡 .gIc，声明移出本表；同批 r19 表多画的第 8 格（琥珀雷宝石）是模型
     // 自己填的，不在采购单上，丢弃。注意这七件必须用 `--tol 95` 切：绿宝石的亮绿漩涡撞上默认 tol=60

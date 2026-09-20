@@ -21,6 +21,11 @@ export const MALL_AD_STAMINA = 10;
 
 export const STAMINA_BUY_N = 20;
 
+/** `_popEmpty` 的默认空态件：贴图 key + 缺图时的占位字形。整串字面量写在这里是
+ *  `check-art-manifest` 的要求（拼接出来的 key 它不认，会把已落盘的图判成「在库无归宿」）。 */
+const EMPTY_SLOT = 'ui/ico/ico_empty';
+const EMPTY_GLYPH = '\ud83d\udced';
+
 export const STAMINA_BUY_COST = 20;
 
 /** 六槽部位图标（原型图 emoji 风格） */
@@ -243,17 +248,19 @@ export abstract class HomeUiCore extends Component {
     }
 
 
-    /** 主城按钮族一次性铺板：按 `UiPlate.CITY_BUTTON_PLATE` 的选择器优先级整族扫，切页尾部调一次。
+    /** 主城按钮族一次性铺板：按 `UiPlate.CITY_BUTTON_PLATE` 的选择器优先级整族扫。
      *  原来只有「解锁大键」一处手工铺板，`.game-button`（开始护送 / 十连 / 立即查看这些最大的 CTA）、
      *  侧栏 `.hot` 入口、编队行 `.hpick`、商城 `.gBuy` 全是 CSS 渐变——按钮类不成套就是这么来的。
-     *  表里 `key: null` 的那几档（46×22 难度小键）是**故意不贴**：宿主比板厚四倍还小，贴上去整块糊掉。 */
+     *  表里 `key: null` 的那几档（46×22 难度小键）是**故意不贴**：宿主比板厚四倍还小，贴上去整块糊掉。
+     *  只扫 `.viewport` 里的五个页面：弹层的 CTA 由 `_openPop` 按 kind 路由，两套规则不要互相覆盖。
+     *  调用时机不靠这里——见 `HomeUiMall._watchCityPlates`（页面每次重建都要重扫一遍，否则板子跟着 DOM 一起没了）。 */
     protected _plateCityButtons(): void {
-        const root = this._root;
-        if (!root) {
+        const host = this._root?.querySelector<HTMLElement>('.viewport');
+        if (!host) {
             return;
         }
         const sel = UiPlate.CITY_BUTTON_PLATE.map(r => r.sel).join(', ');
-        for (const el of Array.from(root.querySelectorAll<HTMLElement>(sel))) {
+        for (const el of Array.from(host.querySelectorAll<HTMLElement>(sel))) {
             const hit = UiPlate.CITY_BUTTON_PLATE.find(r => el.matches(r.sel));
             if (hit?.key) {
                 this._tex(hit.key, UiPlate.nineSlice(el, hit.spec));
@@ -1024,10 +1031,11 @@ export abstract class HomeUiCore extends Component {
     }
 
     /** 组件：空态（无数据/筛选无结果） */
-    protected _popEmpty(text: string, hint?: string, icon = '📭'): HTMLElement {
+    protected _popEmpty(text: string, hint?: string, icon = EMPTY_SLOT): HTMLElement {
         const box = this._el('div', 'popEmpty');
         const asKey = icon.startsWith('ui/');
-        const ei = this._el('div', 'ei', asKey ? '' : icon);
+        // 传贴图 key 时也先摆占位字形：预载没回来那一刻不能留一个空槽，图到位由 icon() 摘掉
+        const ei = this._el('div', 'ei', asKey ? EMPTY_GLYPH : icon);
         // icon 传贴图 key（'ui/…' 前缀）时回填素材图，否则按 emoji 占位
         if (asKey) {
             this._tex(icon, UiPlate.icon(ei));

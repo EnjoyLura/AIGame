@@ -75,6 +75,9 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     /** 背包部位筛选（'all' 全部）：与页签同级的就地筛选，不重开弹窗 */
     protected _heroBagFilter: 'all' | EquipSlot = 'all';
 
+    /** 背包按名字检索（四个页签共用，切页签不清） */
+    protected _heroBagSearch = '';
+
     /** 护送编队抽屉（实现在 HomeUiStage；英雄页工具行复用同一入口） */
     protected abstract _openSquadModal(): void;
 
@@ -746,6 +749,14 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         head.appendChild(headTitle);
         const headRight = document.createElement('div');
         headRight.className = 'bag-head-right';
+        headRight.appendChild(this._searchBox('搜名字', this._heroBagSearch, v => {
+            this._heroBagSearch = v;
+            this._refreshHeroes();
+            // 整页重建会把焦点丢掉：不把手放回复位，用户每敲一个字都得重新点一次输入框
+            const el = this._root?.querySelector<HTMLInputElement>('.uiSearch input');
+            el?.focus();
+            el?.setSelectionRange(el.value.length, el.value.length);
+        }));
         if (this._heroBagTab === 'equip') {
             // 部位筛选：就地重绘网格，不重开页面
             const filter = document.createElement('select');
@@ -786,15 +797,18 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         const grid = document.createElement('div');
         grid.className = 'bagGrid bag-grid';
         if (this._heroBagTab === 'equip') {
+            const q = this._heroBagSearch;
             const items = gm.bag
                 .map((it, i) => ({ it, i }))
-                .filter(x => this._heroBagFilter === 'all' || x.it.slot === this._heroBagFilter);
+                .filter(x => (this._heroBagFilter === 'all' || x.it.slot === this._heroBagFilter)
+                    && (!q || bagItemName(x.it).includes(q)));
             if (items.length === 0) {
                 const tip = document.createElement('p');
                 tip.className = 'mSub';
-                tip.textContent = this._heroBagFilter === 'all'
-                    ? '装备背包空空如也 · 去商店购买装备部件'
-                    : `没有${EQUIP_SLOT_NAMES[this._heroBagFilter as EquipSlot]} · 换个部位看看`;
+                tip.textContent = q ? `没有名字含「${q}」的装备 · 换个关键词`
+                    : this._heroBagFilter === 'all'
+                        ? '装备背包空空如也 · 去商店购买装备部件'
+                        : `没有${EQUIP_SLOT_NAMES[this._heroBagFilter as EquipSlot]} · 换个部位看看`;
                 grid.appendChild(tip);
             }
             for (const { it, i } of items) {
@@ -814,9 +828,10 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 grid.appendChild(cell);
             }
         } else {
+            const q = this._heroBagSearch;
             for (const md of MISC_ITEM_DEFS) {
                 const n = hs.miscCount(md.id);
-                if (n <= 0) {
+                if (n <= 0 || (q && !md.name.includes(q))) {
                     continue;
                 }
                 const cell = document.createElement('div');
@@ -1490,6 +1505,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                     for (const id of it.affixes) {
                         c.appendChild(this._popAttr({
                             icon: '✦',
+                            iconTex: UiPlate.STATUS_TEX[id],
                             text: `**${affixName(id)}** ${affixValueText(id, it.tier)}`
                         }));
                     }
@@ -2005,7 +2021,9 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                             }
                         }));
                         if (!items.length) {
-                            c.appendChild(this._popEmpty('背包中该部位没有其他件', '去商店购买或关卡掉落', '🎒'));
+                            // 不传 icon：这一条就是「空态件」的默认宿主（原来 15 个调用点全部显式传图，
+                            // 默认分支没人走，ui/ico/ico_empty 落了图也是假宿主）
+                            c.appendChild(this._popEmpty('背包中该部位没有其他件', '去商店购买或关卡掉落'));
                         }
                         for (const { index, item } of items) {
                             c.appendChild(this._popRow({
@@ -2059,6 +2077,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                         for (const id of cur.affixes) {
                             c.appendChild(this._popAttr({
                                 icon: '✦',
+                                iconTex: UiPlate.STATUS_TEX[id],
                                 text: `**${affixName(id)}** ${affixValueText(id, tier)}`
                             }));
                         }

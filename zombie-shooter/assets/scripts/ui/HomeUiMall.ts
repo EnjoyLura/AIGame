@@ -66,6 +66,10 @@ export abstract class HomeUiMall extends HomeUiCore {
     /** 招募主卡（自英雄页上浮到商店页顶部） */
     protected _rcardEl: HTMLDivElement | null = null;
 
+    /** 主城按钮族铺板的重建观察器（见 `_watchCityPlates`） */
+    protected _plateObs: MutationObserver | null = null;
+    protected _plateSweepQueued = 0;
+
 
     // ---- 招募主卡分发（招募弹窗与结果揭示实现在链下游 HomeUiHeroes，此处声明入口） ----
     protected abstract _openRecruitModal(): void;
@@ -76,10 +80,32 @@ export abstract class HomeUiMall extends HomeUiCore {
      * 商店页（布局稿 R2）：货架头（页名 + 每日免费补给）→ 滚动货架（两条主推 offer + 分区标签
      * + 三列货架）→ 底部页签。页签常驻底部，货架内部滚动。
      */
+    /** 按钮族铺板要跟着每一次页面重建走：切页签 / 换筛选 / 领取 / 编队这些就地重绘会把整页 DOM
+     *  拆掉重建，只在 `_switchPage` 尾部扫一次的板子跟着一起没了（实测：在背包检索框里打一个字，
+     *  那一页所有按钮板全部消失）。改成盯 `#homeUi` 的子树增删，有重建就在下一帧重扫。
+     *  只观察 childList——铺板写的是 style，属性变更不进观察名单，不会自激。 */
+    protected _watchCityPlates(): void {
+        if (this._plateObs || !this._root) {
+            return;
+        }
+        this._plateObs = new MutationObserver(() => {
+            if (this._plateSweepQueued) {
+                return;
+            }
+            this._plateSweepQueued = 1;
+            window.setTimeout(() => {
+                this._plateSweepQueued = 0;
+                this._plateCityButtons();
+            }, 0);
+        });
+        this._plateObs.observe(this._root, { childList: true, subtree: true });
+    }
+
     protected _buildMallPage(root: HTMLDivElement): void {
         const page = document.createElement('div');
         page.className = 'screen sShop';
         this._pages.mall = page;
+        this._watchCityPlates();
 
         // 货架头：页名（随页签变）+ 副标 + 每日免费补给
         const mast = document.createElement('div');
@@ -529,6 +555,27 @@ export abstract class HomeUiMall extends HomeUiCore {
         this._applyPendingTex();
     }
 
+
+    /**
+     * 检索框（背包按名字筛）：🔍 先占位，`ui/ico/ico_search` 到位由 `icon()` 摘掉，缺图不空槽。
+     * 建在 Mall 层而不是用它的 Heroes 层：`check-split` 给 Heroes 记的行数棘轮只剩十几行余量，
+     * 而这条控件是可复用的通用件，放父层才不必为它再开一次拆分。
+     */
+    protected _searchBox(ph: string, value: string, onInput: (v: string) => void): HTMLElement {
+        const wrap = document.createElement('label');
+        wrap.className = 'uiSearch';
+        const ic = document.createElement('i');
+        ic.textContent = '🔍';
+        this._tex('ui/ico/ico_search', UiPlate.icon(ic));
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.value = value;
+        inp.placeholder = ph;
+        inp.oninput = () => onInput(inp.value.trim());
+        wrap.appendChild(ic);
+        wrap.appendChild(inp);
+        return wrap;
+    }
 
     /**
      * 大额购买确认（S 型双按钮 · 与钻石购买同模板）：
