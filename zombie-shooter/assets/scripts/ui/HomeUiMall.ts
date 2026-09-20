@@ -265,22 +265,30 @@ export abstract class HomeUiMall extends HomeUiCore {
                 ad.style.opacity = ad.disabled ? '0.45' : '1';
             }
         }
-        const TABS: Array<['hero' | 'equip' | 'gem' | 'mat', string]> = [
-            ['hero', '🦸 英雄'], ['equip', '🛡️ 装备'], ['gem', '💎 宝石'], ['mat', '⚙️ 材料'],
+        // 四元组 = 键 / 占位 glyph / 名称 / 贴图 key。名称里不再嵌 emoji：图标位是独立 span，
+        // glyph 由贴图到位时摘除（缺图仍是 emoji 占位），货架头那两处也就不用再拿正则剥前缀。
+        const TABS: Array<['hero' | 'equip' | 'gem' | 'mat', string, string, string]> = [
+            ['hero', '🦸', '英雄', 'ui/ico/tab_hero'], ['equip', '🛡️', '装备', 'ui/ico/tab_equip'],
+            ['gem', '💎', '宝石', 'ui/ico/tab_gem'], ['mat', '⚙️', '材料', 'ui/ico/tab_mat'],
         ];
         // 货架头随页签改名（布局稿：h1 = 当前货架名）
         const cur = TABS.find(t => t[0] === this._mallTab);
         if (this._mastTitleEl) {
-            this._mastTitleEl.textContent = this._mallTab === 'hero' ? '军需补给' : (cur ? cur[1].replace(/^\S+\s*/, '') : '军需补给');
+            this._mastTitleEl.textContent = this._mallTab === 'hero' ? '军需补给' : (cur ? cur[2] : '军需补给');
         }
         if (this._shelfNameEl) {
-            this._shelfNameEl.textContent = `${cur ? cur[1].replace(/^\S+\s*/, '') : ''}货架`;
+            this._shelfNameEl.textContent = `${cur ? cur[2] : ''}货架`;
         }
         tabs.innerHTML = '';
-        for (const [key, label] of TABS) {
+        for (const [key, glyph, label, tex] of TABS) {
             const b = document.createElement('button');
             b.className = this._mallTab === key ? 'on active' : '';
-            b.textContent = label;
+            const ic = document.createElement('span');
+            ic.className = 'ticon';
+            ic.textContent = glyph;
+            b.appendChild(ic);
+            b.appendChild(document.createTextNode(label));
+            this._tex(tex, UiPlate.icon(ic));
             b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -288,6 +296,7 @@ export abstract class HomeUiMall extends HomeUiCore {
             };
             tabs.appendChild(b);
         }
+        this._applyPendingTex();
 
         grid.innerHTML = '';
         const mkGood = (opt: { ic: string; name: string; tag: string; price: string; r: number; hot?: boolean; disabled?: boolean; onTap: () => void; onBlocked?: () => void }) => {

@@ -127,7 +127,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    稿里 .flat-tabs button 不写 height，靠 flex 拉伸正好撑满 34。
    此前两层分别写 60/44 的独立页签行高度，按钮会溢出条带下沿（实测 10.6px），文字看着偏下。 */
 #homeUi .shopTabs button { flex: 1; height: 100%; border-radius: calc(16px * var(--hs,1)); border: 1px solid var(--c-line);
-  display: flex; align-items: center; justify-content: center; text-align: center;
+  display: flex; align-items: center; justify-content: center; text-align: center; gap: calc(4px * var(--hs,1));
   background: var(--c-navy-4); color: var(--c-text-dim); font-family: inherit; font-size: calc(26px * var(--hs,1)); font-weight: 700; cursor: pointer; }
 #homeUi .shopTabs button.on { background: linear-gradient(180deg, var(--c-line-hi), #243a63); color: var(--c-gold-hi); border-color: #6a8ab8;
   box-shadow: 0 0 10px rgba(92,150,255,.25); }
@@ -986,6 +986,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .bagTabs button { flex: 1; height: calc(56px * var(--hs,1)); border-radius: calc(14px * var(--hs,1)); border: 1px solid var(--c-line);
   background: var(--c-navy-4); color: var(--c-text-dim); font-family: inherit; font-size: calc(24px * var(--hs,1)); font-weight: 700; cursor: pointer; }
 #homeUi .bagTabs button.on { color: var(--c-gold-hi); border-color: var(--c-gold-dk2); background: #1c2c4d; }
+/* 二级页签图标位（商城 .shopTabs / 背包 .bagTabs 共用，同 .tab .ticon 的口径：尺寸交 CSS）。
+   两套页签都并进了 34~56 高的条带、文字只有 12 号，图标取 20 与文字并排才不撑高行。 */
+#homeUi .bagTabs button { display: flex; align-items: center; justify-content: center; gap: calc(4px * var(--hs,1)); }
+#homeUi .shopTabs .ticon, #homeUi .bagTabs .ticon { flex: none; width: calc(20px * var(--hs,1)); height: calc(20px * var(--hs,1));
+  display: flex; align-items: center; justify-content: center; font-size: calc(15px * var(--hs,1)); line-height: 1; }
 #homeUi .bagGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: calc(16px * var(--hs,1)); }
 #homeUi .bcell { position: relative; border-radius: calc(18px * var(--hs,1)); background: radial-gradient(circle at 50% 30%, #1a2a4a, var(--c-navy-7));
   border: 1px solid var(--c-line); height: calc(124px * var(--hs,1)); display: flex; align-items: center; justify-content: center; font-size: calc(48px * var(--hs,1)); cursor: pointer; }
@@ -1554,9 +1559,13 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .sbTime { font-size: calc(10px * var(--pw,2.5)); }
 #homeUi .shopTabs { margin: calc(14px * var(--pw,2.5)) 0; gap: calc(5px * var(--pw,2.5)); }
 #homeUi .shopTabs button { height: 100%; background: #d7e4ed; color: #526d7d; border-color: #b1c6d5;
-  display: flex; align-items: center; justify-content: center; text-align: center;
+  display: flex; align-items: center; justify-content: center; text-align: center; gap: calc(4px * var(--pw,2.5));
   border-radius: calc(5px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); }
 #homeUi .shopTabs button.on { background: #fff8e9; color: #8c5927; border-color: #d8ad74; box-shadow: inset 0 -2px #e9ab5c; }
+/* 二级页签图标位青瓷层：同 base 层那条规则，只换令牌（手机上实际生效的是这一层） */
+#homeUi .bagTabs button { gap: calc(4px * var(--pw,2.5)); }
+#homeUi .shopTabs .ticon, #homeUi .bagTabs .ticon { width: calc(20px * var(--pw,2.5)); height: calc(20px * var(--pw,2.5));
+  font-size: calc(15px * var(--pw,2.5)); }
 #homeUi .good { padding: calc(10px * var(--pw,2.5)); }
 #homeUi .gIc { height: calc(92px * var(--pw,2.5)); background: linear-gradient(#e8f0f6, #d4e2eb); border-color: #b3c6d5;
   border-radius: calc(5px * var(--pw,2.5)); font-size: calc(38px * var(--pw,2.5)); }

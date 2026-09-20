@@ -852,12 +852,16 @@ export abstract class HomeUiHeroes extends HomeUiMall {
         bar.appendChild(detail);
         const tabs = document.createElement('div');
         tabs.className = 'bagTabs flat-tabs';
-        const mkTab = (key: 'equip' | 'gem' | 'mat' | 'item', label: string) => {
+        // 页签四元组 = 键 / 占位 glyph / 名称 / 贴图 key；图标位是独立 span，glyph 由贴图到位摘除
+        const mkTab = (key: 'equip' | 'gem' | 'mat' | 'item', glyph: string, label: string, tex: string) => {
             const b = document.createElement('button');
             if (this._heroBagTab === key) {
                 b.className = 'on active';
             }
-            b.textContent = label;
+            const ic = this._el('span', 'ticon', glyph);
+            b.appendChild(ic);
+            b.appendChild(document.createTextNode(label));
+            this._tex(tex, UiPlate.icon(ic));
             b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -866,10 +870,11 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             };
             tabs.appendChild(b);
         };
-        mkTab('equip', '🛡️ 装备');
-        mkTab('gem', '💎 宝石');
-        mkTab('mat', '⚙️ 材料');
-        mkTab('item', '🧪 道具');
+        // 第四签真名是「道具」（`item` 分类 = 非装备/宝石/材料的消耗品），贴图沿用 tab_potion
+        mkTab('equip', '🛡️', '装备', 'ui/ico/tab_equip');
+        mkTab('gem', '💎', '宝石', 'ui/ico/tab_gem');
+        mkTab('mat', '⚙️', '材料', 'ui/ico/tab_mat');
+        mkTab('item', '🧪', '道具', 'ui/ico/tab_potion');
         bar.appendChild(tabs);
         body.appendChild(bar);
         this._applyPendingTex();

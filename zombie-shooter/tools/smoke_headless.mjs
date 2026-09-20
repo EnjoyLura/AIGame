@@ -110,6 +110,28 @@ await shot('02b-notice-pop');
 await evalJs(`document.querySelector('.popClose')?.click(); 1`);
 await sleep(1200);
 
+// 2c. 二级页签贴图核对（ART-PLAN D20：接线轮必须验贴图真的上了屏，代码接了不算）
+//     三条判据一起看：backgroundImage 是 url(...) = 图挂上了；glyph 被摘成空串 = icon() 走过；
+//     宽度非零 = CSS 尺寸令牌生效（贴图槽宽度归 CSS，读不到 --pw 时会量出 0）。
+const tabProbe = (sel) => evalJs(`JSON.stringify([...document.querySelectorAll('${sel} .ticon')].map(ic => {
+  const cs = getComputedStyle(ic);
+  return (ic.parentElement.textContent || '').trim() + '|bg=' + (/url\\(/.test(cs.backgroundImage) ? 'Y' : 'N')
+    + '|glyph=' + JSON.stringify(ic.textContent) + '|w=' + Math.round(ic.getBoundingClientRect().width);
+}))`);
+const gotoTab = (name) => evalJs(`(() => {
+  const el = [...document.querySelectorAll('#homeUi .tab')].find(e => (e.textContent || '').indexOf('${name}') >= 0);
+  if (!el) return 'NOT FOUND';
+  el.click(); return (el.textContent || '').trim();
+})()`);
+console.log('nav ->', await gotoTab('商店'));
+await sleep(2500);
+console.log('shopTabs:', await tabProbe('.shopTabs'));
+await shot('02c-shop-tabs');
+console.log('nav ->', await gotoTab('英雄'));
+await sleep(2500);
+console.log('bagTabs:', await tabProbe('.bagTabs'));
+await shot('02d-bag-tabs');
+
 // 3. 找护送入口进玩法页（按文本找：护送）
 const navDump = await evalJs(`JSON.stringify([...document.querySelectorAll('button,[class*=btn],[class*=tab],[class*=nav] i, [class*=nav] span')].map(e => (e.className + '|' + (e.textContent || '').trim().slice(0, 10))).slice(0, 60))`);
 console.log('nav candidates:', navDump);

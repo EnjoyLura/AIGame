@@ -63,7 +63,7 @@ const MANIFEST = [
     'ui/plate_wave', 'ui/skill_slot', 'ui/boss_crown',
     // 按钮系补件：特殊(紫)板 + 小圆钮族
     'ui/button/btn_purple', 'ui/button/btn_home', 'ui/button/btn_help', 'ui/button/btn_refresh',
-    // 二级页签族（商城货架 / 背包分类共用）
+    // 二级页签族（商城货架 4 签 / 背包分类 4 签共用；tab_core 至今没有宿主，理由见 RESERVED_SLOTS 注）
     'ui/ico/tab_hero', 'ui/ico/tab_equip', 'ui/ico/tab_gem', 'ui/ico/tab_mat', 'ui/ico/tab_core', 'ui/ico/tab_potion',
     // 功能入口图标族（主城侧栏 + 英雄养成 + 商城 + HUD + 设置/登录）
     'ui/ico/ico_add', 'ui/ico/ico_signin', 'ui/ico/ico_trial', 'ui/ico/ico_endless',
@@ -111,10 +111,12 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // —— 按钮系 ——
     'ui/button/btn_purple': '特殊/紫色大按钮去字底板（UiPlate.PLATE.purple）',
     'ui/button/btn_home': '小圆钮·主页', 'ui/button/btn_help': '小圆钮·帮助 ?', 'ui/button/btn_refresh': '小圆钮·刷新 ↻',
-    // —— 二级页签 ——
-    'ui/ico/tab_hero': '页签·英雄（商城货架头）', 'ui/ico/tab_equip': '页签·装备（商城/背包共用）',
-    'ui/ico/tab_gem': '页签·宝石（商城/背包共用）', 'ui/ico/tab_mat': '页签·材料',
-    'ui/ico/tab_core': '页签·核心（背包）', 'ui/ico/tab_potion': '页签·耗材（背包）',
+    // —— 二级页签 ——（tab_hero/equip/gem/mat/potion 五件 2026-09-20 已出图并接线，声明移出本表）
+    // tab_core 留单：图出了（gen-output/r13 那张表里第 5 格，反应堆芯，质量合格），但**没有这个页签**——
+    // 规范原先写的宿主 `.chTabs` 是死样式（护送页早已改成「章节头 + 左右翻页箭头」，全工程无一处建 DOM），
+    // 背包第四签的真实分类是「道具」而非「核心」。武器核心是养成弹窗里的一行，不是页签，硬套 tab_ 键
+    // 等于给同一个位置挂两套语义。等真出现「核心」分类页签再落盘，或按 §9 撤键。
+    'ui/ico/tab_core': '页签·核心（宿主未落地：章节页签已被章节头替代、背包无核心签）',
     // —— 功能入口图标 ——（图标三批共 19 件已出图并接线，预留声明已移出本表：
     // 第一批 ico_add / ico_signin / ico_trial / ico_endless / ico_core / ico_weapon / ico_starup /
     // ico_talent / ico_recruit / ico_forge / ico_del / ico_warn；第二批 ico_ad / ico_slider /

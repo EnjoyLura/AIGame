@@ -8,7 +8,7 @@
 
 清单里暂无文件的 key 属「预留槽位」（缺图回退占位，图到位即生效）——这正是逐张补图、随时可进的机制。风格与尺寸要求见 [STYLE-SPEC.md](./STYLE-SPEC.md)。
 
-## A. 在库槽位（99 张图，png/jpg；r1/r2 旧版 9 件 + 2026-09-21 无宿主的 12 件已归档，均见 §E）
+## A. 在库槽位（104 张图，png/jpg；r1/r2 旧版 9 件 + 2026-09-21 无宿主的 12 件已归档，均见 §E）
 
 | key | 用途 | 现尺寸 | 状态 |
 |---|---|---|---|
@@ -36,6 +36,7 @@
 | ui/ico/ 图标三批共 19 件：第一批 ico_add · signin · trial · endless · core · weapon · starup · talent · recruit · forge · del · warn<br>第二批 ico_ad · slider · pause · stats<br>拆行轮 ico_sound · mute · info | 主城功能入口图标（顶栏加号 / 侧栏三键 / 英雄页四键 / 确认弹窗两键 / 商城看广告键 / 设置音量与音效 / HUD 暂停、伤害统计与设置浮窗三个小节头） | 128 | 已上屏，宿主与切片口径见 §9；同批出图又撤键的 7 件（more · check · calendar · shop · inbox · codex · loot）与仍留采购单的 3 件（friend · undo · search，缺的是功能位不是图）见 ART-PLAN §2.1 |
 | ui/shop/shop_gift · shop_chest · shop_scroll · shop_letter | 礼盒 / 宝箱 / 卷轴 / 信件 | 256 | 前三已上屏，letter 作空态图 |
 | ui/progress/bar_track · bar_fill_blue · bar_fill_green · bar_fill_yellow · bar_fill_red | 进度条底槽（内凹暗槽带圆头）+ 蓝/绿/黄/红四档填充色带 | 512×64 | 五件整套已上屏：底槽贴 HUD 四条（`.xpBar/.vehTrack/.bossTrack/.statBar` 走 `bar` 档）与主城三条（`.expbar` 10px、`.pbar` 与 `.popAct .bar` 12px，走 `barThin` 档）；填充蓝＝顶栏经验与 HUD 经验、绿＝弹层行进度、黄＝弹层活跃/保底、红＝boss 血条。载具条与伤害占比条按拍板只贴底槽，抽卡保底条退回 6px 不贴，理由见 §9 |
+| ui/ico/tab_hero · tab_equip · tab_gem · tab_mat · tab_potion | 二级页签图标（r13 素材表）：英雄半身 / 步枪 / 蓝钻 / 铝锭木料石 / 医疗包 | 128×128 | 五件已上屏，吃下 7 个位置——商城 `.shopTabs` 四签 + 背包 `.bagTabs` 四签，装备/宝石/材料三签两处共用同件；图标位是 `span.ticon`，20px ×层缩放归 CSS。**同批出的 `tab_core`（反应堆芯）没落盘**：规范里那个「章节 `.chTabs`」宿主是死样式、背包第四签真名是「道具」，键留在采购单，判决见 §9 与 ART-PLAN §2.1 |
 
 > **r1/r2 旧版 UI 板类件 11 件已归档**到 `art-spec/reference/legacy-keep/`（2026-09-20 拍板弃用，
 > 清单与「拷回即复活」的做法见该目录 README.md），不再登记在 MANIFEST、不进包。
@@ -59,8 +60,8 @@ UI 走 glyph/CSS 回退、图落地后**必须从 `RESERVED_SLOTS` 删掉该行*
 |---|---|---|---|
 | `ui/ico/ico_*` | 33 | 功能入口图标族（侧栏/养成/HUD/商城/设置） | 批3 |
 | `icons/status_*` | 10 | 状态与属性图标族 | 批4 |
-| `ui/progress/bar_*` | 7 | 进度条族（底槽/四色填充/端头/节点） | 批5 |
-| `ui/ico/tab_*` | 6 | 二级页签族（商城货架 / 背包分类共用） | 批1 追加 |
+| `ui/progress/bar_*` | 0 | 进度条族（底槽 + 四色填充）——**五件已整套出采购单**，本表 2026-09-20 前还记 7 件，是加粗轮落盘后忘了收表 | 批5 ✅ |
+| `ui/ico/tab_*` | 1 | 二级页签族（商城货架 / 背包分类共用）：五件已落盘，只剩 `tab_core` 一个空位等宿主 | 批1 追加 |
 | `ui/button/btn_*` | 4 | 按钮补件（紫板 + 主页/帮助/刷新小圆钮） | 批2 |
 | `ui/res/res_*` | 4 | 扩展资源（碎片/勋章/能量/招募券） | 批5 |
 | `ui/tag_*` + `ui/lvtag` + `ui/badge/power_badge` | 4 | 角标族（免费/折扣/HOT/等级/战力） | 批0 追加 |
