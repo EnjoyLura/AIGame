@@ -13,7 +13,8 @@ export const UI_TOKENS_CSS = `
   /* ---- 文字 ---- */
   --c-text: #dce8f7;        /* 主文字 */
   --c-text-hi: #eaf2ff;     /* 强调亮字 */
-  --c-text-dim: #8ba3c7;    /* 次要/弱化文字 */
+  --c-text-dim: #a3bad4;    /* 次要/弱化文字（原 #8ba3c7：那是配平涂冷底 --c-scene-* 定的，
+                               整页底换成照片后，页面上最亮的落字带实测到 #554a40，旧值只有 3.35:1） */
   --c-text-soft: #bdced8;
   --c-text-mute: #b3c8d6;
   --c-text-ice: #e7eff5;

@@ -116,8 +116,11 @@ node check-popups.mjs                # 二级浮窗交互稿
   缺图回退时旧配色仍然对。直接改基础色会把弹层里同一族键一起翻错。
 - **特异性是这条链上最容易踩的坑**：页面级翻亮写了 `.hero-quick .btn` 却不见效，
   因为容器实际类名是 `fcol hero-quick`、而 `.fcol .btn.blue`（1 id + 3 类）压过它（1 id + 2 类）。
-  改完必须用 `contrast_audit.mjs <url> <页签> 4.5 plates` 看**贴在板上的那批字**的实际计算色，
-  光看不合格清单看不到它们（背板是贴图，算不出比值）。
+- **可读性审计的背板来自截屏，不来自 CSS**（2026-09-22 换的血，详见 STYLE-SPEC §7.3）：
+  旧版沿祖先链找第一个不透明 `background-color`，遇到贴图/九宫格板/整页底就**照一块假想底色算比值**，
+  于是"背景失效那么久、审计一直报绿"。现在是把字形擦掉截一张图、按元素矩形取均值当背板。
+  口径没动（阈值、inactive 豁免），动的只是背板从哪来——**所以新旧计数不可比，别当成回归**。
+  第 4 个参数 `plates` 打的是背板标准差 >28 那批"均值达标但底下是照片"的字，那才是需要人看一眼的。
 
 ### 每轮收尾验证链（顺序固定）
 
@@ -140,8 +143,8 @@ bash tools/postbuild.sh                # 构建戳 + 缓存击破 + _maxFontSize
 grep -c "<本轮改动标识>" build/web-mobile/assets/main/index.js  # bundle 断言：确认改动真的进包
 # 文字可读性审计（要在起 serve.mjs 的构建上跑）：五个页签的「不合格」计数只许降不许升
 for p in home 商店 英雄 基地 行动; do node tools/contrast_audit.mjs "http://127.0.0.1:7456/index.html" $p 4.5; done
-#   第 4 个参数写 plates 另出「压在板上」那批的字色分组——那批算不出背板比值，是审计盲区，
-#   只能靠列字色缩小范围再对截图核（2026-09-21 就是靠它抓到 .fcol .btn.blue 的特异性压制）
+#   第 4 个参数写 plates 另出「背板标准差 >28」那批字——均值达标但底下是一张照片，
+#   局部笔画可能正压在亮块上，这一批才需要人对着截图核（背板现在是截屏取的，不再是盲区）
 # 以下 *-bundle check 读 build/web-mobile 产物，须在构建之后跑（同样纳入链防腐烂）
 node tools/check-notice-bundle.js
 node tools/check-stamina-bundle.js

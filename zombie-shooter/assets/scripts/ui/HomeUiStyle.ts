@@ -1928,7 +1928,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   background: linear-gradient(180deg, var(--c-scene-2), var(--c-scene-1)); border-top: 1px solid var(--c-scene-edge);
   box-shadow: 0 -3px 10px rgba(6,12,18,.55); }
 #homeUi .tabbar::before { display: none; content: none; }
-#homeUi .tab { color: var(--c-line-dim); flex: none; font-size: calc(13px * var(--pw,2.5)); height: auto; min-width: 0;
+#homeUi .tab { color: var(--c-text-mute); flex: none; font-size: calc(13px * var(--pw,2.5)); height: auto; min-width: 0;
   padding: calc(4px * var(--pw,2.5)) 0; gap: calc(1px * var(--pw,2.5)); border-radius: calc(4px * var(--pw,2.5));
   -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 /* 页签 glyph 不再用 font-size:0 遮（那会让缺图页签变成空槽）：贴图到位时由 UiPlate.icon 摘掉
@@ -2933,11 +2933,18 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   width: calc(11px * var(--pw,2.5)); height: calc(11px * var(--pw,2.5));
   font-size: calc(11px * var(--pw,2.5)); line-height: calc(11px * var(--pw,2.5)); }
 #homeUi .powerBadge { position: relative; z-index: 2; flex: none; width: 100%; height: calc(27px * var(--pw,2.5)); display: flex;
-  align-items: center; justify-content: center; gap: calc(4px * var(--pw,2.5)); background: none; border: none;
-  font-size: calc(12px * var(--pw,2.5)); line-height: calc(27px * var(--pw,2.5)); color: var(--c-text-dim); }
+  align-items: center; justify-content: center; gap: calc(4px * var(--pw,2.5)); border: none;
+  font-size: calc(12px * var(--pw,2.5)); line-height: calc(27px * var(--pw,2.5)); color: var(--c-text-dim);
+  /* 战力这一行原来什么都不垫，直接落在营地照片最亮的那条暖带（实测背板 #554a40）上，次要字色只剩
+     3.35:1。这里补一层**径向**压暗而不是胶囊底：清方块感那一轮刚把它的橙色药丸拆掉，再画一个圆角
+     矩形回去等于把这轮的决定推翻；径向到 76% 就完全淡出，读起来是"这块比周围暗"，不是"这里有个框" */
+  background: radial-gradient(58% 132% at 46% 50%, rgba(8,13,20,.74), rgba(8,13,20,0) 78%); }
 #homeUi .powerBadge strong { font-size: calc(17px * var(--pw,2.5)); margin-left: calc(6px * var(--pw,2.5)); color: var(--c-gold-hi); }
 #homeUi .powerBadge .pwInfo { position: absolute; right: 0; width: calc(20px * var(--pw,2.5)); height: calc(20px * var(--pw,2.5));
-  border: 1px solid var(--c-scene-line); border-radius: 50%; background: none; color: var(--c-text-dim); font-size: calc(12px * var(--pw,2.5)); cursor: pointer; }
+  border: 1px solid var(--c-scene-line); border-radius: 50%; font-size: calc(12px * var(--pw,2.5)); cursor: pointer;
+  /* 这枚 ⓘ 挂在盒子的 right:0，正好在上一层那道径向淡出之外（盒 28×28 @x=259，径向只覆盖到 x≈240），
+     所以它自己得有一块底。它本来就是个按钮，按钮有自己的面不算"方块感" */
+  background: rgba(8,13,20,.66); color: var(--c-text-hi); }
 #homeUi .equipment { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, minmax(0,1fr));
   gap: calc(5px * var(--pw,2.5)); padding-bottom: calc(5px * var(--pw,2.5)); }
 #homeUi .equipment .slot { width: 100%; height: auto; min-height: 0; position: relative; border-radius: 0;
@@ -3269,15 +3276,24 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    .plated 由 UiPlate.nineSlice 在贴图真的落到 style 上那一刻打上，所以缺图回退时这些规则整体不生效、
    旧配色照旧对——这就是为什么色写在 CSS 而不是 nineSlice 的内联 color 里（内联会盖掉回退态）。
    排在本文件最末：两层（--hs 基准 / --pw 青瓷）都在这之前，同特异性下这一条两边都赢。 */
-#homeUi .tab.plated { color: var(--c-cream-1); }
-/* 选中那块板是琥珀金，页签名用深墨蓝压上去（对比 ~7:1）；照旧写的 --c-gold-dk3 只有 ~2.8:1，实测糊 */
-#homeUi .tab.on.plated { color: var(--c-navy-3); }
+/* 原先这里的 .tab.plated 与 .tab.on.plated 两条已删：撤板轮把底部导航从"五格各一块板"
+   并成"整条 .tabbar 一块板"之后，.tab 元素再也不会被贴板、也就永远拿不到 .plated。
+   选中态的字色改由 #homeUi .tab.on 那条 color: var(--c-gold-hi) 管。 */
 #homeUi .flat-tabs > button.plated { color: var(--c-cream-1); }
 #homeUi .flat-tabs > button.on.plated { color: var(--c-gold-hi); }
 #homeUi .building.plated small { color: var(--c-cream-2); }
 /* 主 CTA 那块板是金牌（btn_play），未贴板时它是弹层里的暗蓝键、白字对；贴上金牌白字只剩 2.4:1，
    所以翻亮必须挂在 .plated 上，不能直接改 .major 的白字——那条会连带改掉所有弹层里的主按钮 */
 #homeUi .game-button.major.plated { color: var(--c-navy-7); }
+/* 主 CTA 里那行小字（体力价 ⚡5）：上面那条只翻按钮自己，small 在青瓷层有自己一条
+   青瓷层给 small 自己写了一条 color: #dbe9ef——那是金板出现之前、主按钮还是深青底白字时写的，一直留到现在。
+   结果是"开始护送"是暗字（对）、底下的"5"是亮字压在金板上（1.74:1，几乎看不见）。
+   挂在 .plated 上：缺图回退成青色平涂底时，这行小字仍然该是亮的。 */
+#homeUi .game-button.major.plated small { color: var(--c-navy-7); }
+/* 紫板（btn_purple，商城"每日特惠"那颗 立即查看）是按钮族里唯一的中亮度板：实测板面 #743884，
+   上面那两条把主按钮翻成暗字的规则对它正好反向——暗字压紫板只有 2.28:1，要的是亮字（7.5:1）。
+   写成 .purple.plated 两条并列：前者管不带 .major 的紫键，后者用 (1,4,0) 压过 .major.plated */
+#homeUi .game-button.purple.plated, #homeUi .game-button.major.purple.plated { color: var(--c-cream-1); }
 /* 蓝板（btn_cancel）同理：页面上未贴板是白纸深字（弹层里对），贴板后是蓝板，字要翻亮 */
 #homeUi .game-button.plated { color: var(--c-cream-1); }
 #homeUi .eqGrid .slot.plated { color: var(--c-cream-1); }
