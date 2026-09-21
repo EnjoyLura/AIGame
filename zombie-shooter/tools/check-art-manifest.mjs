@@ -167,6 +167,21 @@ for (const p of fs.readdirSync(path.join(SCRIPTS, 'ui'), { recursive: true })) {
 ok(handWritten.length === 0,
     `手写 borderImage 的文件（应改走 UiPlate.nineSlice）：${handWritten.length ? handWritten.join(', ') : '无'}`);
 
+// ---- 5.9 贴图 url 不许二次包裹（背景"接了却从来没画出来过"的真因）----
+// UiPlate.frameUrl 返回的已经是 `url(...)` 整串，_tex 的回调只是把它交出去；
+// 谁再写 url("${u}") 就得到 url("url(http://…)")，浏览器判整条 background-image 非法——
+// 前面那层遮罩渐变还在，所以画面看着"只是暗了一点"，普查读 backgroundImage 也照样非空，
+// 于是主城页面底图从登记那天起就没渲染过，直到用户第 2 次点名"背景还是空白"才查出来。
+const doubleWrap = [];
+for (const p of fs.readdirSync(path.join(SCRIPTS, 'ui'), { recursive: true })) {
+    const f = p.toString();
+    if (!f.endsWith('.ts')) continue;
+    const src = fs.readFileSync(path.join(SCRIPTS, 'ui', f), 'utf-8');
+    if (/url\(["'`]\s*\$\{?\s*[a-zA-Z_]\w*\s*\}?\s*["'`]\)/.test(src)) doubleWrap.push(f);
+}
+ok(doubleWrap.length === 0,
+    `把 _tex 回调值再套一层 url("…") 的文件（u 已经是 url(...)，套了就永远贴不上）：${doubleWrap.length ? doubleWrap.join(', ') : '无'}`);
+
 // ---- 6. art-spec 规范文件在位 ----
 for (const f of ['game_art_benchmark.png', 'STYLE-SPEC.md', 'ASSET-MANIFEST.md', 'ART-PLAN.md']) {
     ok(fs.existsSync(path.join(ART_SPEC, f)), `art-spec/${f} 在位`);

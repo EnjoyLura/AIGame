@@ -957,7 +957,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .skillHint { font-size: calc(20px * var(--hs,1)); color: var(--c-text-dim); text-align: center; margin-top: calc(8px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
 
 /* ===== 顶部刘海/胶囊安全区条（布局稿 .safe；静态留白，系统状态栏画在其上） ===== */
-#homeUi .safeBand { flex: none; height: calc(32px * var(--hs,1)); }
+#homeUi .safeBand { flex: none; height: calc(32px * var(--hs,1));
+  /* 桌面档：整页底现在贴在 #homeUi 上，这一带不涂色就会在顶栏上方露出一条照片边、
+     读成贴图错位。跟顶栏涂同一个渐变，两层合起来仍是一条完整的深色 chrome。
+     （手机档相反——那边把两层都撤了，让一张图从状态栏铺到底导。） */
+  background: linear-gradient(180deg, #1e3054, #141f38); }
 /* ===== 公告列表弹窗 ===== */
 #homeUi .noticeBox .nItem { padding: calc(16px * var(--hs,1)); margin-bottom: calc(14px * var(--hs,1)); }
 #homeUi .noticeBox .nHead { display: flex; align-items: center; gap: calc(10px * var(--hs,1)); }
@@ -1488,8 +1492,8 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 /* 稿手机版：.safe{height:calc(30px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}。
    桌面/常规机没有状态栏，取稿的 32 基准保持与画框一致；有安全区时按 30 + 安全区撑开。 */
 #homeUi .safeBand { height: max(calc(32px * var(--pw,2.5)), calc(30px * var(--pw,2.5) + var(--sat,0px)));
-  /* 与顶栏同档：原先 #ddd 浅灰带在翻暗的页子上是全屏最宽的一条"没换肤"孤岛 */
-  background: var(--c-scene-2); }
+  /* 与顶栏同口径：这一带现在露的是整页底（天空那一段），不再是自己涂的一块平色 */
+  background: transparent; }
 #homeUi .noticeBox .nItem { padding: calc(9px * var(--pw,2.5)); margin-bottom: calc(8px * var(--pw,2.5)); border-radius: calc(7px * var(--pw,2.5)); }
 #homeUi .noticeBox .nTitle { font-size: calc(14px * var(--pw,2.5)); }
 #homeUi .noticeBox .nDate { font-size: calc(10px * var(--pw,2.5)); color: #7a93a8; }
@@ -1511,8 +1515,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .topbar { position: relative; display: block; flex-direction: initial; box-sizing: border-box;
   height: calc(64px * var(--pw,2.5)); text-align: left;
   padding: 0 calc(8px * var(--pw,2.5)) 0 calc(58px * var(--pw,2.5));
-  background: linear-gradient(180deg, var(--c-scene-3), var(--c-scene-2)); background-image: none;
-  border-bottom: 1px solid var(--c-scene-edge); color: var(--c-text); white-space: nowrap; }
+  /* 顶栏不再自己涂色：整页底现在贴在 #homeUi 上（从状态栏铺到底导），这一层一涂不透明色
+     就会在屏幕最上方留一条与世隔绝的平色带。底部那道 1px 分界线同删——世界和界面之间不该有一条网页式横线 */
+  background: transparent; border-bottom: 0; color: var(--c-text); white-space: nowrap; }
 #homeUi .pAvatar { position: absolute; top: calc(4px * var(--pw,2.5)); left: calc(9px * var(--pw,2.5));
   width: calc(43px * var(--pw,2.5)); height: calc(52px * var(--pw,2.5)); padding: 0; border-radius: 0; background: none; }
 #homeUi .pAvatar > div { width: 100%; height: calc(43px * var(--pw,2.5)); border-radius: 0; background-color: var(--c-scene-1); font-size: 0;
@@ -1551,9 +1556,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    于是五页内容全部浮在灰纸上：暗金属板贴不上去、为暗底写的亮字（cream/gold-hi）当场读不出来、
    组件之间只能各贴各的板 → 方块感。改成暗场景之后，板退化成少数强调件，
    页面自己承担"底"的角色。下一轮把这条换成生成的场景图，渐变是它的占位。 */
-#homeUi .viewport { background:
-  radial-gradient(130% 52% at 50% 0%, var(--c-scene-3) 0%, transparent 60%),
-  linear-gradient(180deg, var(--c-scene-2) 0%, var(--c-scene-1) 82%); }
+#homeUi .viewport { background: transparent; }
+/* 整页底改贴在 #homeUi 上（HomeUiCore._applyPageBackdrop），这一层再涂一层就把那张图挡住了。
+   缺图时露的是 #homeUi 自己的 --c-scene-1 底色，退化和以前一样是纯色，不会更差。 */
 #homeUi .screen { padding: calc(16px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) calc(20px * var(--pw,2.5)); }
 /* 护送页通栏：章节头/场景/里程碑/编队条/底部 CTA 各自带内边距，页面本身不留走廊 */
 /* 左右不留走廊：稿里 .stage 是通栏，两侧快捷列 left/right 3px 才是贴边的；留 10px 会让列位内缩、场景压到列上 */
@@ -1788,14 +1793,16 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    照片溶解进暗场景，读成"这一页站在公路上"而不是"页面里嵌了一张图"。
    只动青瓷层：基准层（桌面）的 .stage-scene 还要靠 inset 让出两侧快捷列的位置。
    mask 不支持时退化为硬边矩形 = 改动前的样子，不会更差。 */
-#homeUi .stage-scene { inset: 0; border: 0; border-radius: 0; box-shadow: none; background-color: var(--c-scene-1); background-image: none;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 76%, transparent 100%);
-  mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 76%, transparent 100%); }
+#homeUi .stage-scene { inset: 0; border: 0; border-radius: 0; box-shadow: none;
+  /* 手机上这一层退成纯布局盒：画面交给整页底（贴在 #homeUi），中心交给 .dock 那四层。
+     原先这里要涂一层 scene-1 再压一张照片，现在两层都撤——留着就会在屏幕中间盖住一页底。
+     底沿那道渐隐遮罩一并删掉：它遮的是自己那张照片，现在这层没有东西可遮。 */
+  background: transparent; }
 #homeUi .stage-scene > .sun, #homeUi .stage-scene > .mtn, #homeUi .stage-scene > .hill, #homeUi .stage-scene > .ground,
 #homeUi .stage-scene > .road, #homeUi .stage-scene > .dash, #homeUi .stage-scene > .mobs, #homeUi .stage-scene > .veh,
 #homeUi .stage-scene > .crew { display: none !important; }
-#homeUi .stage-scene::after { content: ''; position: absolute; inset: 55% 0 0; display: block; width: auto; height: auto;
-  border: 0; border-radius: 0; opacity: 1; z-index: 1; pointer-events: none; background: linear-gradient(transparent, #173d4dcc); }
+/* 场景层那道青色渐隐 ::after 随照片一起撤了：它当初是为了让照片底沿化进页面，
+   现在这一层是透明的，再盖一道渐变等于在整页底中间糊一块脏色。 */
 #homeUi .side-tools { top: calc(10px * var(--pw,2.5)); gap: calc(8px * var(--pw,2.5)); }
 #homeUi .side-tools.left { left: calc(3px * var(--pw,2.5)); }
 #homeUi .side-tools.right { right: calc(3px * var(--pw,2.5)); }

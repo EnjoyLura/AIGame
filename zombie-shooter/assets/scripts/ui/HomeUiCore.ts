@@ -1437,6 +1437,45 @@ export abstract class HomeUiCore extends Component {
     }
 
 
+    /** 整页底当前已应用到的 key（贴图异步落位，连点页签时用来丢弃迟到的旧回调） */
+    protected _pageBgKey = '';
+
+    /**
+     * 整页底图贴在 `#homeUi` 上，**不贴在 `.viewport` 上**。
+     *
+     * 差别只有一条：顶栏与刘海安全区带是 `.viewport` 的兄弟节点，底图贴在 viewport 上就必然在屏幕
+     * 最上方留一条与世隔绝的平色带——2026-09-21 用户圈出来问"顶部组件怎么办"的那条 36px navy 带
+     * 就是它。改成贴整屏、并把 `.safeBand` / `.topbar` / `.viewport` 三层底色清成透明之后，
+     * 一张图从状态栏一直铺到底导，全屏不再有"没换肤"的孤岛。
+     *
+     * 遮罩照旧不许省（口径见 STYLE-SPEC §7.2）：场景中段那条琥珀雾亮带是整幅最亮处，
+     * 弱亮字压上去会掉到 4.5:1 以下；压暗到能读，但保留轮廓，让它读成"世界"而不是"壁纸"。
+     */
+    protected _applyPageBackdrop(key: string): void {
+        if (this._pageBgKey === key) {
+            return;
+        }
+        this._pageBgKey = key;
+        const root = this._root;
+        if (!root) {
+            return;
+        }
+        this._tex(key, (u) => {
+            if (this._pageBgKey !== key) {
+                return;
+            }
+            // `_tex` 给回来的 u **已经是一整个 url 串**（UiPlate.frameUrl 里就包好了壳），这里不能再套一层：
+            // 套了会得到 url 里嵌 url，浏览器判整条 background-image 非法，于是只剩前面那层遮罩渐变，
+            // 页面底从来没画出来过。全工程只有这一处套了壳，另外 19 处都是直接赋值，
+            // 所以别的地方都好的、偏偏背景是空的。回归断言见 check-art-manifest 的 5.9。
+            root.style.backgroundImage =
+                'linear-gradient(180deg, rgba(11,18,26,.86) 0%, rgba(11,18,26,.44) 34%, rgba(10,16,24,.34) 60%, rgba(8,13,20,.86) 100%), ' +
+                u;
+            root.style.backgroundSize = 'cover, cover';
+            root.style.backgroundPosition = 'center, center';
+        });
+    }
+
     protected _switchPage(page: string): void {
         // 显隐交给 CSS 的 .on 类：护送页是满屏竖向 flex 骨架，其余四页为块级滚动流，
         // 内联 display 会把两种布局模式压成同一个值
@@ -1462,6 +1501,10 @@ export abstract class HomeUiCore extends Component {
         if (page === 'base') {
             this._refreshBase();
         }
+        // 护送页的底由 _refreshStagePage 按章节定（每章站在自己的世界里），其余四页共用营地那一张
+        if (page !== 'battle') {
+            this._applyPageBackdrop('scenes/hub_camp');
+        }
         this._refreshTop();
         this._plateCityButtons();
         this._applyPendingTex();
@@ -1481,17 +1524,6 @@ export abstract class HomeUiCore extends Component {
 
         const viewport = document.createElement('div');
         viewport.className = 'viewport';
-        // 主城页面底：一张共用场景吃五个页签（口径见 STYLE-SPEC §7.1 与 ASSET-MANIFEST 那条注）。
-        // CSS 里那两层渐变是缺图回退，图到位时这条把「遮罩 + 场景」一起写进 inline。
-        // 遮罩不许省：场景中段那道琥珀色雾亮带是整幅最亮的地方，实测会把落在上面的
-        // 弱亮字（--c-text-dim）压到 4.5:1 以下——压暗到能读，但保留轮廓，让它读成"世界"而不是"壁纸"。
-        this._tex('scenes/hub_camp', (u) => {
-            viewport.style.backgroundImage =
-                'linear-gradient(180deg, rgba(11,18,26,.86) 0%, rgba(11,18,26,.44) 34%, rgba(10,16,24,.34) 60%, rgba(8,13,20,.86) 100%), ' +
-                `url("${u}")`;
-            viewport.style.backgroundSize = 'cover, cover';
-            viewport.style.backgroundPosition = 'center, center';
-        });
         root.appendChild(viewport);
 
         this._buildMallPage(viewport);
