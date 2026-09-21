@@ -1171,10 +1171,18 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-roster .hpick i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #homeUi .hero-roster .hpick.on { background: #1c2c4d; box-shadow: inset 0 calc(-2px * var(--hs,1)) var(--c-gold-frame); color: var(--c-gold-hi); }
 #homeUi .hero-roster .hpick.lock .pic { filter: grayscale(1) brightness(.55); }
-/* 编队条是横排行卡（高 34），沿用大头像条那条 translate(32,-80) 的锁徽会压在名字上：
-   改回随行内联（.hpick 本身是 flex 行），锁徽排在名字之后不遮字。特异性高于两层通用规则 */
-#homeUi .hero-roster .hpick.lock::after { position: static; transform: none; top: auto; right: auto;
-  font-size: calc(13px * var(--hs,1)); line-height: 1; margin-left: calc(2px * var(--hs,1)); }
+/* 编队条是横排行卡（高 34），沿用大头像条那条 translate(32,-80) 的锁徽会压在名字上。
+   原先的解法是把锁徽改回随行内联排在名字之后——不遮字了，但那 27px 是从**名字头上**扣的：
+   六个字的名字（狙击手·苍鹭 / 激光手·棱镜 / 辐射枪手·芮）实测只剩 58.8px 可用、要 80px，
+   被省略号截掉的正好是唯一能区分四个英雄的后半截人名。
+   改成钉在立绘右上角：锁本来就是「这一格没解锁」的标记，挂在头像上比跟在名字后面更对语义，
+   而且它不再占行内宽度，名字拿到整行余量（实测 86px）。滤镜在 .pic 上，锁跟着一起变灰，
+   正是「这一格是灰的」要的效果。特异性高于两层通用规则 */
+#homeUi .hero-roster .hpick.lock::after { content: none; }
+#homeUi .hero-roster .hpick.lock .pic { position: relative; }
+#homeUi .hero-roster .hpick.lock .pic::after { content: '🔒'; position: absolute;
+  right: calc(1px * var(--hs,1)); top: calc(1px * var(--hs,1));
+  font-size: calc(13px * var(--hs,1)); line-height: 1; }
 #homeUi .hero-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #homeUi .hero-stage { flex: none; position: relative; height: 38%; max-height: calc(263px * var(--hs,1)); min-height: calc(179px * var(--hs,1));
   display: grid; grid-template-columns: calc(44px * var(--hs,1)) minmax(0,1fr) calc(44px * var(--hs,1)) calc(124px * var(--hs,1));
@@ -2776,8 +2784,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-roster .hpick i { font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #homeUi .hero-roster .hpick.on { background: #eee; box-shadow: inset 0 calc(-2px * var(--pw,2.5)) #666; color: var(--c-deep-teal); font-weight: 700; }
 #homeUi .hero-roster .hpick.lock .pic { filter: grayscale(1) brightness(.8); }
-/* 青瓷层同口径（锁徽随行内联，尺寸走 --pw） */
-#homeUi .hero-roster .hpick.lock::after { font-size: calc(11px * var(--pw,2.5)); margin-left: calc(2px * var(--pw,2.5)); }
+/* 青瓷层同口径（锁徽钉在立绘右上角、往里收 1px 不出格；content 由基准层那条给） */
+#homeUi .hero-roster .hpick.lock .pic::after { right: calc(1px * var(--pw,2.5)); top: calc(1px * var(--pw,2.5));
+  font-size: calc(11px * var(--pw,2.5)); }
 #homeUi .hero-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 #homeUi .hero-stage { flex: none; position: relative; height: 38%; max-height: calc(263px * var(--pw,2.5)); min-height: calc(179px * var(--pw,2.5));
   display: grid; grid-template-columns: calc(44px * var(--pw,2.5)) minmax(0,1fr) calc(44px * var(--pw,2.5)) calc(124px * var(--pw,2.5));
@@ -3134,5 +3143,13 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .building.plated small { color: var(--c-cream-2); }
 #homeUi .eqGrid .slot.plated { color: var(--c-cream-1); }
 /* 槽名是 .sname 自己带色（两层各一条），继承改不动它——要翻亮必须点到这一层，特异性也刚好压过两层旧规则 */
-#homeUi .eqGrid .slot.plated .sname { color: var(--c-cream-1); }`;
+#homeUi .eqGrid .slot.plated .sname { color: var(--c-cream-1); }
+/* ---- emoji 图标摆正（普查里 ⚡ / 🛡️ / 🎁 三处「内容宽 > 盒宽」的同一根因）----
+   .hot .ic 的盒与字号同尺寸（英雄页快捷列 26px×--pw = 36 的方盒配 36 的字），但 emoji 的字身宽窄
+   由字体给：⚡ 在 36px 下实测占 49.4px。关键是 **text-align: center 治不了这个**——
+   它只分配"剩余空间"，一个比行盒还宽的词没有剩余空间，浏览器照旧从左边起排、整块往右挂出去，
+   实测图标中心比按钮中心偏 6.7px。改成 flex 居中：负空间由 justify-content 对半分，
+   两侧各出界 6.7px，图标回到视觉正中。贴了图的 .ic 没有文本，这条对它无副作用。
+   排在本文件最末，两层（--hs / --pw）一起吃。 */
+#homeUi .hot .ic { display: flex; align-items: center; justify-content: center; }`;
 

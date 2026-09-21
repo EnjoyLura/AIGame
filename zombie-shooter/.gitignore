@@ -10,9 +10,10 @@
 /profiles/
 /native/engine/android/**/*/assets
 
-# 无头自测（tools/page_shot.mjs / audit_ui_surfaces.mjs）起的临时 Chrome 配置目录
+# 无头自测（tools/page_shot.mjs / audit_ui_surfaces.mjs / measure_overflow.mjs）起的临时 Chrome 配置目录
 /.shot-profile/
 /.audit-profile/
+/.measure-profile/
 
 #//////////////////////////
 # NPM
