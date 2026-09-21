@@ -1743,7 +1743,14 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .difficulty .diffSeg.on { background: #aaa; color: var(--c-navy-3); font-weight: 700; }
 #homeUi .difficulty .diffSeg.off { color: var(--c-text-mute); }
 #homeUi .stage { margin-top: 0; min-height: calc(120px * var(--pw,2.5)); }
-#homeUi .stage-scene { inset: 6% 10% 0; border: 0; border-radius: 0; box-shadow: none; background-color: var(--c-scene-1); background-image: none; }
+/* 关卡照片：原先是浮在页面中间的一块圆角矩形（左右各内缩 140px、顶部下缩 6%），
+   四条硬边就是用户点的"切图感"在这一页最响的地方。改成在 .stage 里通栏出血 + 上下沿渐隐，
+   照片溶解进暗场景，读成"这一页站在公路上"而不是"页面里嵌了一张图"。
+   只动青瓷层：基准层（桌面）的 .stage-scene 还要靠 inset 让出两侧快捷列的位置。
+   mask 不支持时退化为硬边矩形 = 改动前的样子，不会更差。 */
+#homeUi .stage-scene { inset: 0; border: 0; border-radius: 0; box-shadow: none; background-color: var(--c-scene-1); background-image: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 76%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 14%, #000 76%, transparent 100%); }
 #homeUi .stage-scene > .sun, #homeUi .stage-scene > .mtn, #homeUi .stage-scene > .hill, #homeUi .stage-scene > .ground,
 #homeUi .stage-scene > .road, #homeUi .stage-scene > .dash, #homeUi .stage-scene > .mobs, #homeUi .stage-scene > .veh,
 #homeUi .stage-scene > .crew { display: none !important; }
@@ -3162,8 +3169,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .screen.sStage .chapter-head { height: calc(45px * var(--pw,2.5)); gap: calc(16px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head h1 { font-size: calc(19px * var(--pw,2.5)); line-height: calc(23px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); margin-top: 0; }
-/* 关卡场景：两侧快捷列在 3px 贴边占 49px，场景左右让出 56px，列与场景不再互压 */
-#homeUi .screen.sStage .stage-scene { inset: 6% calc(56px * var(--pw,2.5)) 0; }
+/* 关卡场景通栏出血：两侧快捷列不再靠"场景让出 56px"来躲，而是直接压在照片上——
+   列本身是木箱板，比让出来的那条暗缝更像"摆在场景里的物件"（青瓷层那条已把 inset 收到 0） */
+#homeUi .screen.sStage .stage-scene { inset: 0; }
 /* 翻页器落在场景内 4px：场景左沿 56px → 箭头 60px 起 44px 宽 */
 #homeUi .screen.sStage .stage > .arrow { width: calc(44px * var(--pw,2.5)); height: calc(42px * var(--pw,2.5));
   font-size: calc(25px * var(--pw,2.5)); }
