@@ -20,6 +20,7 @@
 | weapons/rifle_bullet / rifle_grenade | 步枪子弹 / 榴弹 | 23×128 / 52×128 | 已有 |
 | fx/mortar | 迫击炮 16 格序列 | 512×512 | 已有 |
 | fx/rifle_muzzle_flash · rifle_grenade_explosion · rifle_grenade_ring | 枪口焰/爆爆/冲击环 | 198~512 | 已有 |
+| fx/levelup_glow · fx/dmg_word · fx/portal · fx/coin_burst + weapons/laser_beam | 战斗表现件五件：升级光柱 / 暴击飘字底纹 / 侧翼切入传送门 / 通关结算金币爆开 / 激光英雄光束 | 133×912 ~ 1058×153 | 已有（r34 表 + r34b 补光柱。这五件缺的一直不是图而是**表现代码**，代码 2026-09-21 逐条建起来：光柱在选卡三张背后、底纹是飘字的前一个兄弟节点、门只给侧翼切入那 30%、爆开垫在结算「+N」后面且中心钉在芯片 26% 高、光束叠在程序化三层束之上。逐件的落点、尺寸算法与"为什么这个位置不放"见 §9 与 ART-PLAN §2.1 二十七轮） |
 | scenes/vehicle_tail | 车尾（战斗下半屏） | 2160×540 | 已有 |
 | scenes/road | 战斗路面底图 | 720×1280 | 已有 |
 | scenes/escort | 护送页/商城场景图 | 848×1264 | 已有（本轮修复：曾被代码引用但未登记，静默占位） |
@@ -57,26 +58,23 @@
 登记进 `MANIFEST` 且写进 `RESERVED_SLOTS` 即为合法预留：预载阶段跳过（不白发请求）、
 UI 走 glyph/CSS 回退、图落地后**必须从 `RESERVED_SLOTS` 删掉该行**，checker 会盯过时声明。
 
-分类计数（`node tools/check-art-manifest.mjs` 报实况，本表只做导航）：
+分类计数（**本表只做导航，件数以 `node tools/check-art-manifest.mjs` 报的 RESERVED_SLOTS 实测为准**；
+2026-09-21 收过一次表：此前每轮落盘只删 `RESERVED_SLOTS` 那行、忘了同步这里，导致整表普遍虚高）：
 
-| 族 | 件数 | 归哪一类 | 对应 ART-PLAN 批次 |
+| 族 | 还差几件 | 具体是哪几个 key、为什么还挂着 | 对应 ART-PLAN 批次 |
 |---|---|---|---|
-| `ui/ico/ico_*` | 33 | 功能入口图标族（侧栏/养成/HUD/商城/设置） | 批3 |
-| `icons/status_*` | 10 | 状态与属性图标族 | 批4 |
-| `ui/progress/bar_*` | 0 | 进度条族（底槽 + 四色填充）——**五件已整套出采购单**，本表 2026-09-20 前还记 7 件，是加粗轮落盘后忘了收表 | 批5 ✅ |
-| `ui/ico/tab_*` | 1 | 二级页签族（商城货架 / 背包分类共用）：五件已落盘，只剩 `tab_core` 一个空位等宿主 | 批1 追加 |
-| `ui/button/btn_*` | 4 | 按钮补件（紫板 + 主页/帮助/刷新小圆钮） | 批2 |
-| `ui/res/res_*` | 4 | 扩展资源（碎片/勋章/能量/招募券） | 批5 |
-| `ui/tag_*` + `ui/lvtag` + `ui/badge/power_badge` | 4 | 角标族（免费/折扣/HOT/等级/战力） | 批0 追加 |
-| `ui/node_*` | 3 | 天赋节点三态 | 批4 |
-| `ui/badge/medal1~3` | 3 | 名次奖牌（替 🥇🥈🥉 与 `.statRank` 渐变） | 批0 追加 |
-| `ui/star_on/off` | 2 | 评价星 | 批0 追加 |
-| `icons/gem_*` + `icons/mat_*` | 7 | 材料与宝石图标族 | 批3 |
-| `icons/vehicle_*` | 3 | 护送关卡卡载具 | 批8 |
-| `scenes/bg_*` + `scenes/vehicle_tail_damaged` | 5 | 关卡主题 ×4 + 车尾受损态 | 批8 |
-| `fx/*` + `ui/plate_wave`/`ui/skill_slot`/`ui/boss_crown` | 7 | 特效与战斗件 | 批9 |
-| `weapons/*` + `monsters/dog_walk` | 4 | 三英雄弹道 + 丧犬走帧 | 批7 / 弹道 |
-| `ui/panel/row_card` + `ui/panel/panel_mini` | 2 | 行卡底板 / 模块小框 | 批1 |
+| `ui/ico/ico_*` | 1 | `ico_undo`——全工程没有任何可撤销的动作，造一个「撤销」键点下去无事发生就是死键 | 批3 |
+| `icons/status_*` | 2 | `status_ice` `status_poison`——图合格，但本作没有冰冻/中毒机制（无 DoT 系统），切片件在 `stock/ico/` | 批4 |
+| `ui/ico/tab_*` | 1 | `tab_core`——图合格，缺的是「核心」这个分类页签本身（用户拍板后面做），件归档 `stock/ico/` | 批1 追加 |
+| `ui/button/btn_*` | 1 | `btn_home`——主页与刷新两个动作在界面上还没有落点（`btn_help` 同位已有 `btn_round2`、`btn_refresh` 无动作，两键已撤） | 批2 |
+| `ui/res/res_*` | 2 | `res_medal` `res_energy`——本作资源表只有 gold/diamond/stamina + shard_*，勋章没有成就/军团玩法，能量与体力同位重复，挂上顶栏就是恒为 0 的假数字 | 批5 |
+| `ui/tag_*` + `ui/lvtag` + `ui/badge/power_badge` | 3 | `lvtag` `tag_sale` `power_badge`——图合格但**宿主形状放不下**（宿主是又扁又窄的角标与整宽胶囊，出的是方形/六角/星徽章），件归档 `stock/badge/`，判据见 §9 | 批0 追加 |
+| `ui/panel/panel_mini` | 1 | 图合格但不落盘：唯一建它的两个方法是零调用点的迁移桩子（死方法里的引用不算宿主），判据见 §9 | 批1 |
+
+> **已经清零的族不再列行**（进度条族、天赋节点三态、名次奖牌、评价星、材料与宝石图标、章节载具、
+> 关卡主题背景 + 车尾受损态、特效与战斗 UI 件、三英雄弹道 + 丧犬走帧、导航格 / 二级页签 / HUD 功能钮 /
+> 装备槽 / 建筑卡 / 入口卡 / 行卡底板）——它们的落点、尺寸口径与判决全部在 §A 与 §9，
+> 批次史在 ART-PLAN §2.1。留 0 件的行只会让下一轮误判「这族还没做」。
 
 > **2026-09-21 分类迁移**：`ui/` 的预留 key 已按在库件同一套类别加上中间一段（`ui/ico/`、`ui/button/`、
 > `ui/banner/`、`ui/frame/`、`ui/res/`、`ui/nav/`、`ui/panel/`、`ui/progress/`、`ui/badge/`），将来切片落盘才落对位置

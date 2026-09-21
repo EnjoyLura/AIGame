@@ -55,7 +55,9 @@ const MANIFEST = [
     'icons/sniper_basic', 'icons/sniper_skill', 'icons/sniper_ultimate',
     'icons/laser_basic', 'icons/laser_skill', 'icons/laser_ultimate',
     'icons/radiation_basic', 'icons/radiation_skill', 'icons/radiation_ultimate',
-    // ===== 进版采购单：已登记、文件未到位的预留槽位（详见下方 RESERVED_SLOTS 与 art-spec/ASSET-MANIFEST.md §D）=====
+    // ===== 美术进版采购单登记段：以下 key 全部已进 MANIFEST（图到位即预载）。
+    // 还没到位的那些在下方 RESERVED_SLOTS 里有逐条判决，预载会跳过它们；
+    // 本段里已经落地的行不再单独标注——对账由 tools/check-art-manifest.mjs 盯，不靠注释。
     // 战斗件与场景主题
     'monsters/dog_walk', 'scenes/vehicle_tail_damaged',
     'scenes/bg_bridge', 'scenes/bg_ruins', 'scenes/bg_steel', 'scenes/bg_gorge',
@@ -115,16 +117,15 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // `Graphics` 画的程序化弹体）；丧犬走帧由 `Enemy._tryApplyArt` 优先取序列帧、**零代码改动**
     // （walk 默认就是 6 帧，其余四怪在 `ANIM_FRAME_COUNT` 里显式记 12——将来重出 12 帧要记得补那一行）；
     // 车尾受损态由 `Vehicle._syncDamageArt` 在耐久进 0.25 档时与完好态互换（与 HUD 条的 .danger 同门槛）。
-    // 下面这 5 件**不是缺图，是缺表现代码**：全工程 grep 连拼 key 的地方都没有，出图也没东西会去读。
-    // 逐条判据见 STYLE-SPEC §9「战斗表现件」。
+    // 下面这 5 件曾经**不是缺图，是缺表现代码**（全工程 grep 连拼 key 的地方都没有），
+    // 2026-09-21 逐条把表现代码建起来后移出本表，判决与落点见 STYLE-SPEC §9「战斗表现件」：
+    // laser_beam → `HeroCombat._drawBeamArt` 叠在程序化三层束之上；coin_burst → DomHud 通关结算
+    // 金币芯片后的 `.clBurst`；levelup_glow → `LevelUpPanel` 选卡三张背后的光柱；
+    // dmg_word → `DamageNumber._syncBackdrop` 暴击底纹；portal → `BattleManager._spawnPortal`
+    // 侧翼切入点的门（顶部下压那 70% 不放门）。
     // （关卡主题背景 4 件已于 2026-09-21 结清：`StageInfo.backdrop` 按关登记 + `_applyRoadArt` 按本关取图，
     //  键同时从 forest/beach/snow/cave 改名为 bridge/ruins/steel/gorge——旧名对不上任何一关的真名，
     //  那两张对不上的图永远没人读；这四个键从来没有文件也从来没有引用，改名零代价。）
-    'weapons/laser_beam': '激光束（laser 英雄在 HeroCombat 的 visualKey 三元里没有分支）',
-    'fx/coin_burst': '结算金币爆开（结算面是 DOM 弹层，没有粒子/序列帧消费者）',
-    'fx/levelup_glow': '升级光柱（升级走 DOM 横幅 + 画布施法环，没有光柱件槽）',
-    'fx/portal': '传送门（波次衔接是代码淡入淡出，没有"门"这个实体）',
-    'fx/dmg_word': '伤害飘字底纹（飘字是 Label 直接画字，没有底纹节点）',
     // —— 战斗 UI 件 ——（plate_wave 波次牌底 / skill_slot 技能槽底托 / boss_crown 首领徽
     // 2026-09-21 已出图并接线，声明移出本表：前两件一个贴 HUD 的 .waveChip、一个垫画布层技能图标，
     // 第三件是 .bossName 前面那枚从随文 emoji 拆出来的皇冠。r27 表一次出齐。）

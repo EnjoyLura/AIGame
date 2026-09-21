@@ -1,6 +1,7 @@
-import { Color, Graphics, Node, Tween, tween, UIOpacity, Vec3 } from 'cc';
+import { Color, Graphics, Node, Sprite, Tween, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 import { BattleConfig } from '../config/GameConfig';
 import { createUINode } from '../core/createUINode';
+import { AssetLib } from '../core/AssetLib';
 import { BattleManager, DamageSlotKey, EnemyHandle } from './BattleManager';
 import { ABILITY_LEVEL_DMG_BONUS, ABILITY_MAX_LEVEL, AbilityDef, BASIC_ENHANCE_DMG_STEP, BASIC_ENHANCE_MAX, BOOM_DMG_RATIO, BOOM_DMG_RATIO_STEP, BOOM_DMG_UP_MAX, BOOM_DMG_UP_STEP, BOOM_MAX, BOOM_RADIUS, BOOM_RADIUS_STEP, BOOM_RANGE_DMG_STEP, BOOM_RANGE_MAX, BOOM_RANGE_STEP, HeroDef, MULTISHOT_SPACING, PIERCE_PLUS_MAX, SEC_BOOM_DMG_RATIO, SEC_BOOM_DMG_RATIO_STEP, SEC_BOOM_MAX, SEC_BOOM_RADIUS, SEC_BOOM_RADIUS_STEP, SPLIT_DMG_RATIO, SPLIT_DMG_UP_MAX, SPLIT_DMG_UP_STEP, SPLIT_MAX, SPLIT_MORE_DMG_STEP, SPLIT_MORE_MAX, ULTIMATE_CHARGE_MAX, VOLLEY_ANGLE_STEP } from './HeroDef';
 import { SoundFx } from '../core/SoundFx';
@@ -1265,6 +1266,37 @@ export class HeroCombatController {
         beam.fillColor = WHITE_HIT;
         beam.circle(dx + sx, dy + sy, spotR * 0.16);
         beam.fill();
+        this._drawBeamArt(beam.node, sx, sy, dx, dy, width);
+    }
+
+    /**
+     * 光束贴图（`weapons/laser_beam`）叠在程序化三层束之上——与 `Bullet._applyVisualAsset`
+     * 同口径：贴图只加不减，预载慢一帧就少一层，绝不因为缺图把整条光束画没了。
+     * 挂 Graphics 节点的子节点而不是同一节点：一个节点只能有一个 renderable 组件。
+     */
+    private _drawBeamArt(host: Node, sx: number, sy: number, dx: number, dy: number, width: number): void {
+        const frame = AssetLib.frame('weapons/laser_beam');
+        if (!frame) {
+            return;
+        }
+        let art = host.getChildByName('BeamArt');
+        if (!art) {
+            art = createUINode('BeamArt');
+            host.addChild(art);
+            art.addComponent(UITransform);
+            const sp = art.addComponent(Sprite);
+            sp.sizeMode = Sprite.SizeMode.CUSTOM;
+            sp.trim = false;
+        }
+        art.getComponent(Sprite)!.spriteFrame = frame;
+        art.active = true;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        // 高度跟束宽（柔光层是 2.6 倍），长度拉满到目标：贴图是一条横向光带，
+        // 各向异性拉伸正是激光贴图的用法；两端尖角随长度一起摊开，不会看出接缝
+        art.getComponent(UITransform)!.setContentSize(len, Math.max(16, width * 3));
+        art.setPosition(sx + dx * 0.5, sy + dy * 0.5);
+        // 贴图朝 +X，所以直接取路径方向角（弹体那种朝 +Y 的图才要 atan2(-x, y)）
+        art.angle = Math.atan2(dy, dx) * 180 / Math.PI;
     }
 
     /** 画贯穿全屏的长光束（激光手大招）：三层共用同一条确定性波动路径（流动波纹），
@@ -1359,11 +1391,22 @@ export class HeroCombatController {
     /** 清空指定光束层；不传 ownerId 则清空全部（暂停/重置用） */
     clearBeam(ownerId?: string): void {
         if (ownerId) {
-            this._beamFor(ownerId).clear();
+            const beam = this._beamFor(ownerId);
+            beam.clear();
+            this._hideBeamArt(beam.node);
             return;
         }
         for (const beam of this._beams.values()) {
             beam.clear();
+            this._hideBeamArt(beam.node);
+        }
+    }
+
+    /** 光束一停贴图节点必须跟着收：Graphics 不重画就自然消失，Sprite 是常驻节点，不关会留一道悬空光束 */
+    private _hideBeamArt(host: Node): void {
+        const art = host.getChildByName('BeamArt');
+        if (art) {
+            art.active = false;
         }
     }
 

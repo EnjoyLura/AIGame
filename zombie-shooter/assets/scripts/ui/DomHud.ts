@@ -431,6 +431,15 @@ export class DomHud extends Component {
                 c.appendChild(v);
                 c.appendChild(l);
                 chips.appendChild(c);
+                if (cls === 'gold') {
+                    // 金币爆开（r34 表 `fx/coin_burst`）：一次性迸溅垫在「+N」后面。
+                    // 结算区每次通关都重建 DOM，动画天然重放，不需要手动 reset 类名；
+                    // 失败结算面不走这里（掉金币时爆金币是反话），所以只有通关会闪。
+                    const burst = document.createElement('i');
+                    burst.className = 'clBurst';
+                    this._tex('fx/coin_burst', (u) => { burst.style.backgroundImage = u; });
+                    c.appendChild(burst);
+                }
             };
             const earned = Number(this._lastGoldEarned) || 0;
             mkChip(String(gm.kills), '击杀怪物', '');
@@ -1906,10 +1915,25 @@ export class DomHud extends Component {
   12% { opacity: 1; transform: translateX(-50%) translateY(0); }
   82% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-14px); } }
 @keyframes clFadeUp { from { opacity: 0; transform: translateY(calc(22px * var(--s,1))); } }
-#domHud .clChip { display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--s,1));
+#domHud .clChip { position: relative; z-index: 0; display: flex; flex-direction: column; align-items: center;
+  gap: calc(4px * var(--s,1));
   min-width: calc(230px * var(--s,1)); padding: calc(14px * var(--s,1)) calc(24px * var(--s,1));
   border-radius: calc(16px * var(--s,1)); background: rgba(10,18,14,.55);
   border: calc(2px * var(--s,1)) solid rgba(123,220,123,.25); }
+/* 金币爆开（r34 表 fx/coin_burst）：垫在数字后面的迸溅。z-index:-1 + 父级 z-index:0 是刻意的——
+   迸溅要盖在芯片自己的半透明底上、又要躲在「+N」下面，数字被金币糊住就读不到收益。
+   中心钉在芯片 26% 高而不是正中：这张图最亮的核就在几何中心，落在正中会把「+1234」整条洗掉；
+   挪到上沿之后核压在标签与数字之间，飞出的金币仍然盖满整枚芯片。峰值透明度 0.82 不是 1（同上）。
+   缺图时这个 i 没有背景图，只剩一次空动画，界面上看不出来。 */
+#domHud .clBurst { position: absolute; left: 50%; top: 26%; z-index: -1;
+  width: calc(320px * var(--s,1)); aspect-ratio: 644 / 378;
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  pointer-events: none; opacity: 0;
+  animation: clCoinBurst .72s ease-out .46s both; }
+@keyframes clCoinBurst { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.3); }
+  26% { opacity: .82; transform: translate(-50%,-54%) scale(1.02); }
+  64% { opacity: .6; transform: translate(-50%,-62%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%,-74%) scale(1.1); } }
 #domHud .clChip b { font-size: calc(42px * var(--s,1)); color: #dff5e4; font-variant-numeric: tabular-nums; }
 #domHud .clChip.gold b { color: var(--c-gold-bright); }
 #domHud .clChip span { font-size: calc(24px * var(--s,1)); color: #8fa898; letter-spacing: calc(3px * var(--s,1)); }

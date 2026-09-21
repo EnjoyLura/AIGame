@@ -77,6 +77,8 @@ export class BattleManager extends Component {
     private _enemyPool: NodePool = null!;
     private _bulletPool: NodePool = null!;
     private _dmgPool: NodePool = null!;
+    /** 侧翼切入传送门（r34 表 `fx/portal`）的空闲节点，与 `_flashPool` 同形：纯贴图件没有组件，不必动用 NodePool */
+    private _portalPool: Node[] = [];
     private _particlePool: NodePool = null!;
     private _gemPool: NodePool = null!;
 
@@ -1698,26 +1700,63 @@ export class BattleManager extends Component {
                     x ?? (Math.random() * 2 - 1) * BattleConfig.ROAD_HALF_WIDTH,
                     this._visH / 2 + enemy.radius + 15,
                 );
-            } else if (roll < 0.85) {
-                // 道路左侧中段切入（带入场缩放提示，比屏外伏击更近、威胁更大）
-                enemy.node.setPosition(
-                    -(BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36),
-                    (Math.random() * 0.35 + 0.1) * this._visH,
-                );
-                node.setScale(0.2, 0.2, 1);
-                tween(node).to(0.18, { scale: new Vec3(1, 1, 1) }).start();
             } else {
-                // 道路右侧中段切入
-                enemy.node.setPosition(
-                    BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36,
-                    (Math.random() * 0.35 + 0.1) * this._visH,
-                );
+                // 道路左/右侧中段切入（带入场缩放提示，比屏外伏击更近、威胁更大）。
+                // 这种出场是「从门里钻出来」，所以同点位再放一扇传送门；
+                // 上方下压那 70% 不放——那不是钻出来，放门会读成 bug。
+                const side = roll < 0.85 ? -1 : 1;
+                const px = side * (BattleConfig.ROAD_HALF_WIDTH + 36 + Math.random() * 36);
+                const py = (Math.random() * 0.35 + 0.1) * this._visH;
+                enemy.node.setPosition(px, py);
                 node.setScale(0.2, 0.2, 1);
                 tween(node).to(0.18, { scale: new Vec3(1, 1, 1) }).start();
+                this._spawnPortal(px, py, enemy.radius);
             }
         }
         this._enemies.push(enemy);
         return enemy;
+    }
+
+    /** 侧翼切入点的传送门：与怪同时出现，撑开→收拢→淡出约 0.25s 后回池（节点复用见 `_flashPool`） */
+    private _spawnPortal(x: number, y: number, radius: number): void {
+        const frame = AssetLib.frame('fx/portal');
+        if (!frame) {
+            // 这条路径每波要走十几次，缺图就只保留原有的入场缩放，不能冒占位方块
+            return;
+        }
+        let node = this._portalPool.pop();
+        if (!node) {
+            node = createUINode('Portal');
+            node.addComponent(UITransform);
+            const sp = node.addComponent(Sprite);
+            sp.sizeMode = Sprite.SizeMode.CUSTOM;
+            sp.trim = false;
+            node.addComponent(UIOpacity);
+            this._fxLayer.addChild(node);
+        }
+        const n = node;
+        Tween.stopAllByTarget(n);
+        const op = n.getComponent(UIOpacity)!;
+        Tween.stopAllByTarget(op);
+        // 门比怪大一圈（立绘高 2.6r），怪才像是从门洞里跨出来
+        const h = radius * 4.2;
+        n.getComponent(UITransform)!.setContentSize(h * (frame.width / frame.height), h);
+        n.setPosition(x, y, 0);
+        n.getComponent(Sprite)!.spriteFrame = frame;
+        n.active = true;
+        // 上限 230 不是 255：门芯是纯黑，满不透明会把刚缩放出 0.2 的怪糊掉
+        op.opacity = 230;
+        // 位移走节点缩放、消失走透明度，两条 tween 各自停各自回池（与 muzzleFlashFx 同构）
+        n.setScale(0.35, 0.35, 1);
+        tween(n)
+            .to(0.11, { scale: new Vec3(1.06, 1.06, 1) }, { easing: 'backOut' })
+            .to(0.14, { scale: new Vec3(0.86, 0.86, 1) })
+            .call(() => { n.active = false; this._portalPool.push(n); })
+            .start();
+        tween(op)
+            .delay(0.13)
+            .to(0.12, { opacity: 0 })
+            .start();
     }
 
     // ================= BOSS 战与精英词缀 =================

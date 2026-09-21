@@ -19,6 +19,9 @@ export class LevelUpPanel extends Component {
     private _subtitle: Label = null!;
     private _cards: Node[] = [];
     private _banner: Node = null!;
+    /** 升级光柱（r34 表 `fx/levelup_glow`）：一根贯通上下的实心光柱，压在选卡三张的后方。
+     *  与上面那块标题横幅是两件东西——横幅槽早就被 `ui/banner/banner` 占用，别再往它身上挂。 */
+    private _glow: Node = null!;
     /** 面板/卡片透明度层（入场与选卡动画用） */
     private _panelOp: UIOpacity = null!;
     private _cardOps: UIOpacity[] = [];
@@ -57,6 +60,17 @@ export class LevelUpPanel extends Component {
         this._banner = banner;
         banner.setSiblingIndex(this._title.node.getSiblingIndex());
 
+        // 升级光柱：压在遮罩之上、所有文字与卡片之下（siblingIndex 0），宽度按贴图比例算，
+        // 不写死——写死就会把一根瘦长光柱拉成一条宽带（同 D21 的口径：显示尺寸跟着源件比例走）
+        const glow = createUINode('Glow');
+        this.node.addChild(glow);
+        glow.addComponent(UITransform);
+        glow.addComponent(Sprite);
+        glow.addComponent(UIOpacity);
+        glow.active = false;
+        glow.setSiblingIndex(0);
+        this._glow = glow;
+
         this.node.active = false;
     }
 
@@ -90,6 +104,25 @@ export class LevelUpPanel extends Component {
             const bop = this._banner.getComponent(UIOpacity)!;
             bop.opacity = 0;
             tween(bop).to(0.2, { opacity: 255 }).start();
+        }
+
+        // 光柱：图就绪才点亮（缺图就整根不出现，不会留一块黑底矩形），随面板一起淡入。
+        // 上限压到 150：再亮就会把三张卡上的字洗白，读者看不清选什么。
+        const glowFrame = AssetLib.frame('fx/levelup_glow');
+        if (glowFrame && this._glow) {
+            const gsp = this._glow.getComponent(Sprite)!;
+            if (!this._glow.active) {
+                gsp.sizeMode = Sprite.SizeMode.CUSTOM;
+                gsp.trim = false;
+                gsp.spriteFrame = glowFrame;
+                const gh = Design.HEIGHT;
+                this._glow.getComponent(UITransform)!.setContentSize(gh * (glowFrame.width / glowFrame.height), gh);
+                this._glow.active = true;
+            }
+            const gop = this._glow.getComponent(UIOpacity)!;
+            Tween.stopAllByTarget(gop);
+            gop.opacity = 0;
+            tween(gop).to(0.24, { opacity: 150 }).start();
         }
 
         options.forEach((option, i) => {
