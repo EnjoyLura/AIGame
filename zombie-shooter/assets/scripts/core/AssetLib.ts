@@ -26,6 +26,9 @@ const MANIFEST = [
     // 一张场景图吃五个页签是刻意的：用户点第 5 条「通用性很低、页页像半成品」的解法
     // 不是给每页画一张，而是让五页站在同一个世界里（口径见 STYLE-SPEC §7.1）
     'scenes/hub_camp',
+    // 护送页中心的立体船坞（r40 一张 2x2 表四件）：地面垫底 → 平台压上 → 载具停在平台里 → 碎石在最前。
+    // 这四件是**一个场景的四层**，不是四个独立图标，所以必须同表出、同表判（对标口径见 ART-PLAN 三十一轮）。
+    'stage/dock_floor', 'stage/dock_bay', 'stage/dock_veh', 'stage/dock_rubble',
     // 旧版 UI 素材（2026-09-20 拍板弃用）已移出契约位 → art-spec/reference/legacy-keep/：
     // panel_card/banner/btn_primary/card_frame/icon_frame/panel_frame/panel_metal/banner_orange/
     // btn_gold/btn_cyan/chip_dark。不进包、不登记 MANIFEST；要用回某张就拷回本清单里同 key 的

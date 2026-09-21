@@ -828,6 +828,23 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .stage-scene .crew i:nth-child(2) { color: var(--c-gold-frame); background: var(--c-gold-frame); animation-delay: .3s; }
 #homeUi .stage-scene .crew i:nth-child(3) { color: #7ef0c8; background: #7ef0c8; animation-delay: .6s; }
 #homeUi .stage-scene .crew i:nth-child(4) { color: #c792ff; background: #c792ff; animation-delay: .9s; }
+/* 中心立体船坞：地面 → 平台 → 载具 → 前景碎石，四层各一张图叠成同一个场景。
+   一律 background-size: contain 并把图钉在各自盒子的下沿，所以只调 left/right/bottom/height
+   四个数就能整族挪位，图永远不会被拉变形；哪张图缺了那一层就什么都不画，整块退化成一张照片。 */
+#homeUi .dock { position: absolute; inset: 0; pointer-events: none; }
+/* 坞底那圈暖光：平台原来直接坐在照片上，两者色温各走各的；补一层从下往上的琥珀光把它们焊成
+   同一个光源照出来的东西（对标差距第 4 条：整屏要有一个主光，不能让每个物件自带色温） */
+#homeUi .dock::before { content: ''; position: absolute; left: 8%; right: 8%; bottom: 0; height: 62%;
+  background: radial-gradient(62% 78% at 50% 100%, rgba(240,177,62,.3), rgba(240,177,62,0) 72%); }
+#homeUi .dock .dk { position: absolute; background-repeat: no-repeat; background-size: contain; }
+#homeUi .dock .floor { left: 5%; right: 5%; bottom: 0; height: 44%; background-position: center bottom; }
+#homeUi .dock .bay { left: 9%; right: 9%; bottom: 1%; height: 82%; background-position: center bottom;
+  filter: drop-shadow(0 10px 14px rgba(0,0,0,.6)); }
+#homeUi .dock .veh { left: 26%; right: 26%; bottom: 30%; height: 33%; background-position: center bottom;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.55)); }
+#homeUi .dock .rub { width: 24%; height: 28%; }
+#homeUi .dock .rub.l { left: 0; bottom: 0; background-position: left bottom; }
+#homeUi .dock .rub.r { right: 0; bottom: 3%; background-position: right bottom; transform: scaleX(-1); }
 /* 场景内侧快捷栏（左运营/右快捷）：收进页面后随页显隐，不再走 viewport 悬浮 */
 #homeUi .side-tools { position: absolute; top: calc(28px * var(--hs,1)); z-index: 4; display: flex; flex-direction: column; gap: calc(22px * var(--hs,1)); }
 #homeUi .side-tools.left { left: calc(8px * var(--hs,1)); }

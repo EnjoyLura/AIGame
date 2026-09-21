@@ -58,6 +58,9 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     /** 护送页动态元素 */
     protected _sceneEl: HTMLDivElement | null = null;
 
+    /** 场景底图当前已应用到的 key（连点翻页箭头时用来丢弃迟到的旧回调） */
+    protected _sceneBgKey = '';
+
     protected _vehEl: HTMLDivElement | null = null;
 
     /** 章节头左侧的载具牌：本章护送的是什么车（浅色主题隐藏场景载具，这一枚是手机上唯一可见处） */
@@ -223,6 +226,26 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             `<div class="veh">🚚</div>` +
             `<div class="crew"><i></i><i></i><i></i><i></i></div>`;
         stage.appendChild(scene);
+        // 中心立体船坞：地面 → 平台 → 载具 → 前景碎石，四层各一张图叠成同一个场景。
+        // 挂在 `.stage` 上而不是 `.stage-scene` 里：场景那一层底沿有渐隐遮罩，会把平台的座子吃掉；
+        // 而且它按 DOM 顺序排在两侧快捷列之前，所以船坞压得住照片、又不会盖住签到列与翻页箭头。
+        // 缺图时那一层什么都不画，整族退化成改动前那张照片，不需要额外开关。
+        const dock = document.createElement('div');
+        dock.className = 'dock';
+        const dk = (cls: string, key: string): void => {
+            const d = document.createElement('div');
+            d.className = `dk ${cls}`;
+            this._tex(key, u => {
+                d.style.backgroundImage = u;
+            });
+            dock.appendChild(d);
+        };
+        dk('floor', 'stage/dock_floor');
+        dk('bay', 'stage/dock_bay');
+        dk('veh', 'stage/dock_veh');
+        dk('rub l', 'stage/dock_rubble');
+        dk('rub r', 'stage/dock_rubble');
+        stage.appendChild(dock);
         const railL = document.createElement('div');
         railL.className = 'side-tools left';
         this._buildSideTools(railL, 'L');
@@ -264,13 +287,9 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         this._sceneEl = scene;
         this._capPowEl = cap.querySelector('.capPow');
         this._capRecEl = cap.querySelector('.capRec');
-        // 浅色主题：场景底图 = escort.png 照片（interface.css：center 57%/cover），CSS 装饰子元素全部隐藏
-        this._tex('scenes/escort', u => {
-            scene.style.backgroundImage = u;
-            scene.style.backgroundSize = 'cover';
-            scene.style.backgroundPosition = 'center 57%';
-            scene.style.backgroundRepeat = 'no-repeat';
-        });
+        // 场景底图按章节走（原先五章共用 escort.png 那一张照片，翻章节中心完全不变）：
+        // 第 2~5 章直接复用战斗侧 STAGES[].backdrop 已有的四张，第 1 章战斗没配、这里留护送照片。
+        this._stageBackdrop(scene, 'scenes/escort');
         this._vehEl = scene.querySelector('.veh');
         this._mobsEl = scene.querySelector('.mobs');
 
@@ -412,6 +431,29 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     protected _goBtnEl: HTMLButtonElement | null = null;
 
 
+    /**
+     * 场景底图按章节落位。贴图是异步排水的（`_tex` 走 `_pendingTexTimer`），所以回调里要比对一次
+     * 当前 key——连点翻页箭头时，先请求的那张可能后到，不比对就会把新章节的底盖回旧的。
+     */
+    protected _stageBackdrop(scene: HTMLElement, key: string): void {
+        if (this._sceneBgKey === key) {
+            return;
+        }
+        this._sceneBgKey = key;
+        this._tex(key, u => {
+            if (this._sceneBgKey !== key) {
+                return;
+            }
+            scene.style.backgroundImage = u;
+            scene.style.backgroundSize = 'cover';
+            // 取景取上半幅：这张照片的主角是那台卡车（画面 48%~70% 高），而船坞自己就有一台车，
+            // 两个 truck 同屏会读成"照片里那台是真的、平台上这台是贴纸"。center 57% 正好框住它，
+            // 改成 22% 之后露出的是天际线与路牌——章节身份还在，车让给船坞。
+            scene.style.backgroundPosition = 'center 22%';
+            scene.style.backgroundRepeat = 'no-repeat';
+        });
+    }
+
     /** 护送页刷新：章节头/场景/战力注脚/难度段/编队条（真数据 STAGES + stageCleared）；里程碑与运营红点一并同步 */
     protected _refreshStagePage(): void {
         const gm = GameManager.instance;
@@ -455,6 +497,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
 
         // 场景内容
         scene.className = 'stage-scene c' + ((stageId - 1) % 3 + 1);
+        this._stageBackdrop(scene, info.backdrop ?? 'scenes/escort');
         if (this._vehEl) {
             this._vehEl.textContent = theme.veh;
             this._tex('scenes/vehicle_tail', u => {
