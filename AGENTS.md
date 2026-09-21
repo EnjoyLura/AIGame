@@ -105,6 +105,17 @@ node check-popups.mjs                # 二级浮窗交互稿
 - HomeUi 样式分两层：base 深色层（`--hs`，桌面口径）在前、青瓷浅色层（`--pw`，手机口径）
   在后覆盖，同特异性后者胜——改公共组件（topbar/资源胶囊等）**两层都要顾**，
   手机上实际生效的是青瓷层。
+- **页面是暗场景，弹层才是浅纸**（2026-09-21 结构收敛轮定）：青瓷层原先把页面卡片写成平灰
+  （`#dcdcdc`/`#ccc`/`#d3d3d3` 这一批），页面底翻成 `--c-scene-*` 暗场景后它们就是全屏最扎眼的
+  没换肤孤岛。口径：`.screen` 页面级容器一律"暗槽底 + 亮字"（`--c-scene-1/2/3` + `--c-text*`/`--c-cream-*`/
+  `--c-gold-hi`）；`.panel`/`.mbox` 弹层仍是浅纸、深字保留。同一个类名两处都出现时（`.mSub`、`.game-button`）
+  **只给页面那一处开选择器**，别改公共那条。
+- **字色翻亮要挂在 `.plated` 上**：`UiPlate.nineSlice` 只在贴图真的到位那一刻打这个类，
+  缺图回退时旧配色仍然对。直接改基础色会把弹层里同一族键一起翻错。
+- **特异性是这条链上最容易踩的坑**：页面级翻亮写了 `.hero-quick .btn` 却不见效，
+  因为容器实际类名是 `fcol hero-quick`、而 `.fcol .btn.blue`（1 id + 3 类）压过它（1 id + 2 类）。
+  改完必须用 `contrast_audit.mjs <url> <页签> 4.5 plates` 看**贴在板上的那批字**的实际计算色，
+  光看不合格清单看不到它们（背板是贴图，算不出比值）。
 
 ### 每轮收尾验证链（顺序固定）
 
@@ -124,7 +135,11 @@ node tools/check-popup-ux.js         # 二级浮窗红线：原先只在文首�
 node tools/check-art-manifest.mjs    # 清单↔磁盘↔代码↔契约表四方对账：美术轮必跑，同样曾游离在链外
 # Cocos 构建（成功标志：grep -c "build Task (web-mobile) Finished" 计数 = 1）
 bash tools/postbuild.sh                # 构建戳 + 缓存击破 + _maxFontSize 补丁，构建日志用完删
-grep -c "<本轮改动标识>" build/web-mobile/assets/main/  # bundle 断言：确认改动真的进包
+grep -c "<本轮改动标识>" build/web-mobile/assets/main/index.js  # bundle 断言：确认改动真的进包
+# 文字可读性审计（要在起 serve.mjs 的构建上跑）：五个页签的「不合格」计数只许降不许升
+for p in home 商店 英雄 基地 行动; do node tools/contrast_audit.mjs "http://127.0.0.1:7456/index.html" $p 4.5; done
+#   第 4 个参数写 plates 另出「压在板上」那批的字色分组——那批算不出背板比值，是审计盲区，
+#   只能靠列字色缩小范围再对截图核（2026-09-21 就是靠它抓到 .fcol .btn.blue 的特异性压制）
 # 以下 *-bundle check 读 build/web-mobile 产物，须在构建之后跑（同样纳入链防腐烂）
 node tools/check-notice-bundle.js
 node tools/check-stamina-bundle.js

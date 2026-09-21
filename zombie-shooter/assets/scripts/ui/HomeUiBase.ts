@@ -297,9 +297,11 @@ export abstract class HomeUiBase extends HomeUiPlay {
         map.className = 'base-map';
         const roads = document.createElement('div');
         roads.className = 'map-roads';
+        // 路面/中线的颜色不写在这里：SVG presentation attribute 优先级低于 CSS，
+        // 由 HomeUiStyle 的 .map-roads .road/.dash 两条用 --c-scene-* 令牌给（暗场景要能翻皮）
         roads.innerHTML = '<svg viewBox="0 0 390 600" preserveAspectRatio="none" aria-hidden="true">' +
-            '<path d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke="#b8b8b8" stroke-width="40" fill="none"/>' +
-            '<path d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke="#eee" stroke-width="2" stroke-dasharray="12 12" fill="none"/>' +
+            '<path class="road" d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke-width="40" fill="none"/>' +
+            '<path class="dash" d="M180-20 210 630M-20 99 400 170M-20 247 400 320M-20 392 400 470" stroke-width="2" stroke-dasharray="12 12" fill="none"/>' +
             '</svg>';
         const buildings = document.createElement('div');
         buildings.className = 'base-buildings';
