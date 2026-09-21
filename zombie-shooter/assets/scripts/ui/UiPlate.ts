@@ -1,4 +1,5 @@
 import { AssetLib } from '../core/AssetLib';
+import type { EquipSlot } from '../core/HeroSystem';
 
 /**
  * 通用件贴图契约层：美术槽位 ↔ DOM 组件的唯一映射真源。
@@ -179,6 +180,18 @@ export const SURFACE_PLATE: Array<{ sel: string; key: string | null; spec: keyof
     // 行动页「无尽试炼 / 无尽护送」两张入口卡
     { sel: '.challenge-ground .entry', key: 'ui/panel/entry_card', spec: 'bigCard' },
 ];
+
+/**
+ * 装备**空槽**底纹族（r35b 表 6 件）：槽空着的时候垫这一位的暗色剪影。
+ *
+ * 与上面 `.eqGrid .slot` 那块金属板是配套的，所以刻意出成**单色低对比剪影、不带外框**——
+ * 槽自己已经是框，图再带框就是框套框（第一版 r35 整表因此作废重出，见 STYLE-SPEC §8）。
+ * 已装备那一支仍走 `SLOT_EMOJI`：ghost=虚、emoji=实，正好是"有没有东西"的对照。
+ */
+export const SLOT_GHOST_TEX: Record<EquipSlot, string> = {
+    head: 'ui/ico/ico_slot_helm', body: 'ui/ico/ico_slot_vest', wrist: 'ui/ico/ico_slot_bracer',
+    legs: 'ui/ico/ico_slot_legs', gloves: 'ui/ico/ico_slot_glove', shoes: 'ui/ico/ico_slot_boot',
+};
 
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */
 export function nineSlice(el: HTMLElement, spec: keyof typeof NINE, opts?: { keepBackground?: boolean }): (url: string) => void {

@@ -229,6 +229,11 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
   整表只能作废重出。**底色一律点名 `#00FF00`**，这一条不留给模型决定。
 - **451 legal_error 措辞雷区**：现实头衔/合影类词会 400 拒单（「三名幸存者并肩合影」「王者/champion king 段位」均踩过）。
   改成 sprite-sheet 口径（「一行三个从左到右依次是：…」）与中性词（「supreme legend tier emblem」）重试即过；
+- **宿主自带板 → 出图表头必须写「不要外框」**（2026-09-21 r35 整表作废）：给「已经有一块九宫格金属板/
+  卡片底板」的位置出图标时，只写「单色剪影」不够——模型会自作主张给每枚剪影套一圈方框，
+  落进界面就是框套框，正复现用户点名的「方块感太强」（§3 那条「图标一律无装饰外框」在生图表头里
+  要重说一遍，写成「四周不要方框、不要边框、不要底板，只留物件本体剪影」）。
+  判据：出图前先查这个宿主在 §9 有没有已接的底板件，有就在 prompt 里禁框；
 - **本地烟测换端口**：内置浏览器磁盘缓存按源（协议+域名+端口）分区，同端口看到旧图时
   换一个端口重开页签即可验证新图；线上走隧道本来就是新源，不受影响。
   另：IAB 在 ZCode 窗口后台时 rAF 被冻结、引擎静默起不来（无场景无报错）——自动化烟测直接用
@@ -278,6 +283,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 功能图标·撤销 1 件 | 无（本轮判据见状态列） | `ui/ico/ico_undo` | 同上口径 | `icon` | — | 1 | ✗ 图合格但**不落盘**（切片件在 `art-spec/reference/stock/ico/ico_undo.png`，键留采购单）：全工程没有一个可撤销的动作——现有的 `↩`/`←` 是弹层二级页的**返回**键（`HomeUiCore._popBar`），语义不是撤销，给它上图会把「返回上级 / 返回上一页」两档压成同一个符号；而凭空造一个点下去无事发生的「撤销」键又破了「无死键」红线。**下一个真正可撤销的操作做出来时这一件即接上**（首选方案：天赋误点后的「撤销上一次加点」，它只需要记住上一条加点记录，不必动持久化） |
 | 状态与属性图标 8 件 | 战斗 HUD 波次 chip 底下的**本波精英词缀徽标行** `.afRow .afIc`（`DomHud._refreshAffixes`，0.4s 刷一次）｜装备详情与重铸弹窗的词缀行 `_popAttr`（两处调用点，`iconTex: UiPlate.STATUS_TEX[id]`） | `icons/status_shield` `icons/status_sword` `icons/status_heart` `icons/status_skull` `icons/status_fire` `icons/status_bolt` `icons/status_lock` `icons/status_search`（八件落盘接线，查 `UiPlate.STATUS_TEX`） | HUD 徽标 26px×--s、弹层图标列 34px×层缩放 | `icon`（contain） | — | 1 | ✅ r21 一张 5列2行表出齐 10 格，棋盘底目检 10/10 无抠穿。**无头取景已目击上图**：第 4 波场上出现「狂暴」精英时，波次 chip 底下那枚火焰徽 `bg=Y`、emoji 被 `icon()` 摘成空串（截图 `gen-output/smoke_step2p/06b-affix-badges.png`）。**一张表吃两套词缀**：精英词缀（迅捷/坚甲/治疗/分裂/狂暴）与装备词缀（狂暴/精准/迅捷/鹰眼/穿甲/铁壁）共用 `STATUS_TEX`，两边 id 不撞（后者带 `af_` 前缀）。⚠ **`status_ice` / `status_poison` 不落盘**：图合格，但战斗里没有冰冻/中毒这类持续伤害机制（无 DoT 系统），挂上去就是永远不亮灯的死槽——切片件与 `tab_core` 同样归档在 `art-spec/reference/stock/ico/`，键留采购单。⚠ 出图时「锁定」那格模型画成了**分划板**（准星）而不是挂锁：将错就错——它正好对上装备词缀「精准」，而真正的「锁」在本作里是随文小符号（🔒 跟在文案里），按判据①本就不该出图。⚠ 装备词缀那一处宿主**机制已验、具体格子未在取景里走到**（要背包里有一件带词缀的装备才看得到，无头烟测的存档背包是空的）；走的是 `_popAttr.iconTex` 这条第三批就跑通的老路 |
 | 材料与宝石 7 件 | 背包格 `.bcell i`（`HomeUiHeroes.ts:822`，格 124px、图标框 72px×--hs；背包条里 110px 格配 64px 框）｜商城货卡 `.gIc`（`HomeUiMall.ts:311` 的 `mkGood({icTex})`，框 120px×--hs ｜ 92px×--pw） | `icons/mat_stone` `icons/mat_alloy` `icons/mat_core` `icons/gem_fire` `icons/gem_wind` `icons/gem_ice` `icons/gem_thunder`（七件全部落盘接线，查 `UiPlate.MISC_TEX`） | 图标 64~120px×层缩放（尺寸归 CSS） | `icon`（contain） | — | 1 | ✅ r19 一张 4列2行表出齐（模型多画了第 8 格琥珀雷宝石，不在采购单上，丢弃）。**这七件必须 `--tol 95` 切**：绿宝石的亮绿漩涡在默认 tol=60 下满足「g-r>60 且 g-b>60」，会被当背景抠穿——棋盘底目检才发现，源表上看不出。`mat_blueprint`（图纸）没出图，查 `MISC_TEX` 查不到就走 emoji，**不要改成 `'icons/'+id` 拼 key**：拼出来的串对账不认，会把已落盘的图判成无归宿 |
+| 装备空槽底纹 6 件 | 英雄页装备六槽 `.eqGrid .slot` 的**空槽分支**：`.slotGhost` 子元素只在槽空着时建（`HomeUiCore._slotGhost`，由 `HomeUiHeroes.mkSlot` 调用）。已装备那一支仍是 `SLOT_EMOJI`——**虚/实是同一格的两种状态**，不是两套图标 | `ui/ico/ico_slot_helm` `ui/ico/ico_slot_vest` `ui/ico/ico_slot_bracer` `ui/ico/ico_slot_legs` `ui/ico/ico_slot_glove` `ui/ico/ico_slot_boot`（六件落盘接线，查 `UiPlate.SLOT_GHOST_TEX`） | 宿主 82×83px×层缩放，剪影取 60%×60%（≈50px）并压到 opacity .55 | `icon`（contain；尺寸与透明度归 CSS，JS 只挂图） | — | 1（空/满两态由**建不建这个子元素**区分，不出二态图，见 §10） | ✅ r35b 一张 3列2行表出齐 6 格。⚠ **第一版 r35 整表作废重出**：模型给每枚剪影套了一圈方框，而这一族的宿主本身已经是一块 `ui/panel/eq_slot` 金属板（上面「容器底板族」那行接的），框套框正好复现用户点名的「方块感太强」，也直接违反 §3「图标一律无装饰外框」。重出的 prompt 里显式写了「四周不要方框、不要边框、不要底板，只留物件本体剪影」才拿对——**凡是宿主自带板的图标位，出图表头就要写这一句**，光写「单色剪影」不够 |
 
 > **有些槽位不该出图**（2026-09-20 第二批定，同批撤掉的 4 个键都属这几类）：
 > ① **随文小状态符**留字符——`›`（详情链尾）、`✓`（登录协议勾选、网格选中角标）、`✅`（签到已领格）

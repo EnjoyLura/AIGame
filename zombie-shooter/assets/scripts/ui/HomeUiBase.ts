@@ -27,7 +27,7 @@ import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/Vehicle
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiPlay } from './HomeUiPlay';
-import type { PopOpts, PopText } from './HomeUiCore';
+import type { PopOpts, PopText } from './HomeUiPop';
 
 /**
  * 基地页：建筑养成（升级建筑 + 局外强化）+ 建筑详情/载具改装弹窗。

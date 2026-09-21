@@ -84,6 +84,12 @@ const MANIFEST = [
     'ui/ico/ico_pause', 'ui/ico/ico_stats', 'ui/ico/ico_undo', 'ui/ico/ico_del',
     'ui/ico/ico_empty', 'ui/ico/ico_sound', 'ui/ico/ico_mute', 'ui/ico/ico_info',
     'ui/ico/ico_warn', 'ui/ico/ico_slider', 'ui/ico/ico_friend', 'ui/ico/ico_search',
+    // 装备空槽底纹族（r35b 表 6 件，一张 3列2行出齐）：英雄页六个装备位空着的时候，
+    // 槽里显示这一位的**暗色剪影**，读成"这一格收头盔"而不是"这格没做"。
+    // 刻意出成单色低对比剪影、且**不带外框**——槽本身已经有一块 eq_slot 金属板，
+    // 图再带框就是框套框（第一版 r35 就栽在这里，整表作废重出，见 STYLE-SPEC §8 坑）
+    'ui/ico/ico_slot_helm', 'ui/ico/ico_slot_vest', 'ui/ico/ico_slot_bracer',
+    'ui/ico/ico_slot_legs', 'ui/ico/ico_slot_glove', 'ui/ico/ico_slot_boot',
     // 状态与属性图标族（精英词缀 + 装备词缀共用，见 UiPlate.STATUS_TEX）
     // status_ice / status_poison 留单：图合格但全工程没有冰冻/中毒机制（无 DoT 系统），切片件在 stock/ico/
     'icons/status_shield', 'icons/status_sword', 'icons/status_heart', 'icons/status_skull',

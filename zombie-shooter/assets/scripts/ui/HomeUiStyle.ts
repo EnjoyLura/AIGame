@@ -731,6 +731,10 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   display: flex; align-items: center; justify-content: center; font-size: calc(46px * var(--hs,1)); cursor: pointer; }
 #homeUi .slot.filled { border-color: var(--c-gold-dk2); box-shadow: 0 0 8px rgba(240,177,62,.25); }
 #homeUi .slot.empty { color: #4a608a; }
+/* 空槽底纹件（r35b 表 6 件）：这一位的暗色剪影铺在 eq_slot 金属板中央。
+   半透明是刻意的——它要读成"板上的凹印"，不是"板上放了个图标"；已装备那一支的 emoji 满不透明，
+   虚/实正好构成"这格空着 / 这格有东西"的对照 */
+#homeUi .slot .slotGhost { width: 60%; height: 60%; opacity: .55; }
 #homeUi .slot .slv { position: absolute; right: calc(-10px * var(--hs,1)); bottom: calc(-10px * var(--hs,1));
   background: linear-gradient(180deg, var(--c-gold-hi), #e0a23c); color: #5a3a08; font-size: calc(18px * var(--hs,1)); font-weight: 900;
   padding: calc(2px * var(--hs,1)) calc(10px * var(--hs,1)); border-radius: calc(12px * var(--hs,1)); border: 1px solid #8a5c12; }
@@ -1032,7 +1036,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .dragGhost em { position: absolute; right: calc(6px * var(--hs,1)); bottom: calc(4px * var(--hs,1));
   font-style: normal; font-size: calc(20px * var(--hs,1)); color: var(--c-text); font-weight: 700; text-shadow: 0 1px 2px #000; }
 /* 背包内整行元素：网格是 5 列，说明行/空态文案要跨满整行才不会挤成一列 */
-#homeUi .bagBar .bagHint, #homeUi .bagBar .bagGrid .mSub { grid-column: 1 / -1; }
+#homeUi .bagBar .bagHint, #homeUi .bagBar .bagGrid .mSub, #homeUi .bagBar .bagGrid .popEmpty { grid-column: 1 / -1; }
+/* 背包空态借用弹层那个 _popEmpty（同一件 ico_empty、两处空态长得一样），但它的字色走的是
+   弹层令牌 --pdim2（浅纸上的弱暗字），落在暗页上读不出来——按 §7.1 第 2 条，只给页面这一处开 */
+#homeUi .bagBar .bagGrid .popEmpty { color: var(--c-text-dim); min-height: calc(90px * var(--pu,1)); }
+#homeUi .bagBar .bagGrid .popEmpty .ei { opacity: .5; }
 #homeUi .bagHint { font-size: calc(18px * var(--hs,1)); color: var(--c-text-dim); }
 #homeUi .sqRow { display: flex; gap: calc(16px * var(--hs,1)); justify-content: center; margin-bottom: calc(24px * var(--hs,1)); }
 #homeUi .sqSlot { width: calc(132px * var(--hs,1)); height: calc(148px * var(--hs,1)); border-radius: calc(20px * var(--hs,1));
@@ -2778,7 +2786,13 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .popEmpty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: calc(6px * var(--pu,1)); color: var(--pdim2); font-size: calc(13px * var(--pu,1)); text-align: center;
   min-height: calc(120px * var(--pu,1)); }
-#homeUi .popEmpty .ei { font-size: calc(38px * var(--pu,1)); opacity: .75; }
+/* .ei 必须自带方框：UiPlate.icon 贴上图那一刻会 dropGlyph 摘掉占位字形，
+   摘完这个 div 就没有内容、块级空元素高度 0、flex 交叉轴按内容定宽也是 0——
+   结果 ico_empty 那张图从来没显示过（emoji 那一支不受影响，它有字形撑着自己）。
+   补尺寸顺带把背景口径写全，缺图回退成 📭 字形时靠 grid 居中 */
+#homeUi .popEmpty .ei { width: calc(44px * var(--pu,1)); height: calc(44px * var(--pu,1));
+  display: grid; place-items: center; background-size: contain; background-position: center; background-repeat: no-repeat;
+  font-size: calc(38px * var(--pu,1)); opacity: .75; }
 #homeUi .popEmpty small { font-size: calc(11px * var(--pu,1)); color: var(--pdim2); opacity: .8; }
 
 /* --- 组件：正文段 / 警示条 / S 型居中块 --- */

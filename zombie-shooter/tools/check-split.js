@@ -3,7 +3,7 @@ const fs = require('fs');
 let fail = 0;
 const ok = (name, cond) => { console.log((cond ? 'PASS' : 'FAIL') + ' ' + name); if (!cond) fail++; };
 const read = (f) => fs.readFileSync('assets/scripts/ui/' + f, 'utf8');
-const FILES = ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts', 'HomeUiStyle.ts'];
+const FILES = ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiPop.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts', 'HomeUiStyle.ts'];
 const src = {};
 for (const f of FILES) src[f] = read(f);
 const all = FILES.map((f) => src[f]).join('\n');
@@ -22,7 +22,7 @@ ok('HomeUiBase extends HomeUiPlay', /export abstract class HomeUiBase extends Ho
 //    拆薄了会提示可以收紧预算——既不一遍拆完，也不允许继续长。
 const SPLIT_TARGET = 1800;
 const SPLIT_DEBT = { 'HomeUiCore.ts': 2240, 'HomeUiHeroes.ts': 2490 };
-for (const f of ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts']) {
+for (const f of ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiPop.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts']) {
   const lines = src[f].split('\n').length;
   const budget = SPLIT_DEBT[f] ?? SPLIT_TARGET;
   ok(`${f} <= ${budget} 行（目标 ${SPLIT_TARGET}，当前 ${lines}）`, lines <= budget);
@@ -31,6 +31,10 @@ for (const f of ['HomeUi.ts', 'HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts
   }
 }
 ok('HomeUi.ts 壳文件 <= 30 行', src['HomeUi.ts'].split('\n').length <= 30);
+// 弹层契约拆出后不许塞回 Core：Core 只管"怎么画"，"能传什么"归 HomeUiPop
+ok('弹层契约落位 HomeUiPop（PopOpts 已离开 Core）', /export interface PopOpts \{/.test(src['HomeUiPop.ts'])
+  && !/export interface PopOpts \{/.test(src['HomeUiCore.ts']));
+ok('Core import 弹层契约', /import type \{[^}]*PopOpts[^}]*\} from '\.\/HomeUiPop';/.test(src['HomeUiCore.ts']));
 
 // 3. 可见性：业务文件 private 清零（protected 化支撑继承链跨文件访问）
 for (const f of ['HomeUiCore.ts', 'HomeUiMall.ts', 'HomeUiHeroes.ts', 'HomeUiStage.ts', 'HomeUiPlay.ts', 'HomeUiBase.ts']) {

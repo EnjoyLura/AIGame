@@ -28,7 +28,7 @@ import { PatrolSystem } from '../core/PatrolSystem';
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiHeroes } from './HomeUiHeroes';
-import type { PopOpts } from './HomeUiCore';
+import type { PopOpts } from './HomeUiPop';
 import * as UiPlate from './UiPlate';
 
 const CHAPTER_THEMES: Array<{ veh: string; mobs: string[] }> = [

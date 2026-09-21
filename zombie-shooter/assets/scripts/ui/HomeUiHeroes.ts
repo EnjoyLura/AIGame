@@ -9,7 +9,7 @@ import { RecruitSystem, rollRecruit, HERO_STAR_MAX, RECRUIT_PRICE_1, RECRUIT_PRI
 import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branchNodes, branchPointTotal, talentNode, TalentNodeDef, TalentBranch } from '../core/TalentSystem';
 import { affixName, affixValueText, AFFIX_MAX } from '../core/EquipmentAffix';
 import { SLOT_EMOJI } from './HomeUiCore';
-import type { PopCta, PopOpts } from './HomeUiCore';
+import type { PopCta, PopOpts } from './HomeUiPop';
 import * as UiPlate from './UiPlate';
 import { HomeUiMall } from './HomeUiMall';
 
@@ -520,6 +520,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 el.appendChild(tierEl);
                 el.title = `${bagItemName({ slot, tier, lv: cur.lv })}`;
             } else {
+                this._slotGhost(el, UiPlate.SLOT_GHOST_TEX[slot]);
                 el.title = `${EQUIP_SLOT_NAMES[slot]} · 空槽位`;
             }
             el.onclick = (e) => {
@@ -804,13 +805,11 @@ export abstract class HomeUiHeroes extends HomeUiMall {
                 .filter(x => (this._heroBagFilter === 'all' || x.it.slot === this._heroBagFilter)
                     && (!q || bagItemName(x.it).includes(q)));
             if (items.length === 0) {
-                const tip = document.createElement('p');
-                tip.className = 'mSub';
-                tip.textContent = q ? `没有名字含「${q}」的装备 · 换个关键词`
-                    : this._heroBagFilter === 'all'
-                        ? '装备背包空空如也 · 去商店购买装备部件'
-                        : `没有${EQUIP_SLOT_NAMES[this._heroBagFilter as EquipSlot]} · 换个部位看看`;
-                grid.appendChild(tip);
+                // 空背包原先只有一行小字，读成"这块没做完"；走 _popEmpty 用在库的 ico_empty，与弹层空态同一件东西
+                grid.appendChild(this._popEmpty(q ? `没有名字含「${q}」的装备 · 换个关键词`
+                    : this._heroBagFilter === 'all' ? '装备背包空空如也 · 去商店购买装备部件'
+                        : `没有${EQUIP_SLOT_NAMES[this._heroBagFilter as EquipSlot]} · 换个部位看看`,
+                    undefined, 'ui/ico/ico_empty'));
             }
             for (const { it, i } of items) {
                 const cell = document.createElement('div');

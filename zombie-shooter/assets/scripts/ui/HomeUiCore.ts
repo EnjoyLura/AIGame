@@ -15,6 +15,7 @@ import { TalentSystem, TALENT_NODES, TALENT_BRANCHES, TALENT_BRANCH_NAMES, branc
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES, NoticeKind } from '../core/NoticeData';
 import { HOME_UI_CSS } from './HomeUiStyle';
 import * as UiPlate from './UiPlate';
+import type { PopTier, PopSize, PopText, PopCta, PopRowOpts, PopAttrOpts, PopOpts } from './HomeUiPop';
 
 export const MALL_AD_STAMINA = 10;
 /** 体力获取弹窗：钻石直购档位（1💎=1体力，可超上限囤积） */
@@ -33,107 +34,6 @@ export const STAMINA_BUY_COST = 20;
 export const SLOT_EMOJI: Record<EquipSlot, string> = {
     head: '🪖', body: '🛡️', legs: '🦵', gloves: '🧤', wrist: '💪', shoes: '🥾',
 };
-
-/** 章节主题（对应 STAGES 五关的场景表现：场景渐变/载具 emoji/怪物 emoji） */
-
-/** 弹层档位：L2 全屏二级页 / L3 二级弹窗 / L4 半屏抽屉 / L5 结果演出层 */
-export type PopTier = 2 | 3 | 4 | 5;
-
-/** 弹层尺寸档：S 确认型 / M 列表型 / L 详情型 / XL 全屏页 */
-export type PopSize = 'S' | 'M' | 'L' | 'XL';
-
-/** 文本片段：字符串为普通说明，对象可指定强调样式（d 胶囊 / exp 过期 / soon 即将到期） */
-export type PopText = string | { text: string; kind?: 'd' | 'exp' | 'soon' };
-
-/** 弹层底部按钮（kind 是贴图语义，取值域与 UiPlate.PLATE 同步） */
-export interface PopCta {
-    label: string;
-    kind?: 'gold' | 'green' | 'danger' | 'grey' | 'ad';
-    disabled?: boolean;
-    /** 禁用态下点击的去向：缺口 toast 或 3-C 拦截弹窗（禁用不是死键） */
-    onDisabled?: () => void;
-    red?: boolean;
-    onClick: () => void;
-}
-
-/** 列表行：图标 + 两行文本（可带标签/进度条）+ 状态列 + 行内动作 */
-export interface PopRowOpts {
-    icon?: string;
-    iconTex?: string;
-    /** 行图标外框槽位（头像框/品质框）：走 border-image 无 fill，与 iconTex 的 background 共存 */
-    frameTex?: string;
-    title: string;
-    tag?: string;
-    lines?: PopText[];
-    progress?: number;
-    status?: string;
-    statusKind?: 'expire' | 'soon';
-    action?: { label: string; kind?: 'green' | 'gold' | 'grey'; disabled?: boolean; onDisabled?: () => void; onClick: () => void };
-    red?: boolean;
-    expired?: boolean;
-    /** 高亮当前行（如排行榜里的「我」） */
-    on?: boolean;
-    onClick?: () => void;
-}
-
-/** 属性行：图标 + 说明（**xx** 高亮）+ 行尾动作按钮 / 空插槽 */
-export interface PopAttrOpts {
-    icon?: string;
-    /** 同位贴图槽：glyph 先占位，图到位由 `UiPlate.icon()` 摘掉（缺图不空槽） */
-    iconTex?: string;
-    text: string;
-    action?: { label: string; kind?: 'gold' | 'info'; onClick: () => void };
-    slot?: boolean;
-    empty?: boolean;
-}
-
-/** 弹层统一入参（UX 布局稿 §0 五段式骨架） */
-export interface PopOpts {
-    /** 层级，默认 L3 */
-    tier?: PopTier;
-    /** 尺寸档，默认 M */
-    size?: PopSize;
-    /** 细标题条文案（与 banner/quality 二选一） */
-    title?: string;
-    /** 横幅标题（列表型头部） */
-    banner?: string;
-    /** 横幅右侧美术位占位说明 */
-    art?: string;
-    /** 品质头（详情型头部） */
-    quality?: { q: 1 | 2 | 3 | 4; name: string; icon: string; tier?: string; stats?: string[] };
-    /** 展示台（XL 全屏页头部） */
-    show?: { icon: string; tier?: string; name?: string; sub?: string };
-    /** 说明行（居中副标题 + 可选问号） */
-    subtitle?: string;
-    help?: () => void;
-    /** 顶部页签 */
-    tabs?: string[];
-    tab?: number;
-    onTab?: (i: number) => void;
-    /** 固定筛选条（不随内容滚动） */
-    fixed?: (bar: HTMLElement) => void;
-    /** 内容滚动区（唯一滚动轴） */
-    build: (content: HTMLElement) => void;
-    /** 槽位条（固定） */
-    slots?: (bar: HTMLElement) => void;
-    /** 消耗行（固定，不足自动标红） */
-    cost?: Array<{ icon: string; have: number; need: number }>;
-    /** CTA 底栏（固定） */
-    ctas?: PopCta[];
-    note?: string;
-    /** 底部操作栏：左侧返回 + 右侧页签（XL 二级页） */
-    barBack?: boolean;
-    barTabs?: Array<{ icon: string; label: string; on?: boolean; red?: boolean; onClick: () => void }>;
-    /** 右上关闭，默认 true */
-    closable?: boolean;
-    /** 点遮罩关闭，默认 L3/L4 可关、L5 与 XL 不可关 */
-    maskClose?: boolean;
-    /** 钻取：保留返回栈（左上出现返回），关闭时逐级回退 */
-    push?: boolean;
-    /** 自定义返回（左上返回键 / barBack 触发）：用于返回时重新取数的层级（如列表→详情） */
-    onBack?: () => void;
-    onClose?: () => void;
-}
 
 /**
  * HomeUi 壳：组件生命周期/事件接线、共享工具（弹窗骨架/toast/贴图挂载）、
@@ -1050,6 +950,13 @@ export abstract class HomeUiCore extends Component {
             box.appendChild(this._el('small', undefined, hint));
         }
         return box;
+    }
+
+    /** 空装备槽的底纹：槽里垫一枚这一位的暗色剪影，让空位读成"这格收头盔"而不是"这格没做" */
+    protected _slotGhost(host: HTMLElement, key: string): void {
+        const g = this._el('i', 'slotGhost');
+        host.appendChild(g);
+        this._tex(key, UiPlate.icon(g));
     }
 
     /** 组件：分组小标题 */

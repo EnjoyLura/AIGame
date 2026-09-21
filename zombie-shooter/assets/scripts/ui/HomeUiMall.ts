@@ -29,7 +29,7 @@ import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { MALL_AD_STAMINA, SLOT_EMOJI } from './HomeUiCore';
 import { HomeUiCore } from './HomeUiCore';
-import type { PopOpts } from './HomeUiCore';
+import type { PopOpts } from './HomeUiPop';
 import * as UiPlate from './UiPlate';
 
 /**

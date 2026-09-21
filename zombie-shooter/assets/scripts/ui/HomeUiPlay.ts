@@ -28,7 +28,7 @@ import { PatrolSystem, PATROL_MAX_HOURS, patrolGoldPerHour, patrolMiscPerHour, p
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiStage } from './HomeUiStage';
-import type { PopCta, PopOpts } from './HomeUiCore';
+import type { PopCta, PopOpts } from './HomeUiPop';
 import * as UiPlate from './UiPlate';
 
 /**
