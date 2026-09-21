@@ -1574,6 +1574,17 @@ export abstract class HomeUiCore extends Component {
 
         const viewport = document.createElement('div');
         viewport.className = 'viewport';
+        // 主城页面底：一张共用场景吃五个页签（口径见 STYLE-SPEC §7.1 与 ASSET-MANIFEST 那条注）。
+        // CSS 里那两层渐变是缺图回退，图到位时这条把「遮罩 + 场景」一起写进 inline。
+        // 遮罩不许省：场景中段那道琥珀色雾亮带是整幅最亮的地方，实测会把落在上面的
+        // 弱亮字（--c-text-dim）压到 4.5:1 以下——压暗到能读，但保留轮廓，让它读成"世界"而不是"壁纸"。
+        this._tex('scenes/hub_camp', (u) => {
+            viewport.style.backgroundImage =
+                'linear-gradient(180deg, rgba(11,18,26,.86) 0%, rgba(11,18,26,.44) 34%, rgba(10,16,24,.34) 60%, rgba(8,13,20,.86) 100%), ' +
+                `url("${u}")`;
+            viewport.style.backgroundSize = 'cover, cover';
+            viewport.style.backgroundPosition = 'center, center';
+        });
         root.appendChild(viewport);
 
         this._buildMallPage(viewport);

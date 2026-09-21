@@ -2893,7 +2893,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   min-height: calc(30px * var(--pw,2.5)); font-size: calc(11px * var(--pw,2.5)); color: var(--c-cream-1); }
 #homeUi .hero-tools .hot .ic { width: calc(23px * var(--pw,2.5)); height: calc(23px * var(--pw,2.5)); font-size: calc(21px * var(--pw,2.5));
   line-height: calc(23px * var(--pw,2.5)); }
-#homeUi .screen.sHeroes .bagBar { flex: 1 1 0%; min-height: 0; display: flex; flex-direction: column; background: var(--c-scene-1);
+#homeUi .screen.sHeroes .bagBar { flex: 1 1 0%; min-height: 0; display: flex; flex-direction: column; background: var(--c-scene-panel);
   margin: 0; padding: 0; border-radius: 0; border-top: 1px solid var(--c-scene-edge); position: static; height: auto; max-height: none; }
 #homeUi .screen.sHeroes .bag-head { flex: none; height: calc(30px * var(--pw,2.5)); display: flex; align-items: center;
   justify-content: space-between; padding: 0 calc(10px * var(--pw,2.5)); font-size: calc(12px * var(--pw,2.5)); color: var(--c-text); }
@@ -3030,7 +3030,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .shop-scroll::-webkit-scrollbar { width: calc(6px * var(--pw,2.5)); }
 #homeUi .shop-scroll::-webkit-scrollbar-thumb { background: var(--c-scene-line); border-radius: calc(3px * var(--pw,2.5)); }
 #homeUi .shop-offer { position: relative; min-height: calc(177px * var(--pw,2.5)); gap: 0; display: grid;
-  grid-template-columns: 42% 1fr; grid-template-rows: 1fr calc(39px * var(--pw,2.5)); background: var(--c-scene-2);
+  grid-template-columns: 42% 1fr; grid-template-rows: 1fr calc(39px * var(--pw,2.5)); background: var(--c-scene-panel);
   border: none; margin-bottom: calc(9px * var(--pw,2.5)); padding: calc(8px * var(--pw,2.5)); cursor: pointer; }
 #homeUi .rcard { grid-template-columns: 42% 1fr; }
 #homeUi .offer-art { grid-row: 1; align-self: stretch; min-height: calc(110px * var(--pw,2.5)); display: grid; place-items: center;

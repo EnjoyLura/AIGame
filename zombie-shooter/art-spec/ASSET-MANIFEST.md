@@ -26,6 +26,7 @@
 | scenes/escort | 护送页/商城场景图 | 848×1264 | 已有（本轮修复：曾被代码引用但未登记，静默占位） |
 | scenes/recruit | 商城「英雄招募」主推卡立绘位（`HomeUiMall` 的 `.offer-art`，与旁边礼包卡同一骨架） | 1024×1536 | 已有（r32 表：图生图自 `scenes/escort` 定实拍质感，prompt 里点名"构图重心偏右、左侧留暗呼吸区"，因为那一侧要叠标题；emoji 只在照片到位那一刻摘除，缺图回退照旧） |
 | scenes/bg_bridge · bg_ruins · bg_steel · bg_gorge | 战斗底图按章切换（第 2/3/4/5 关；第 1 关「末日公路」仍用 `scenes/road`，不重复登记）。登记处是 `StageInfo.backdrop`，消费在 `BattleManager._applyRoadArt` | 720×1280（与 road 同比） | 已有（r33 表：四张各自以 `scenes/road.jpg` 图生图锁机位；出图口径=正俯视、道路纵向居中占宽六成、上下两端不得有横向通栏特征，因为要上下镜像循环滚动；`tools/land_bg.py` 裁对齐并压 JPG 对齐 road 的体积口径） |
+| scenes/hub_camp | **主城五页共用的页面底**（DOM `.viewport` 的 `background-image`，不是画布件；接法在 `HomeUiCore` 建 `.viewport` 那一刻，`_tex` 把「暗遮罩 + 场景」一起写进 inline，CSS 里那两层渐变是缺图回退） | 1080×1920 | 已有（二十九轮 Step2。一张吃五页是刻意的：用户点第 5 条「通用性很低、页页像半成品」的解法不是给每页画一张，而是让五页站在同一个世界里。**为什么不是 5 张**：出图口径要求"中段一整条横向保持低对比、视觉留空"，因为那一带要压 UI；实测只有 基地页 能把场景读出来（建筑卡之间有缝），商店/英雄 要把 `.shop-offer`、`.bagBar` 这两块整屏大的暗槽换成半透明档 `--c-scene-panel` 才透出来，护送页 则被关卡照片整个盖住——那一页要的是"照片当页底"，另开一轮） |
 | ui/shop/chest | 宝箱 | 256 见方 | 已有 |
 | ui/nav/nav_mall · nav_heroes · nav_battle · nav_core · nav_base | 底部导航 5 键（r3 素材表） | 128×128 | 已有 |
 | ui/res/res_gold · res_diamond · res_stamina | 资源图标 3 枚（r3 素材表） | 128×128 | 已有 |

@@ -22,6 +22,10 @@ const MANIFEST = [
     'ui/nav/nav_mall', 'ui/nav/nav_heroes', 'ui/nav/nav_battle', 'ui/nav/nav_core', 'ui/nav/nav_base',
     'ui/res/res_gold', 'ui/res/res_diamond', 'ui/res/res_stamina',
     'scenes/vehicle_tail', 'scenes/escort', 'scenes/recruit',
+    // 主城五页共用的页面底（DOM `.viewport` 的 background-image，不是画布件）。
+    // 一张场景图吃五个页签是刻意的：用户点第 5 条「通用性很低、页页像半成品」的解法
+    // 不是给每页画一张，而是让五页站在同一个世界里（口径见 STYLE-SPEC §7.1）
+    'scenes/hub_camp',
     // 旧版 UI 素材（2026-09-20 拍板弃用）已移出契约位 → art-spec/reference/legacy-keep/：
     // panel_card/banner/btn_primary/card_frame/icon_frame/panel_frame/panel_metal/banner_orange/
     // btn_gold/btn_cyan/chip_dark。不进包、不登记 MANIFEST；要用回某张就拷回本清单里同 key 的
