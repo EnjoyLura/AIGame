@@ -69,8 +69,28 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 - **主体数量**：资源堆叠 ≤3 件；图标 1 件。
 - 绿幕出图 + `tools/chroma_key.py`（tol=60 + despill）抠像，不用透明底请求。
 
-## 4. 分类模板（拼在风格后缀前）
+### 3.1 图标只准一种画法（2026-09-22 三十四轮，§4.9 第 3 条落地）
 
+库里曾经并存两种画法：**做旧金属 + 等距 + 左上暖光**的军武道具（`ico_weapon` / `ico_core` / `patrol` /
+四张资源副本），和**高饱和纯色 + 粗黑描边 + 没有光向**的休闲贴纸（旧 `ico_friend` 是一对扁平半身剪影、
+旧 `nav_battle` 是一只绿色游戏手柄）。两种摆在同一屏，读起来就是"两批货"——这一条定死用哪一种。
+
+- **基准画法**：等距 3/4 视角；主光在左上、暖色（对 `--c-gold-hi` 那一档），右下给一道冷反光；
+  材质是**哑光做旧金属**——掉漆、磨边、露出底金属，铆钉与焊缝可以有，镜面高光不许有；
+  主体一圈深色描边，保证贴在浅板与深板上都认得出轮廓。
+- **一次成表是这套语言成立的前提**：同一批格子必须在**一次生成**里出完（§8），逐张生必然漂移。
+  重切十个入口图标 = 一张 12 格表，不是十二次生图。
+- **D16「去装饰外框」的边界在这里划清**：禁的是"给图标套一个不携带信息的框"（金属圆环当底、
+  盾形板当托、相框、桂叶花环边饰）；**物件本身就是环形的不算**——一枚军功章的环与绶带是它的
+  构成，不是外加的框。判据是"把这一圈去掉，还剩不剩这个物件的含义"。
+- **小于 60px 的位一律单物件**（r39 定的那条仍然有效）：等距小场景插画落到 45px 就是一团糊影。
+  这一轮重切的十件宿主实测 27~62px，所以整表按"孤立道具、不画地面"提。
+- **槽位名会召唤该行业惯例的画法**，这是 §8「prompt 只报功能名」的一条反例，两次实测：
+  写「好友」必然出成两个人、写「成就」必然出成一圈奖章。要跳出惯例，就在槽位名后面补一句
+  **"不要什么"**（"不要画人物、不要相框圆环桂叶"），而不是补一句"要什么样子"——
+  前者保住了一次成表的自洽，后者会把模型按着你的描述画成孤立单件。
+
+## 4. 分类模板（拼在风格后缀前）
 | 分类 | 模板（…处填 slot 描述） | 备注 |
 |---|---|---|
 | 功能图标 | `icon of …, single item, slightly tilted 3/4 view, subtle golden rim light` | 商城/道具/功能入口 |
@@ -361,7 +381,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 小圆钮备用件 | `.popMeta .q`（帮助 ?） | `ui/button/btn_round2` | 17px×--pu 圆 | `icon` + `keepGlyph`（? 是符号）+ 隐边框 | — | 1 | ✅ 本轮接线 |
 | 行图标外框（框件族） | `.popRow .ic`（`frameTex`） | `ui/frame/avatar_frame`（名片行） | 40px×--pu 方 | **`frame`** = border-image slice `16%`（**无 fill**）/ width 5px×--pu，保背景 | `frame` | 1 | ✅ 本轮接线（顶栏 43px 位不接：`.pAvatar > div` 有 `clip-path` 多边形，框图会被裁，需先定框/切角关系） |
 | 入口图标槽（侧栏/页脚键） | `.hot .ic`（`mkBtn`/`mkFoot` 的 tex 参数） | `ui/ico/ico_task` `ui/ico/ico_trophy` `ui/shop/shop_scroll` `ui/shop/shop_gift` `ui/shop/shop_chest` | 34px×--pu（侧栏覆写 56px×--hs / 24px×--pw 与字形同框） | `icon`（尺寸归 CSS，两层同 footprint） | — | 1 | ✅ 本轮接线（新入口图标直接传 key，不再加机制） |
-| 底部主导航 5 签 | `.tab .ticon` | `ui/nav/nav_mall` `ui/nav/nav_heroes` `ui/nav/nav_battle` `ui/nav/nav_core` `ui/nav/nav_base` | 102px×--hs ｜ 41px×--pw | `icon`（尺寸交 CSS） | — | 1（选中态 CSS 强调，见 §10） | ✅ 已接（查 `NAV_PLATE`） |
+| 底部主导航 5 签 | `.tab .ticon` | `ui/nav/nav_mall` `ui/nav/nav_heroes` `ui/nav/nav_battle` `ui/nav/nav_core` `ui/nav/nav_base` | 102px×--hs ｜ 41px×--pw | `icon`（尺寸交 CSS） | — | 1（选中态 CSS 强调，见 §10） | ✅ 已接（查 `NAV_PLATE`）。⚠ **页 key 与页签名不同源，出图前必须查表不许按 key 名猜**：`battle` 是「护送」页（图标=卡车），`core` 才是「行动」页（图标=作战地图+电台）。2026-09-22 图标语言轮按 key 名理解，把标着"行动"的格子切给了 `nav_battle`，护送页被换成地图、行动页还留着旧手柄，取景才看出来（`UiPlate.NAV_PLATE` 上已写这条警告） |
 | 顶栏资源胶囊 3 枚 | `.res > span:first-child` | `ui/res/res_gold` `ui/res/res_diamond` `ui/res/res_stamina` | 22px×--hs ｜ 20px×--pw | `icon`（尺寸交 CSS） | — | 1 | ✅ 已接（查 `RES_ICON`） |
 | 详情品质头·图标框 | `.popQ .qi` | `ui/frame/frame_q0` `ui/frame/frame_q1` `ui/frame/frame_q2` `ui/frame/frame_q3` | 58px×--pu 方 | `icon`（contain + keepGlyph，框压在道具 glyph 外圈） | — | 1 | ✅ 本轮接线（CSS 白边降为缺图回退） |
 | 行图标贴图槽 | `.popRow .ic`（`iconTex`） | 动态 key（立绘/怪图/礼盒…） | 40px×--pu | `icon`（cover） | — | 1 | ✅ 已接 |
@@ -374,6 +394,7 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 | 进度条（底槽 / 填充） | **实测宿主 7 条**：HUD 四条 `.xpBar`（25px，底槽+蓝填充）、`.vehTrack`（20px，只贴底槽）、`.bossTrack`（28px，底槽+红填充）、`.statBar`（20px，只贴底槽）；主城三条同轮加粗后接入——`.expbar` 顶栏指挥官经验（10px，底槽+蓝）、`.popRow .pbar` 弹层行进度（12px，底槽+绿）、`.popAct .bar` 弹层活跃/保底（12px，底槽+黄，两处调用点）；抽卡保底条 `.offer-copy .rcBar` **退回 6px 不贴**（加粗会挤动那张主推卡，6px 也配不出内腔）。另 `.qBar/.biBar/.talentBar/.prosBar/.actBar/.starBar` 六条是**死样式**（全工程无一处建 DOM），`.popBar`/`.bagBar` 名不符（弹层底栏与背包容器，不是进度条） | `ui/progress/bar_track` `ui/progress/bar_fill_blue` `ui/progress/bar_fill_red` `ui/progress/bar_fill_green` `ui/progress/bar_fill_yellow`（五件全部落盘接线） | 底槽条高 12~28px；填充件横向拉伸、宽度仍由 JS 写 % | 底槽 HUD 四条 `nineSlice(el,'bar')`、主城四条 `nineSlice(el,'barThin')`，填充一律 `strip`；两条不贴图的理由：`.vehicleFill` 的色是 `.warn/.danger` 三态由 CSS 类切（内联贴图会吃掉三态，**2026-09-20 拍板不换**），`.statBarFill` 的色由 JS 按英雄身份色内联写（`DomHud.ts:894`） | `bar` / `barThin`（✅ 2026-09-20 按 `tools/measure_nine.py` 实测改档：切片同为 `10 17 10 17 fill`，显示宽度随宿主条高折算——20~28px 用 4px 与 7px、10~16px 用 2px 与 4px，均 ×--pu） | 1 | ✅ 底槽八条 + 四色填充全部接线；HUD 层补 `--pu: var(--s,1)` 令牌（同 D10b 的口径），否则板厚不随 HUD 缩放。⚠ 经验条原色是青 `#4dd0e9`，同轮拍板**沿用蓝**：族内四色只是出图侧的归类，落到具体宿主要让位于「换图不换观感」 |
 | 二级页签图标 | **实测 7 个位置、5 个键**：商城 `.shopTabs` 四签（英雄/装备/宝石/材料）+ 背包 `.bagTabs` 四签（装备/宝石/材料/道具），其中装备/宝石/材料三签两处共用同一件。规范原先写的第三个宿主 `.chTabs`（章节页签）是**死样式**——护送页早已改成「章节头 + 场景内侧左右翻页箭头」（`HomeUiStage.ts:68` 的注释就写着「替代原五章页签」），全工程无一处建这个 DOM | `ui/ico/tab_hero` `ui/ico/tab_equip` `ui/ico/tab_gem` `ui/ico/tab_mat` `ui/ico/tab_potion`（五件落盘接线） | 图标 20px×--hs ｜ 20px×--pw。两套页签都并进了 34~56 高的 `.flat-tabs` 条带、文字只有 12 号，图标取 20 才能与文字并排且不撑高行（原先粗写的「20~34px」是照 `.hot .ic` 抄的，那个位置有 56 高） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1（选中态走 CSS，见 §10） | ✅ r13 一张表出齐 6 格，棋盘底目检 6/6 无抠穿、无绿边、无邻居碎件并入，5 件落盘。⚠ **`tab_core` 图合格但没有这个页签**：背包第四签的真名是「道具」（`item` 分类 = 非装备/宝石/材料的消耗品，贴图沿用 `tab_potion`，医疗包读得出「耗材」），武器核心只是养成弹窗里的一行、不是页签，硬套 `tab_` 键等于给同一个位置挂两套语义 —— 键留在采购单，切片件归档在 `art-spec/reference/stock/ico/tab_core.png` 不落盘（2026-09-20 拍板「核心页签功能我后面做」：`MANIFEST` 与本表那行都不删，界面建好当天拷回 `assets/resources/textures/ui/ico/` 再删 `RESERVED_SLOTS` 一行即生效） |
 | 功能图标·第一批 12 件 | 侧栏 `.side-tools .hot .ic`（签到/试炼/无尽）｜英雄页 `.hero-quick .btn .ic`（核心/武器/升星/天赋）+ `.hero-tools .hot .ic`（招募/工坊，两处：页头与背包行）｜顶栏 `.res .add`（加号）｜确认弹窗 `.popIcBig`（删除/警告） | `ui/ico/ico_signin` `ui/ico/ico_trial` `ui/ico/ico_endless` `ui/ico/ico_core` `ui/ico/ico_weapon` `ui/ico/ico_starup` `ui/ico/ico_talent` `ui/ico/ico_recruit` `ui/ico/ico_forge` `ui/ico/ico_add` `ui/ico/ico_del` `ui/ico/ico_warn` | 侧栏与英雄页 23~26px、顶栏加号 14px、弹窗大图标 62px（各 ×层缩放） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1 | ✅ 图标第一批落盘接线（2026-09-20）。⚠ 英雄页「技能」键按「除技能外不换」保留 emoji，但已一并包进 `.ic` span 以对齐字号。**2026-09-21 追撤 `ui/ico/ico_skill` 键**：技能这一族用户明令不换图，那这个键永远不会有人填，留在 MANIFEST 里就是一条永远缺文件的空槽（预载白发请求、对账永久挂账），已从 `MANIFEST` 与 `RESERVED_SLOTS` 双双删除 |
+| 图标语言重切族（**零代码改动**） | 与上面几行同一批宿主，只是**同名覆盖图片文件**：日常四快捷 `.daily .hot .ic`（签到/任务/成就/礼包）｜页脚 `.foot-tools .hot .ic`（排行榜/好友）｜英雄页 `.hero-quick .btn.starEntry .ic`（升星）｜顶栏资源胶囊 `.res .ric`（体力）｜分类页签 `.flat-tabs .ticon`（宝石）｜底部导航 `.tab .ticon`（行动 = `nav_core`） | `ui/ico/ico_signin` `ui/ico/ico_task` `ui/act/achievement` `ui/shop/shop_gift` `ui/ico/ico_trophy` `ui/ico/ico_friend` `ui/ico/ico_starup` `ui/res/res_stamina` `ui/ico/tab_gem` `ui/nav/nav_core` | 实测宿主 27~62px，一律单物件（<60px 不许多件场景，见 §3.1） | `icon`（contain；尺寸仍归 CSS 两层） | 256 切片件 | 1 | ✅ 2026-09-22 三十四轮：这十件原先是"高饱和纯色 + 粗黑描边 + 没有光向"的休闲贴纸腔，与同屏的军武做旧金属件并读成两批货，按 §3.1 定下的那一种画法一次成表重切、**换图不换 key** 覆盖进版，旧件归档 `art-spec/reference/stock/ico_r41/`。**技能 ⚡ / 主 CTA 体力 ⚡ / 限时 ⏰ 三处不在这一族里**——前两处是用户明令「除技能外不换」与 §9 判据①的随文小符号，判过不该出图，清单已固化进 `tools/audit_emoji_slots.mjs` 的 `WAIVED` 表 |
 | 功能图标·第二批 4 件 | 商城主推「看广告」键 `.offer-buttons .hot.rcAd .ic`（播放三角）｜设置弹窗音量行 `.popAttr .ai`（滑杆）｜战斗 HUD 左上两键 `.hudBtn.pauseBtn .ic` `.hudBtn.statsBtn .ic` | `ui/ico/ico_ad` `ui/ico/ico_slider` `ui/ico/ico_pause` `ui/ico/ico_stats` | rcAd 23px、`.ai` 34px、HUD 键内 56px（均 ×层缩放） | `icon`（HUD 两键的图挂**内层 `.ic`**：`.hudBtn` 的底是 CSS 渐变板面，图直接压在按钮上会连板面一起换掉） | — | 1 | ✅ 图标第二批落盘接线（2026-09-20）。⚠ HUD 两键首版接成「一次性取 URL」（照本文件邮件行旧例），实测**根本没上图**——DomHud 在场景加载时就建整棵 DOM，那会儿预载还没回来，返回 null 就永久留 glyph；现改走 `DomHud._tex` 挂起队列、`update(dt)` 里排空，见 ART-PLAN D20 |
 | 功能图标·第三批 3 件 | 主城设置弹窗音效行 `.popAttr .ai`（按静音态在 喇叭/喇叭叉 之间换图）｜战斗页设置浮窗三个小节头 `.bSetHead .ic`（音效 / 关于 / 危险操作，第三处复用第一批的 `ico_warn`） | `ui/ico/ico_sound` `ui/ico/ico_mute` `ui/ico/ico_info` | `.ai` 34px、`.bSetHead .ic` 30px（×--s） | `icon` | — | 1 | ✅ 拆行接线轮（2026-09-20）。两条新机制：`PopAttrOpts.iconTex`（glyph 先占位、图到位由 `icon()` 摘掉，缺图不空槽）与 `DomHud._iconIc(el, glyph, key?)` + `mkHead(icon, text, tex?)`；`.bSetHead` 改 flex 让图标与标题同行居中。音效行随 `_popRebuild` 在静音/开启两态间换 key，这是「状态换图」而不是「状态显隐」，所以不受 §9 小状态符禁令约束 |
 | 功能图标·空态与检索 3 件 | `_popEmpty` 的**默认件**（15 个调用点里不传 icon 的那些，本轮把「背包中该部位没有其他件」一条改走默认）｜背包头行检索框 `.uiSearch i`（`HomeUiMall._searchBox`）｜行动页页脚第四快捷 `.hot`（👥好友） | `ui/ico/ico_empty` `ui/ico/ico_search` `ui/ico/ico_friend`（三件落盘接线） | `.ei` 弹层空态位、`.uiSearch i` 14px、页脚 `.ic` 34px（×层缩放） | `icon`（contain；尺寸一律归 CSS 两层） | — | 1 | ✅ r23 一张 4列1行表出齐 4 格，目检 4/4 合格、三件落盘。**这一轮按用户新令改口径**：原来判「没有功能位就不出图」，现在改成「**没有落点就把落点建出来**」——search 是本轮新建的背包按名字检索（四个页签共用，整页重建后把焦点放回输入框末尾），friend 是本轮新建的行动页页脚入口（社交系统还没做，但弹窗有说明、有「去看排行榜」的出路，不是静默死键）。`ico_empty` 的默认值同时改了：原来传贴图 key 时 glyph 直接置空，预载没回来那一刻是个空槽，现改成先摆占位字形、图到位由 `icon()` 摘掉（同 `_popAttr.iconTex` 口径） |

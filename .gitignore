@@ -20,6 +20,5 @@ zombie-shooter/tools/cloudflared.exe
 zombie-shooter/tools/tunnel.log
 
 # 无头取景/普查脚本留下的临时 Chrome 配置目录（偶尔收尾删不干净，绝不能入库）
-zombie-shooter/.probe-profile/
-zombie-shooter/.emoji-profile/
-zombie-shooter/.audit-profile/
+# 一条通配收全部：探针脚本各占一个调试端口、各起一个 <名字>-profile，逐条列必然漏（.nav-profile 就这么漏过一次）
+zombie-shooter/.*-profile/

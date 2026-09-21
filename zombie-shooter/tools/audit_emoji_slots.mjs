@@ -110,7 +110,26 @@ for (let i = 0; i < 3; i++) {
 }
 await sleep(1200);
 
+// **已经判过"这一格就该留字形"的位置**——普查必须把它们和"漏接"分开报。
+// 为什么要有这张表：这个工具只回答"哪里还是 emoji、没贴图"，不回答"这是漏的还是判过的"。
+// 2026-09-22 图标语言那一轮就是被它带偏过一次——照着它报出的 4 处去出图、去接线，
+// 结果其中 3 处早有明令：技能键是用户点名「除技能外不换」（`ico_skill` 因此从 MANIFEST 撤掉，
+// 见 STYLE-SPEC §9 功能图标行），另外两处是随文小符号（§9 判据①：跟文字色与基线走、
+// 还要随布尔值显隐的符号不许换成位图）。判过的位置再出一次图 = 白花一次生图、还得删回来。
+// 新增一行必须同时给出判据出处；判据废了就删这一行，不要靠注释留着。
+const WAIVED = [
+    { host: 'skillEntry', glyph: '⚡', why: '用户明令「除技能外不换」，ico_skill 键已撤（STYLE-SPEC §9）' },
+    { host: 'goCost', glyph: '⚡', why: '随文小符号：跟在体力数字后面走基线（§9 判据①）' },
+    { host: 'game-button.major', glyph: '⚡', why: '随文小符号：主 CTA「开始护送 ⚡5」里跟在体力数字后面走基线（§9 判据①）' },
+    { host: 'giftDot', glyph: '⏰', why: '随文小符号：与「限时特惠」四字同排同色（§9 判据①）' },
+];
+// 匹配面放宽到父类名：技能那一枚的宿主链是 `fcol.hero-quick > btn.blue > ic`，
+// 判据写在**父按钮**的 `hot skillEntry` 上，只看 host/cls 会漏（第一版就漏在这）
+const waiveReason = (row) => WAIVED.find(w => (row.glyph === w.glyph || !w.glyph)
+    && [row.host, row.cls, row.parentCls].some(s => (s || '').includes(w.host)))?.why;
+
 let totalNoTex = 0;
+const waivedRows = [];
 for (const label of PAGES) {
   if (label !== 'home') {
     await evalJs(`(() => { const el=[...document.querySelectorAll('#homeUi .tab')].find(e=>(e.textContent||'').indexOf('${label}')>=0); el&&el.click(); return 1; })()`);
@@ -118,14 +137,20 @@ for (const label of PAGES) {
   }
   const rows = JSON.parse(await evalJs(PROBE));
   const noTex = rows.filter(r => r.tex === '-');
-  totalNoTex += noTex.length;
-  console.log(`\n=== ${label} · 大号 emoji ${rows.length} 处（无贴图 ${noTex.length} 处）`);
-  for (const r of noTex) {
+  const todo = noTex.filter(r => !waiveReason(r));
+  totalNoTex += todo.length;
+  for (const r of noTex.filter(r => waiveReason(r))) waivedRows.push({ ...r, page: label, why: waiveReason(r) });
+  console.log(`\n=== ${label} · 大号 emoji ${rows.length} 处（无贴图 ${noTex.length} 处，其中判过不该出图 ${noTex.length - todo.length} 处）`);
+  for (const r of todo) {
     console.log(`   ${String(r.fs).padStart(3)}px ${r.w}x${r.h}  ${r.glyph}  ${r.host}`
       + (r.cls ? `  [${r.cls}]` : '') + (r.parentCls ? `  in[${r.parentCls}]` : ''));
   }
 }
-console.log(`\n合计仍无贴图的大号 emoji 位：${totalNoTex}`);
+console.log(`\n合计仍无贴图、且**没判过**的大号 emoji 位：${totalNoTex}`);
+if (waivedRows.length) {
+  console.log(`以下 ${waivedRows.length} 处是**判过该留字形**的，别再去出图（判据见括号）：`);
+  for (const r of waivedRows) console.log(`   ${r.page} · ${r.glyph} ${r.host}  →  ${r.why}`);
+}
 ws.close();
 chrome.kill();
 try { rmSync(profile, { recursive: true, force: true }); } catch {}

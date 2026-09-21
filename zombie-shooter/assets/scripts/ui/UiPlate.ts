@@ -322,7 +322,15 @@ export function plateOf(kind?: string): string | null {
     return PLATE[kind as PlateKind] ?? null;
 }
 
-/** 底部主导航：页 key → 页签图标槽位（取代散在渲染里的三元链） */
+/**
+ * 底部主导航：页 key → 页签图标槽位（取代散在渲染里的三元链）。
+ *
+ * ⚠ **key 与玩家看到的页签名对不上，出图前必须查这张表，不要按 key 名猜画面对象**：
+ * `battle` 是「护送」页（护送车队玩法，图标是卡车），`core` 才是「行动」页（作战大厅，
+ * 图标是作战地图 + 电台）。2026-09-22 图标语言那一轮就是按 key 名理解，把一张标着
+ * "行动"的格子切给了 `nav_battle`，结果护送页换成了地图、行动页还留着旧手柄——
+ * 取景自测才看出来。页 key 是历史名，页签名是产品名，两者已经不同源。
+ */
 export const NAV_PLATE: Record<string, string> = {
     mall: 'ui/nav/nav_mall', heroes: 'ui/nav/nav_heroes', battle: 'ui/nav/nav_battle',
     core: 'ui/nav/nav_core', base: 'ui/nav/nav_base',
