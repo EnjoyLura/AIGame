@@ -26,6 +26,12 @@ export interface StageInfo {
     eliteChance: number[];
     /** 全关生命倍率（难度台阶，乘在怪物 hp 上） */
     hpMul: number;
+    /**
+     * 本关战斗底图槽位（`BattleManager._applyRoadArt` 按此取图，缺图回退 `scenes/road`）。
+     * 第 1 关故意不写：它的地名就是「末日公路」，与 road 是同一张图，再登记一遍会有两处真源。
+     * 键名跟着关卡名走，不跟着"森林/雪地"这类通用地形词走——四张图要各自对上一关，对不上的那张永远没人读。
+     */
+    backdrop?: string;
 }
 
 /** 生成一关的波次表（hpmul 已乘入每只怪） */
@@ -70,24 +76,28 @@ export const STAGES: StageInfo[] = [
         monsters: [ape(130), dog(70), eagle(90)],
         rhythm: [...RHYTHM_EASY, [20, 0.9, 10], [22, 0.85, 10]],
         eliteChance: [0, 0, 0.1, 0.1, 0.15],
+        backdrop: 'scenes/bg_bridge',
     },
     {
         id: 3, name: '3.雨夜废墟', waveCount: 5, hpMul: 1.8,
         monsters: [ape(160), dog(85), boar(300), eagle(100)],
         rhythm: [...RHYTHM_NORMAL, [24, 0.8, 11], [26, 0.78, 12]],
         eliteChance: [0, 0.1, 0.1, 0.15, 0.2],
+        backdrop: 'scenes/bg_ruins',
     },
     {
         id: 4, name: '4.炼钢厂', waveCount: 5, hpMul: 2.4,
         monsters: [ape(200), boar(360), bear(700), eagle(115)],
         rhythm: [...RHYTHM_NORMAL, [26, 0.78, 12], [28, 0.72, 12]],
         eliteChance: [0, 0.1, 0.15, 0.2, 0.25],
+        backdrop: 'scenes/bg_steel',
     },
     {
         id: 5, name: '5.尸潮深谷', waveCount: 5, hpMul: 3.2,
         monsters: [ape(240), dog(110), boar(460), bear(950), eagle(130)],
         rhythm: [...RHYTHM_HARD],
         eliteChance: [0.1, 0.15, 0.2, 0.3, 0.4],
+        backdrop: 'scenes/bg_gorge',
     },
 ];
 

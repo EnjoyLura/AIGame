@@ -58,7 +58,7 @@ const MANIFEST = [
     // ===== 进版采购单：已登记、文件未到位的预留槽位（详见下方 RESERVED_SLOTS 与 art-spec/ASSET-MANIFEST.md §D）=====
     // 战斗件与场景主题
     'monsters/dog_walk', 'scenes/vehicle_tail_damaged',
-    'scenes/bg_forest', 'scenes/bg_beach', 'scenes/bg_snow', 'scenes/bg_cave',
+    'scenes/bg_bridge', 'scenes/bg_ruins', 'scenes/bg_steel', 'scenes/bg_gorge',
     'fx/coin_burst', 'fx/levelup_glow', 'fx/portal', 'fx/dmg_word',
     'ui/plate_wave', 'ui/skill_slot', 'ui/boss_crown',
     // 按钮系补件：特殊(紫)板 + 小圆钮族 + 主城按钮族三档（r24 表，按类别一次出齐）
@@ -115,13 +115,12 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // `Graphics` 画的程序化弹体）；丧犬走帧由 `Enemy._tryApplyArt` 优先取序列帧、**零代码改动**
     // （walk 默认就是 6 帧，其余四怪在 `ANIM_FRAME_COUNT` 里显式记 12——将来重出 12 帧要记得补那一行）；
     // 车尾受损态由 `Vehicle._syncDamageArt` 在耐久进 0.25 档时与完好态互换（与 HUD 条的 .danger 同门槛）。
-    // 下面这 9 件**不是缺图，是缺表现代码**：全工程 grep 连拼 key 的地方都没有，出图也没东西会去读。
+    // 下面这 5 件**不是缺图，是缺表现代码**：全工程 grep 连拼 key 的地方都没有，出图也没东西会去读。
     // 逐条判据见 STYLE-SPEC §9「战斗表现件」。
+    // （关卡主题背景 4 件已于 2026-09-21 结清：`StageInfo.backdrop` 按关登记 + `_applyRoadArt` 按本关取图，
+    //  键同时从 forest/beach/snow/cave 改名为 bridge/ruins/steel/gorge——旧名对不上任何一关的真名，
+    //  那两张对不上的图永远没人读；这四个键从来没有文件也从来没有引用，改名零代价。）
     'weapons/laser_beam': '激光束（laser 英雄在 HeroCombat 的 visualKey 三元里没有分支）',
-    'scenes/bg_forest': '关卡主题背景·森林（战斗底图只有 scenes/road 一个消费点，没有按章换背景的代码）',
-    'scenes/bg_beach': '关卡主题背景·海滩（同上，无消费点）',
-    'scenes/bg_snow': '关卡主题背景·雪地（同上，无消费点）',
-    'scenes/bg_cave': '关卡主题背景·洞穴（同上，无消费点）',
     'fx/coin_burst': '结算金币爆开（结算面是 DOM 弹层，没有粒子/序列帧消费者）',
     'fx/levelup_glow': '升级光柱（升级走 DOM 横幅 + 画布施法环，没有光柱件槽）',
     'fx/portal': '传送门（波次衔接是代码淡入淡出，没有"门"这个实体）',

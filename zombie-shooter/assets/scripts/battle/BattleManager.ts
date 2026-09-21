@@ -2078,7 +2078,11 @@ export class BattleManager extends Component {
 
     /** 美术路面就绪后替换代码背景：上下两张镜像 Sprite 循环滚动，压在所有节点最底层 */
     private _applyRoadArt(): void {
-        const frame = AssetLib.frame('scenes/road');
+        // 本关主题底图（`StageData.backdrop`）优先，取不到就回退末日公路那张。
+        // 回退这条必须留着：本方法在 update 里逐帧重试直到取到图为止，只认本关 key 的话，
+        // 那张图缺失就会让整局永远没有背景（连 road 都不铺）。
+        const bg = stageInfo(this._stageId).backdrop;
+        const frame = (bg ? AssetLib.frame(bg) : null) ?? AssetLib.frame('scenes/road');
         if (!frame) {
             return;
         }
@@ -2113,6 +2117,9 @@ export class BattleManager extends Component {
         // A 占屏幕，B 在其上方垂直翻转（镜像）：接缝两侧互为镜像，无缝
         this._bgArtA = mk(0, false);
         this._bgArtB = mk(h, true);
+        // 诊断：画布件在 DOM 里读不到，无头自测只能靠这一行确认"本关真的换上了自己的底图"
+        // （口径同 Bullet 的「[Art] 弹体正式贴图生效」）
+        console.log('[Art] 关卡底图生效:', bg ?? 'scenes/road', `${rect.width}x${rect.height} -> ${w.toFixed(0)}x${h.toFixed(0)}`);
         // 有美术路面后关闭代码绘制的车道虚线（图里自带标线）
         if (this._bgScroll) {
             this._bgScroll.active = false;
