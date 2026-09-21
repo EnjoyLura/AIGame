@@ -631,6 +631,10 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             boxes[1][1] = 'got';
             boxes[1][2] = '已领取';
         }
+        // 进度轨：撤掉三格各自的金属板之后，中间那条线从装饰改成真的进度条（口径见 CSS 注释）。
+        // 「可领取」也算推进到这一档——它已经达成了，只是还没点领取
+        const done = boxes.filter(([, st]) => st !== 'lock').length / boxes.length;
+        row.style.setProperty('--mile', done.toFixed(3));
         for (const [label, st, tip] of boxes) {
             const c = document.createElement('div');
             c.className = `hot milestone ${st}`;

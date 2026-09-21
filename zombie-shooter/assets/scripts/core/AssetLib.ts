@@ -220,6 +220,11 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // ⚠ 教训：**死方法里的引用不算宿主**——`check-art-manifest` 的「在库件必须有归宿」只扫代码引用，
     // 在这两处加一行就会绿灯，图却永远上不了屏。核宿主要核「谁调用这个建点」，不是「哪里提到这个 key」。
     'ui/panel/panel_mini': '模块小框底板（唯一建点 _openSheet/_openResult 零调用，是迁移棘轮的桩子）',
+    // 底部导航的「选中态」板：2026-09-21 用户点名把五格导航并进**一块**整条背板（去页签间隔），
+    // 一块板上不存在"哪一格换了板"，选中态改由 CSS 的凹下底色 + 顶部金槽表达，这张二态图就此没宿主。
+    // 图本身合格，按规矩不删：切片件在 `art-spec/reference/stock/nav/tab_plate_on.png`，
+    // 若哪天导航改回"每格一块板"，拷回 `textures/ui/nav/` 并删掉本行即生效。
+    'ui/nav/tab_plate_on': '导航选中板（五格已并成一块整条背板，选中态改走 CSS，图在 stock/nav/）',
     // —— 护送关卡载具 ——（三件 2026-09-21 已出图并接章节头载具牌，声明移出本表）
     // 宿主是 HomeUiStage 章节头左端那一枚（CHAPTER_THEMES[].veh → UiPlate.VEHICLE_TEX 字形对 key）；
     // 选这里而不是场景里那块 .veh，是因为浅色（手机）主题把 .veh 连同 road/dash/mobs 一起 display:none，

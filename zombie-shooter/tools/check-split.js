@@ -66,6 +66,11 @@ ok('HomeUiStyle 导出 HOME_UI_CSS', /export const HOME_UI_CSS = `/.test(src['Ho
 ok('Core import HOME_UI_CSS', /import \{ HOME_UI_CSS \} from '\.\/HomeUiStyle';/.test(src['HomeUiCore.ts']));
 ok('_injectStyle 引用 HOME_UI_CSS', /style\.textContent = HOME_UI_CSS;/.test(src['HomeUiCore.ts']));
 ok('CSS 体量搬移（Style 文件 > 1500 行）', src['HomeUiStyle.ts'].split('\n').length > 1500);
+// 整个样式表是一个模板字符串字面量，反引号只许有开头/结尾两个界定符。
+// 注释或字符串里再出现一个反引号就会当场截断字面量，tc.js 只报一串 TS1005 ',' expected，
+// 看不出根因（2026-09 起已踩第四次）。这条断言直接点名，省一轮排查。
+const bt = (src['HomeUiStyle.ts'].match(/`/g) || []).length;
+ok(`HomeUiStyle 反引号计数 = 2（模板字符串的两个界定符，当前 ${bt}）——注释里写反引号会截断整个 CSS 字面量`, bt === 2);
 
 // 7. 跨文件常量共享
 ok('Core export MALL_AD_STAMINA', /export const MALL_AD_STAMINA = 10;/.test(src['HomeUiCore.ts']));

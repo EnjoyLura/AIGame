@@ -835,7 +835,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .side-tools .hot { position: relative; width: calc(136px * var(--hs,1)); min-height: calc(141px * var(--hs,1)); display: flex;
   flex-direction: column; align-items: center; justify-content: center; gap: calc(4px * var(--hs,1));
   background: none; border: 0; color: var(--c-gold-hi); font-family: inherit; font-size: calc(28px * var(--hs,1)); font-weight: 700; cursor: pointer; }
-#homeUi .side-tools .hot .ic { width: calc(56px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(56px * var(--hs,1)); line-height: 1; }
+#homeUi .side-tools .hot .ic { width: calc(70px * var(--hs,1)); height: calc(70px * var(--hs,1)); font-size: calc(70px * var(--hs,1)); line-height: 1; }
 #homeUi .side-tools .hot .questRed { display: none; position: absolute; top: calc(16px * var(--hs,1)); right: calc(14px * var(--hs,1));
   width: calc(20px * var(--hs,1)); height: calc(20px * var(--hs,1)); border-radius: 50%; background: #ff4d4d; border: 1px solid #fff; }
 #homeUi .side-tools .hot .questRed.on, #homeUi .side-tools .hot .questRed.dotOn { display: block; }
@@ -851,15 +851,27 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .stage-caption b { font-size: calc(33px * var(--hs,1)); color: var(--c-gold-hi); font-variant-numeric: tabular-nums; }
 /* 里程碑三档：首次通关 / 耐久过半 / 完美护送 */
 #homeUi .milestones { position: relative; flex: none; height: calc(172px * var(--hs,1)); margin: 0 calc(33px * var(--hs,1));
-  display: flex; justify-content: space-around; border-bottom: 1px solid #2a3c5a; }
-#homeUi .milestones::before { content: ''; position: absolute; top: calc(64px * var(--hs,1)); left: 14%; right: 14%;
-  height: calc(8px * var(--hs,1)); background: #2a3c5a; }
+  display: flex; justify-content: space-around; }
+/* 里程碑进度轨。原先三档宝箱各背一块金属板、中间那条线只是条装饰（还有一条 border-bottom 压在下面，
+   就是用户骂的"多出的线条"）；2026-09-21 点名撤板之后，这条线改成**真的进度条**：
+   ::before 是底槽，::after 按容器上的 --mile 上金色填充。--mile 由 HomeUiStage._refreshBattleChests
+   写成「已达成 + 可领取」档数 ÷ 3，所以进度和那三格的状态是同一个真源，不会各说一套 */
+#homeUi .milestones::before { content: ''; position: absolute; top: calc(62px * var(--hs,1)); left: 14%; right: 14%;
+  height: calc(10px * var(--hs,1)); border-radius: 99px; background: var(--c-scene-3);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.6); }
+#homeUi .milestones::after { content: ''; position: absolute; top: calc(62px * var(--hs,1)); left: 14%;
+  width: calc(72% * var(--mile,0)); height: calc(10px * var(--hs,1)); border-radius: 99px;
+  background: linear-gradient(90deg, var(--c-gold-frame), var(--c-gold-hi));
+  box-shadow: 0 0 10px rgba(240,177,62,.45); transition: width .3s ease; }
 #homeUi .milestones .milestone { position: relative; z-index: 1; flex: 1; height: calc(166px * var(--hs,1)); display: flex;
   flex-direction: column; align-items: center; justify-content: center; gap: calc(4px * var(--hs,1));
   background: none; border: 0; font-family: inherit; font-size: calc(28px * var(--hs,1)); color: var(--c-text-dim); cursor: pointer; }
 #homeUi .milestones .milestone .ic { width: calc(89px * var(--hs,1)); height: calc(89px * var(--hs,1)); }
 #homeUi .milestones .milestone small { font-size: calc(25px * var(--hs,1)); }
-#homeUi .milestones .milestone.ready { color: var(--c-gold-hi); animation: huiChest 1.8s ease-in-out infinite; }
+/* 可领取的脉冲只给箱子图标，不给整格：整格（163x83）发光会在暗场景上描出一块硬边矩形，
+   撤板之后又把它请回来正是本轮要清的"方块感"。图标发光与 .actChest.ready / .talentNode.can 同口径。 */
+#homeUi .milestones .milestone.ready { color: var(--c-gold-hi); }
+#homeUi .milestones .milestone.ready .ic { animation: huiChestSil 1.8s ease-in-out infinite; }
 #homeUi .milestones .milestone.got { opacity: .55; }
 #homeUi .milestones .milestone.got .ic { filter: grayscale(1); }
 #homeUi .milestones .milestone.lock { opacity: .7; }
@@ -886,7 +898,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .battle-bottom { flex: none; height: calc(180px * var(--hs,1)); display: grid;
   grid-template-columns: calc(155px * var(--hs,1)) 1fr calc(155px * var(--hs,1)); gap: calc(33px * var(--hs,1)); align-items: center;
   padding: calc(6px * var(--hs,1)) calc(44px * var(--hs,1)) calc(22px * var(--hs,1)); }
-#homeUi .battle-bottom .hot .ic { font-size: calc(78px * var(--hs,1)); line-height: 1; }
+#homeUi .battle-bottom .hot .ic { width: calc(60px * var(--hs,1)); height: calc(60px * var(--hs,1)); font-size: calc(78px * var(--hs,1)); line-height: 1; }
 #homeUi .game-button { position: relative; background: linear-gradient(180deg, var(--c-line-hi), #243a63); border: 1px solid #4f7ab8;
   border-radius: calc(12px * var(--hs,1)); color: var(--c-gold-hi); font-family: inherit; font-weight: 900; cursor: pointer;
   box-shadow: inset 0 3px rgba(255,255,255,.12), inset 0 -4px rgba(0,0,0,.35); }
@@ -897,6 +909,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .game-button.start small .ic { font-size: calc(30px * var(--hs,1)); }
 #homeUi .game-button.off { opacity: .55; filter: grayscale(.35); }
 @keyframes huiChest { 0%, 100% { box-shadow: 0 0 6px rgba(240,177,62,.2); } 50% { box-shadow: 0 0 18px rgba(240,177,62,.55); } }
+/* 沿**轮廓**脉冲：filter: drop-shadow 吃的是渲染后的 alpha，所以光晕贴着箱子的形状走，
+   不像 box-shadow 那样把 .ic 那个方盒描成一块暗板——撤板轮之后这一族只剩图标位，不能再长出方框。 */
+@keyframes huiChestSil { 0%, 100% { filter: drop-shadow(0 0 3px rgba(240,177,62,.35)); } 50% { filter: drop-shadow(0 0 9px rgba(240,177,62,.9)); } }
 #homeUi .screenHeading { margin-bottom: calc(20px * var(--hs,1)); }
 #homeUi .screenHeading h2 { font-size: calc(34px * var(--hs,1)); font-weight: 900; color: var(--c-gold-hi); letter-spacing: calc(4px * var(--hs,1)); }
 #homeUi .screenHeading small { display: block; font-size: calc(20px * var(--hs,1)); color: var(--c-text-dim); margin-top: calc(4px * var(--hs,1)); letter-spacing: calc(2px * var(--hs,1)); }
@@ -1450,8 +1465,8 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .talentNode.can { animation: huiChest .9s ease-in-out infinite; }
 /* 活跃度宝箱可开时的脉冲：同上，显式声明以免日后被 animation:none 白名单波及 */
 #homeUi .actChest.ready .acIc { animation: huiChest .9s ease-in-out infinite; }
-/* 里程碑可领时的脉冲：同上——箱子图标呼吸，提示就地领取 */
-#homeUi .milestones .milestone.ready .ic { animation: huiChest .9s ease-in-out infinite; }
+/* 里程碑可领时的脉冲：同上——沿箱子轮廓呼吸，提示就地领取（方框脉冲会在暗场景上衬出一块暗板） */
+#homeUi .milestones .milestone.ready .ic { animation: huiChestSil .9s ease-in-out infinite; }
 /* --- 顶部安全区条与公告弹窗（青瓷浅色变体） --- */
 /* 稿手机版：.safe{height:calc(30px + env(safe-area-inset-top));padding-top:env(safe-area-inset-top)}。
    桌面/常规机没有状态栏，取稿的 32 基准保持与画框一致；有安全区时按 30 + 安全区撑开。 */
@@ -1767,12 +1782,14 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .side-tools { top: calc(10px * var(--pw,2.5)); gap: calc(8px * var(--pw,2.5)); }
 #homeUi .side-tools.left { left: calc(3px * var(--pw,2.5)); }
 #homeUi .side-tools.right { right: calc(3px * var(--pw,2.5)); }
-#homeUi .side-tools .hot { width: calc(49px * var(--pw,2.5)); min-height: calc(51px * var(--pw,2.5)); gap: 0;
-  /* 侧栏 7 张（签到/任务/礼包/图鉴/排行/试炼/无尽）走 btn_side 木箱板（棕底），
-     #2c4a59 是给浅灰纸写的深字，压在棕板上实测 2.6:1——这一族整块翻亮 */
+#homeUi .side-tools .hot { width: calc(60px * var(--pw,2.5)); min-height: calc(64px * var(--pw,2.5)); gap: 0;
+  /* 2026-09-21 用户点名撤掉侧栏背板（UiPlate 的 CITY_BUTTON_PLATE 里加了一条 .side-tools .hot → null）：
+     这七键现在直接裸站在场景上，只留图标 + 文本。字色仍走亮档——撤的是板，不是暗底，
+     原先给浅灰纸写的 #2c4a59 深字不能跟着板一起回来 */
   color: var(--c-cream-1); font-size: calc(10px * var(--pw,2.5)); font-weight: 700; }
-/* 侧栏键图标框 = 字形尺寸：贴图（contain 吃 width/height）与 emoji 占位同一 footprint，换图不跳大小 */
-#homeUi .side-tools .hot .ic { width: calc(24px * var(--pw,2.5)); height: calc(24px * var(--pw,2.5)); font-size: calc(24px * var(--pw,2.5)); }
+/* 侧栏键图标框 = 字形尺寸：贴图（contain 吃 width/height）与 emoji 占位同一 footprint，换图不跳大小。
+   撤板之后图标是这一列唯一的视觉锚点，放大一档（24 → 32）补回板子原先撑出来的分量 */
+#homeUi .side-tools .hot .ic { width: calc(32px * var(--pw,2.5)); height: calc(32px * var(--pw,2.5)); font-size: calc(32px * var(--pw,2.5)); }
 #homeUi .side-tools .hot .questRed { top: calc(-2px * var(--pw,2.5)); right: calc(5px * var(--pw,2.5));
   width: calc(9px * var(--pw,2.5)); height: calc(9px * var(--pw,2.5)); background: #d9534f; border: 1px solid #fff; }
 /* 无尽收进侧栏后仍需「锁定只降透明」：.off 规则原本只覆盖底栏与编队条 */
@@ -1788,11 +1805,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    是给浅灰纸写的，实测压在棕板上只剩 2.9~3.4:1；进度轨和底沿同样收成暗档 */
 /* 三块里程碑原先 flex:1 顶到一起、中间无缝，读成一整条棕板被划了两刀（用户点的"方块感…间隔也导致方块感"）。
    让出缝来露出底下那条进度轨（::before 本来就画在板后 14%~86%），三箱才读成"串在一根轨上的三个节点" */
-#homeUi .milestones { height: calc(62px * var(--pw,2.5)); margin: 0 calc(12px * var(--pw,2.5)); gap: calc(6px * var(--pw,2.5));
-  border-bottom: 1px solid var(--c-scene-line); }
-#homeUi .milestones::before { top: calc(23px * var(--pw,2.5)); height: calc(3px * var(--pw,2.5)); background: var(--c-scene-1); }
+#homeUi .milestones { height: calc(62px * var(--pw,2.5)); margin: 0 calc(12px * var(--pw,2.5)); gap: calc(6px * var(--pw,2.5)); }
+#homeUi .milestones::before { top: calc(23px * var(--pw,2.5)); height: calc(5px * var(--pw,2.5)); background: var(--c-scene-1); }
+#homeUi .milestones::after { top: calc(23px * var(--pw,2.5)); height: calc(5px * var(--pw,2.5)); }
 #homeUi .milestones .milestone { height: calc(60px * var(--pw,2.5)); gap: 0; font-size: calc(10px * var(--pw,2.5)); color: var(--c-cream-1); }
-#homeUi .milestones .milestone .ic { width: calc(32px * var(--pw,2.5)); height: calc(32px * var(--pw,2.5)); }
+#homeUi .milestones .milestone .ic { width: calc(38px * var(--pw,2.5)); height: calc(38px * var(--pw,2.5)); }
 #homeUi .milestones .milestone small { font-size: calc(9px * var(--pw,2.5)); color: var(--c-cream-2); }
 #homeUi .milestones .milestone.got, #homeUi .milestones .milestone.lock { opacity: 1; }
 #homeUi .milestones .milestone.got { color: var(--c-text-mute); }
@@ -1822,7 +1839,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .battle-bottom { height: calc(65px * var(--pw,2.5)); grid-template-columns: calc(56px * var(--pw,2.5)) 1fr calc(56px * var(--pw,2.5));
   gap: calc(12px * var(--pw,2.5)); padding: calc(2px * var(--pw,2.5)) calc(16px * var(--pw,2.5)) calc(8px * var(--pw,2.5) + var(--sab,0px)); }
 #homeUi .battle-bottom .hot { color: var(--c-cream-1); font-size: calc(10px * var(--pw,2.5)); }
-#homeUi .battle-bottom .hot .ic { font-size: calc(28px * var(--pw,2.5)); }
+#homeUi .battle-bottom .hot .ic { width: calc(44px * var(--pw,2.5)); height: calc(44px * var(--pw,2.5)); font-size: calc(40px * var(--pw,2.5)); }
 #homeUi .battle-bottom .hot.patrolHot { color: var(--c-cream-1); }
 #homeUi .game-button { border: 1px solid #9aa9b2; border-radius: 0; color: var(--c-deep-teal);
   background: #e4edf2; box-shadow: inset 0 2px #fff, inset 0 -2px #b9cad4; }
@@ -1878,9 +1895,12 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 
 /* --- 底部导航（青瓷） --- */
 #homeUi .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); height: auto; min-height: calc(77px * var(--pw,2.5));
-  padding: 0 calc(3px * var(--pw,2.5)) max(calc(4px * var(--pw,2.5)), var(--sab,0px)); gap: 0; align-items: stretch;
-  /* 原先是 #c9dbe6 浅蓝白带：五格导航板贴上去之后，露在板缝和板下方的整条带子还是浅色，
-     读成"导航板浮在一张白纸上"。导航是页面 chrome，跟场景同色，让板自己出头 */
+  /* 五格并进**一块**整条背板之后，格子要让出板边那一圈装饰（navTab 档板厚 10px×--pu），
+     否则最左最右两格的图标会压在包边铆钉上 */
+  padding: calc(3px * var(--pw,2.5)) calc(10px * var(--pw,2.5)) max(calc(4px * var(--pw,2.5)), var(--sab,0px));
+  gap: 0; align-items: stretch;
+  /* 这块底色只在缺图回退时有效：整条板贴上来时 nineSlice 会把它清成 none。
+     （原先它是 #c9dbe6 浅蓝白带，五格各自一块板时板缝和板底下露着浅色，读成"板浮在白纸上"） */
   background: linear-gradient(180deg, var(--c-scene-2), var(--c-scene-1)); border-top: 1px solid var(--c-scene-edge);
   box-shadow: 0 -3px 10px rgba(6,12,18,.55); }
 #homeUi .tabbar::before { display: none; content: none; }
@@ -1890,9 +1910,14 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 /* 页签 glyph 不再用 font-size:0 遮（那会让缺图页签变成空槽）：贴图到位时由 UiPlate.icon 摘掉
    glyph 文本节点，缺图则按本尺寸显示 emoji 占位，两层口径一致。 */
 #homeUi .tab .ticon { width: calc(41px * var(--pw,2.5)); height: calc(41px * var(--pw,2.5)); display: grid; place-items: center; filter: none; font-size: calc(24px * var(--pw,2.5)); }
-#homeUi .tab.on { background: var(--c-cream-1); color: var(--c-gold-dk3); box-shadow: inset 0 3px var(--c-amber); }
-#homeUi .tab.on .ticon { transform: scale(1.1); }
-#homeUi .tab.on::after { display: none; content: none; }
+/* 选中态：原来是一块浅色实心块（在暗板上就是一格白斑），换成**凹下去 + 顶部一道金槽**——
+   整条板是同一个面，选中只能靠这个面里的光影差，不能再靠换色块 */
+#homeUi .tab.on { background: rgba(4,9,14,.42); color: var(--c-gold-hi);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.6); border-radius: calc(6px * var(--pw,2.5)); }
+#homeUi .tab.on .ticon { transform: scale(1.1); filter: drop-shadow(0 0 6px rgba(245,196,81,.7)); }
+#homeUi .tab.on::after { content: ''; display: block; top: calc(1px * var(--pw,2.5));
+  width: calc(52px * var(--pw,2.5)); height: calc(4px * var(--pw,2.5)); border-radius: 99px;
+  background: linear-gradient(90deg, transparent, var(--c-gold-frame), transparent); box-shadow: 0 0 8px var(--c-gold-frame); }
 
 /* --- 礼包中心（青瓷浅色变体） --- */
 #homeUi .giftBox .mbox { background: var(--c-text-ice2); }

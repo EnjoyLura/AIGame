@@ -155,6 +155,12 @@ export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: '
     { sel: '.game-button', key: 'ui/button/btn_cancel', spec: 'btn' },
     { sel: '.gBuy', key: 'ui/button/btn_small', spec: 'btnSm' },
     { sel: '.hpick', key: 'ui/button/btn_row', spec: 'btn' },
+    // 2026-09-21 用户点名撤板的三处：侧栏一列、护送页脚两枚、里程碑三档——这些位置现在自带真图，
+    // 不再需要板子托着（当初保留板的理由是"撤了会露出裸 emoji 夹杂"，图补齐之后这条理由已经不成立）。
+    // 必须排在 `.hot` 之前：表是顺序优先，第一个命中的生效。
+    { sel: '.side-tools .hot', key: null, spec: 'btn' },
+    { sel: '.battle-bottom .hot', key: null, spec: 'btn' },
+    { sel: '.milestones .milestone', key: null, spec: 'btn' },
     { sel: '.hot', key: 'ui/button/btn_side', spec: 'btn' },
 ];
 
@@ -167,10 +173,11 @@ export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: '
  * 所以这里的选择器一律**自带容器前缀**，别写裸类名去够弹层里的同名元素。
  */
 export const SURFACE_PLATE: Array<{ sel: string; key: string | null; spec: keyof typeof NINE }> = [
-    // 底部主导航五格（每页都在屏，是全屏最大的一片无图面）。选中/未选两块板，
-    // 同 `.diffSeg` 那对选择器的口径：不是"一族两态图"，是同族两档各指一块已有语义板。
-    { sel: '.tabbar .tab.on', key: 'ui/nav/tab_plate_on', spec: 'navTab' },
-    { sel: '.tabbar .tab', key: 'ui/nav/tab_plate', spec: 'navTab' },
+    // 底部主导航：五格连成**一块**板（2026-09-21 用户点名"去掉页签间隔、五格放进一个背板"）。
+    // 原来每格一块 tab_plate，五块板之间必然留缝，读成五个独立按钮浮在一条带上——正是"方块感"。
+    // 整条 .tabbar 贴一块、复用同一张图的 navTab 档：中间区横向拉长就是连续板面，铆钉只落在整条两端。
+    // 选中态不能再靠换板表达（一块板上没有"哪一格换了板"这回事），改由 CSS 的凹下底色 + 顶部金槽承担。
+    { sel: '.tabbar', key: 'ui/nav/tab_plate', spec: 'navTab' },
     // 二级分类页签（商城 4 签 + 背包 4 签共用同一件；选中色仍由 CSS 高亮，不出二态板）
     { sel: '.flat-tabs > button', key: 'ui/tab/seg_plate', spec: 'seg' },
     // 英雄页装备六槽（头盔/护甲/腕甲/护腿/手套/战靴）——基地页之外最大的一片纯色方格

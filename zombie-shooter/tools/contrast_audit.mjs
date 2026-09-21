@@ -173,7 +173,18 @@ const AUDIT = `(() => {
   return JSON.stringify({ checked: n, onImage: onImg, worst: Math.round(worst * 100) / 100, bad: out, inactive: off, plates: plateList });
 })()`;
 
-const res = JSON.parse(await evalJs(AUDIT));
+// 等贴图落定再量：`_tex` 是异步排水的（HomeUiCore._pendingTexTimer 每 400ms 重排），
+// 一张图从"没有"到"有"会让同一批元素在「量得到」和「量不到（背板是贴图）」两组之间来回搬。
+// 实测顶栏三枚 .tinyIcon 就是这个样子：贴图没赶上的那次运行里，它们带着还没摘掉的 emoji
+// 被量成"黑字压暗底 1.17:1"，赶上了的那次根本不进清单——同一份代码报出 48/0 与 60/3 两个结果。
+// 所以这里连量两次，直到两组计数都不动了才认，否则等 1.5s 再来（最多 5 次）。
+let res = null;
+for (let i = 0; i < 5; i++) {
+  const r = JSON.parse(await evalJs(AUDIT));
+  if (res && res.checked === r.checked && res.onImage === r.onImage) { res = r; break; }
+  res = r;
+  await sleep(1500);
+}
 console.log(`\n页签 ${page} · 阈值 ${THRESHOLD}:1 · 量了 ${res.checked} 个有字元素（另有 ${res.onImage} 个压在贴图/九宫格板上，算不出背板色，需肉眼判）· 最低比值 ${res.worst}:1 · 不合格 ${res.bad.length} 个`);
 const seen = new Set();
 for (const x of res.bad.sort((a, b) => a.r - b.r)) {

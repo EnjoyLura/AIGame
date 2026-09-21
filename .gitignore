@@ -20,5 +20,6 @@ zombie-shooter/tools/cloudflared.exe
 zombie-shooter/tools/tunnel.log
 
 # 无头取景/普查脚本留下的临时 Chrome 配置目录（偶尔收尾删不干净，绝不能入库）
+zombie-shooter/.probe-profile/
 zombie-shooter/.emoji-profile/
 zombie-shooter/.audit-profile/
