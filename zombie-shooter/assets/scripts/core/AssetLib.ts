@@ -90,6 +90,17 @@ const MANIFEST = [
     // 图再带框就是框套框（第一版 r35 就栽在这里，整表作废重出，见 STYLE-SPEC §8 坑）
     'ui/ico/ico_slot_helm', 'ui/ico/ico_slot_vest', 'ui/ico/ico_slot_bracer',
     'ui/ico/ico_slot_legs', 'ui/ico/ico_slot_glove', 'ui/ico/ico_slot_boot',
+    // 大图标族（r36 表 16 格，一张 4列4行出齐）：主城最后三片"大号 emoji 当插画"的位置——
+    // 基地页 8 张建筑卡（86px）、行动页资源副本 4 条（50px）与两张挑战场入口卡（105px）、
+    // 远征与巡逻入口。这些宿主全都自带九宫格底板，所以出图口径与 r35b 同一条：**禁框**（见 §8 坑）。
+    // 清单由 `tools/audit_emoji_slots.mjs` 实测出来（无贴图的大号 emoji 位 33 处），判决见 ART-PLAN 台账。
+    'ui/build/build_hq', 'ui/build/build_camp', 'ui/build/build_armory', 'ui/build/build_lab',
+    'ui/build/build_workshop', 'ui/build/build_depot', 'ui/build/build_station', 'ui/build/build_radar',
+    'ui/act/dungeon_gold', 'ui/act/dungeon_stone', 'ui/act/dungeon_alloy', 'ui/act/dungeon_gem',
+    'ui/act/trial_endless', 'ui/act/escort_endless', 'ui/act/expedition', 'ui/act/patrol',
+    // r37/r38 补出轮（同族第二批）：r36 判死的那格（dungeon_stone，已登记在上面那行）
+    // + 普查里剩下的三处大号 emoji 插画位
+    'ui/act/recruit_hero', 'ui/act/vehicle_tuning', 'ui/act/squad', 'ui/act/achievement',
     // 状态与属性图标族（精英词缀 + 装备词缀共用，见 UiPlate.STATUS_TEX）
     // status_ice / status_poison 留单：图合格但全工程没有冰冻/中毒机制（无 DoT 系统），切片件在 stock/ico/
     'icons/status_shield', 'icons/status_sword', 'icons/status_heart', 'icons/status_skull',
@@ -213,6 +224,12 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // 宿主是 HomeUiStage 章节头左端那一枚（CHAPTER_THEMES[].veh → UiPlate.VEHICLE_TEX 字形对 key）；
     // 选这里而不是场景里那块 .veh，是因为浅色（手机）主题把 .veh 连同 road/dash/mobs 一起 display:none，
     // 手机上原本根本看不见本章护送什么车。
+    // —— 大图标族 r36/r37/r38 ——（19 件 2026-09-21 全部出图并接线：基地 8 建筑卡 / 资源副本 4 条 /
+    // 挑战场 2 入口卡 / 远征 / 巡逻 / 商城招募英雄货卡 / 载具改装 / 编队，见 UiPlate.BUILDING_TEX 与 UiPlate.MODE_TEX。
+    // 本族没有留单：r36 第 10 格「强化石副本」当时判死（模型画成蓝色水晶矿洞，与同排「晶体矿脉」
+    // 在 55px 的副本行里读成同一个东西，而那一排给玩家做的选择正是"打哪个副本"），
+    // 补出时把槽位名从"强化石"改成"砖石堆场"才拿对——**槽位名太抽象时，第二次要把材料说死**，
+    // 这一条例外（允许写材质）已记进 STYLE-SPEC §8。）
 };
 
 export class AssetLib {

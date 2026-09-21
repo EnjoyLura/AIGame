@@ -1311,11 +1311,15 @@ export abstract class HomeUiPlay extends HomeUiStage {
         // 日常四快捷：签到 / 任务 / 成就 / 礼包（红点驱动，点击直达）
         const daily = document.createElement('div');
         daily.className = 'action-daily';
-        const mkDaily = (ic: string, label: string, sub: string, onTap: () => void): HTMLButtonElement => {
+        const mkDaily = (ic: string, label: string, sub: string, onTap: () => void, tex?: string): HTMLButtonElement => {
             const b = document.createElement('button');
             b.className = 'hot dutyCard';
             b.innerHTML = `<span class="ic">${ic}</span><span>${label}</span><small class="dcSub">${sub}</small>`
                 + '<i class="questRed"></i>';
+            // 这四枚 .ic 有 31px，素材早就为侧栏同一批入口出过图（本轮只接线、不出新图）
+            if (tex) {
+                this._tex(tex, UiPlate.icon(b.querySelector('.ic') as HTMLElement));
+            }
             b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -1324,27 +1328,31 @@ export abstract class HomeUiPlay extends HomeUiStage {
             daily.appendChild(b);
             return b;
         };
-        const signinBtn = mkDaily('📅', '签到', '第 1 天', () => this._openSigninModal());
+        const signinBtn = mkDaily('📅', '签到', '第 1 天', () => this._openSigninModal(), 'ui/ico/ico_signin');
         this._signinRedEl = signinBtn.querySelector('.questRed') as HTMLElement;
         this._refreshSigninRed(this._signinRedEl);
         this._signinSubEl = signinBtn.querySelector('.dcSub') as HTMLElement;
-        const questBtn = mkDaily('📋', '任务', '0 项可领', () => this._openQuestModal(0));
+        const questBtn = mkDaily('📋', '任务', '0 项可领', () => this._openQuestModal(0), 'ui/ico/ico_task');
         this._questRedEl = questBtn.querySelector('.questRed') as HTMLElement;
         this._refreshQuestRed(this._questRedEl);
         this._questSubEl = questBtn.querySelector('.dcSub') as HTMLElement;
-        const achBtn = mkDaily('🎖️', '成就', '0 项达成', () => this._openQuestModal(1));
+        const achBtn = mkDaily('🎖️', '成就', '0 项达成', () => this._openQuestModal(1), UiPlate.MODE_TEX.achievement);
         this._achSubEl = achBtn.querySelector('.dcSub') as HTMLElement;
-        const giftBtn = mkDaily('🎁', '礼包', '每日补给', () => this._openGiftModal());
+        const giftBtn = mkDaily('🎁', '礼包', '每日补给', () => this._openGiftModal(), 'ui/shop/shop_gift');
         this._giftSubEl = giftBtn.querySelector('.dcSub') as HTMLElement;
         page.appendChild(daily);
 
         // 挑战场：无尽试炼（塔层） / 无尽护送（通关全章解锁）
         const ground = document.createElement('div');
         ground.className = 'challenge-ground';
-        const mkEntry = (ic: string, name: string, onTap?: () => void): HTMLButtonElement => {
+        const mkEntry = (ic: string, name: string, onTap?: () => void, tex?: string): HTMLButtonElement => {
             const b = document.createElement('button');
             b.className = 'entry';
             b.innerHTML = `<span class="ic">${ic}</span><h2>${name}</h2><small></small>`;
+            // 挑战场那两张入口卡的 .ic 有 105px，是全主城最大的插画位（宿主自带 entry_card 底板，图不出框）
+            if (tex) {
+                this._tex(tex, UiPlate.icon(b.querySelector('.ic') as HTMLElement));
+            }
             if (onTap) {
                 b.onclick = (e) => {
                     e.stopPropagation();
@@ -1355,10 +1363,10 @@ export abstract class HomeUiPlay extends HomeUiStage {
             ground.appendChild(b);
             return b;
         };
-        const trialEl = mkEntry('🗼', '无尽试炼', () => this._openTrialModal());
+        const trialEl = mkEntry('🗼', '无尽试炼', () => this._openTrialModal(), UiPlate.MODE_TEX.trial);
         trialEl.dataset.entry = 'trial';
         trialEl.appendChild(this._mkRed('trial'));
-        const endlessEl = mkEntry('🌀', '无尽护送', () => this._startBattle(true));
+        const endlessEl = mkEntry('🌀', '无尽护送', () => this._startBattle(true), UiPlate.MODE_TEX.endless);
         endlessEl.dataset.entry = 'endless';
         this._trialEntryEl = trialEl;
         this._endlessEntryEl = endlessEl;
@@ -1379,6 +1387,13 @@ export abstract class HomeUiPlay extends HomeUiStage {
             b.dataset.entry = 'dungeon';
             b.dataset.dungeon = def.id;
             b.innerHTML = `<span class="ic">${def.ic}</span><span>${def.name}</span><small>${DUNGEON_RUNS_PER_DAY} 次</small>`;
+            // 副本行 50px：四条里强化石那条的图判死没落盘（与晶体矿脉撞形），它继续走 emoji——
+            // 撞形比缺一个更糟，玩家在这排要做的正是"选哪一条"
+            const dIc = b.querySelector<HTMLElement>('.ic');
+            const dTex = UiPlate.MODE_TEX[`dungeon_${def.id}`];
+            if (dIc && dTex) {
+                this._tex(dTex, UiPlate.icon(dIc));
+            }
             b.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');
@@ -1399,9 +1414,12 @@ export abstract class HomeUiPlay extends HomeUiStage {
         exp.className = 'expedition';
         exp.dataset.entry = 'expedition';
         exp.innerHTML = '<span class="ic">🚚</span><div class="expedition-text"><b>远征 · 物资搜寻</b><small></small></div>';
+        // 远征那枚 🚚 复用护送章节头同一件载具图（同图不同位是允许的，同位重复才禁止）
+        this._tex(UiPlate.VEHICLE_TEX['🚚'], UiPlate.icon(exp.querySelector('.ic') as HTMLElement));
         const expHot = document.createElement('button');
         expHot.className = 'hot';
         expHot.innerHTML = '<span class="ic">🚩</span>远征';
+        this._tex(UiPlate.MODE_TEX.expedition, UiPlate.icon(expHot.querySelector('.ic') as HTMLElement));
         expHot.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');
@@ -1437,7 +1455,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         };
         mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary', 'ui/shop/shop_scroll');
         mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard', 'ui/ico/ico_trophy');
-        mkFoot('🔧', '载具改装', () => this._openTuningModal());
+        mkFoot('🔧', '载具改装', () => this._openTuningModal(), undefined, UiPlate.MODE_TEX.vehicle_tuning);
         mkFoot('👥', '好友', () => this._openFriendsModal(), undefined, 'ui/ico/ico_friend');
         page.appendChild(footer);
 

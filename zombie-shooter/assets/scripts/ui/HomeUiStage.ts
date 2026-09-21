@@ -321,6 +321,11 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         bottom.appendChild(patrol);
         this._patrolHot = patrol;
         this._patrolRed = patrol.querySelector('.questRed');
+        // 巡逻/掉落两枚 .ic 有 39px，是护送页页脚仅剩的两个大号 emoji 插画位。
+        // 「编队」原先判过"不上图"——库里唯一的人形件 ico_friend 已经挂在页脚「好友」上，
+        // 两个语义挂同一件等于把编队和好友压成同一个符号；r37 给它出了专件，所以三枚都上图
+        this._tex(UiPlate.MODE_TEX.patrol, UiPlate.icon(patrol.querySelector('.ic') as HTMLElement));
+        this._tex(UiPlate.MODE_TEX.squad, UiPlate.icon(squad.querySelector('.ic') as HTMLElement));
         const go = document.createElement('button');
         go.className = 'game-button major start go';
         go.innerHTML = `开始护送<small><span class="ic">⚡</span><span class="goCost"></span></small>`;
@@ -335,6 +340,8 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         detailBtn.className = 'hot rewardHot';
         detailBtn.innerHTML = `<span class="ic">🎁</span><span>掉落</span>`;
         detailBtn.title = '护送宝箱 · 奖励详情';
+        // 掉落详情用补给箱件（不是礼包件）：这一格说的是"这趟会掉什么"，宝箱比礼盒读得对
+        this._tex('ui/shop/shop_chest', UiPlate.icon(detailBtn.querySelector('.ic') as HTMLElement));
         detailBtn.onclick = (e) => {
             e.stopPropagation();
             SoundFx.play('ui');

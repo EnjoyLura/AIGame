@@ -390,7 +390,7 @@ export abstract class HomeUiMall extends HomeUiCore {
                 const owned = gm.isHeroOwned(def.id);
                 const poor = !owned && gm.gold < price;
                 mkGood({
-                    ic: '🎖️', name: def.name, tag: `${def.role} · ${this._heroWeaponName(def.id)}`,
+                    ic: '🎖️', icTex: UiPlate.MODE_TEX.recruit_hero, name: def.name, tag: `${def.role} · ${this._heroWeaponName(def.id)}`,
                     price: owned ? '已拥有' : `🪙 ${price.toLocaleString()}`,
                     r: price >= 2000 ? 5 : 4, disabled: owned || poor,
                     onBlocked: () => {

@@ -27,6 +27,7 @@ import { VehicleTuningSystem, TUNE_SLOTS, TUNE_MAX_LEVEL } from '../core/Vehicle
 import { BOND_DEFS, activeBonds } from '../core/HeroBond';
 import { NoticeSystem, NOTICE_DEFS, NOTICE_KIND_NAMES } from '../core/NoticeData';
 import { HomeUiPlay } from './HomeUiPlay';
+import * as UiPlate from './UiPlate';
 import type { PopOpts, PopText } from './HomeUiPop';
 
 /**
@@ -374,6 +375,13 @@ export abstract class HomeUiBase extends HomeUiPlay {
                 `<strong>${unlocked ? '' : '♙ '}${b.name}${canUp ? '<i class="questRed on"></i>' : ''}</strong>` +
                 `<small>${unlocked ? `LV.${lv}${maxed ? ' · MAX' : ''}` : `指挥中心 Lv.${b.unlockHq} 解锁`}</small>`;
             node.title = unlocked ? `${b.name} · 点击查看详情/升级` : `${b.name} · 指挥中心 LV.${b.unlockHq} 解锁`;
+            // 建筑插画：86px 的 .ic 是这一页最大的插画位，原先整页都是 emoji。未解锁那张也贴图，
+            // 灰度/暗角由 .building.locked 那层 CSS 管（键没落盘的 trial/dungeon 走 emoji 回退）
+            const bIc = node.querySelector<HTMLElement>('.ic');
+            const bTex = UiPlate.BUILDING_TEX[b.id];
+            if (bIc && bTex) {
+                this._tex(bTex, UiPlate.icon(bIc));
+            }
             node.onclick = (e) => {
                 e.stopPropagation();
                 SoundFx.play('ui');

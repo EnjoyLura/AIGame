@@ -193,6 +193,37 @@ export const SLOT_GHOST_TEX: Record<EquipSlot, string> = {
     legs: 'ui/ico/ico_slot_legs', gloves: 'ui/ico/ico_slot_glove', shoes: 'ui/ico/ico_slot_boot',
 };
 
+/**
+ * 基地建筑插画（r36 表前 8 格）：`BUILDINGS[].id` → 贴图 key，接基地页那一枚 `.ic`。
+ *
+ * 宿主 187×104 的建筑卡自带 `ui/panel/building_card` 底板，所以出图禁框（同 `SLOT_GHOST_TEX` 那条理由）。
+ * 表里只列**已落盘**的 id：`trial`/`dungeon` 两个伪建筑（挑战场、资源副本的解锁卡）没有对应格子，
+ * 查不到就走 emoji——`AssetLib.hasArt` 会挡住没登记的 key，不会白发预载请求。
+ */
+export const BUILDING_TEX: Record<string, string> = {
+    hq: 'ui/build/build_hq', camp: 'ui/build/build_camp', armory: 'ui/build/build_armory',
+    lab: 'ui/build/build_lab', workshop: 'ui/build/build_workshop', depot: 'ui/build/build_depot',
+    station: 'ui/build/build_station', radar: 'ui/build/build_radar',
+};
+
+/**
+ * 玩法入口插画（r36 表后 8 格 + r37/r38 补出 4 格）：入口 id → 贴图 key，
+ * 吃行动页四种宿主（资源副本行 55px、挑战场入口卡 205×151、远征行与页脚 42~47px）、
+ * 护送页页脚两枚，以及商城那张「招募英雄」货卡的 61px 图位。
+ *
+ * `dungeon_stone` 是补出来的：r36 那一格画成蓝色水晶矿洞，与同排 `dungeon_gem`（紫水晶）
+ * 在 55px 里读成同一个东西，而这一排给玩家做的选择正是"打哪个副本"——撞形就是功能缺陷。
+ * 补出时把槽位名从「强化石」改成「砖石堆场」才拿对，理由记在 STYLE-SPEC §8。
+ */
+export const MODE_TEX: Record<string, string> = {
+    dungeon_gold: 'ui/act/dungeon_gold', dungeon_stone: 'ui/act/dungeon_stone',
+    dungeon_alloy: 'ui/act/dungeon_alloy', dungeon_gem: 'ui/act/dungeon_gem',
+    trial: 'ui/act/trial_endless', endless: 'ui/act/escort_endless',
+    expedition: 'ui/act/expedition', patrol: 'ui/act/patrol',
+    recruit_hero: 'ui/act/recruit_hero', vehicle_tuning: 'ui/act/vehicle_tuning',
+    squad: 'ui/act/squad', achievement: 'ui/act/achievement',
+};
+
 /** 九宫格底板回填器（面板 / 大按钮 / 框件同一条管线） */
 export function nineSlice(el: HTMLElement, spec: keyof typeof NINE, opts?: { keepBackground?: boolean }): (url: string) => void {
     const n = NINE[spec];
