@@ -3285,8 +3285,8 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 /* 主 CTA 那块板是金牌（btn_play），未贴板时它是弹层里的暗蓝键、白字对；贴上金牌白字只剩 2.4:1，
    所以翻亮必须挂在 .plated 上，不能直接改 .major 的白字——那条会连带改掉所有弹层里的主按钮 */
 #homeUi .game-button.major.plated { color: var(--c-navy-7); }
-/* 主 CTA 里那行小字（体力价 ⚡5）：上面那条只翻按钮自己，small 在青瓷层有自己一条
-   青瓷层给 small 自己写了一条 color: #dbe9ef——那是金板出现之前、主按钮还是深青底白字时写的，一直留到现在。
+/* 主 CTA 里那行小字（体力价 ⚡5）：上面那条只翻按钮自己，而青瓷层给 small 单独写过一条
+   color: #dbe9ef——那是金板出现之前、主按钮还是深青底白字时写的，一直留到现在。
    结果是"开始护送"是暗字（对）、底下的"5"是亮字压在金板上（1.74:1，几乎看不见）。
    挂在 .plated 上：缺图回退成青色平涂底时，这行小字仍然该是亮的。 */
 #homeUi .game-button.major.plated small { color: var(--c-navy-7); }
@@ -3299,8 +3299,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    background-blend-mode 只发生在底图自己的层里，压不到叠在它上面的兄弟节点。
    **只压饱和与亮度、不动色相**：试过 sepia 微暖，数值上确实更靠近世界，但预览里蓝板发灰绿、
    "蓝 = 取消/次要"这个功能色就没了（对比图见 tools/preview_plate_filter.py）。
-   这一档要去掉的是"屏幕里另点了一盏冷灯"，不是把蓝改成不蓝。 */
-#homeUi .blue.plated { filter: saturate(.82) brightness(.90); }
+   这一档要去掉的是"屏幕里另点了一盏冷灯"，不是把蓝改成不蓝。
+   **为什么还带 .diffSeg:not(.on)**：护送页那两枚锁住的难度段用的就是同一张 btn_cancel
+   （UiPlate 契约表里 .diffSeg 那一行），但它们身上没有 .blue 类——只写 .blue.plated
+   会让同一张图在英雄页压过、在护送页没压过，两屏并排看就成了"两种蓝"。 */
+#homeUi .blue.plated, #homeUi .diffSeg:not(.on).plated { filter: saturate(.82) brightness(.90); }
 /* 蓝板（btn_cancel）同理：页面上未贴板是白纸深字（弹层里对），贴板后是蓝板，字要翻亮 */
 #homeUi .game-button.plated { color: var(--c-cream-1); }
 #homeUi .eqGrid .slot.plated { color: var(--c-cream-1); }
