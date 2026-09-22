@@ -76,7 +76,7 @@ export interface NineSpec {
  *    12÷52（源件条高）≈0.23 折算成 2px / 4px。
  */
 export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm' | 'chip'
-    | 'navTab' | 'seg' | 'sq' | 'bigCard', NineSpec> = {
+    | 'navTab' | 'sq' | 'bigCard' | 'stripCap' | 'stripThin' | 'stripWide' | 'stripTrack', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     // 按钮板族（plate / platePw / btn / btnSm 共用同一批 r24 去字板）：切片一律**按百分比**。
     // 两件事都是实测出来的，改之前先读：
@@ -112,14 +112,32 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
     // 底部主导航格：源 674×273、宿主实测 106×93。格子里那枚图标就有 102 见方，板只能露出四边一圈，
     // 所以显示宽度取 10px——再厚就把图标压进包边里了。
     navTab: { slice: '26% 12% fill', width: 'calc(10px * var(--pu,1))' },
-    // 二级分类页签（装备/宝石/材料/道具）：源 639×107 是这一族最薄的条，宿主 135×47。
-    // 上下切片给到 30% 才包得住两头的角码，左右 10% 就够——再宽会把中段那点平牌面切没。
-    seg: { slice: '30% 10% fill', width: 'calc(9px * var(--pu,1))' },
     // 近方小件：战斗 HUD 功能钮（源 281×274 / 宿主 53~64×47）与英雄页装备六槽（宿主 82×83）共用一档。
     sq: { slice: '26% 22% fill', width: 'calc(12px * var(--pu,1))' },
     // 大卡：基地建筑卡（源 674×272 / 宿主 251×150）与行动模式入口卡（源 526×441 / 宿主 240×235）。
     // 两张卡宿主都 ≥150 高，板给到 15px 才压得住这么大的面。
     bigCard: { slice: '26% 12% fill', width: 'calc(15px * var(--pu,1))' },
+    // ===== 斜切条族（r44 表 6 件，2026-09-22 三十七轮，ART-PLAN §4.9 第 5 条「斜切与厚度」）=====
+    // 这一族的切片**不能沿用上面任何一档的写法**，因为端头是斜的：
+    // ① 横向切片必须**整块包住斜边**（`tools/measure_slant.py` 实测六件斜边水平位移 52~70px），
+    //    斜边一旦被划进可拉伸的中段，条子拉长后两端会"斜了一下又直了"；
+    // ② 纵向切 50% —— 让上下两半各自进角区，等于整条只做等比纵向缩放，
+    //    顶那道受光高光边与底那道 2.5D 厚边才不会被拉伸吃掉（这两条正是"厚度"的全部信息量）；
+    // ③ 显示宽度必须满足 `横向宽 / 纵向宽 ≈ 横向切片px / (源高/2)`，否则角区被非等比压扁、
+    //    斜角会变（源件实测 21°，压成 0.5 倍宽就变 11°，看着像"没切"）。
+    // ⇒ 所以这一族**一件一档**：源宽从 861 到 1879 不等，同一个百分比 px 数对不上所有的斜边宽度，
+    //    硬并成一档就是拿错的斜度上屏。纵向用 --pw（宿主高度本身按 --pw 缩放），不用 --pu。
+    // 难度段格（源 861×187 / 887×187，斜边 64）与二级分类页签（源 1396×185，斜边 65）几何同档。
+    // 宿主实测：`.diffSeg` 102×42、`.flat-tabs > button` 135×47。
+    stripCap: { slice: '50% 66 50% 66 fill', width: 'calc(16px * var(--pw,1)) calc(11px * var(--pw,1))' },
+    // 顶栏资源胶囊带：源 1855×182、斜边 70，宿主实测 140~161×29（画在 `.res::before` 上）。
+    stripThin: { slice: '50% 72 50% 72 fill', width: 'calc(10.5px * var(--pw,1)) calc(8.3px * var(--pw,1))' },
+    // 章节标题横幅条：源 1879×232、斜边 66，宿主实测 540×62（通栏）。
+    stripWide: { slice: '50% 70 50% 70 fill', width: 'calc(22.5px * var(--pw,1)) calc(13.5px * var(--pw,1))' },
+    // 难度段轨道：源 1858×194、斜边 52，宿主实测 310×44。这一件是**空心凹槽**不是实心条，
+    // 纵向不能切 50%（那样槽的内壁全进角区、中段没有可拉伸的槽底），切 28% 把内壁留在角区、
+    // 槽底留在中段。
+    stripTrack: { slice: '28% 56 28% 56 fill', width: 'calc(6px * var(--pw,1)) calc(10px * var(--pw,1))' },
 };
 
 /**
@@ -141,8 +159,8 @@ export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: '
     // 22% 的 alpha=0 空边，板面只渲染出宿主盒高的 55%，看着就像"板比键短"。裁紧 + 改档后重测：
     // 61px 盒高配 btnSm 档（11px 边框）剩 39px 平牌面，两行内容放得下，于是接回蓝板。
     { sel: '.btn.blue.hot', key: 'ui/button/btn_cancel', spec: 'btnSm' },
-    { sel: '.diffSeg.on', key: 'ui/button/btn_play', spec: 'btnSm' },
-    { sel: '.diffSeg', key: 'ui/button/btn_cancel', spec: 'btnSm' },
+    // `.diffSeg` 两行已搬去 `BEVEL_PLATE`（2026-09-22 三十七轮）：它们原先借的是按钮族的圆角板，
+    // 而难度段是**条**不是**键**——斜切端头与厚度是条这一族的语言，留在按钮表里就永远并不成一档。
     // 护送页那个「👥编队」大入口也带 squadEntry，但它属于侧栏一族（btn_side 木箱板），
     // 英雄/护送页顶部的 4 个号位才是这里要管的方形小键
     { sel: '.squadEntry.on:not(.hot)', key: 'ui/button/btn_confirm', spec: 'btnSm' },
@@ -178,14 +196,45 @@ export const SURFACE_PLATE: Array<{ sel: string; key: string | null; spec: keyof
     // 整条 .tabbar 贴一块、复用同一张图的 navTab 档：中间区横向拉长就是连续板面，铆钉只落在整条两端。
     // 选中态不能再靠换板表达（一块板上没有"哪一格换了板"这回事），改由 CSS 的凹下底色 + 顶部金槽承担。
     { sel: '.tabbar', key: 'ui/nav/tab_plate', spec: 'navTab' },
-    // 二级分类页签（商城 4 签 + 背包 4 签共用同一件；选中色仍由 CSS 高亮，不出二态板）
-    { sel: '.flat-tabs > button', key: 'ui/tab/seg_plate', spec: 'seg' },
+    // 二级分类页签（商城 4 签 + 背包 4 签共用同一件）已搬去 `BEVEL_PLATE`：
+    // 键没换（仍是 `ui/tab/seg_plate`，同名覆盖重切成斜端），换的是**切片档**——
+    // 老件是圆角矩形，50% 纵向切法会把它的角码切没；新件端头是斜的，横向必须整块包住斜边。
     // 英雄页装备六槽（头盔/护甲/腕甲/护腿/手套/战靴）——基地页之外最大的一片纯色方格
     { sel: '.eqGrid .slot', key: 'ui/panel/eq_slot', spec: 'sq' },
     // 基地页 8 张建筑卡（这一页原先九宫格数为 0）
     { sel: '.building', key: 'ui/panel/building_card', spec: 'bigCard' },
     // 行动页「无尽试炼 / 无尽护送」两张入口卡
     { sel: '.challenge-ground .entry', key: 'ui/panel/entry_card', spec: 'bigCard' },
+];
+
+/**
+ * 斜切条族：CSS 选择器 → [贴图 key, 切片档]，口径同上面两张表（顺序即优先级）。
+ *
+ * 这是 ART-PLAN §4.9 第 5 条「斜切与厚度」的落点，r44 一张 3列2行表出 6 件。
+ * 单独一张表的理由不是偏好，是**几何**：这一族纵向切 50%（整条等比缩放，保住顶高光与底厚边），
+ * 上面两张表按百分比切角区，两套档互不适用；混进 SURFACE_PLATE 会让人以为可以照抄那套切片。
+ *
+ * 扫描范围要整个 `#homeUi`：`.res` 在顶栏、`.tabbar` 之外，`.viewport` 里没有它。
+ *
+ * ⚠ `.res` 这一行**不走 `nineSlice`**：那条斜带的本体是 `.res::before` 伪元素，
+ *   inline style 上不到伪元素，所以由 `HomeUiCore._plateBevels()` 特判走 `nineSliceVar`
+ *   把三件切片参数落成自定义属性，交给样式表在 `::before` 上消费。
+ *   同时 CSS 里那条 `transform: skewX(-12deg)` 必须在 `.plated` 时撤掉——
+ *   斜度从此由图带，CSS 再斜一次就是斜上加斜（角度翻倍，两端读成"被切掉一块"）。
+ */
+export const BEVEL_PLATE: Array<{ sel: string; key: string | null; spec: 'stripCap' | 'stripThin' | 'stripWide' | 'stripTrack' }> = [
+    // 顶栏资源胶囊（金/钻/体力三枚，实测 140~161×29）。原先是平涂 `--c-scene-1` + CSS skewX(-12°)。
+    { sel: '.res', key: 'ui/strip/res_band', spec: 'stripThin' },
+    // 难度段整条轨道（310×44）：三枚分段格垫在它上面，斜端把整条的收口交代掉。
+    { sel: '.difficulty', key: 'ui/strip/diff_track', spec: 'stripTrack' },
+    { sel: '.difficulty .diffSeg.on', key: 'ui/strip/diff_on', spec: 'stripCap' },
+    { sel: '.difficulty .diffSeg', key: 'ui/strip/diff_off', spec: 'stripCap' },
+    // 章节标题横幅条（540×62，通栏）：这一位原先**完全没有底**，标题字直接压在关卡照片上。
+    { sel: '.chapter-head', key: 'ui/strip/chapter_band', spec: 'stripWide' },
+    // 二级分类页签（商城 4 签 + 背包 4 签共用；选中色仍由 CSS 高亮，不出二态板）
+    { sel: '.flat-tabs > button', key: 'ui/tab/seg_plate', spec: 'stripCap' },
+    // 关卡说明条实测只有 374×22：stripCap 档的上下板厚就要 16px，剩 6px 牌面必压字，显式跳过
+    { sel: '.stage-caption', key: null, spec: 'stripCap' },
 ];
 
 /**
@@ -252,6 +301,25 @@ export function nineSlice(el: HTMLElement, spec: keyof typeof NINE, opts?: { kee
 /** 框件回填器：保留宿主背景（立绘/底色在框内），CSS 描边退为缺图回退 */
 export function frame(el: HTMLElement): (url: string) => void {
     return nineSlice(el, 'frame', { keepBackground: true });
+}
+
+/**
+ * 伪元素版九宫格：板要画在 `::before` 上（顶栏资源胶囊那条斜带的本体就是伪元素），
+ * 而 inline style 到不了伪元素——只能把切片三件落成 CSS 自定义属性挂在宿主上，
+ * 由样式表在 `::before` 里 `var()` 消费。自定义属性是可继承的，这条路是通的
+ * （同 `--sat`/`--pw`/`--mile` 那批：`HomeUiCore` 与 `DomHud` 已经用 setProperty 传值多年）。
+ *
+ * 与 `nineSlice` 一样打 `.plated`：那块板真的贴上去了，CSS 才撤掉自己画的那条斜带底、
+ * 才撤掉 `skewX`（斜度改由图带）。缺图回退时旧样子原样保留。
+ */
+export function nineSliceVar(el: HTMLElement, spec: keyof typeof NINE, prop: string): (url: string) => void {
+    const n = NINE[spec];
+    return (url: string) => {
+        el.style.setProperty(prop, url);
+        el.style.setProperty(`${prop}-slice`, n.slice);
+        el.style.setProperty(`${prop}-width`, n.width);
+        el.classList.add('plated');
+    };
 }
 
 export interface IconOpts {

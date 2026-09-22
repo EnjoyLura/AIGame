@@ -8,6 +8,15 @@
 set -e
 TS=$(date +%m%d-%H%M)
 HTML="build/web-mobile/index.html"
+# 先确认构建真的产出了东西。Cocos Creator 在**脚本打包失败时照样打
+# "build Task (web-mobile) Finished"**，而 build/web-mobile/ 已经被清空只剩一个 src/——
+# 只看那行 Finished 就会一路把空构建当成新构建去测（2026-09-22 三十七轮实测踩到）。
+if [ ! -f "$HTML" ]; then
+  echo "FAIL: 没有 $HTML —— 这次构建其实是失败的，去翻构建日志里的 [Programming] 报错" >&2
+  echo "      （最常见的一种：HomeUiStyle.ts 注释里写了反引号，截断整个 CSS 模板字符串；" >&2
+  echo "        构建前先跑 node tools/check-split.js，它一秒就能抓到）" >&2
+  exit 1
+fi
 if grep -q "__BUILD_TIME" "$HTML"; then
   sed -i "s/window.__BUILD_TIME='[^']*'/window.__BUILD_TIME='$TS'/" "$HTML"
 else

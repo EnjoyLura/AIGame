@@ -125,6 +125,12 @@ const MANIFEST = [
     'ui/badge/medal1', 'ui/badge/medal2', 'ui/badge/medal3', 'ui/panel/row_card', 'ui/panel/panel_mini',
     // 护送关卡卡载具
     'icons/vehicle_truck', 'icons/vehicle_ship', 'icons/vehicle_hauler',
+    // 斜切条族（r44 表，一张 3列2行出 6 件，2026-09-22 三十七轮）：
+    // 顶栏资源胶囊带 / 难度段两态 / 难度段轨道 / 章节标题横幅条。
+    // 同批第 6 格是**同名覆盖** `ui/tab/seg_plate`（二级分类页签重切成斜端），不另登记。
+    // 这一族是 ART-PLAN §4.9 第 5 条「斜切与厚度」：端头斜切、下沿一道 2.5D 厚度。
+    'ui/strip/res_band', 'ui/strip/diff_off', 'ui/strip/diff_on',
+    'ui/strip/diff_track', 'ui/strip/chapter_band',
 ];
 
 /**

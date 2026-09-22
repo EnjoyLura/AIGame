@@ -1534,6 +1534,15 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    基准层这几条本来就是暗底写法（--c-gold-hi 等），青瓷层此前一律改成了浅灰底配深字，
    页面翻暗后那批深字就是审计里 1.0~2.3 比值的来源 */
 #homeUi .res::before { content: ''; position: absolute; inset: calc(5px * var(--pw,2.5)) 0; background: var(--c-scene-1); transform: skewX(-12deg); }
+/* 斜切条族上屏（ART-PLAN §4.9 第 5 条）。资源胶囊那条带的本体是伪元素，inline style 上不去，
+   所以 UiPlate.nineSliceVar 把切片三件写成宿主上的自定义属性，由这里在 ::before 上消费。
+   ⚠ 两件事必须同时发生：**撤 skewX** 与 **上板**。斜度从此由图带（图里两端本来就是斜的、
+   斜边上还画了受光边），CSS 再斜一次就是斜上加斜、角度翻倍，两端读成"被切掉一块"。
+   缺图回退时 .plated 不存在，上面那条平涂斜带原样留着——所以这一整块只在图到位那一刻生效。 */
+#homeUi .res.plated::before {
+  transform: none; background: none; border-style: solid; border-width: calc(10.5px * var(--pw,2.5)) calc(8.3px * var(--pw,2.5));
+  border-image-source: var(--res-band, none); border-image-slice: var(--res-band-slice, 100%);
+  border-image-width: var(--res-band-width, 0); border-image-repeat: stretch; }
 #homeUi .res > * { position: relative; z-index: 1; }
 #homeUi .res > span:first-child { width: calc(20px * var(--pw,2.5)) !important; height: calc(20px * var(--pw,2.5)) !important; }
 #homeUi .res b { color: var(--c-gold-hi); flex: none; font-variant-numeric: tabular-nums; font-weight: 700; }
@@ -1786,6 +1795,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   border: 1px solid var(--c-scene-edge); background: var(--c-scene-1); margin: 0; }
 #homeUi .difficulty .diffSeg { font-size: calc(12px * var(--pw,2.5)); font-weight: 400; color: var(--c-cream-1); border-left-color: var(--c-scene-line); }
 #homeUi .difficulty .diffSeg.on { background: #aaa; color: var(--c-navy-3); font-weight: 700; }
+/* 三十七轮：选中那一格改吃斜切条族的金板（ui/strip/diff_on），字色**保持暗藏青**。
+   中途翻成过亮奶油色，实测两头都不达标（板面均值 #976d25：亮字 4.37:1、暗字 3.28:1）——
+   根因不是字色选错，是**板面本身落在"没有好字色"的那个中间调**（同 §7.3 那条口径）。
+   正解是把牌面推到亮金：tools/tune_plate_face.py 只提亮牌面、按分位保住描边与底厚边，
+   暗字压亮金才是这款商业游戏里"选中"的读法（与主 CTA 那块金牌同一档语言）。 */
 #homeUi .difficulty .diffSeg.off { color: var(--c-text-mute); }
 #homeUi .stage { margin-top: 0; min-height: calc(120px * var(--pw,2.5)); }
 /* 关卡照片：原先是浮在页面中间的一块圆角矩形（左右各内缩 140px、顶部下缩 6%），
@@ -3300,10 +3314,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    **只压饱和与亮度、不动色相**：试过 sepia 微暖，数值上确实更靠近世界，但预览里蓝板发灰绿、
    "蓝 = 取消/次要"这个功能色就没了（对比图见 tools/preview_plate_filter.py）。
    这一档要去掉的是"屏幕里另点了一盏冷灯"，不是把蓝改成不蓝。
-   **为什么还带 .diffSeg:not(.on)**：护送页那两枚锁住的难度段用的就是同一张 btn_cancel
-   （UiPlate 契约表里 .diffSeg 那一行），但它们身上没有 .blue 类——只写 .blue.plated
-   会让同一张图在英雄页压过、在护送页没压过，两屏并排看就成了"两种蓝"。 */
-#homeUi .blue.plated, #homeUi .diffSeg:not(.on).plated { filter: saturate(.82) brightness(.90); }
+   **曾经还带过 .diffSeg:not(.on).plated**：护送页那两枚难度段当时借的就是同一张 btn_cancel，
+   只写 .blue.plated 会让同一张图在英雄页压过、在护送页没压过，两屏并排看成"两种蓝"。
+   三十七轮把难度段搬进斜切条族（UiPlate.BEVEL_PLATE）之后它不再吃蓝板，这条并写也就撤了——
+   留着会把一块本来中性的暗金属条往灰里再压一档。 */
+#homeUi .blue.plated { filter: saturate(.82) brightness(.90); }
 /* 蓝板（btn_cancel）同理：页面上未贴板是白纸深字（弹层里对），贴板后是蓝板，字要翻亮 */
 #homeUi .game-button.plated { color: var(--c-cream-1); }
 #homeUi .eqGrid .slot.plated { color: var(--c-cream-1); }

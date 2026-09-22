@@ -126,6 +126,20 @@ const COLLECT = `(() => {
     if (!own) continue;
     const b = e.getBoundingClientRect();
     if (b.width < 4 || b.height < 4) continue;
+    // ⚠ **取字形的墨盒，不是元素的边框盒**（2026-09-22 三十七轮改口径）。
+    //   元素盒在"斜切条"这一族上会明显大于字所在的区域：平行四边形的两个三角角口透过去
+    //   露出底下近黑的轨道，一条板本身还带暗底厚边——这些像素**一个都没压在字背后**，
+    //   却把均值拖 dark 一大截（实测「普通」那格：墨盒背板 6.4:1，元素盒背板 3.99:1，
+    //   而肉眼看着清楚）。WCAG 问的是"这些字压在那块东西上认不认得出"，所以量墨盒才是问对问题。
+    //   这不是放宽判据：阈值、4.5、大字号豁免、inactive 另计，一条都没动；
+    //   板面花不花仍然照报（背板标准差 >28 进 plates 那组，靠人看一眼的机制不变）。
+    let box = b;
+    try {
+      const rg = document.createRange();
+      rg.selectNodeContents(e);
+      const ib = rg.getBoundingClientRect();
+      if (ib.width >= 4 && ib.height >= 4) box = ib;
+    } catch {}
     const txt = (e.textContent || '').trim();
     const sel = e.tagName.toLowerCase() + (e.className ? '.' + String(e.className).trim().split(/\\s+/)[0] : '');
     if (ONLY_GLYPH.test(txt)) { glyphs.push({ sel, txt: txt.slice(0, 8) }); continue; }
@@ -134,7 +148,8 @@ const COLLECT = `(() => {
     list.push({
       sel, txt: txt.slice(0, 14), fs: Math.round(parseFloat(cs.fontSize)), fw: cs.fontWeight,
       fg: hex(fg.c), fga: Math.round(fg.a * a * 100) / 100,
-      x: Math.round(b.left), y: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height),
+      x: Math.round(box.left), y: Math.round(box.top), w: Math.round(box.width), h: Math.round(box.height),
+      ex: Math.round(b.left), ey: Math.round(b.top), ew: Math.round(b.width), eh: Math.round(b.height),
       inactive: INACTIVE.test((typeof e.className === 'string' ? e.className : '') + ' ' + (e.getAttribute('disabled') !== null ? 'disabled' : '')) || fg.a * a < 0.95,
     });
   }

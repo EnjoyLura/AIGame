@@ -91,7 +91,10 @@ node check-popups.mjs                # 二级浮窗交互稿
   图标类另跑 `node tools/audit_emoji_slots.mjs <url> 18` 列出"整个位置就是一个大号 emoji"的格子——
   **它现在会把"判过该留字形"的位置单独列一栏并写明判据出处，那一栏不许再去出图**；
   调色温/光向那类跑 `node tools/audit_light_temp.mjs <url> <页签>`，它按"同一个 class 算一族"
-  打印每族的暖度（R−B）与光向（上缘−下缘），改前改后各跑一次才有依据）→
+  打印每族的暖度（R−B）与光向（上缘−下缘），改前改后各跑一次才有依据；
+  **条/签/横幅这一族跑 `node tools/audit_bevel_family.mjs <url>`**——`audit_ui_surfaces` 走 DOM，
+  永远看不见伪元素，而这一族最核心的位置（顶栏资源胶囊的斜带）正是画在 `.res::before` 上，
+  看不见就等于以为没活）→
   一张表一次出图（不合格格子下一批补）→
   整类接**一张契约表**（如 `UiPlate.CITY_BUTTON_PLATE`），不在十几处手工接 → 落盘接线 → 自测。
 - **普查报的是屏幕上那块像素，不是你以为在量的那个东西**（两条同族的坑）：
@@ -152,13 +155,18 @@ node tools/check-art-manifest.mjs    # 清单↔磁盘↔代码↔契约表四�
 python tools/asset_size_report.py --check
 python tools/shrink_opaque_pngs.py --check   # 报还有多少不透明 PNG 该转 JPG（0 条才算干净）
 python tools/check_asset_formats.py --check  # 一个 key 只准一种扩展名 + 转换件在包里真的是 .jpg（须在构建之后）
-# Cocos 构建（成功标志：grep -c "build Task (web-mobile) Finished" 计数 = 1）
+# Cocos 构建（成功标志：grep -c "build Task (web-mobile) Finished" 计数 = 1，
+#   ⚠ 但这一行**不足以判成功**——脚本打包失败时它照样打，见「工具坑」；必须再 test -f 产物）
 bash tools/postbuild.sh                # 构建戳 + 缓存击破 + _maxFontSize 补丁，构建日志用完删
 grep -c "<本轮改动标识>" build/web-mobile/assets/main/index.js  # bundle 断言：确认改动真的进包
 # 文字可读性审计（要在起 serve.mjs 的构建上跑）：五个页签的「不合格」计数只许降不许升
 for p in home 商店 英雄 基地 行动; do node tools/contrast_audit.mjs "http://127.0.0.1:7456/index.html" $p 4.5; done
 #   第 4 个参数写 plates 另出「背板标准差 >28」那批字——均值达标但底下是一张照片，
 #   局部笔画可能正压在亮块上，这一批才需要人对着截图核（背板现在是截屏取的，不再是盲区）
+#   ⚠ 三十七轮起**采的是字形的墨盒、不是元素的边框盒**（Range.selectNodeContents）：
+#     斜切条那类平行四边形板，两端三角角口透过去露出底下近黑的轨道、板自己还带暗底厚边，
+#     这些像素一个都没压在字背后，却把均值拖 dark 一大截（「普通」那格墨盒 6.4:1 / 元素盒 3.99:1）。
+#     阈值、4.5、大字号豁免、inactive 另计一条没动；改的是"问对了问题"，不是放宽判据。
 # 以下 *-bundle check 读 build/web-mobile 产物，须在构建之后跑（同样纳入链防腐烂）
 node tools/check-notice-bundle.js
 node tools/check-stamina-bundle.js
@@ -255,3 +263,10 @@ AIG/
 - **PIL 量化 RGBA 必须 `Image.Quantize.FASTOCTREE`**：默认算法不保 alpha，会把切片件那圈羽化软边
   啃成锯齿（不是画质问题，是形状问题——板会看出白角）。副作用是写出的是 mode `P`，
   任何断言 `mode == 'RGBA'` 的检查器（现只有 `check_mortar_assets.py`）会当场 FAIL。
+- **"build Task (web-mobile) Finished" 不等于构建成功**（2026-09-22 三十七轮，白跑一次构建）：
+  脚本打包阶段报错时 Creator **照样打这一行**，而 `build/web-mobile/` 已经被清空、只剩一个 `src/`。
+  我是跑 `postbuild.sh` 时报 `index.html: No such file or directory` 才发现的——顺序反了。
+  两条改法：① **先 `tc.js` 与 `check-split.js`、后构建**（反引号截断 CSS 模板字符串这件事，
+  检查器一秒就能抓到，构建抓不到）；② 构建后先 `test -f build/web-mobile/index.html` 再往下走。
+  本轮触发它的正是 `HomeUiStyle.ts` 注释里写了 `` `UiPlate.nineSliceVar` ``——第八次踩同一个坑，
+  而且是在我已经知道这个坑、并刚写完"反引号计数 = 2"断言之后：**知道断言存在 ≠ 跑了断言**。

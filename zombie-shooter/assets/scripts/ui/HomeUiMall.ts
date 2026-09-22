@@ -96,6 +96,7 @@ export abstract class HomeUiMall extends HomeUiCore {
             window.setTimeout(() => {
                 this._plateSweepQueued = 0;
                 this._plateCityButtons();
+                this._plateBevels();
             }, 0);
         });
         this._plateObs.observe(this._root, { childList: true, subtree: true });
