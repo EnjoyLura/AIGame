@@ -1468,11 +1468,27 @@ export abstract class HomeUiCore extends Component {
             // 套了会得到 url 里嵌 url，浏览器判整条 background-image 非法，于是只剩前面那层遮罩渐变，
             // 页面底从来没画出来过。全工程只有这一处套了壳，另外 19 处都是直接赋值，
             // 所以别的地方都好的、偏偏背景是空的。回归断言见 check-art-manifest 的 5.9。
+            //
+            // 最上面那层琥珀是**整片世界的主光**（对标 §4.9 第 4 条）。三件事按顺序试过才定下来：
+            // ① 先想的是把过金的金牌、过蓝的蓝板用 filter 拉回世界带宽，算完在源图上预览直接否决——
+            //    去饱和把主 CTA 从"最该抢眼的东西"拉成一块脏黄铜，层级没了；蓝板拉灰则把
+            //    "蓝=取消/次要"这个功能色弄丢了。数值合格、画面更坏。
+            // ② 于是反过来：不动控件，把**世界**打暖。实测五页界面件落在暖度 +19~+44，
+            //    而两张底图整张只有 +6 与 -9（`tools/audit_light_temp.mjs` 量的），
+            //    差着二十多档——控件没错，是它们站在一片没有光的地方。
+            // ③ 混合模式与强度是 `tools/calc_key_grade.py` 在源图上算出来的，不是试出来的：
+            //    soft-light .45 是唯一能把两张底图**都**送进 +19~+44、而亮度只从 33/29 抬到 42/38 的档；
+            //    平涂同强度也能进带宽，但亮度抬到 55/52，等于把暗场景洗亮，会反过来吃亮字对比度。
+            // 用 background-blend-mode 而不是盖一层 div：混合只发生在本元素的背景栈内部，
+            // 子节点（所有文字、所有板）不参与，所以这一层**不可能**动到可读性——
+            // 而 contrast_audit 现在量的是屏幕真实像素，万一它报了变化，那才是真的有问题。
             root.style.backgroundImage =
+                'linear-gradient(180deg, rgba(255,158,58,.34) 0%, rgba(255,158,58,.5) 46%, rgba(255,146,44,.45) 100%), ' +
                 'linear-gradient(180deg, rgba(11,18,26,.86) 0%, rgba(11,18,26,.44) 34%, rgba(10,16,24,.34) 60%, rgba(8,13,20,.86) 100%), ' +
                 u;
-            root.style.backgroundSize = 'cover, cover';
-            root.style.backgroundPosition = 'center, center';
+            root.style.backgroundSize = 'cover, cover, cover';
+            root.style.backgroundPosition = 'center, center, center';
+            root.style.backgroundBlendMode = 'soft-light, normal, normal';
         });
     }
 

@@ -3294,6 +3294,13 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    上面那两条把主按钮翻成暗字的规则对它正好反向——暗字压紫板只有 2.28:1，要的是亮字（7.5:1）。
    写成 .purple.plated 两条并列：前者管不带 .major 的紫键，后者用 (1,4,0) 压过 .major.plated */
 #homeUi .game-button.purple.plated, #homeUi .game-button.major.purple.plated { color: var(--c-cream-1); }
+/* 蓝板（btn_cancel）是整片最后一个还带"自发光"味道的面：实测暖度 -66，而同屏同类的操作件
+   （编队 1~4 那块绿板）是 +28，差 94 档。整页主光那层照不到它——板是不透明贴图，
+   background-blend-mode 只发生在底图自己的层里，压不到叠在它上面的兄弟节点。
+   **只压饱和与亮度、不动色相**：试过 sepia 微暖，数值上确实更靠近世界，但预览里蓝板发灰绿、
+   "蓝 = 取消/次要"这个功能色就没了（对比图见 tools/preview_plate_filter.py）。
+   这一档要去掉的是"屏幕里另点了一盏冷灯"，不是把蓝改成不蓝。 */
+#homeUi .blue.plated { filter: saturate(.82) brightness(.90); }
 /* 蓝板（btn_cancel）同理：页面上未贴板是白纸深字（弹层里对），贴板后是蓝板，字要翻亮 */
 #homeUi .game-button.plated { color: var(--c-cream-1); }
 #homeUi .eqGrid .slot.plated { color: var(--c-cream-1); }

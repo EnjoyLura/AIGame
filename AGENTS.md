@@ -85,9 +85,16 @@ node check-popups.mjs                # 二级浮窗交互稿
 
 - **一轮一类**：按钮类 → 图标类 → 角标/星/节点类 → 资源与载具类 → 战斗 UI 件与弹层底板。
   每类固定四步：列清单（先跑界面普查拿实测尺寸：`node tools/audit_ui_surfaces.mjs <url>` 看哪些面还没贴图，
-  图标类另跑 `node tools/audit_emoji_slots.mjs <url> 18` 列出"整个位置就是一个大号 emoji"的格子）→
+  图标类另跑 `node tools/audit_emoji_slots.mjs <url> 18` 列出"整个位置就是一个大号 emoji"的格子——
+  **它现在会把"判过该留字形"的位置单独列一栏并写明判据出处，那一栏不许再去出图**；
+  调色温/光向那类跑 `node tools/audit_light_temp.mjs <url> <页签>`，它按"同一个 class 算一族"
+  打印每族的暖度（R−B）与光向（上缘−下缘），改前改后各跑一次才有依据）→
   一张表一次出图（不合格格子下一批补）→
   整类接**一张契约表**（如 `UiPlate.CITY_BUTTON_PLATE`），不在十几处手工接 → 落盘接线 → 自测。
+- **普查报的是屏幕上那块像素，不是你以为在量的那个东西**（两条同族的坑）：
+  `audit_light_temp` 第一版把容器也算进去，容器里摆着卡片就量到卡片内容，一个平涂底被报成"底光 −49"；
+  `audit_emoji_slots` 只报"哪里还是 emoji"、不报"这是漏的还是判过的"，照着它出过两格早被明令撤键的图。
+  **拿到任何普查清单，先查它在规范里有没有已经被判过**，再动手。
 - **自测由 AI 跑，不占用户时间**：`node tools/page_shot.mjs <url> <页签> <out.png>` 取景并直接打印
   该页哪些面已贴图，Read 那张 PNG 逐面判合格（板有没有压字、有没有融进背景、选中态还认不认得出）；
   全量核对用 `node tools/audit_ui_surfaces.mjs`（六界面 + 战斗 HUD 出 JSON）+
