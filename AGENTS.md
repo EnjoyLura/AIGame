@@ -263,6 +263,11 @@ AIG/
 - **PIL 量化 RGBA 必须 `Image.Quantize.FASTOCTREE`**：默认算法不保 alpha，会把切片件那圈羽化软边
   啃成锯齿（不是画质问题，是形状问题——板会看出白角）。副作用是写出的是 mode `P`，
   任何断言 `mode == 'RGBA'` 的检查器（现只有 `check_mortar_assets.py`）会当场 FAIL。
+- **生图 403 先读响应体里的 `error.type`，不要当成代码问题重试**（2026-09-22 三十八轮）：
+  网关返回 `billing_error` / `insufficient balance` 时是**账户余额耗尽**，与提示词、参数、基准图都无关。
+  判据是同日更早那次出图还成功（本轮 r44 在 11:36 正常，13:09 起持续 403）。
+  这种情况下**不要反复重试**（每次调用都会走同一份 key），把已完成的判定与提示词落盘、
+  在台账里写清"余额恢复后直接跑哪个 prompt 文件"，然后收工报告，不要偷偷改用别的件凑数。
 - **"build Task (web-mobile) Finished" 不等于构建成功**（2026-09-22 三十七轮，白跑一次构建）：
   脚本打包阶段报错时 Creator **照样打这一行**，而 `build/web-mobile/` 已经被清空、只剩一个 `src/`。
   我是跑 `postbuild.sh` 时报 `index.html: No such file or directory` 才发现的——顺序反了。
