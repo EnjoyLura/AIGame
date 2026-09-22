@@ -18,6 +18,9 @@ from pathlib import Path
 
 from PIL import Image
 
+sys.path.insert(0, str(Path(__file__).parent))
+from png_out import save_png, QUANT_NOTE  # noqa: E402
+
 
 def key_green(im: Image.Image, tol: int) -> Image.Image:
     im = im.convert('RGBA')
@@ -56,6 +59,9 @@ def main() -> int:
     ap.add_argument('--size', type=int, default=0)
     ap.add_argument('--tol', type=int, default=60)
     ap.add_argument('--margin', type=int, default=4)
+    ap.add_argument('--colors', type=int, default=256,
+                    help='落盘前压到几色索引（0=不压）。省 76~90%，而 optimize 只省 0.2%。'
+                         + QUANT_NOTE)
     args = ap.parse_args()
 
     im = Image.open(args.src)
@@ -66,8 +72,9 @@ def main() -> int:
         if side != args.size:
             im = im.resize((args.size, args.size), Image.Resampling.LANCZOS)
     args.dst.parent.mkdir(parents=True, exist_ok=True)
-    im.save(args.dst)
-    print(f'{args.src.name} -> {args.dst} {im.size[0]}x{im.size[1]} alpha={im.mode}')
+    raw, new = save_png(im, args.dst, args.colors)
+    print(f'{args.src.name} -> {args.dst} {im.size[0]}x{im.size[1]} alpha={im.mode}'
+          f'  {raw/1024:.0f}KB→{new/1024:.0f}KB（省 {(1-new/raw)*100:.0f}%）')
     return 0
 
 

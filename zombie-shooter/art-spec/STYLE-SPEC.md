@@ -106,7 +106,8 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
 
 ## 5. 尺寸与格式规范
 
-- **格式**：PNG 透明底（场景背景可 JPG）；非幂次尺寸要能被 2 整除。
+- **格式**：带透明的件用 PNG；**整幅不透明的照片级底图用 JPG**（判据见 §5.1，不是"看起来没透明"）。
+  非幂次尺寸要能被 2 整除。
 - **安全边距**：图标/按钮四周留 ≥6% 空白，避免裁边；主体重心居中。
 - **逐类尺寸**（与现有槽位对齐，见 ASSET-MANIFEST.md）：
   - 小图标/资源/导航：128×128
@@ -121,6 +122,43 @@ limited warm palette, isolated on plain solid pure green background (#00FF00), n
   2026-09-21 起 `ui/` 下的件一律按类别归位到子目录（button/panel/banner/nav/res/ico/frame/shop，
   另 progress/badge 两类当前仅有预留 key、无在库图），
   `ui/` 顶层不再放散图；切片落盘前先查 `AssetLib.ts` 里该 key 登记的是哪一级。
+
+### 5.1 体积纪律：格式与量化（2026-09-22 三十六轮）
+
+资源库 34.91MB 里 PNG 占 95.6%，而其中一大半是**根本不透明的照片级底图**——它们穿着 PNG 的外衣，
+等于用无损压缩去存一张有损的照片。这一节定"什么时候允许占多少"。
+
+- **扩展名不在契约里**（这是本节全部操作成立的前提）：`AssetLib` 加载走
+  `resources.load('textures/${key}/spriteFrame')`，key 是**去后缀**的路径。所以
+  `xxx.png → xxx.jpg` 是纯资源动作、代码零改动，`换图不换 key`（§9）自动覆盖这件事。
+  ⚠ 同一件事的反面：把 `xxx.png` 又丢回还留着 `xxx.jpg` 的目录，磁盘上就有了**两个同名 key**，
+  命中哪个看登记顺序，而源侧的 `check-art-manifest` 只看"这个 key 有没有图"、两边都有图时照样绿。
+  这条由 `python tools/check_asset_formats.py --check` 管（双 key + 包里真实文件名）。
+- **判"能不能转 JPG"读 alpha 极值，不靠眼睛**：
+  `im.convert('RGBA').getchannel('A').getextrema() == (255,255)` 才算真不透明。
+  带任何一处半透明（羽化边、投影残留、抠图没干净）的一律留 PNG——那正是件本身的一部分。
+- **转之前必须 grep uuid**：DOM 侧按 key 取图，但 `.prefab` / `.scene` 按 **uuid** 引资源。
+  删 PNG 会连带删掉它的 `.meta`（uuid 的家），场景里的引用当场变空。
+  `tools/shrink_opaque_pngs.py` 内置了这道闸，被引用的件直接跳过。
+- **量化档：256 色**（`tools/png_out.py` 的 `DEFAULT_COLORS`，`slice_sheet.py` / `chroma_key.py`
+  落盘出口默认走它）。图标、金属板、走帧序列在 256 色下与原件看不出差别，单件省 76~90%。
+  ⚠ **RGBA 量化必须用 `Image.Quantize.FASTOCTREE`**：PIL 默认算法不保 alpha 通道，
+  会把切片件那一圈羽化软边啃成锯齿——这不是画质问题，是形状问题，板会看出白角。
+- **三类件例外，出图时传 `--colors 0` 关掉量化**：
+  ① **带纸质柔和斑驳纹理的整幅面板**（`panel_card` 一族）——256 色会把纸纹压成一块塑料，
+  省下来的空间正是这族唯一值钱的东西；
+  ② **大范围同族渐变的金属件**（金牌那类）——低于 256 会出现可见色带，128 实测已花；
+  ③ **特效图集 `fx/mortar`**——爆炸是整幅软渐变，量化必然出带状；而且
+  `tools/check_mortar_assets.py` 断言 `mode == 'RGBA'`，量化写出的调色板 PNG（mode `P`）会让它当场 FAIL。
+  ⚠ 这是"默认档"与"窄口径检查器"之间目前唯一的硬冲突，别靠改断言绕开。
+  判据还是 §6 第 8/9 条那两句：**并排看第一眼像不像一族、有没有多出"AI 味"以外的新瑕疵**。
+  数值省了多少不构成放行理由。
+- **预算棘轮**：`python tools/asset_size_report.py --check`（当前 `--budget 27.0`）。
+  与 `SPLIT_DEBT` 同口径——**只许调小不许调大**，库再胖就 FAIL。
+  没有这道闸，本轮省下的 8.45MB 会在几轮出图内无声无息涨回来。
+- **别建议没量过的优化**：本轮上一版提案写的是"给 PNG 加 `optimize=True`"，
+  实测 8.40MB→8.38MB（PIL 存 PNG 本来就在压缩，那个开关近乎空转）。
+  真正的杠杆是量化与换格式。**优化方案先在样本上量出数字再提。**
 
 ## 6. 验收清单（生图指标，出图逐条过）
 

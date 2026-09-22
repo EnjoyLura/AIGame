@@ -40,7 +40,10 @@ node check-popups.mjs                # 二级浮窗交互稿
   主城/局内/登录三处样式共用）；禁止在新代码里散落 hex。换肤 = 改 UiTheme 值 + 换图，不动布局。
 - 历史散落 hex 用 `python tools/tokenize_colors.py --apply` 迁移；引号内色值
   （canvas `Color('#…')`、颜色数学入参）不走 CSS 变量，按其输出的未迁移清单人工同步。
-- 每轮美术替换收尾必跑 `node tools/check-art-manifest.mjs`（清单↔磁盘↔代码引用三方对账）。
+- 每轮美术替换收尾必跑 `node tools/check-art-manifest.mjs`（清单↔磁盘↔代码↔契约表四方对账）。
+- **体积也是契约的一部分**：整幅不透明的照片级底图存 JPG（`换图不换 key` 覆盖扩展名——加载按
+  去后缀的 key 走），切片出口默认量化到 256 色；预算与例外清单见 `art-spec/STYLE-SPEC.md` §5.1，
+  收尾链里的 `asset_size_report.py --check` 就是这道闸（**27.0MB 预算只许调小**）。
 
 ## 设计稿约定
 
@@ -145,6 +148,10 @@ node tools/check-bite.js
 node tools/check-perf.js
 node tools/check-popup-ux.js         # 二级浮窗红线：原先只在文首「验证入口」提过、没进链，等于每轮不跑
 node tools/check-art-manifest.mjs    # 清单↔磁盘↔代码↔契约表四方对账：美术轮必跑，同样曾游离在链外
+# 资源体积两道闸（三十六轮加，都是"只许变好"的棘轮）：预算 27.0MB 只许调小不许调大
+python tools/asset_size_report.py --check
+python tools/shrink_opaque_pngs.py --check   # 报还有多少不透明 PNG 该转 JPG（0 条才算干净）
+python tools/check_asset_formats.py --check  # 一个 key 只准一种扩展名 + 转换件在包里真的是 .jpg（须在构建之后）
 # Cocos 构建（成功标志：grep -c "build Task (web-mobile) Finished" 计数 = 1）
 bash tools/postbuild.sh                # 构建戳 + 缓存击破 + _maxFontSize 补丁，构建日志用完删
 grep -c "<本轮改动标识>" build/web-mobile/assets/main/index.js  # bundle 断言：确认改动真的进包
@@ -166,6 +173,9 @@ git check-ignore zombie-shooter/tools/imagegen.local.json   # 期望输出该路
 **一个例外**：`tools/check_mortar_assets.py` 不进每轮链——它只盯迫击炮图集（512×512 RGBA、
 16 格透明边、meta 未裁剪）与诊断码增删对齐，属窄口径。**但改 `fx/mortar.png` 或动诊断码的轮次必须跑它。**
 （写这里是为了让它有别于"从没被人记起"，而不是继续当第三个孤儿。）
+⚠ 它和切片管线的默认档有一处硬冲突：`slice_sheet.py` 自三十六轮起默认 `--colors 256`，
+写出的是调色板 PNG（mode `P`），而这个检查器断言 `mode == 'RGBA'`。**重切 mortar 必须传 `--colors 0`**，
+不要为了让它变绿去放宽断言（爆炸本身是整幅软渐变，量化也是真的会花）。
 
 - **提交安全线**：APIKey 存放于 `zombie-shooter/tools/imagegen.local.json`，该文件与
   `gpt-image2-skill/`、`gen-output/` 均被 gitignore 严禁提交；每次 git 提交前需确认这些未入库。
@@ -239,3 +249,9 @@ AIG/
 - **无头取景工具里"内容宽 > 盒宽"的溢出告警，先分清是出血还是缺陷**：故意贴边出血的装饰件（如船坞
   前景碎石用负 `left` 探出屏外）被祖先 `overflow:hidden` 裁掉是对的，但普查照样报，会把真缺陷淹掉。
   能改成 0 偏移又不影响观感的，就改掉，别留"看着像报警其实没事"的噪声。
+- **别把没量过的优化写进提案**（2026-09-22 三十六轮）：当时报的是"给 PNG 加 `optimize=True` 能省一批"，
+  实测 8.40MB→8.38MB——PIL 存 PNG 本来就在压缩，那个开关近乎空转；真正的杠杆是换格式与调色板量化
+  （同批件省 76~90%）。**先在样本上跑出数字，再决定提不提。**
+- **PIL 量化 RGBA 必须 `Image.Quantize.FASTOCTREE`**：默认算法不保 alpha，会把切片件那圈羽化软边
+  啃成锯齿（不是画质问题，是形状问题——板会看出白角）。副作用是写出的是 mode `P`，
+  任何断言 `mode == 'RGBA'` 的检查器（现只有 `check_mortar_assets.py`）会当场 FAIL。

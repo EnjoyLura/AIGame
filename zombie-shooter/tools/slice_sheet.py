@@ -21,6 +21,7 @@ from PIL import Image, ImageFilter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from chroma_key import key_green  # noqa: E402
+from png_out import save_png, QUANT_NOTE as _QUANT_NOTE  # noqa: E402
 
 
 def mask_label_blobs(mask_img: Image.Image, dilate: int = 6):
@@ -149,6 +150,9 @@ def main() -> int:
     ap.add_argument('--expect', type=int, default=0, help='期望件数（0=不校验）')
     ap.add_argument('--tight', action='store_true',
                     help='按内容包围盒输出、不方化画布（九宫格板件必用，理由见 extract 文档）')
+    ap.add_argument('--colors', type=int, default=256,
+                    help='落盘前压到几色索引（0=不压）。省 76~90%，而 optimize 只省 0.2%。'
+                         f'{_QUANT_NOTE}')
     args = ap.parse_args()
 
     im = key_green(Image.open(args.sheet), args.tol)
@@ -174,8 +178,9 @@ def main() -> int:
         out = root / f'{name}.png'
         out.parent.mkdir(parents=True, exist_ok=True)
         piece = extract(im, box, sz if 'x' in sz else int(sz), args.margin, args.tight)
-        piece.save(out)
-        print(f'OK   {name}.png  <- box{tuple(box[:4])}  {piece.size[0]}x{piece.size[1]}')
+        raw, new = save_png(piece, out, args.colors)
+        print(f'OK   {name}.png  <- box{tuple(box[:4])}  {piece.size[0]}x{piece.size[1]}'
+              f'  {raw/1024:.0f}KB→{new/1024:.0f}KB（省 {(1-new/raw)*100:.0f}%）')
     return 0
 
 
