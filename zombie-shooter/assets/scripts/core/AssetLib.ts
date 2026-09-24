@@ -225,15 +225,10 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // 排行榜弹窗那处按「随文小符号不出图」判死，理由见 STYLE-SPEC §9 名次奖牌行。
     'ui/badge/power_badge': '战力徽章底（宿主 .powerBadge 是 27px 高整宽胶囊，徽章形塞不进；要接得先在胶囊左端开一个 27px 方图位）',
     // row_card（列表行卡底板）2026-09-21 已出图并接商城货卡 `.good.panel`（两处）与 HUD 邮件行
-    // `.mailRow.panel`，声明移出本表。
-    // panel_mini（模块小框底板）：图合格（r16 表，金属包边 + 四角铆钉 + 平整内芯），**但没有活宿主**——
-    // `.mbox` 全工程只有两个建点（HomeUiCore 的 `_openSheet` / `_openResult`），而这两个方法**零调用点**：
-    // 它们是「全部二级界面已迁新弹层」那条迁移棘轮的桩子（`check-ux-refactor` 断言调用点必须为 0、
-    // `check-ux-layout-bundle` 断言方法还在包里），删不得也用不上。整条 `.mbox/mHead/mClose/mSub/mRow`
-    // 样式族同属那一代遗留。切片件归档 `art-spec/reference/stock/panel/`，键留本表。
-    // ⚠ 教训：**死方法里的引用不算宿主**——`check-art-manifest` 的「在库件必须有归宿」只扫代码引用，
-    // 在这两处加一行就会绿灯，图却永远上不了屏。核宿主要核「谁调用这个建点」，不是「哪里提到这个 key」。
-    'ui/panel/panel_mini': '模块小框底板（唯一建点 _openSheet/_openResult 零调用，是迁移棘轮的桩子）',
+    // `.mailRow.panel`，声明移出本表；panel_mini（模块小框底板）2026-09-25 接上第一个活宿主
+    // 弹层挑选格 `.popGrid > i`（UiPlate.POP_PLATE）并从 stock 落盘，同移出本表。
+    // ⚠ 教训保留：**死方法里的引用不算宿主**——panel_mini 的唯一建点曾是 `_openSheet`/`_openResult`
+    // 两个零调用桩子，在死方法里加引用照样绿灯但图永远上不了屏；核宿主核「谁调用这个建点」。
     // 底部导航的「选中态」板：2026-09-21 用户点名把五格导航并进**一块**整条背板（去页签间隔），
     // 一块板上不存在"哪一格换了板"，选中态改由 CSS 的凹下底色 + 顶部金槽表达，这张二态图就此没宿主。
     // 图本身合格，按规矩不删：切片件在 `art-spec/reference/stock/nav/tab_plate_on.png`，

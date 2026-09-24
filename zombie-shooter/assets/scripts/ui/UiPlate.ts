@@ -77,7 +77,7 @@ export interface NineSpec {
  */
 export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm' | 'chip'
     | 'navTab' | 'sq' | 'bigCard' | 'stripCap' | 'stripThin' | 'stripWide' | 'stripTrack'
-    | 'tabRaised' | 'bandRaised', NineSpec> = {
+    | 'tabRaised' | 'bandRaised' | 'popTab', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     // 按钮板族（plate / platePw / btn / btnSm 共用同一批 r24 去字板）：切片一律**按百分比**。
     // 两件事都是实测出来的，改之前先读：
@@ -145,6 +145,10 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
     // 130~135×46；纵向沿用本族 50% 切法（顶沿标头 + 底沿厚度整半段等比缩放，中段不留缝）。
     tabRaised: { slice: '28 fill', width: 'calc(4px * var(--pw,1))' },
     bandRaised: { slice: '50% 110 50% 110 fill', width: 'calc(21px * var(--pw,1)) calc(8px * var(--pw,1))' },
+    // 弹层页签（POP_PLATE）：同 seg_plate 斜端源件，显示宽度按宿主高折算（D21：切片不变、
+    // 显示宽度跟着宿主尺寸走，barThin 同理）。二级分类页签 47px 高吃 16/11px，弹层页签实测
+    // 约 34px（字号 13 + 上下 padding 8），按 47→34 的比例缩成 11.5/8px——再厚牌面就压字了。
+    popTab: { slice: '50% 66 50% 66 fill', width: 'calc(11.5px * var(--pw,1)) calc(8px * var(--pw,1))' },
 };
 
 /**
@@ -254,6 +258,40 @@ export const BEVEL_PLATE: Array<{ sel: string; key: string | null;
     { sel: '.flat-tabs > button', key: 'ui/tab/seg_plate', spec: 'stripCap' },
     // 关卡说明条实测只有 374×22：stripCap 档的上下板厚就要 16px，剩 6px 牌面必压字，显式跳过
     { sel: '.stage-caption', key: null, spec: 'stripCap' },
+];
+
+/**
+ * 二级弹层族：CSS 选择器 → [贴图 key, 切片档]，口径与上面三张表一致（顺序即优先级）。
+ *
+ * 单独一张表的理由是**扫描时机**：弹层是 `_renderPop` 每次重绘出来的临时 DOM，
+ * 页面级的三个扫描器（按钮/容器/斜切）只在切页后跑一遍，扫不到后开的弹层——
+ * 所以这一族由 `_platePop()` 在每次弹层渲染完成后对着当前 `.pop` 重扫。
+ *
+ * 普查依据（`tools/probe_popups.mjs`，2026-09-25 六面实测）：面板底/横幅/品质头框/CTA/关闭钮
+ * 已接图，中段组件全是平涂。本表接的都是**图已在盘上**的件——行卡与页签是同族已有板的延伸宿主，
+ * 挑选格接 `panel_mini`（r16 件在 stock 归档，本表是它的第一个活宿主，已按「拷回即生效」落盘）。
+ *
+ * **显式跳过的组件族**（不出图的理由，与 CITY_BUTTON_PLATE 的 `key: null` 同一写法的精神）：
+ * - `popKV` / `popAttr` / `popSec` / `popMeta`：文本行族，排版承载信息，每行一块板会把
+ *   阅读面切碎（同 §9 名次奖牌「随文小符号不出图」的判法）；
+ * - `popCost .c .ci`：40px 图标格贴 sq 档（12px 边）只剩 16px 内腔，必压图标；
+ * - `popChip`：筛选小胶囊，板厚四倍于胶囊高（同 46×22 难度小键的理由）；
+ * - `popCard`：L5 演出卡，尺寸与观感走第二轮（随招募演出美术批）。
+ */
+export const POP_PLATE: Array<{ sel: string; key: string | null; spec: keyof typeof NINE }> = [
+    // 列表行卡（母版 A）：与商城货卡 `.good.panel`、HUD 邮件行 `.mailRow.panel` 同一张 r16 row_card
+    { sel: '.popRow', key: 'ui/panel/row_card', spec: 'card' },
+    // 弹层页签（公告/邮箱筛选）：与二级分类页签同族——未选中斜端 seg_plate、选中抬起 band_raised。
+    // `.on` 行必须排在通用行**前面**：表是顺序优先，反过来选中签永远只拿到未选中的板。
+    { sel: '.popTabs > div.on', key: 'ui/strip/band_raised', spec: 'bandRaised' },
+    { sel: '.popTabs > div', key: 'ui/tab/seg_plate', spec: 'popTab' },
+    // 挑选格（装备/材料/宝石/层格，_popGrid 的 <i>）：panel_mini 的第一个活宿主。
+    // ⚠ AssetLib MANIFEST 里 panel_mini 那条「零调用桩子」的注释已随本表作废（2026-09-25）。
+    { sel: '.popGrid > i', key: 'ui/panel/panel_mini', spec: 'sq' },
+    // 材料槽位条（五段骨架固定段④，_popSlot 的 .sc）：与英雄页装备六槽同一张 eq_slot
+    // （同为「空槽金属格」语义，§9 容器底板族那行明确「不做复用」指的是 HUD 钮与装备槽两块不同的板，
+    // 这里是**跨族共用已落盘件**，不新出图）。
+    { sel: '.popSlots .sc', key: 'ui/panel/eq_slot', spec: 'sq' },
 ];
 
 /**

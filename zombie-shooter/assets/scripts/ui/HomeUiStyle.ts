@@ -3338,6 +3338,21 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 /* 蓝板（btn_cancel）同理：页面上未贴板是白纸深字（弹层里对），贴板后是蓝板，字要翻亮 */
 #homeUi .game-button.plated { color: var(--c-cream-1); }
 #homeUi .eqGrid .slot.plated { color: var(--c-cream-1); }
+/* ---- 二级弹层族（UiPlate.POP_PLATE，_platePop 每次弹层重绘后扫描）----
+   页签/挑选格/材料槽三族板进版后的字色与选中态修正，全部挂在 .plated 上：
+   缺图回退时浅纸深字的旧配色仍然对（同一判据见上面 eqGrid 那两条）。
+   ⚠ 行卡 .popRow **不翻亮**：row_card 是「暗金属框 + 浅羊皮纸内芯」，内芯上原配的深字对比正好，
+   实测翻成奶油字反而洗白（2026-09-25 首版翻亮后探针截图判读撤回）。 */
+/* 页签贴板后未选中签翻亮；选中签由 band_raised 抬起件承担——撤 CSS 金色下划线（斜度与厚度改由图带），
+   随族整体抬起，口径同 .flat-tabs > button.on.plated 那组 */
+#homeUi .popTabs div.plated { color: var(--c-cream-1); }
+#homeUi .popTabs div.on.plated { transform: translateY(calc(-3px * var(--pw,1))); color: var(--c-gold-hi); }
+#homeUi .popTabs div.on.plated::after { content: none; }
+/* 挑选格选中态：贴板后 border/background 被板接管（nineSlice 落 inline），改用内嵌金圈表达
+   （口径同 .popSlots .sc.on 已有的 inset 阴影，两个选中态在弹层里读成同一种语言） */
+#homeUi .popGrid i.sel.plated { box-shadow: inset 0 0 0 calc(2px * var(--pu,1)) rgba(200,134,47,.55); }
+/* 材料槽格贴板后翻亮（格里是 emoji/贴图占位字形，字色随继承走） */
+#homeUi .popSlots .sc.plated { color: var(--c-cream-1); }
 /* 槽名是 .sname 自己带色（两层各一条），继承改不动它——要翻亮必须点到这一层，特异性也刚好压过两层旧规则 */
 #homeUi .eqGrid .slot.plated .sname { color: var(--c-cream-1); }
 /* ---- emoji 图标摆正（普查里 ⚡ / 🛡️ / 🎁 三处「内容宽 > 盒宽」的同一根因）----

@@ -194,6 +194,19 @@ export abstract class HomeUiCore extends Component {
     }
 
 
+    /** 二级弹层族铺板：按 `UiPlate.POP_PLATE` 扫**当前 `.pop`**。单独一个扫描器不并进上面两张表，
+     *  是因为扫描时机不同——弹层是重绘的临时 DOM，页面级扫描只在切页后跑、扫不到后开的弹层，
+     *  所以每次 `_renderPop` 组装完都要对着弹层根重扫一遍（行卡/页签/挑选格/材料槽就在这一步接板）。 */
+    protected _platePop(pop: HTMLElement): void {
+        for (const el of Array.from(pop.querySelectorAll<HTMLElement>(UiPlate.POP_PLATE.map(r => r.sel).join(', ')))) {
+            const hit = UiPlate.POP_PLATE.find(r => el.matches(r.sel));
+            if (hit?.key) {
+                this._tex(hit.key, UiPlate.nineSlice(el, hit.spec));
+            }
+        }
+    }
+
+
     protected _heroWeaponName(id: string): string {
         const def = HERO_DEFS.find(d => d.id === id);
         if (!def) {
@@ -781,6 +794,7 @@ export abstract class HomeUiCore extends Component {
         }
 
         mask.appendChild(pop);
+        this._platePop(pop);
         root.appendChild(mask);
         this._popMask = mask;
         this._popOpts = opts;
