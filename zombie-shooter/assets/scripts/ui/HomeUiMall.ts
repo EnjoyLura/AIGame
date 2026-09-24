@@ -116,7 +116,7 @@ export abstract class HomeUiMall extends HomeUiCore {
         mastTitle.className = 'mastTitle';
         mastTitle.textContent = '军需补给';
         const mastSub = document.createElement('p');
-        mastSub.textContent = '护送队物资储备';
+        mastSub.textContent = '守卫军物资储备';
         mastLeft.appendChild(mastTitle);
         mastLeft.appendChild(mastSub);
         mast.appendChild(mastLeft);
@@ -208,7 +208,7 @@ export abstract class HomeUiMall extends HomeUiCore {
         const banner = document.createElement('div');
         banner.className = 'shop-offer giftOffer';
         banner.innerHTML = '<div class="offer-art"></div>' +
-            '<div class="offer-copy"><h2>末日启程 · 超值礼包</h2>' +
+            '<div class="offer-copy"><h2>王国启程 · 超值礼包</h2>' +
             '<p>每日免费补给 + 钻石礼包</p>' +
             '<small>限时特惠 · 钻石直购</small></div>' +
             '<div class="offer-buttons"><button class="hot giftDot"><span class="ic">⏰</span><small>限时特惠</small></button>' +

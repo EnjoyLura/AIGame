@@ -3,7 +3,7 @@ import { BattleConfig } from '../config/GameConfig';
 
 /**
  * 关卡设计骨架系统：
- * - 一个关卡（Stage）= 一段完整的护送旅程，由 N 波组成；打完末波即通关，回到主城解锁下一关。
+ * - 一个关卡（Stage）= 一段完整的守卫征程，由 N 波组成；打完末波即通关，回到主城解锁下一关。
  * - 每关声明「怪物池 + 数值倍率 + 波次节奏」，由 makeWaves 派生成 WaveInfo[]，
  *   复用波次表的手感参数，避免每关重抄一遍刷怪细节。
  * - 新增关卡只需在 STAGES 追加一项：名字/波数/怪物组合/倍率，战斗与主城 UI 自动跟随。
@@ -28,7 +28,7 @@ export interface StageInfo {
     hpMul: number;
     /**
      * 本关战斗底图槽位（`BattleManager._applyRoadArt` 按此取图，缺图回退 `scenes/road`）。
-     * 第 1 关故意不写：它的地名就是「末日公路」，与 road 是同一张图，再登记一遍会有两处真源。
+     * 第 1 关故意不写：它的地名就是「边境古道」，与 road 是同一张图，再登记一遍会有两处真源。
      * 键名跟着关卡名走，不跟着"森林/雪地"这类通用地形词走——四张图要各自对上一关，对不上的那张永远没人读。
      */
     backdrop?: string;
@@ -66,13 +66,13 @@ const RHYTHM_HARD: [number, number, number][] = [[26, 0.8, 12], [24, 0.75, 12], 
 
 export const STAGES: StageInfo[] = [
     {
-        id: 1, name: '1.末日公路', waveCount: 5, hpMul: 1,
+        id: 1, name: '1.边境古道', waveCount: 5, hpMul: 1,
         monsters: [ape(100), dog(60)],
         rhythm: [...RHYTHM_EASY, [16, 0.95, 9], [18, 0.9, 10]],
         eliteChance: [0, 0, 0, 0.1, 0.1],
     },
     {
-        id: 2, name: '2.跨海大桥', waveCount: 5, hpMul: 1.35,
+        id: 2, name: '2.巨石桥', waveCount: 5, hpMul: 1.35,
         monsters: [ape(130), dog(70), eagle(90)],
         rhythm: [...RHYTHM_EASY, [20, 0.9, 10], [22, 0.85, 10]],
         eliteChance: [0, 0, 0.1, 0.1, 0.15],
@@ -86,14 +86,14 @@ export const STAGES: StageInfo[] = [
         backdrop: 'scenes/bg_ruins',
     },
     {
-        id: 4, name: '4.炼钢厂', waveCount: 5, hpMul: 2.4,
+        id: 4, name: '4.熔炉要塞', waveCount: 5, hpMul: 2.4,
         monsters: [ape(200), boar(360), bear(700), eagle(115)],
         rhythm: [...RHYTHM_NORMAL, [26, 0.78, 12], [28, 0.72, 12]],
         eliteChance: [0, 0.1, 0.15, 0.2, 0.25],
         backdrop: 'scenes/bg_steel',
     },
     {
-        id: 5, name: '5.尸潮深谷', waveCount: 5, hpMul: 3.2,
+        id: 5, name: '5.深渊谷地', waveCount: 5, hpMul: 3.2,
         monsters: [ape(240), dog(110), boar(460), bear(950), eagle(130)],
         rhythm: [...RHYTHM_HARD],
         eliteChance: [0.1, 0.15, 0.2, 0.3, 0.4],
@@ -167,11 +167,11 @@ export interface StageBossDef {
 
 /** 每关压轴 BOSS（顺序=关卡 id-1；无尽模式按里程碑轮换） */
 export const STAGE_BOSSES: StageBossDef[] = [
-    { base: 'stoneape', name: '巨岩魔猿' },
-    { base: 'eagle', name: '风暴鹰王' },
-    { base: 'boar', name: '獠牙猪皇' },
-    { base: 'bear', name: '铁壁熊王' },
-    { base: 'bear', name: '尸潮熊皇' },
+    { base: 'stoneape', name: '食人魔酋长' },
+    { base: 'eagle', name: '石像鬼王' },
+    { base: 'boar', name: '哥布林战将' },
+    { base: 'bear', name: '食人魔霸主' },
+    { base: 'bear', name: '深渊领主' },
 ];
 
 /** 取某关的 BOSS 出场信息：数值取本关怪物池同型怪的 hp，乘关卡倍率与难度倍率（血量再由 Enemy.init ×BOSS_HP_SCALE） */

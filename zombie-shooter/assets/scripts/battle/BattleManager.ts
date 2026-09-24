@@ -38,8 +38,8 @@ import { SoundFx } from '../core/SoundFx';
 import { DungeonId, DungeonReward, dungeonFromCode, dungeonWaves, rollDungeonReward } from '../core/DungeonSystem';
 
 /**
- * 《末日航线》战斗总控：
- * 部署运输载具与上阵英雄、四方向刷怪、子弹×怪物结算、经验拾取与升级三选一、胜负流程。
+ * 《王国守望》战斗总控：
+ * 部署据点防线与上阵英雄、四方向刷怪、子弹×怪物结算、经验拾取与升级三选一、胜负流程。
  * 场景中不摆放任何业务节点，全部由 Boot 挂载本组件后动态创建。
  */
 export interface EnemyHandle {
@@ -242,7 +242,7 @@ export class BattleManager extends Component {
     private get _visW(): number { return view.getVisibleSize().width; }
     /** UI/世界统一缩放系数：可视高 / 1080 设计基准高（1920） */
     get uiScale(): number { return Math.max(0.5, Math.min(2.5, this._visH / 1920)); }
-    /** 路面滚动层（下移=载具前进感） */
+    /** 路面滚动层（下移=敌军逼近的进迫感） */
     private _bgScroll: Node = null!;
     /** 美术路面滚动节点（上下两张镜像衔接，无缝循环） */
     private _bgArtA: Node = null!;
@@ -254,7 +254,7 @@ export class BattleManager extends Component {
     get isGameOver(): boolean { return this._gameOver; }
     get isPaused(): boolean { return this._paused; }
 
-    /** 手动暂停/恢复（HUD 暂停按钮）：升级三选一与护送失败流程期间不响应 */
+    /** 手动暂停/恢复（HUD 暂停按钮）：升级三选一与据点陷落流程期间不响应 */
     togglePause(): boolean {
         if (this._gameOver || this._panel.node.active) {
             return this._paused;
@@ -265,13 +265,13 @@ export class BattleManager extends Component {
 
     /** 战斗用时（HUD 计时显示） */
     get elapsed(): number { return this._elapsed; }
-    /** 车尾条的上沿 Y：怪物追到这条线就啃咬载具 */
+    /** 防守条的上沿 Y：怪物追到这条线就啃咬城门 */
     get vehicleTopY(): number { return -this._visH / 2 + BattleConfig.VEHICLE_STRIP_HEIGHT; }
     /** 屏幕对角线长度（贯穿光束等全屏特效的保底长度） */
     get screenDiag(): number { return Math.sqrt(this._visW * this._visW + this._visH * this._visH); }
     /** 屏幕上边缘（世界 y） */
     get screenTop(): number { return this._visH / 2; }
-    // 经验晶体等吸附目标统一用 vehicleTopY 标量（车恒在 x=0），不再提供每次调用分配 Vec3 的 vehiclePos
+    // 经验晶体等吸附目标统一用 vehicleTopY 标量（据点恒在 x=0），不再提供每次调用分配 Vec3 的 vehiclePos
     /** 单位层（无人机等战斗实体挂载点） */
     get unitLayer(): Node { return this._unitLayer; }
 
@@ -377,7 +377,7 @@ export class BattleManager extends Component {
             h.applyMetaAtk(gm.metaAtkMul() * gm.campAtkMul() * talentAtkMul() * tuneAtkMul()
                 * bondAtkMul() * hs.atkMulOf(h.def.id));
         }
-        // 载具耐久 = 基础 × 局外装甲 × 基地载具工坊 × 天赋装甲线 × 改装装甲板 × 英雄羁绊（末日航班）
+        // 据点耐久 = 基础 × 局外装甲 × 基地城防工坊 × 天赋装甲线 × 改装装甲板 × 英雄羁绊（王国军团）
         this._vehicle.applyMetaHp(gm.metaVehHpMul() * gm.workshopVehHpMul() * talentVehHpMul()
             * tuneVehHpMul() * bondVehHpMul());
         this._vehRegenPool = 0;
@@ -766,10 +766,10 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.ENDLESS_MILESTONE, this._waveNumber, amount);
     }
 
-    /** 上次咬车音效时刻（ms）：多怪同啃时节流，防音效风暴 */
+    /** 上次攻城音效时刻（ms）：多怪同啃时节流，防音效风暴 */
     private _lastBiteSfx = 0;
 
-    /** 怪物驻留咬车一口：按怪的 touchDamage 扣耐久（天赋削减）；改装「撞角」反伤啃咬者，咬伤击杀走完整死亡链 */
+    /** 怪物驻留攻城一口：按怪的 touchDamage 扣耐久（天赋削减）；改装「撞角」反伤啃咬者，咬伤击杀走完整死亡链 */
     onEnemyBiteVehicle(enemy: Enemy): void {
         const now = Date.now();
         if (now - this._lastBiteSfx >= 220) {
@@ -829,7 +829,7 @@ export class BattleManager extends Component {
         }
     }
 
-    /** 经验晶体飞抵载具：累加经验，满级则暂停战斗弹出三选一 */
+    /** 经验晶体飞抵据点：累加经验，满级则暂停战斗弹出三选一 */
     collectXp(gem: XpGem): void {
         this._gemPool.put(gem.node);
         const gm = GameManager.instance;
@@ -840,7 +840,7 @@ export class BattleManager extends Component {
         }
     }
 
-    // ================= 打击粒子（末日航线风格重设计） =================
+    // ================= 打击粒子（王国守望风格重设计） =================
 
     private _emitParticle(cfg: Parameters<HitParticle['init']>[0]): void {
         // Shared visual-only ceiling, including burst-heavy upgrades; never drop damage.
@@ -1458,12 +1458,12 @@ export class BattleManager extends Component {
         this._startWave(this._waveNumber + 1);
     }
 
-    /** GM：载具耐久回满 */
+    /** GM：据点耐久回满 */
     gmVehicleRefill(): void {
         this._vehicle.resetState();
     }
 
-    /** GM：载具耐久打空，触发护送失败 */
+    /** GM：据点耐久打空，触发据点陷落 */
     gmVehicleFail(): void {
         this._vehicle.takeDamage(this._vehicle.hp);
     }
@@ -1507,7 +1507,7 @@ export class BattleManager extends Component {
 
     // ================= 内部流程 =================
 
-    /** 部署运输载具（车尾条横贯屏幕底部，只露尾部） */
+    /** 部署据点防线（防守条横贯屏幕底部，只露城墙正面） */
     private _deployVehicle(): void {
         const vehicleNode = createUINode('Vehicle');
         this._unitLayer.addChild(vehicleNode);
@@ -1515,7 +1515,7 @@ export class BattleManager extends Component {
         this._vehicle = vehicleNode.addComponent(Vehicle);
     }
 
-    /** 部署上阵英雄：按主城编队表（GameManager.lineup）的顺序，横排在载具上 */
+    /** 部署上阵英雄：按主城编队表（GameManager.lineup）的顺序，横排在城墙上 */
     private _deployHeroes(): void {
         this._clearHeroes();
         // 编队表映射英雄定义（按编队顺序排号位）；空/坏档回退前 4 名
@@ -1533,13 +1533,13 @@ export class BattleManager extends Component {
             const heroNode = createUINode('Hero_' + def.id);
             this._unitLayer.addChild(heroNode);
             const slotX = (i - (count - 1) / 2) * BattleConfig.HERO_SLOT_SPACING;
-            // 英雄分散站在车尾货厢上（脚底落在车尾条内）
+            // 英雄分散站在城墙上（脚底落在防守条内）
             heroNode.setPosition(slotX, this.vehicleTopY - 40);
             const hero = heroNode.addComponent(Hero);
             hero.init(def);
             // 装备的射速/射程加成（攻击乘区在 beginRun 统一结算）
             HeroSystem.instance.applyEquipStats(hero);
-            // 英雄羁绊的射速/射程/暴击加成（攻击/载具乘区在 beginRun 结算）
+            // 英雄羁绊的射速/射程/暴击加成（攻击/据点乘区在 beginRun 结算）
             hero.applyBondMods(bondRateMul(), bondRangeMul(), bondCritAdd());
             // 持久化技能等级注入（主城核心页购买；局内升级卡在此基础上继续升）
             const hs = HeroSystem.instance;
@@ -1788,7 +1788,7 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.BOSS_HP, boss.hp, boss.maxHp);
     }
 
-    /** 无尽 BOSS：按里程碑序号在五个 BOSS 间轮换，数值取末关（尸潮深谷）同型怪；成长交给 _hpScale */
+    /** 无尽 BOSS：按里程碑序号在五个 BOSS 间轮换，数值取末关（深渊谷地）同型怪；成长交给 _hpScale */
     private _endlessBossSpawn(): { info: MonsterInfo; name: string } | null {
         const milestone = Math.max(1, Math.floor(this._waveNumber / BattleConfig.BOSS_EVERY_ENDLESS));
         const def = STAGE_BOSSES[(milestone - 1) % STAGE_BOSSES.length];
@@ -1945,8 +1945,8 @@ export class BattleManager extends Component {
                     this._paused = false;
                     this._autoCastReadyAt = Math.max(this._autoCastReadyAt,
                         this._elapsed + BattleConfig.LEVEL_UP_CAST_GRACE);
-                    // 竞态修复：选卡暂停期间载具被打空（gameOver 已置位）——
-                    // 不恢复战斗，重新把护送失败面板顶到最前，避免"点卡后世界定格"的假死
+                    // 竞态修复：选卡暂停期间据点被打空（gameOver 已置位）——
+                    // 不恢复战斗，重新把据点陷落面板顶到最前，避免"点卡后世界定格"的假死
                     if (this._gameOver) {
                         this._paused = true;
                         this._awardRunGold();
@@ -2061,7 +2061,7 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.XP_CHANGED, 0, GameManager.instance.xpToNext(1), 1);
     }
 
-    /** 路面滚动层：虚线不断下移，营造载具向前开的感觉（暂停时冻结） */
+    /** 路面滚动层：虚线不断下移，营造敌军步步逼近的感觉（暂停时冻结） */
     private _initScrollBg(): void {
         this._bgScroll = createUINode('BgScroll');
         this._worldLayer.addChild(this._bgScroll);
@@ -2097,7 +2097,7 @@ export class BattleManager extends Component {
         this._bgScroll.setPosition(0, y);
     }
 
-    /** 载具持续回血：天赋「自修复层」+ 改装「工具箱」同池累加（两者皆为 0 时直接返回） */
+    /** 据点持续回血：天赋「自修复层」+ 改装「工匠铺」同池累加（两者皆为 0 时直接返回） */
     private _tickVehicleRegen(dt: number): void {
         const regen = talentVehRegen() + tuneToolboxRegen();
         if (regen <= 0 || !this._vehicle || this._vehicle.hp <= 0) {
@@ -2117,7 +2117,7 @@ export class BattleManager extends Component {
 
     /** 美术路面就绪后替换代码背景：上下两张镜像 Sprite 循环滚动，压在所有节点最底层 */
     private _applyRoadArt(): void {
-        // 本关主题底图（`StageData.backdrop`）优先，取不到就回退末日公路那张。
+        // 本关主题底图（`StageData.backdrop`）优先，取不到就回退边境古道那张。
         // 回退这条必须留着：本方法在 update 里逐帧重试直到取到图为止，只认本关 key 的话，
         // 那张图缺失就会让整局永远没有背景（连 road 都不铺）。
         const bg = stageInfo(this._stageId).backdrop;

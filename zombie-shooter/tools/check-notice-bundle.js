@@ -16,7 +16,7 @@ for (const m of ['_openNoticeModal', '_autoNoticeShown', 'zombie-shooter-notice'
   ok('bundle: ' + m, s.includes(m));
 }
 // 公告弹窗横幅/条目实际文案；emoji 与中文可能分属原文/转义两种形态，断言用纯中文子串
-for (const t of ['游戏公告', '载具改装系统上线']) {
+for (const t of ['游戏公告', '城防改装系统上线']) {
   ok('bundle-cjk: ' + t, any(t));
 }
 process.exit(fail ? 1 : 0);

@@ -44,9 +44,9 @@ export const MAIL_DEFS: MailDef[] = [
     {
         id: 'm_welcome',
         kind: 'notice',
-        from: '方舟指挥部',
-        title: '欢迎来到末日航线',
-        body: '指挥官，欢迎加入第 7 区幸存者车队！\n\n护送载具穿过丧尸潮，在基地重建人类的最后防线。\n点击「出发」开始你的第一次护送任务。',
+        from: '王国指挥部',
+        title: '欢迎来到王国守望',
+        body: '指挥官将军，欢迎加入王国守卫军！\n\n守住边境据点，抵御哥布林大军的进攻，在王国重筑防线。\n点击「出征」开始你的第一场守卫战。',
     },
     {
         id: 'm_guide_signin',
@@ -60,7 +60,7 @@ export const MAIL_DEFS: MailDef[] = [
         kind: 'reward',
         from: '后勤官·玛姬',
         title: '新人补给包',
-        body: '这是车队给你准备的第一份补给，请注意查收。\n\n祝武运昌隆，指挥官。',
+        body: '这是守卫军给你准备的第一份补给，请注意查收。\n\n祝武运昌隆，指挥官。',
         reward: { diamond: 30, gold: 800 },
     },
     {
@@ -278,9 +278,9 @@ export class MailSystem {
                 this.deliver({
                     id: `m_chapter_${stageId}`,
                     kind: 'reward',
-                    from: '方舟指挥部',
-                    title: `第 ${Math.ceil(stageId / 5)} 章护送嘉奖`,
-                    body: `第 ${stageId} 关防线已被你的车队牢牢守住，指挥部特批一批钻石以资鼓励。\n\n下一章的丧尸潮会更猛，记得回基地强化载具再出发。`,
+                    from: '王国指挥部',
+                    title: `第 ${Math.ceil(stageId / 5)} 章守卫嘉奖`,
+                    body: `第 ${stageId} 关防线已被你的守军牢牢守住，指挥部特批一批钻石以资鼓励。\n\n下一章的攻势会更猛，记得回基地强化城防再出征。`,
                     reward: { diamond: 15 + stageId },
                     expireDays: 14,
                 });
@@ -296,7 +296,7 @@ export class MailSystem {
                     kind: 'notice',
                     from: '前线侦察队',
                     title: `纪录战报：坚持到第 ${wave} 波`,
-                    body: `你在无尽尸潮中撑到了第 ${wave} 波——这是车队目前的最好成绩。\n\n基地的伙伴们以此为傲。换套技能编排，下一场也许还能走得更远。`,
+                    body: `你在无尽敌潮中撑到了第 ${wave} 波——这是守卫军目前的最好成绩。\n\n基地的伙伴们以此为傲。换套技能编排，下一场也许还能走得更远。`,
                     expireDays: 14,
                 });
             }
@@ -317,7 +317,7 @@ export class MailSystem {
                 kind: 'reward',
                 from: '后勤官·玛姬',
                 title: '指挥官，回来啦',
-                body: '车队这几天一直留着你的位置，防线还在，伙伴们也都在。\n\n这是全员凑的一点补给，回来先领了，正好赶上今天的新一轮丧尸潮。',
+                body: '守卫军这几天一直留着你的位置，防线还在，伙伴们也都在。\n\n这是全员凑的一点补给，回来先领了，正好赶上今天的新一轮攻势。',
                 reward: { gold: 600 + 200 * Math.min(gm.stageCleared, 10), diamond: 20 },
                 expireDays: 7,
             });
@@ -330,7 +330,7 @@ export class MailSystem {
                     kind: 'reward',
                     from: '方舟指挥部',
                     title: '每日补给：应急钻石',
-                    body: '今天的一份小补给，请在 3 天内领取。\n\n祝护送顺利，指挥官。',
+                    body: '今天的一份小补给，请在 3 天内领取。\n\n祝守卫顺利，指挥官。',
                     reward: { diamond: 10 },
                 },
                 {

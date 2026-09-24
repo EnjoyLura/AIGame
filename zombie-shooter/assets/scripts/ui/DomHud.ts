@@ -60,7 +60,7 @@ export class DomHud extends Component {
     private _xpFill: HTMLDivElement | null = null;
     private _vehicleFill: HTMLDivElement | null = null;
     private _vehicleText: HTMLDivElement | null = null;
-    /** 载具耐久条容器（warn/danger/hit 状态类挂载点） */
+    /** 据点耐久条容器（warn/danger/hit 状态类挂载点） */
     private _vehBarEl: HTMLDivElement | null = null;
     /** 低耐久红色边缘晕（危险预警） */
     private _vignette: HTMLDivElement | null = null;
@@ -127,7 +127,7 @@ export class DomHud extends Component {
         eventCenter.on(GameEvent.DUNGEON_CLEAR, this._onDungeonClear, this);
         eventCenter.on(GameEvent.GOLD_EARNED, this._onGoldEarned, this);
         window.addEventListener('resize', () => this._layout());
-        console.log('[末日航线] build', BUILD_STAMP, (window as any).__BUILD_TIME ?? '');
+        console.log('[王国守望] build', BUILD_STAMP, (window as any).__BUILD_TIME ?? '');
     }
 
     onDestroy(): void {
@@ -504,7 +504,7 @@ export class DomHud extends Component {
         const dungeon = bm?.isDungeon ?? false;
         if (this._failTitle) {
             // 标题按模式变体（交互稿 battle.html H4）：副本局「副本失败」、试炼局「试炼失败」
-            this._failTitle.textContent = trialFloor > 0 ? '试 炼 失 败' : dungeon ? '副 本 失 败' : '护 送 失 败';
+            this._failTitle.textContent = trialFloor > 0 ? '试 炼 失 败' : dungeon ? '副 本 失 败' : '据 点 陷 落';
         }
         if (this._failWave) {
             this._failWave.textContent = trialFloor > 0 ? `试炼层数：第 ${trialFloor} 层`
@@ -863,7 +863,7 @@ export class DomHud extends Component {
         const about = document.createElement('div');
         about.className = 'bSetRow col';
         about.innerHTML = `<div class="bSetLine"><span>版本</span><b>${BUILD_STAMP}</b></div>` +
-            `<div class="bSetLine"><span>游戏</span><b>末日航线 · 尸潮突围</b></div>`;
+            `<div class="bSetLine"><span>游戏</span><b>王国守望 · 据点守卫</b></div>`;
         panel.appendChild(about);
         // 危险区
         panel.appendChild(mkHead('⚠️', '危险操作', 'ui/ico/ico_warn'));
@@ -1014,7 +1014,7 @@ export class DomHud extends Component {
         const rect = (canvas ?? document.body).getBoundingClientRect();
         this._scale = rect.width / Design.WIDTH;
         this._root.style.setProperty('--s', this._scale.toFixed(4));
-        // 保留 DOM 载具条现有底部锚点：车尾区域高度减 98 设计像素
+        // 保留 DOM 耐久条现有底部锚点：底部防守条区域高度减 98 设计像素
         const vBar = this._root.querySelector<HTMLDivElement>('.vehicleBar');
         if (vBar) {
             vBar.style.bottom = `${(BattleConfig.VEHICLE_STRIP_HEIGHT - 98) * this._scale}px`;
@@ -1097,13 +1097,13 @@ export class DomHud extends Component {
         this._tex('ui/plate_wave', UiPlate.nineSlice(killChip, 'chip'));
         topRight.appendChild(killChip);
 
-        // 载具耐久：标签 + 轨道条 + 数值（warn/danger/hit 状态）+ 低耐久红晕
+        // 据点耐久：标签 + 轨道条 + 数值（warn/danger/hit 状态）+ 低耐久红晕
         const vBar = document.createElement('div');
         vBar.className = 'vehicleBar';
         this._vehBarEl = vBar;
         const vLab = document.createElement('div');
         vLab.className = 'vehLab';
-        vLab.textContent = '载具';
+        vLab.textContent = '据点';
         vBar.appendChild(vLab);
         const track = document.createElement('div');
         track.className = 'vehTrack';
@@ -1111,7 +1111,7 @@ export class DomHud extends Component {
         this._vehicleFill.className = 'vehicleFill';
         this._vehicleFill.style.width = '100%';
         track.appendChild(this._vehicleFill);
-        // 车尾条只贴底槽：填充色是 .warn/.danger 三态（金/橙/红）由 CSS 类切换，
+        // 底部防守条只贴底槽：填充色是 .warn/.danger 三态（金/橙/红）由 CSS 类切换，
         // 挂内联贴图会把三态一起吃掉（内联样式压过类规则），等出到橙色填充件再换
         this._barTex(track, null);
         vBar.appendChild(track);
@@ -1392,14 +1392,14 @@ export class DomHud extends Component {
         root.appendChild(ov);
         this._statsOverlay = ov;
 
-        // 护送失败结算
+        // 据点陷落结算
         const fp = document.createElement('div');
         fp.className = 'menuOverlay';
         fp.style.display = 'none';
         const card = document.createElement('div');
         card.className = 'failCard';
-        // 标题复用（试炼局显示「试炼失败」，副本局「副本失败」，普通局「护送失败」），_fillGameOver 按模式改文案
-        this._failTitle = this._bigLabel('护 送 失 败', 84);
+        // 标题复用（试炼局显示「试炼失败」，副本局「副本失败」，普通局「据点陷落」），_fillGameOver 按模式改文案
+        this._failTitle = this._bigLabel('据 点 陷 落', 84);
         card.appendChild(this._failTitle);
         this._failWave = this._label(card, 'failLine', '');
         this._failKill = this._label(card, 'failLine', '');

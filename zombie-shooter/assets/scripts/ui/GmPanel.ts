@@ -72,8 +72,8 @@ export class GmPanel extends Component {
         const gWave = this._addGroup(body, '波次与怪物');
         this._addButton(gWave, '清屏', () => this._bm()?.gmKillAll());
         this._addButton(gWave, '下一波', () => this._bm()?.gmNextWave());
-        this._addButton(gWave, '车回满', () => this._bm()?.gmVehicleRefill());
-        this._addButton(gWave, '车打空(失败)', () => this._bm()?.gmVehicleFail());
+        this._addButton(gWave, '据点回满', () => this._bm()?.gmVehicleRefill());
+        this._addButton(gWave, '据点打空(陷落)', () => this._bm()?.gmVehicleFail());
         // 指定怪型刷新（单测行为，不占波次进度）
         const mobRow = document.createElement('div');
         mobRow.style.cssText = 'display:flex;gap:4px;';

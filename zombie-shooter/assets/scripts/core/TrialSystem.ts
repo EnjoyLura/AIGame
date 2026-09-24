@@ -41,7 +41,7 @@ const SECT_THEMES: Array<{ from: number; name: string; pool: string[] }> = [
     { from: 10, name: '风袭层段', pool: ['stoneape', 'dog', 'eagle'] },
     { from: 15, name: '獠牙层段', pool: ['stoneape', 'dog', 'boar', 'eagle'] },
     { from: 20, name: '重装层段', pool: ['stoneape', 'boar', 'bear', 'eagle'] },
-    { from: 30, name: '尸潮层段', pool: ['stoneape', 'dog', 'boar', 'bear', 'eagle'] },
+    { from: 30, name: '敌潮层段', pool: ['stoneape', 'dog', 'boar', 'bear', 'eagle'] },
 ];
 
 function _sectOf(floor: number): { name: string; pool: string[] } {

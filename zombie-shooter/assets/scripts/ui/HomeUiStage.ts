@@ -44,23 +44,23 @@ const CHAPTER_THEMES: Array<{ veh: string; mobs: string[] }> = [
 const WAVES_PER_STAGE = 5;
 
 /**
- * 主城界面（战斗外玩法入口，DOM 渲染）——一比一复刻《末日航线》原型图：
+ * 主城界面（战斗外玩法入口，DOM 渲染）——按《王国守望》世界观搭建：
  * 顶栏（玩家头像/经验/资源胶囊）+ 底部五导航（商店/英雄/关卡主钮/技能/基地）。
  * 视觉风格对齐原型：深蓝底 + 鎏金面板 + 金角饰 frame。
  * 界面显隐由 GameFlow 状态机驱动。
  */
 
 /**
- * 关卡页（主界面）：章节页签 + 护送场景 + 难度 + 出击按钮，
- * 奖励详情弹窗与护送编队弹窗。
+ * 出征页（主界面）：章节页签 + 守卫场景 + 难度 + 出击按钮，
+ * 奖励详情弹窗与出战编队弹窗。
  */
 export abstract class HomeUiStage extends HomeUiHeroes {
-    /** 护送页动态元素 */
+    /** 出征页动态元素 */
     protected _sceneEl: HTMLDivElement | null = null;
 
     protected _vehEl: HTMLDivElement | null = null;
 
-    /** 章节头左侧的载具牌：本章护送的是什么车（浅色主题隐藏场景载具，这一枚是手机上唯一可见处） */
+    /** 章节头左侧的载具牌：本章守卫的据点徽记（美术轮前沿用载具图，这一枚是手机上唯一可见处） */
     protected _chVehEl: HTMLElement | null = null;
 
     protected _mobsEl: HTMLDivElement | null = null;
@@ -82,7 +82,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
 
     protected _capRecEl: HTMLElement | null = null;
 
-    /** 里程碑三档容器（首次通关/耐久过半/完美护送，就地在主界面领取） */
+    /** 里程碑三档容器（首次通关/耐久过半/完美守卫，就地在主界面领取） */
     protected _chestRowEl: HTMLDivElement | null = null;
 
     /** 编队条：上阵席位数 + 四席头像 */
@@ -177,7 +177,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     // ================= 关卡页（战斗页） =================
 
     /**
-     * 护送页（布局稿 R2）：章节头 + 居中难度段 + 场景（内侧左右快捷栏 + 底部战力注脚）
+     * 出征页（布局稿 R2）：章节头 + 居中难度段 + 场景（内侧左右快捷栏 + 底部战力注脚）
      * + 里程碑三档 + 编队条 + 底部主 CTA。运营/快捷入口收进场景内侧，不再挂 viewport 悬浮。
      */
     protected _buildStagePage(root: HTMLDivElement): void {
@@ -212,7 +212,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         page.appendChild(diff);
         this._diffRowEl = diff;
 
-        // 场景：护送底图 + 左运营栏 + 右快捷栏 + 底部战力注脚
+        // 场景：出征底图 + 左运营栏 + 右快捷栏 + 底部战力注脚
         const stage = document.createElement('div');
         stage.className = 'stage';
         const scene = document.createElement('div');
@@ -223,7 +223,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             `<div class="veh">🚚</div>` +
             `<div class="crew"><i></i><i></i><i></i><i></i></div>`;
         stage.appendChild(scene);
-        // 中心立体船坞：地面 → 平台 → 载具 → 前景碎石，四层各一张图叠成同一个场景。
+        // 中心立体船坞：地面 → 平台 → 载具 → 前景碎石，四层各一张图叠成同一个场景（美术轮换据点图）。
         // 挂在 `.stage` 上而不是 `.stage-scene` 里：场景那一层底沿有渐隐遮罩，会把平台的座子吃掉；
         // 而且它按 DOM 顺序排在两侧快捷列之前，所以船坞压得住照片、又不会盖住签到列与翻页箭头。
         // 缺图时那一层什么都不画，整族退化成改动前那张照片，不需要额外开关。
@@ -289,7 +289,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         this._vehEl = scene.querySelector('.veh');
         this._mobsEl = scene.querySelector('.mobs');
 
-        // 里程碑三档：首次通关 / 耐久过半 / 完美护送（就地在主界面领取，明细走奖励详情弹窗）
+        // 里程碑三档：首次通关 / 耐久过半 / 完美守卫（就地在主界面领取，明细走奖励详情弹窗）
         const chestRow = document.createElement('div');
         chestRow.className = 'milestones';
         page.appendChild(chestRow);
@@ -317,7 +317,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         team.appendChild(squad);
         page.appendChild(team);
 
-        // 底部：巡逻（左）+ 开始护送主 CTA（中）+ 宝箱奖励详情（右）
+        // 底部：巡逻（左）+ 开始守卫主 CTA（中）+ 宝箱奖励详情（右）
         // 无尽让出这个位置，收进场景右侧栏（与图鉴/排行/试炼同列）
         const bottom = document.createElement('div');
         bottom.className = 'battle-bottom';
@@ -336,14 +336,14 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         bottom.appendChild(patrol);
         this._patrolHot = patrol;
         this._patrolRed = patrol.querySelector('.questRed');
-        // 巡逻/掉落两枚 .ic 有 39px，是护送页页脚仅剩的两个大号 emoji 插画位。
+        // 巡逻/掉落两枚 .ic 有 39px，是出征页页脚仅剩的两个大号 emoji 插画位。
         // 「编队」原先判过"不上图"——库里唯一的人形件 ico_friend 已经挂在页脚「好友」上，
         // 两个语义挂同一件等于把编队和好友压成同一个符号；r37 给它出了专件，所以三枚都上图
         this._tex(UiPlate.MODE_TEX.patrol, UiPlate.icon(patrol.querySelector('.ic') as HTMLElement));
         this._tex(UiPlate.MODE_TEX.squad, UiPlate.icon(squad.querySelector('.ic') as HTMLElement));
         const go = document.createElement('button');
         go.className = 'game-button major start go';
-        go.innerHTML = `开始护送<small><span class="ic">⚡</span><span class="goCost"></span></small>`;
+        go.innerHTML = `开始守卫<small><span class="ic">⚡</span><span class="goCost"></span></small>`;
         go.onclick = (e) => {
             e.stopPropagation();
             SoundFx.unlock();
@@ -354,7 +354,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         const detailBtn = document.createElement('button');
         detailBtn.className = 'hot rewardHot';
         detailBtn.innerHTML = `<span class="ic">🎁</span><span>掉落</span>`;
-        detailBtn.title = '护送宝箱 · 奖励详情';
+        detailBtn.title = '出征宝箱 · 奖励详情';
         // 掉落详情用补给箱件（不是礼包件）：这一格说的是"这趟会掉什么"，宝箱比礼盒读得对
         this._tex('ui/shop/shop_chest', UiPlate.icon(detailBtn.querySelector('.ic') as HTMLElement));
         detailBtn.onclick = (e) => {
@@ -370,7 +370,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
 
 
     /**
-     * 护送场景内侧快捷栏：左·运营（签到/任务/礼包，带红点）右·快捷（图鉴/排行/试炼）。
+     * 出征场景内侧快捷栏：左·运营（签到/任务/礼包，带红点）右·快捷（图鉴/排行/试炼）。
      * 收进场景内后随页面显隐，无需 _switchPage 再切 on 类。
      */
     protected _buildSideTools(rail: HTMLDivElement, side: 'L' | 'R'): void {
@@ -427,7 +427,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
     protected _goBtnEl: HTMLButtonElement | null = null;
 
 
-    /** 护送页刷新：章节头/场景/战力注脚/难度段/编队条（真数据 STAGES + stageCleared）；里程碑与运营红点一并同步 */
+    /** 出征页刷新：章节头/场景/战力注脚/难度段/编队条（真数据 STAGES + stageCleared）；里程碑与运营红点一并同步 */
     protected _refreshStagePage(): void {
         const gm = GameManager.instance;
         const scene = this._sceneEl;
@@ -442,13 +442,13 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         // 无尽模式可用态：全通关解锁（底部左快捷入口）
         const endlessOk = gm.stageCleared >= FINAL_STAGE_ID;
 
-        // 章节头：名称 + 副标（对齐原型「护送主线 · 3/5」）+ 切换箭头可用态
+        // 章节头：名称 + 副标（守卫主线 · 3/5）+ 切换箭头可用态
         if (this._chNameEl) {
             this._chNameEl.textContent = info.name;
         }
         if (this._chSubEl) {
             const open = clearedAll || stageId === gm.stageCleared + 1;
-            this._chSubEl.textContent = `${open ? '护送主线' : '尚未解锁'} · ${stageId}/${FINAL_STAGE_ID}`;
+            this._chSubEl.textContent = `${open ? '守卫主线' : '尚未解锁'} · ${stageId}/${FINAL_STAGE_ID}`;
         }
         if (this._chVehEl) {
             this._chVehEl.textContent = theme.veh;
@@ -627,7 +627,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
 
 
     /**
-     * 里程碑三档（布局稿：首次通关 / 耐久过半 / 完美护送）：通关结算奖励就地领取，
+     * 里程碑三档（布局稿：首次通关 / 耐久过半 / 完美守卫）：通关结算奖励就地领取，
      * 金币区间与掉率明细走底部「掉落」入口的奖励详情弹窗。
      */
     protected _refreshBattleChests(): void {
@@ -642,10 +642,10 @@ export abstract class HomeUiStage extends HomeUiHeroes {
         const claimKey = `${stageId}`;
         const claimed = this._claimedChests.has(claimKey);
         const boxes: Array<[string, string, string]> = clearedAll
-            ? [['首次通关', 'got', '已达成'], ['耐久过半', 'got', '已达成'], ['完美护送', 'got', '已达成']]
+            ? [['首次通关', 'got', '已达成'], ['耐久过半', 'got', '已达成'], ['完美守卫', 'got', '已达成']]
             : stageId === gm.stageCleared + 1
-                ? [['首次通关', 'got', '已达成'], ['耐久过半', 'ready', ''], ['完美护送', 'lock', '需完美护送']]
-                : [['首次通关', 'lock', '通关后结算'], ['耐久过半', 'lock', '通关后结算'], ['完美护送', 'lock', '通关后结算']];
+                ? [['首次通关', 'got', '已达成'], ['耐久过半', 'ready', ''], ['完美守卫', 'lock', '需完美守卫']]
+                : [['首次通关', 'lock', '通关后结算'], ['耐久过半', 'lock', '通关后结算'], ['完美守卫', 'lock', '通关后结算']];
         if (claimed && boxes[1][1] === 'ready') {
             boxes[1][1] = 'got';
             boxes[1][2] = '已领取';
@@ -741,7 +741,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
 
 
     /**
-     * 护送编队（UX 布局稿：L4 半屏抽屉）：阵容槽位条[固定] + 羁绊激活态 + 候补英雄上下阵
+     * 出战编队（UX 布局稿：L4 半屏抽屉）：阵容槽位条[固定] + 羁绊激活态 + 候补英雄上下阵
      * + 保存 CTA。羁绊条件按星级门槛实时派生，改动即时回写战斗页 CTA 行。
      */
     protected _openSquadModal(): void {
@@ -768,7 +768,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
                 this._popConfirm({
                     title: '下阵确认',
                     icon: '👥',
-                    desc: `将「${name}」移出护送编队 · 战力 −${this._heroPower(id).toLocaleString()}`,
+                    desc: `将「${name}」移出出战编队 · 战力 −${this._heroPower(id).toLocaleString()}`,
                     danger: true,
                     ok: '确 认 下 阵',
                     cancel: '再 想 想',
@@ -782,9 +782,9 @@ export abstract class HomeUiStage extends HomeUiHeroes {
             return {
                 tier: 4,
                 size: 'M',
-                banner: '👥 护送编队',
+                banner: '👥 出战编队',
                 art: `总战力 ${total.toLocaleString()}`,
-                subtitle: `最多上阵 ${GameManager.LINEUP_MAX} 名英雄护卫载具尾部 · 当前 ${gm.lineup.length}/${GameManager.LINEUP_MAX}`,
+                subtitle: `最多上阵 ${GameManager.LINEUP_MAX} 名英雄驻守城墙 · 当前 ${gm.lineup.length}/${GameManager.LINEUP_MAX}`,
                 build: c => {
                     c.appendChild(this._popSec(`英雄羁绊 · 已激活 ${actives.length}/${BOND_DEFS.length}`));
                     for (const b of BOND_DEFS) {
@@ -873,7 +873,7 @@ export abstract class HomeUiStage extends HomeUiHeroes {
                         this._toast('编队已保存');
                     }
                 }],
-                note: '羁绊按星级门槛实时派生 · 编队改动会影响护送战力'
+                note: '羁绊按星级门槛实时派生 · 编队改动会影响出战战力'
             };
         };
         this._openPop(opt());

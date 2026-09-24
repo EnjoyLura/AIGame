@@ -15,15 +15,15 @@ export interface MonsterInfo {
     speed: number;
     /** 碰撞半径（占位阶段=圆形碰撞体半径，后续换 Spine 时改用包围盒） */
     radius: number;
-    /** 突破防线时对载具造成的伤害 */
+    /** 突破防线时对据点造成的伤害 */
     touchDamage: number;
     /** 0=普通怪 1=精英怪（数值与体型放大，配色变精英红） 2=BOSS（关末/无尽里程碑压轴，血条走 DomHud） */
     tier: 0 | 1 | 2;
     /** 精英词缀（掷中精英时由 BattleManager 附带；BOSS 不带词缀，缺省无） */
     affix?: import('./MonsterAffix').MonsterAffixId;
-    /** 一次刷出几只（狗群），缺省 1 */
+    /** 一次刷出几只（狼群），缺省 1 */
     packSize?: number;
-    /** charger：距车尾上沿多近开始蓄力（px） */
+    /** charger：距防守线上沿多近开始蓄力（px） */
     dashRange?: number;
     /** charger：蓄力时长（秒），期间定住可被打 */
     windupTime?: number;
@@ -34,7 +34,7 @@ export interface MonsterInfo {
 export interface WaveInfo {
     /** 本波怪物总数（按只计，狗群一次消耗多只） */
     count: number;
-    /** 刷怪间隔（秒），按次计（狗群一次算一次） */
+    /** 刷怪间隔（秒），按次计（狼群一次算一次） */
     interval: number;
     /** 同时在场上限 */
     maxAlive: number;
@@ -46,29 +46,29 @@ export interface WaveInfo {
 
 // ---- 基础怪型工厂：波次表按波次调 hp，行为参数集中在这里 ----
 
-/** 巨石猿：直线追车的基础怪（岩石与苔藓构成的巨猿） */
+/** 兽人重装兵：直线推进的基础敌军（披甲持械的兽人） */
 const stoneape = (hp: number, speed: number): MonsterInfo => ({
     id: 'stoneape', behavior: 'chaser', hp, speed, radius: 46, touchDamage: 10, tier: 0,
 });
 
-/** 疯狗：低血高速成群直线快跑，检验群体技能清场 */
+/** 座狼群：低血高速成群直线快跑，检验群体技能清场 */
 const dog = (hp: number): MonsterInfo => ({
     id: 'dog', behavior: 'swarm', hp, speed: 248, radius: 30, touchDamage: 6, tier: 0,
     packSize: 4,
 });
 
-/** 獠牙野猪：贴近后蓄力定身（可集火），再高速冲刺车尾，单次伤害高 */
+/** 哥布林突袭兵：贴近后蓄力定身（可集火），再高速冲刺城墙，单次伤害高 */
 const boar = (hp: number): MonsterInfo => ({
     id: 'boar', behavior: 'charger', hp, speed: 120, radius: 45, touchDamage: 32, tier: 0,
     dashRange: 510, windupTime: 0.6, dashSpeed: 645,
 });
 
-/** 双足熊：高血极慢的肉盾，检验持续 DPS */
+/** 食人魔盾卫：高血极慢的肉盾，检验持续 DPS */
 const bear = (hp: number): MonsterInfo => ({
     id: 'bear', behavior: 'tanker', hp, speed: 63, radius: 63, touchDamage: 26, tier: 0,
 });
 
-/** 疯鹰：从两侧入场的快速俯冲怪，无视车道斜线直扑车尾 */
+/** 石像鬼：从两侧入场的快速俯冲怪，无视防线斜线直扑城墙 */
 const eagle = (hp: number): MonsterInfo => ({
     id: 'eagle', behavior: 'diver', hp, speed: 293, radius: 30, touchDamage: 8, tier: 0,
 });

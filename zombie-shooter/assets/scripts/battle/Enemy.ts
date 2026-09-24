@@ -21,9 +21,9 @@ const MONSTER_ART: Record<string, string> = {
 
 /**
  * 变异怪物：按 WaveData 的 behavior 分派移动逻辑——
- * chaser 直线追车 / swarm 疯狗成群直线快跑 / charger 野猪贴近蓄力再冲刺 /
+ * chaser 直线扑城 / swarm 疯狗成群直线快跑 / charger 野猪贴近蓄力再冲刺 /
  * tanker 双足熊高血肉盾 / diver 疯鹰侧翼斜线俯冲。
- * 驻留啃咬（向僵尸开炮式）：到车沿后停住不走，按各自咬击间隔持续咬车（每怪独立伤害），
+ * 驻留啃咬（《王国保卫战》式）：到防线后停住不走，按各自咬击间隔持续攻城（每怪独立伤害），
  * 直到被击杀；被击杀掉落经验晶体。
  * 占位形象由 Graphics 按 behavior 绘制（正式版替换为 sp.Skeleton）。
  */
@@ -36,11 +36,11 @@ export class Enemy extends Component {
     speed = 100;
     radius = 30;
     touchDamage = 10;
-    /** 咬击间隔（秒）：贴车驻留后每隔该时长咬车一口；精英/BOSS 在 init 放大（咬得更疼但更慢） */
+    /** 咬击间隔（秒）：贴线驻留后每隔该时长攻城一口；精英/BOSS 在 init 放大（咬得更疼但更慢） */
     biteGap = 1.6;
-    /** 驻留啃咬中：已到车沿停住，位置钳在车沿上（车恒在 x=0，无需跟车） */
+    /** 驻留啃咬中：已到防线停住，位置钳在防线上（据点恒在 x=0，无需跟车） */
     private _biting = false;
-    /** 距下次咬车的冷却（秒） */
+    /** 距下次攻城的冷却（秒） */
     private _biteCd = 0;
     /** 咬击前扑脉冲剩余时长（占位视觉；有 attack 序列帧的怪型以帧动画为主） */
     private _biteFxT = 0;
@@ -287,7 +287,7 @@ export class Enemy extends Component {
             return;
         }
         const p = this.node.position;
-        // 驻留啃咬（向僵尸开炮式）：到车沿停住不走，按咬击间隔持续咬车，直到被击杀
+        // 驻留啃咬（《王国保卫战》式）：到防线停住不走，按咬击间隔持续攻城，直到被击杀
         if (this._biting) {
             this._biteTick(dt, bm);
             return;
@@ -398,7 +398,7 @@ export class Enemy extends Component {
         return true;
     }
 
-    /** 垂直下压：保持出生横坐标直落车尾（车尾横贯全宽，直行必达） */
+    /** 垂直下压：保持出生横坐标直落防线（城墙横贯全宽，直行必达） */
     private _descend(dt: number): void {
         const p = this.node.position;
         this.node.setPosition(p.x, p.y - this.speed * dt);
@@ -406,7 +406,7 @@ export class Enemy extends Component {
 
     // ================= 驻留啃咬 =================
 
-    /** 抵达车沿：钳位驻车（底边贴车沿上沿），短起手后进入咬击循环 */
+    /** 抵达防线：钳位驻留（底边贴防守线上沿），短起手后进入咬击循环 */
     private _startBiting(bm: BattleManager): void {
         const p = this.node.position;
         this.node.setPosition(p.x, bm.vehicleTopY + this.radius, p.z);
@@ -414,10 +414,10 @@ export class Enemy extends Component {
         this._biteCd = BattleConfig.BITE_STARTUP;
     }
 
-    /** 咬击循环：每隔咬击间隔咬一口（伤害口径在 BattleManager），期间位置锁定在车沿 */
+    /** 咬击循环：每隔咬击间隔攻城一口（伤害口径在 BattleManager），期间位置锁定在防线 */
     private _biteTick(dt: number, bm: BattleManager): void {
         const p = this.node.position;
-        // 位置钳制：驻留期间不再位移（词缀/击退等位移源全部忽略，车恒在 x=0 无需跟车）
+        // 位置钳制：驻留期间不再位移（词缀/击退等位移源全部忽略，据点恒在 x=0 无需跟车）
         if (p.y !== bm.vehicleTopY + this.radius) {
             this.node.setPosition(p.x, bm.vehicleTopY + this.radius, p.z);
         }
@@ -435,7 +435,7 @@ export class Enemy extends Component {
         this._updateBiteFx(dt);
     }
 
-    /** 咬击前扑脉冲：前 40% 拉伸扑向车体、后 60% 回弹（零 tween 零分配；与受击红闪同为全量 setScale，同帧互踩取后写者，一帧级瑕疵可接受） */
+    /** 咬击前扑脉冲：前 40% 拉伸扑向城门、后 60% 回弹（零 tween 零分配；与受击红闪同为全量 setScale，同帧互踩取后写者，一帧级瑕疵可接受） */
     private _updateBiteFx(dt: number): void {
         if (this._biteFxT <= 0) {
             return;
@@ -478,7 +478,7 @@ export class Enemy extends Component {
             }
             return;
         }
-        // dash：蓄力完毕，直线高速扑向车尾
+        // dash：蓄力完毕，直线高速扑向防线
         const step = Math.min(this._dashSpeed * dt, p.y - bm.vehicleTopY - this.radius);
         this.node.setPosition(p.x, p.y - Math.max(0, step));
     }
@@ -824,7 +824,7 @@ export class Enemy extends Component {
         g.fill();
     }
 
-    /** 野猪：圆角方身+獠牙+猪鼻（头朝下=车尾方向） */
+    /** 野猪：圆角方身+獠牙+猪鼻（头朝下=防线方向） */
     private _drawBoar(g: Graphics, r: number): void {
         g.roundRect(-r, -r * 0.7, r * 2, r * 1.4, r * 0.5);
         g.fill();

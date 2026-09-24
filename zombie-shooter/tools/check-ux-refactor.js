@@ -45,7 +45,7 @@ ok("_switchPage('core')→_refreshPlayPage", /page === 'core'[\s\S]{0,40}_refres
 ok('_refreshAll 含 _refreshPlayPage', /this\._refreshPlayPage\(\);\s*\n\s*this\._refreshBase\(\)/.test(src));
 
 // 3. 战斗页重排：宝箱三档上浮主界面，金币区间/掉率明细收进弹窗
-ok('战斗页有宝箱详情按钮', /护送宝箱 · 奖励详情/.test(src));
+ok('战斗页有宝箱详情按钮', /出征宝箱 · 奖励详情/.test(src));
 ok('详情按钮 onclick 弹奖励弹窗', /detailBtn\.onclick[\s\S]{0,120}_openStageRewardModal\(\)/.test(src));
 ok('_openStageRewardModal 存在', /protected _openStageRewardModal\(\): void \{/.test(src));
 ok('弹窗含金币区间公式(metaGoldMul×depotGoldMul×rewardMul)', /gm\.metaGoldMul\(\) \* gm\.depotGoldMul\(\) \* diffDef\.rewardMul/.test(src));
@@ -56,10 +56,10 @@ ok('弹窗不再含宝箱三档(已上浮)', !/_openStageRewardModal[\s\S]{0,400
 ok('_refreshStagePage 不再查 chests', !/const chests = this\._chestsEl/.test(src));
 ok('_refreshStagePage 页面不再构建 lootPrev', !/page\.appendChild\(lootPrev\)/.test(src));
 
-// 3-B. 护送页骨架（布局稿 R2）：章节头 / 居中难度段 / 场景内侧快捷栏 / 里程碑 / 编队条 / 底部 CTA
-ok('护送页六段骨架齐备', /'chapter-head'/.test(src) && /'difficulty'/.test(src) && /'stage'/.test(src)
+// 3-B. 出征页骨架（布局稿 R2）：章节头 / 居中难度段 / 场景内侧快捷栏 / 里程碑 / 编队条 / 底部 CTA
+ok('出征页六段骨架齐备', /'chapter-head'/.test(src) && /'difficulty'/.test(src) && /'stage'/.test(src)
   && /'milestones'/.test(src) && /'team-strip'/.test(src) && /'battle-bottom'/.test(src));
-ok('章节头含副标（护送主线 · n/5）', /'chSub'/.test(src) && /护送主线[\s\S]{0,80}\$\{stageId\}\/\$\{FINAL_STAGE_ID\}/.test(src));
+ok('章节头含副标（守卫主线 · n/5）', /'chSub'/.test(src) && /守卫主线[\s\S]{0,80}\$\{stageId\}\/\$\{FINAL_STAGE_ID\}/.test(src));
 // 翻页器从章节头搬进场景内侧左右边缘（垂直居中），章节头只留章节名
 ok('翻页器挂场景内侧左右边缘（不再占章节头一行）', /stage\.appendChild\(hl\);[\s\S]{0,80}stage\.appendChild\(hr\);/.test(src)
   && /'arrow ' \+ \(dir < 0 \? 'l' : 'r'\)/.test(src)
@@ -80,8 +80,8 @@ ok('场景内侧左右快捷栏（左运营带红点 / 右图鉴·排行·试炼
   && /mkBtn\('📖', '图鉴', false/.test(src) && /mkBtn\('🏆', '排行', false/.test(src) && /mkBtn\('🗼', '试炼', false/.test(src));
 ok('场景底部战力注脚（我方编队战力 vs 推荐战力）', /\.capPow/.test(src) && /\.capRec/.test(src)
   && /gm\.lineup\.reduce\(\(s, id\) => s \+ this\._heroPower\(id\), 0\)/.test(src));
-ok('里程碑三档（首次通关/耐久过半/完美护送）', /milestone \$\{st\}/.test(src)
-  && /'首次通关'/.test(src) && /'耐久过半'/.test(src) && /'完美护送'/.test(src));
+ok('里程碑三档（首次通关/耐久过半/完美守卫）', /milestone \$\{st\}/.test(src)
+  && /'首次通关'/.test(src) && /'耐久过半'/.test(src) && /'完美守卫'/.test(src));
 ok('里程碑点击进奖励详情弹窗', /c\.onclick = \(e\) => \{[\s\S]{0,140}_openStageRewardModal\(\)/.test(src));
 ok('编队条四席头像 + 空席占位 + 进编队抽屉', /'team-slots'/.test(src) && /'slot-avatar' \+ \(id \? '' : ' empty'\)/.test(src)
   && /'空席'/.test(src) && /'team-slots'[\s\S]{0,2400}_openSquadModal\(\)/.test(src));
@@ -122,10 +122,10 @@ ok('商店页签按钮随条带同高（撑满，不再 44 溢出）',
   && !/#homeUi \.shopTabs button \{[^}]*height: calc\(44px/.test(style)
   && (style.match(/#homeUi \.shopTabs button \{[^}]*display: flex; align-items: center; justify-content: center;/g) || []).length >= 2);
 ok('旧关卡信息三格/场景 chip/耐久 chip 已删', !/_siLvlEl|_siPowEl|_siStEl|_siChipEl|_missionTitleEl|_sceneChipEl/.test(src));
-ok('护送页骨架两层 CSS 齐备', ['chapter-head', 'difficulty', 'stage', 'stage-scene', 'side-tools', 'stage-caption',
+ok('出征页骨架两层 CSS 齐备', ['chapter-head', 'difficulty', 'stage', 'stage-scene', 'side-tools', 'stage-caption',
   'milestones', 'team-strip', 'slot-avatar', 'battle-bottom'].every(c =>
   (src.match(new RegExp('#homeUi \\.' + c + ' \\{[^}]*\\}', 'g')) || []).length >= 2));
-ok('页面显隐改走 .on 类（护送页 flex 骨架 / 其余四页块级滚动）', /classList\.toggle\('on', key === page\)/.test(src)
+ok('页面显隐改走 .on 类（出征页 flex 骨架 / 其余四页块级滚动）', /classList\.toggle\('on', key === page\)/.test(src)
   && !/_pages\[key\]\.style\.display/.test(src) && (src.match(/#homeUi \.screen\.sStage\.on \{ display: flex/g) || []).length >= 2);
 
 // 3-C. 英雄页骨架（布局稿 R2）：选择条 / 角色区（两列功能夹立绘 + 六槽）/ 工具行 / 背包四段
@@ -172,13 +172,13 @@ ok('行动页含日常四快捷（签到/任务/成就/礼包）', /'action-dail
 ok('行动页红点接线 _questRedEl', /this\._questRedEl = questBtn\.querySelector/.test(src));
 ok('行动页红点接线 _signinRedEl', /this\._signinRedEl = signinBtn\.querySelector/.test(src));
 ok('行动页入口红点巡检挂整页 _playGridEl', /this\._playGridEl = page/.test(src));
-ok('挑战场两席（无尽试炼 / 无尽护送·锁定态）', /'challenge-ground'/.test(src) && /mkEntry\('🗼', '无尽试炼'/.test(src)
-  && /mkEntry\('🌀', '无尽护送'/.test(src) && /_startBattle\(true\)/.test(src));
+ok('挑战场两席（无尽试炼 / 无尽守卫·锁定态）', /'challenge-ground'/.test(src) && /mkEntry\('🗼', '无尽试炼'/.test(src)
+  && /mkEntry\('🌀', '无尽守卫'/.test(src) && /_startBattle\(true\)/.test(src));
 ok('资源副本四联走 DUNGEON_DEFS', /className = 'dungeon-row'/.test(src) && /DUNGEON_DEFS\.forEach\(\(def, i\)/.test(src)
   && /_openDungeonModal\(i\)/.test(src));
 ok('远征行（图标 + 进度文案 + 入口）', /className = 'expedition'/.test(src) && /this\._enterPureEntry\('expedition'\)/.test(src));
-ok('页脚三快捷（图鉴/排行/载具改装）', /'action-footer'/.test(src) && /mkFoot\('📖', '怪物图鉴'/.test(src)
-  && /mkFoot\('🏆', '排行榜'/.test(src) && /mkFoot\('🔧', '载具改装'/.test(src));
+ok('页脚三快捷（图鉴/排行/城防改装）', /'action-footer'/.test(src) && /mkFoot\('📖', '敌军图鉴'/.test(src)
+  && /mkFoot\('🏆', '排行榜'/.test(src) && /mkFoot\('🔧', '城防改装'/.test(src));
 ok('行动页仍走 _pureEntryDesc/_enterPureEntry', /this\._pureEntryDesc\('expedition'\)/.test(src)
   && /this\._enterPureEntry\('expedition'\)/.test(src));
 ok('行动页红点 _refreshPureEntryRed', /_refreshEntryReds[\s\S]{0,700}_refreshPureEntryRed\(card\.dataset\.entry/.test(src));
@@ -238,7 +238,7 @@ ok('rcard 两层 CSS', (src.match(/#homeUi \.rcard \{[^}]*\}/g) || []).length >=
 ok('milestones 两层 CSS', (src.match(/#homeUi \.milestones \{[^}]*\}/g) || []).length >= 2);
 
 // 9. P0/P1 壳层关键接线
-ok('运营/快捷栏收进护送页场景内侧（不再挂 viewport 悬浮）', /'side-tools left'/.test(src) && /'side-tools right'/.test(src) && !/floatRail|frBtn/.test(src));
+ok('运营/快捷栏收进出征页场景内侧（不再挂 viewport 悬浮）', /'side-tools left'/.test(src) && /'side-tools right'/.test(src) && !/floatRail|frBtn/.test(src));
 ok('胶囊禁入区：viewport-fit=cover', /viewport-fit=cover/.test(require('fs').readFileSync('build-templates/web-mobile/index.html', 'utf8')));
 ok('胶囊禁入区：_applySafeArea 探针填令牌', /_applySafeArea/.test(src) && /setProperty\('--sat'/.test(src) && /setProperty\('--sab'/.test(src));
 ok('胶囊禁入区：CSS 挂令牌（顶栏/CTA/底栏/悬浮栏/toast/弹窗）', (src.match(/var\(--sat,0px\)|var\(--sab,0px\)/g) || []).length >= 10);
@@ -249,7 +249,7 @@ ok('顶部刘海/胶囊安全区条（稿 .safe，壳层首位）', /protected _
 ok('公告走马灯已下线（无残留字段/构建/队列）', !/_noticeBarEl|_noticeTextEl|_noticeRedEl|_tickerIdx|_tickerTap|_buildTickerQueue|_advanceTicker|_refreshNoticeBar|_buildNoticeBar|noticeScroll/.test(clsSrc)
   && /#homeUi \.noticeBar/.test(style) === false);
 ok('公告入口收进信息栏 📣（删除走马灯后仍可达）', /noticeBtn\.className = 'tinyIcon homeNoticeBtn'/.test(src) && /this\._openNoticeModal\(\);/.test(src));
-ok('底部导航关卡→护送', /key: 'battle', icon: '🚚', name: '护送'/.test(src));
+ok('底部导航关卡→出征', /key: 'battle', icon: '🚚', name: '出征'/.test(src));
 ok('五签等分（布局稿 R2 去掉居中凸起主钮）', /grid-template-columns: repeat\(5, 1fr\)/.test(src) && !/\.tab\.main \{/.test(src));
 ok('编队升级为 L4 半屏抽屉弹层', /protected _openSquadModal\(\): void \{[\s\S]{0,1600}?tier: 4,\s*\n\s*size: 'M',/.test(src) && /protected _openSquadModal\(\): void \{[\s\S]{0,8600}?this\._openPop\(opt\(\)\);/.test(src));
 ok('招募结果层升级为 L5 结果演出层（不再走旧 _openResult）', /protected _openRecruitResultModal\(results: RecruitResult\[\]\): void \{[\s\S]{0,400}?_openPop\(\{[\s\S]{0,120}?tier: 5/.test(src));
@@ -336,7 +336,7 @@ ok('远征三态 CTA：派遣/领取/立即完成+广告', /gate\.ok \? '派 遣
 ok('远征秒级倒计时只改固定条胶囊文案', /this\._expTimerEl = this\._popInfo\(runningText\(\)\);/.test(src) && /this\._expTimerEl\.textContent = runningText\(\);/.test(src) && /_expTimerEl: HTMLElement \| null = null;/.test(src));
 ok('远征倒计时停摆判定挂在胶囊连通性上（重绘后仍续跑）', /if \(!this\._expTimerEl \|\| !this\._expTimerEl\.isConnected\) \{\s*\n\s*clearInterval\(this\._expTimer\);/.test(src));
 ok('远征归零广播一次 EXPEDITION_READY 并就地重绘', /eventCenter\.emit\(GameEvent\.EXPEDITION_READY, d\.id\)/.test(src) && /if \(anyReady && !readyDone\) \{[\s\S]{0,120}this\._popRebuild\(opt\(\)\)/.test(src));
-ok('图鉴 L3·L：条目挂美术 + 未解锁剪影', /banner: '📖 怪物图鉴'/.test(src) && /iconTex: unlocked \? def\.art : undefined,/.test(src) && /title: unlocked \? def\.name : '？？？',/.test(src));
+ok('图鉴 L3·L：条目挂美术 + 未解锁剪影', /banner: '📖 敌军图鉴'/.test(src) && /iconTex: unlocked \? def\.art : undefined,/.test(src) && /title: unlocked \? def\.name : '？？？',/.test(src));
 ok('图鉴威胁星级 + 精英怪累计', /tag: unlocked \? `\$\{'★'\.repeat\(def\.threat\)\}\$\{'☆'\.repeat\(5 - def\.threat\)\}` : undefined,/.test(src) && /累计击杀', `×\$\{bs\.eliteKills\}`/.test(src));
 ok('图鉴详情钻取：push + onBack 回列表 + 展示台立绘', /protected _openBestiaryDetail\(def: BestiaryDef\): void \{/.test(src) && /push: true,\s*\n\s*onBack: \(\) => this\._openBestiaryModal\(\),/.test(src) && /querySelector\('\.popPedestal'\)[\s\S]{0,200}ped\.style\.backgroundImage = u;/.test(src));
 ok('图鉴详情未收录态走告警行', /c\.appendChild\(this\._popWarn\('击杀该怪物后解锁完整档案'\)\);/.test(src));
@@ -363,7 +363,7 @@ ok('DOM 集合不写 ...spread（ES5 downlevel 会编译成 concat 而静默失�
 ok('L5 卡片错峰揭示改走 querySelectorAll(.popCard)', /row\.querySelectorAll<HTMLElement>\('\.popCard'\)\.forEach/.test(src));
 
 
-// 11. 关卡奖励详情 / 护送编队迁移
+// 11. 关卡奖励详情 / 出战编队迁移
 ok('关卡奖励详情 L3·M：金币区间 + 三档掉率', /banner: `🎁 \$\{info\.name\} · 通关奖励`/.test(src) && /金币收益区间 \*\*\$\{Math\.round\(mid \* 0\.85\)\.toLocaleString\(\)\} ~ \$\{Math\.round\(mid \* 1\.15\)\.toLocaleString\(\)\}\*\*/.test(src) && /c\.appendChild\(this\._popAttr\(\{ icon: '🎁', text: `装备掉落率 \*\*\$\{rates\.equip\}\*\*` \}\)\);/.test(src));
 ok('关卡奖励详情保留结算公式与难度加成', /const goldMul = gm\.metaGoldMul\(\) \* gm\.depotGoldMul\(\) \* diffDef\.rewardMul;/.test(src) && /c\.appendChild\(this\._popKV\('难度加成', `×\$\{diffDef\.rewardMul\.toFixed\(2\)\}`\)\);/.test(src));
 ok('关卡奖励详情不再自建旧面板结构', !/lootPrev/.test(readUi('HomeUiStage.ts')) && !/lpGold/.test(readUi('HomeUiStage.ts')));
@@ -390,13 +390,13 @@ ok('编队保存走 gm.save + 关闭弹层', /gm\.save\(\);\s*\n\s*SoundFx\.play
 ok('HomeUiStage 旧弹窗入口清零', !/_openStageRewardModal[\s\S]{0,600}this\._openModal\(/.test(src) && !/_openSquadModal[\s\S]{0,600}this\._openSheet\(/.test(src));
 
 
-// 12. 建筑详情 / 载具改装迁移
+// 12. 建筑详情 / 城防改装迁移
 ok('建筑详情 L3·M：效果 + 升级 KV + 受限告警', /banner: `\$\{b\.ic\} \$\{b\.name\}`/.test(src) && /text: `升到 LV\.\$\{lv \+ 1\}：\*\*\$\{b\.desc\(lv \+ 1\)\}\*\*`/.test(src) && /c\.appendChild\(this\._popWarn\(`需指挥中心 LV\.\$\{b\.unlockHq\} 解锁（当前 LV\.\$\{gm\.hqLevel\(\)\}）`\)\);/.test(src));
 ok('建筑详情升级就地重绘（不再拆弹窗重开）', /_openBuildingInfoModal\(id: string\): void \{[\s\S]{0,6400}?this\._popRebuild\(opt\(\)\);/.test(src) && !/biLvRow/.test(clsSrc));
 ok('建筑详情受指挥中心上限约束走告警行', /c\.appendChild\(this\._popWarn\('受指挥中心上限约束 · 先升级指挥中心'\)\);/.test(src));
-ok('载具工坊钻取改装 + onBack 回建筑详情', /_openTuningModal\(\(\) => this\._openBuildingInfoModal\(b\.id\)\)/.test(src) && /protected _openTuningModal\(onBack\?: \(\) => void\): void \{/.test(src) && /^\s+onBack,$/m.test(src));
-ok('载具改装 XL 二级页：四部位槽位条 + 展示台 + 对比块', /title: '🔧 载具改装'/.test(src) && /tier: maxed \? 'MAX' : `LV\.\$\{lv\}`/.test(src) && /this\._popCmp\('改装预览', \[\{/.test(src) && /for \(let i = 0; i < TUNE_SLOTS\.length; i\+\+\)/.test(src));
-ok('载具改装受限/图纸不足走告警行 + 槽位红点', /c\.appendChild\(this\._popWarn\(gate\.reason\)\);/.test(src) && /c\.appendChild\(this\._popWarn\(`图纸不足 · 还差 \$\{cost\.blueprint - bp\} 张`\)\);/.test(src) && /red: !dmax && vt\.canUpgrade\(d\.id\)\.ok,/.test(src));
+ok('城防工坊钻取改装 + onBack 回建筑详情', /_openTuningModal\(\(\) => this\._openBuildingInfoModal\(b\.id\)\)/.test(src) && /protected _openTuningModal\(onBack\?: \(\) => void\): void \{/.test(src) && /^\s+onBack,$/m.test(src));
+ok('城防改装 XL 二级页：四部位槽位条 + 展示台 + 对比块', /title: '🔧 城防改装'/.test(src) && /tier: maxed \? 'MAX' : `LV\.\$\{lv\}`/.test(src) && /this\._popCmp\('改装预览', \[\{/.test(src) && /for \(let i = 0; i < TUNE_SLOTS\.length; i\+\+\)/.test(src));
+ok('城防改装受限/图纸不足走告警行 + 槽位红点', /c\.appendChild\(this\._popWarn\(gate\.reason\)\);/.test(src) && /c\.appendChild\(this\._popWarn\(`图纸不足 · 还差 \$\{cost\.blueprint - bp\} 张`\)\);/.test(src) && /red: !dmax && vt\.canUpgrade\(d\.id\)\.ok,/.test(src));
 ok('HomeUiBase 旧弹窗入口清零', !/tuneBox/.test(clsSrc) && !/binfoBox/.test(clsSrc) && !/sq-slot \+ cand/.test(clsSrc));
 
 
@@ -496,9 +496,9 @@ ok('暂停层顶部状态 chip + 三出路互斥说明（交互稿 H2 暂停面�
   && /_bigLabel\('已 暂 停', 66\)/.test(domHudSrc));
 ok('结算大标题按设计像素随 --s 缩放（旧实现写死 raw px，390 屏上放大近 3 倍）',
   /el\.style\.fontSize = `calc\(\$\{size\.toFixed\(0\)\}px \* var\(--s,1\)\)`/.test(domHudSrc)
-  && /_bigLabel\('护 送 失 败', 84\)/.test(domHudSrc));
+  && /_bigLabel\('据 点 陷 落', 84\)/.test(domHudSrc));
 ok('失败标题按模式变体（副本局「副本失败」补齐）',
-  /trialFloor > 0 \? '试 炼 失 败' : dungeon \? '副 本 失 败' : '护 送 失 败'/.test(domHudSrc));
+  /trialFloor > 0 \? '试 炼 失 败' : dungeon \? '副 本 失 败' : '据 点 陷 落'/.test(domHudSrc));
 ok('结算双倍广告按钮文案 = 收益金额（通关/失败分口径，交互稿口径）',
   /掉落双倍（\+\$\{amt\} 金币）/.test(domHudSrc) && /金币翻倍（\+\$\{amt\}）/.test(domHudSrc)
   && !/今日 \$\{3 - left\}\/3/.test(domHudSrc));

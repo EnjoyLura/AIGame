@@ -19,7 +19,7 @@ const any = t => s.includes(t) || s.includes([...t].map(c => {
     ? [...c].map(h2 => '\\u' + h2.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join('')
     : '\\u' + h.padStart(4, '0');
 }).join(''));
-for (const t of ['新邮件：', '一键领取', '护送嘉奖', '纪录战报', '回来啦', '每日补给', '附件将过期']) {
+for (const t of ['新邮件：', '一键领取', '守卫嘉奖', '纪录战报', '回来啦', '每日补给', '附件将过期']) {
   ok('bundle-cjk: ' + t, any(t));
 }
 

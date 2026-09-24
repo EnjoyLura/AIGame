@@ -314,7 +314,7 @@ export class GameManager {
     /** 技能/大招等级上限（研究所：2 + 等级，封顶 ABILITY_MAX_LEVEL=3） */
     abilityLevelCap(): number { return Math.min(ABILITY_MAX_LEVEL, 2 + this.buildingLevel('lab')); }
 
-    /** 载具耐久乘区（载具工坊：每级 +8%） */
+    /** 据点耐久乘区（城防工坊：每级 +8%） */
     workshopVehHpMul(): number { return 1 + 0.08 * this.buildingLevel('workshop'); }
 
     /** 金币获取乘区（补给仓库：每级 +6%，与赏金合同叠乘） */
@@ -605,9 +605,9 @@ export const BUILDINGS: BuildingDef[] = [
         intro: '消耗「英雄核心」把英雄的技能与大招升级到超过实战上限的等级。升级研究所后，技能升级页才会开放更高等级。',
     },
     {
-        id: 'workshop', ic: '🚛', name: '载具工坊', maxLevel: 10, baseCost: 450, costMul: 1.45, unlockHq: 0,
-        desc: l => `载具耐久 +${l * 8}%`,
-        intro: '加固护送车队的老爷车：耐久越高能承受的怪物撕咬越多。工坊等级同时是载具改装的等级上限，点「🔧 改装」用改装图纸强化装甲板/撞角/工具箱/弹药架。',
+        id: 'workshop', ic: '🚛', name: '城防工坊', maxLevel: 10, baseCost: 450, costMul: 1.45, unlockHq: 0,
+        desc: l => `据点耐久 +${l * 8}%`,
+        intro: '加固据点城墙与城门：耐久越高能承受的敌军猛攻越多。工坊等级同时是城防改装的等级上限，点「🔧 改装」用改装图纸强化城墙加固/尖刺拒马/工匠铺/箭塔。',
     },
     {
         id: 'depot', ic: '📦', name: '补给仓库', maxLevel: 10, baseCost: 400, costMul: 1.4, unlockHq: 0,
@@ -617,7 +617,7 @@ export const BUILDINGS: BuildingDef[] = [
     {
         id: 'station', ic: '⛽', name: '加油站', maxLevel: 10, baseCost: 500, costMul: 1.45, unlockHq: 0,
         desc: l => `体力上限 +${l * 4}`,
-        intro: '为车队储备燃油。每级提高体力上限，让你单次囤积更多体力连续出战；体力随时间自然恢复，上限越高囤得越多。',
+        intro: '为守卫军储备补给。每级提高体力上限，让你单次囤积更多体力连续出战；体力随时间自然恢复，上限越高囤得越多。',
     },
     {
         id: 'radar', ic: '📡', name: '雷达站', maxLevel: 5, baseCost: 1200, costMul: 1.5, unlockHq: 6,
@@ -628,14 +628,14 @@ export const BUILDINGS: BuildingDef[] = [
         // 纯入口建筑：不参与升级（maxLevel 1 / baseCost 0），建筑卡按钮特判为「进入试炼」
         id: 'trial', ic: '🗼', name: '试炼之塔', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 2,
         desc: () => '挑战无尽高塔，每层首通得奖励',
-        intro: '方舟基地的垂直试炼场。塔身无限向上，每层固定三波尸潮，越往上怪越硬——只有最精锐的车队能继续攀高。每 5 层设层段大奖（含装备保底），层内失败不扣进度，可反复挑战，且不消耗体力。',
+        intro: '王国基地的垂直试炼场。塔身无限向上，每层固定三波敌潮，越往上敌越硬——只有最精锐的守卫军能继续攀高。每 5 层设层段大奖（含装备保底），层内失败不扣进度，可反复挑战，且不消耗体力。',
         pureEntry: true,
     },
     // ---- 纯入口建筑（不参与升级/繁荣度，只提供玩法入口） ----
     {
         id: 'dungeon', ic: '🏰', name: '资源副本', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 0,
         desc: () => '金库/军械库/铸造厂/矿脉，每日产材料',
-        intro: '废土上的四类资源点：金库废墟产金币、军械库产强化石、铸造厂产精炼合金、晶体矿脉产宝石。每个副本每日 3 次，消耗体力进入，档位越高产出越丰。',
+        intro: '王国边境的四类资源点：金库废墟产金币、军械库产强化石、铸造厂产精炼合金、晶体矿脉产宝石。每个副本每日 3 次，消耗体力进入，档位越高产出越丰。',
         pureEntry: true,
     },
     {
@@ -646,8 +646,8 @@ export const BUILDINGS: BuildingDef[] = [
     },
     {
         id: 'bestiary', ic: '📖', name: '情报室', maxLevel: 1, baseCost: 0, costMul: 1, unlockHq: 0,
-        desc: () => '记录遭遇过的变异体图鉴',
-        intro: '整理车队一路遭遇的变异体情报。记录每种怪物的习性与弱点，解锁进度与战斗发现挂钩——遇到得越多，图鉴越完整。',
+        desc: () => '收录遭遇过的敌军情报',
+        intro: '整理守卫军一路遭遇的敌军情报。记录每种敌人的习性与弱点，解锁进度与战斗发现挂钩——遇到得越多，图鉴越完整。',
         pureEntry: true,
     },
     {
@@ -670,7 +670,7 @@ export interface MetaUpgradeDef {
 
 export const META_UPGRADES: MetaUpgradeDef[] = [
     { id: 'atk', name: '火力强化', desc: l => `全队攻击 +${l * 8}%`, maxLevel: 50, baseCost: 120, costMul: 1.32 },
-    { id: 'vehHp', name: '装甲强化', desc: l => `载具耐久 +${l * 10}%`, maxLevel: 20, baseCost: 150, costMul: 1.38 },
+    { id: 'vehHp', name: '装甲强化', desc: l => `据点耐久 +${l * 10}%`, maxLevel: 20, baseCost: 150, costMul: 1.38 },
     { id: 'goldGain', name: '赏金合同', desc: l => `金币获取 +${l * 10}%`, maxLevel: 25, baseCost: 100, costMul: 1.3 },
     { id: 'xpGain', name: '战术演练', desc: l => `经验获取 +${l * 8}%`, maxLevel: 25, baseCost: 100, costMul: 1.3 },
 ];

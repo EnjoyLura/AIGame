@@ -1,7 +1,7 @@
 import { Color } from 'cc';
 
 /**
- * 《末日航线》全局配置。
+ * 《王国守望》全局配置。
  * 英雄个体数值在 HeroDef.ts；怪物波次在 WaveData.ts；这里只放全局底层常量与占位色板。
  */
 
@@ -16,14 +16,14 @@ export const BUILD_STAMP = 'b0831-1';
 
 /** 战斗核心参数 */
 export const BattleConfig = {
-    /** 运输载具：车尾横贯屏幕底部的条高 */
+    /** 据点防线：横贯屏幕底部的防守条高 */
     VEHICLE_STRIP_HEIGHT: 270,
     VEHICLE_MAX_HP: 3000,
-    /** 路面滚动速度（px/s）：世界下移=载具前进 */
+    /** 路面滚动速度（px/s）：世界下移=敌军逼近 */
     ROAD_SCROLL_SPEED: 195,
-    /** 路面半宽：怪物车道的横向范围 */
+    /** 路面半宽：怪物战场的横向范围 */
     ROAD_HALF_WIDTH: 420,
-    /** 上阵英雄数与站位间距（横排分散在车尾） */
+    /** 上阵英雄数与站位间距（横排分散在城墙上） */
     DEPLOY_HERO_COUNT: 4,
     HERO_SLOT_SPACING: 255,
     /** 普攻子弹默认参数（英雄个体数值以 HeroDef 为准） */
@@ -60,9 +60,9 @@ export const BattleConfig = {
     /** ===== BOSS 战 ===== */
     /** BOSS 生命倍率（相对本关末波同型怪；init 时与 MONSTER_HP_SCALE/hpScale 连乘） */
     BOSS_HP_SCALE: 22,
-    /** 驻留啃咬（向僵尸开炮式）：怪物到车沿不再即死消失，而是驻留按各自间隔持续咬车 */
+    /** 驻留啃咬（《王国保卫战》式）：怪物到防线不再即死消失，而是驻留按各自间隔持续攻城 */
     BITE_GAP: 1.6,
-    /** 贴车后第一口起手延迟（秒）；精英/BOSS 咬击间隔在此基数上放大 */
+    /** 贴线后第一口起手延迟（秒）；精英/BOSS 咬击间隔在此基数上放大 */
     BITE_STARTUP: 0.35,
     /** BOSS 体型放大（半径）、移速放慢、啃咬伤害倍率 */
     BOSS_RADIUS: 1.9,

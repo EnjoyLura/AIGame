@@ -112,31 +112,31 @@ export const SEC_BOOM_RADIUS_STEP = 25;
 
 export const HERO_DEFS: HeroDef[] = [
     {
-        id: 'rifle', name: '步枪手·凯', role: '持续输出', weapon: 'rifle',
+        id: 'rifle', name: '弓箭手·凯', role: '持续输出', weapon: 'rifle',
         atk: 80, interval: 0.7, range: 1275, bulletSpeed: 2250, muzzleY: 84,
         color: new Color(79, 195, 247, 255), bulletColor: new Color(255, 238, 88, 255),
-        skill: { id: 'rifle-burst', name: '穿透齐射', desc: '齐射 5 枚可穿透的子弹', kind: 'projectile', cooldown: 14, damageScale: 0.75, range: 1350, projectileCount: 5, projectileSpeed: 2550, pierce: true, volley: true },
-        ultimate: { id: 'rifle-barrage', name: '榴弹炮击', desc: '发射榴弹炮，轰击落点范围敌人', kind: 'area', cooldown: 16, damageScale: 3.2, range: 1650, areaRadius: 270, castTime: 0.5, mortar: true },
+        skill: { id: 'rifle-burst', name: '穿透箭雨', desc: '连射 5 支可穿透的箭矢', kind: 'projectile', cooldown: 14, damageScale: 0.75, range: 1350, projectileCount: 5, projectileSpeed: 2550, pierce: true, volley: true },
+        ultimate: { id: 'rifle-barrage', name: '爆裂箭', desc: '射出爆裂箭，轰击落点范围敌人', kind: 'area', cooldown: 16, damageScale: 3.2, range: 1650, areaRadius: 270, castTime: 0.5, mortar: true },
     },
     {
-        id: 'sniper', name: '狙击手·苍鹭', role: '单体爆发', weapon: 'sniper',
+        id: 'sniper', name: '神射手·苍鹭', role: '单体爆发', weapon: 'sniper',
         atk: 260, interval: 1.8, range: 1575, bulletSpeed: 3900,
         color: new Color(129, 199, 132, 255), bulletColor: new Color(255, 171, 64, 255),
-        skill: { id: 'sniper-drone', name: '护卫无人机', desc: '召唤无人机环绕自身射击 5 秒', kind: 'drone', cooldown: 15, damageScale: 0.4, range: 1950, duration: 5 },
+        skill: { id: 'sniper-drone', name: '战鹰护卫', desc: '召唤战鹰环绕自身俯击 5 秒', kind: 'drone', cooldown: 15, damageScale: 0.4, range: 1950, duration: 5 },
         ultimate: { id: 'sniper-execute', name: '猎杀锁定', desc: '准星锁定 8 个血量最高的敌人，读秒后造成超高伤害，未死者挂上标记', kind: 'lock', cooldown: 18, damageScale: 7, range: 1950, maxTargets: 8, lockTime: 1.2 },
     },
     {
-        id: 'laser', name: '激光手·棱镜', role: '跟踪持续', weapon: 'laser',
+        id: 'laser', name: '火焰法师·棱镜', role: '跟踪持续', weapon: 'laser',
         atk: 130, interval: 0, range: 1050, bulletSpeed: 0,
         color: new Color(77, 208, 225, 255), bulletColor: new Color(77, 208, 225, 255),
-        skill: { id: 'laser-overdrive', name: '过载光束', desc: '过载普攻 4.2 秒：每跳伤害 ×2.2', kind: 'buff', cooldown: 16, damageScale: 2.2, range: 1275, duration: 4.2 },
-        ultimate: { id: 'laser-beam', name: '贯穿光束', desc: '穿透全屏的激光束，持续 5 秒', kind: 'laserbeam', cooldown: 17, damageScale: 1.2, range: 1350, duration: 5, tick: 0.25 },
+        skill: { id: 'laser-overdrive', name: '烈焰过载', desc: '过载普攻 4.2 秒：每跳伤害 ×2.2', kind: 'buff', cooldown: 16, damageScale: 2.2, range: 1275, duration: 4.2 },
+        ultimate: { id: 'laser-beam', name: '炼狱火柱', desc: '穿透全屏的烈焰火柱，持续 5 秒', kind: 'laserbeam', cooldown: 17, damageScale: 1.2, range: 1350, duration: 5, tick: 0.25 },
     },
     {
-        id: 'radiation', name: '辐射枪手·芮', role: '群体伤害', weapon: 'radiation',
+        id: 'radiation', name: '重炮手·芮', role: '群体伤害', weapon: 'radiation',
         atk: 60, interval: 1.1, range: 1200, bulletSpeed: 3000, pierce: true,
         color: new Color(184, 220, 129, 255), bulletColor: new Color(178, 255, 89, 255),
-        skill: { id: 'radiation-volley', name: '裂变齐射', desc: '自动连发 3 枚穿透弹', kind: 'projectile', cooldown: 15, damageScale: 1.15, range: 1350, projectileCount: 3, projectileSpeed: 3300, pierce: true },
-        ultimate: { id: 'radiation-zone', name: '辐射禁区', desc: '对目标周围敌人造成范围伤害', kind: 'area', cooldown: 15, damageScale: 5, range: 1425, areaRadius: 480 },
+        skill: { id: 'radiation-volley', name: '连环炮击', desc: '自动连发 3 枚穿透炮弹', kind: 'projectile', cooldown: 15, damageScale: 1.15, range: 1350, projectileCount: 3, projectileSpeed: 3300, pierce: true },
+        ultimate: { id: 'radiation-zone', name: '炮火覆盖', desc: '对目标周围敌人造成范围伤害', kind: 'area', cooldown: 15, damageScale: 5, range: 1425, areaRadius: 480 },
     },
 ];

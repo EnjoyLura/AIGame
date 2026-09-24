@@ -149,7 +149,7 @@ export abstract class HomeUiCore extends Component {
 
 
     /** 主城按钮族一次性铺板：按 `UiPlate.CITY_BUTTON_PLATE` 的选择器优先级整族扫。
-     *  原来只有「解锁大键」一处手工铺板，`.game-button`（开始护送 / 十连 / 立即查看这些最大的 CTA）、
+     *  原来只有「解锁大键」一处手工铺板，`.game-button`（开始守卫 / 十连 / 立即查看这些最大的 CTA）、
      *  侧栏 `.hot` 入口、编队行 `.hpick`、商城 `.gBuy` 全是 CSS 渐变——按钮类不成套就是这么来的。
      *  表里 `key: null` 的那几档（46×22 难度小键）是**故意不贴**：宿主比板厚四倍还小，贴上去整块糊掉。
      *  只扫 `.viewport` 里的五个页面：弹层的 CTA 由 `_openPop` 按 kind 路由，两套规则不要互相覆盖。
@@ -1301,7 +1301,7 @@ export abstract class HomeUiCore extends Component {
         idLeft.className = 'idLeft';
         const nameRow = document.createElement('span');
         nameRow.className = 'pname';
-        nameRow.textContent = '末日指挥官';
+        nameRow.textContent = '指挥官将军';
         const xpRow = document.createElement('div');
         xpRow.className = 'xpRow';
         const exp = document.createElement('div');
@@ -1403,7 +1403,7 @@ export abstract class HomeUiCore extends Component {
         const NAV: Array<{ key: string; icon: string; name: string; main?: boolean }> = [
             { key: 'mall', icon: '🛒', name: '商店' },
             { key: 'heroes', icon: '🎖️', name: '英雄' },
-            { key: 'battle', icon: '🚚', name: '护送' },
+            { key: 'battle', icon: '🚚', name: '出征' },
             { key: 'core', icon: '🎮', name: '行动' },
             { key: 'base', icon: '🏰', name: '基地' },
         ];
@@ -1515,7 +1515,7 @@ export abstract class HomeUiCore extends Component {
     }
 
     protected _switchPage(page: string): void {
-        // 显隐交给 CSS 的 .on 类：护送页是满屏竖向 flex 骨架，其余四页为块级滚动流，
+        // 显隐交给 CSS 的 .on 类：出征页是满屏竖向 flex 骨架，其余四页为块级滚动流，
         // 内联 display 会把两种布局模式压成同一个值
         for (const key of Object.keys(this._pages)) {
             this._pages[key].classList.toggle('on', key === page);
@@ -1523,7 +1523,7 @@ export abstract class HomeUiCore extends Component {
         for (const key of Object.keys(this._navBtns)) {
             this._navBtns[key].classList.toggle('on', key === page);
         }
-        // 运营/快捷入口已收进护送页场景内侧，随页面显隐；此处不再切悬浮栏
+        // 运营/快捷入口已收进出征页场景内侧，随页面显隐；此处不再切悬浮栏
         if (page === 'battle') {
             this._refreshStagePage();
         }
@@ -1539,7 +1539,7 @@ export abstract class HomeUiCore extends Component {
         if (page === 'base') {
             this._refreshBase();
         }
-        // 护送页的底由 _refreshStagePage 按章节定（每章站在自己的世界里），其余四页共用营地那一张
+        // 出征页的底由 _refreshStagePage 按章节定（每章站在自己的世界里），其余四页共用营地那一张
         if (page !== 'battle') {
             this._applyPageBackdrop('scenes/hub_camp');
         }
@@ -1996,7 +1996,7 @@ export abstract class HomeUiCore extends Component {
         const ss = SigninSystem.instance;
         const stage = gm.stageCleared;
         // 称号按通关进度晋升
-        const title = stage >= FINAL_STAGE_ID ? '☠️ 尸潮终结者' : stage >= 8 ? '🛡️ 王牌护卫'
+        const title = stage >= FINAL_STAGE_ID ? '☠️ 深渊终结者' : stage >= 8 ? '🛡️ 王牌守卫'
             : stage >= 4 ? '🎯 资深猎手' : stage >= 1 ? '🎖️ 幸存者' : '🌱 拾荒新人';
         // 队伍战力：全队攻击乘区总和（口径 = 武器×装备×局外强化）
         let power = 0;
@@ -2012,13 +2012,13 @@ export abstract class HomeUiCore extends Component {
             size: 'L',
             banner: '🎖️ 个人主页',
             art: `LV.${gm.hqLevel()}`,
-            subtitle: `末日指挥官 · ${title}`,
+            subtitle: `指挥官将军 · ${title}`,
             build: c => {
                 c.appendChild(this._popRow({
                     icon: '🎖',
                     iconTex: 'characters/commander',
                     frameTex: 'ui/frame/avatar_frame',
-                    title: '末日指挥官',
+                    title: '指挥官将军',
                     lines: [`${title} · 基地 LV.${gm.hqLevel()}`],
                     status: `⚔️ ${power.toLocaleString()}`,
                     statusKind: 'soon'
@@ -2106,7 +2106,7 @@ export abstract class HomeUiCore extends Component {
                 c.appendChild(volRow);
                 c.appendChild(this._popSec('ℹ️ 关于'));
                 c.appendChild(this._popKV('版本', BUILD_STAMP));
-                c.appendChild(this._popKV('游戏', '末日航线 · 尸潮突围'));
+                c.appendChild(this._popKV('游戏', '王国守望 · 据点守卫'));
                 c.appendChild(this._popKV('类型', '竖屏 · 塔防割草 · 微信小游戏', 'free'));
                 c.appendChild(this._popSec('⚠️ 危险操作'));
                 c.appendChild(this._popAttr({

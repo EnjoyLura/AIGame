@@ -31,7 +31,7 @@ import * as UiPlate from './UiPlate';
 import type { PopOpts, PopText } from './HomeUiPop';
 
 /**
- * 基地页：建筑养成（升级建筑 + 局外强化）+ 建筑详情/载具改装弹窗。
+ * 基地页：建筑养成（升级建筑 + 局外强化）+ 建筑详情/城防改装弹窗。
  */
 export abstract class HomeUiBase extends HomeUiPlay {
 
@@ -40,7 +40,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
 
     /**
      * 建筑详情（UX 布局稿：L3·M）：介绍 + 当前/下一级效果 + 升级费用与货币余量 + 受限说明。
-     * 升级后就地重绘同步等级与费用；载具工坊额外钻取到载具改装。
+     * 升级后就地重绘同步等级与费用；城防工坊额外钻取到城防改装。
      */
     protected _openBuildingInfoModal(id: string): void {
         const gm = GameManager.instance;
@@ -104,8 +104,8 @@ export abstract class HomeUiBase extends HomeUiPlay {
                         c.appendChild(this._popSec('关联功能'));
                         c.appendChild(this._popRow({
                             icon: '🔧',
-                            title: '载具改装',
-                            lines: ['装甲板 / 撞角 / 工具箱 / 弹药架 四槽独立升级'],
+                            title: '城防改装',
+                            lines: ['城墙加固 / 尖刺拒马 / 工匠铺 / 箭塔 四槽独立升级'],
                             action: {
                                 label: '进 入',
                                 kind: 'gold',
@@ -161,8 +161,8 @@ export abstract class HomeUiBase extends HomeUiPlay {
 
 
     /**
-     * 载具改装（UX 布局稿 · XL 二级页）：四部位槽位条 + 选中部位展示台 + 当前/下级对比块
-     * + 消耗行 + 底栏返回。改装上限 = 载具工坊等级；由建筑详情钻取时底栏返回回建筑详情。
+     * 城防改装（UX 布局稿 · XL 二级页）：四部位槽位条 + 选中部位展示台 + 当前/下级对比块
+     * + 消耗行 + 底栏返回。改装上限 = 城防工坊等级；由建筑详情钻取时底栏返回回建筑详情。
      */
     protected _openTuningModal(onBack?: () => void): void {
         const vt = VehicleTuningSystem.instance;
@@ -177,7 +177,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
             return {
                 tier: 2,
                 size: 'XL',
-                title: '🔧 载具改装',
+                title: '🔧 城防改装',
                 onBack,
                 barBack: true,
                 show: {
@@ -214,13 +214,13 @@ export abstract class HomeUiBase extends HomeUiPlay {
                         }]));
                         c.appendChild(this._popAttr({
                             icon: '⬆️',
-                            text: `升到 LV.${lv + 1} 后生效 · 改装加成计入**载具基础属性**`
+                            text: `升到 LV.${lv + 1} 后生效 · 改装加成计入**据点基础属性**`
                         }));
                     } else {
                         c.appendChild(this._popAttr({ icon: '🏁', text: '该部位已改装至上限' }));
                     }
                     c.appendChild(this._popSec('改装条件'));
-                    c.appendChild(this._popKV('改装上限', `LV.${vt.capOf()}（载具工坊等级）`));
+                    c.appendChild(this._popKV('改装上限', `LV.${vt.capOf()}（城防工坊等级）`));
                     c.appendChild(this._popKV('改装图纸', `${bp} 张`, 'free'));
                     if (!maxed && !gate.ok && gate.reason) {
                         c.appendChild(this._popWarn(gate.reason));
@@ -263,7 +263,7 @@ export abstract class HomeUiBase extends HomeUiPlay {
                         }
                     }
                 }],
-                note: '图纸由关卡掉落与商店获取 · 提升载具工坊等级可提高改装上限'
+                note: '图纸由关卡掉落与商店获取 · 提升城防工坊等级可提高改装上限'
             };
         };
         this._openPop(opt());

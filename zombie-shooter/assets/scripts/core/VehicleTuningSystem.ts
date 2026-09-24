@@ -3,9 +3,9 @@ import { GameManager } from './GameManager';
 import { QuestSystem } from './QuestSystem';
 
 /**
- * 载具改装系统（基地·载具工坊入口）：
+ * 城防改装系统（基地·城防工坊入口）：
  * - 四个改装槽各自独立升级：装甲板（耐久上限）/ 撞角（啃咬反伤）/ 工具箱（战斗回血）/ 弹药架（全队攻击）。
- * - 槽位等级上限 = 载具工坊建筑等级（最高 10）：先升工坊才能继续改装，形成基地成长链。
+ * - 槽位等级上限 = 城防工坊建筑等级（最高 10）：先升工坊才能继续改装，形成基地成长链。
  * - 消耗改装图纸（mat_blueprint，通关掉落/礼包/商店）+ 金币；升到第 n 级需图纸 ×n + 金币 500×n。
  * - 持久化在独立 localStorage 键（与天赋/招募/副本同口径）。
  */
@@ -26,19 +26,19 @@ export interface TuneSlotDef {
 
 export const TUNE_SLOTS: TuneSlotDef[] = [
     {
-        id: 'armor', name: '装甲板', ic: '🛡️',
-        desc: l => `载具耐久上限 +${l * 4}%（每级 +4%）`,
+        id: 'armor', name: '城墙加固', ic: '🛡️',
+        desc: l => `据点耐久上限 +${l * 4}%（每级 +4%）`,
     },
     {
-        id: 'ram', name: '撞角', ic: '🔺',
-        desc: l => `怪物啃咬载具时反伤 ${l > 0 ? 25 + 25 * l : 0}（每级 +25）`,
+        id: 'ram', name: '尖刺拒马', ic: '🔺',
+        desc: l => `敌军攻城时反伤 ${l > 0 ? 25 + 25 * l : 0}（每级 +25）`,
     },
     {
-        id: 'toolbox', name: '工具箱', ic: '🧰',
-        desc: l => `每 5 秒回复载具最大耐久 ${(l * 0.4).toFixed(1)}%（每级 +0.4%）`,
+        id: 'toolbox', name: '工匠铺', ic: '🧰',
+        desc: l => `每 5 秒回复据点最大耐久 ${(l * 0.4).toFixed(1)}%（每级 +0.4%）`,
     },
     {
-        id: 'ammo', name: '弹药架', ic: '🎯',
+        id: 'ammo', name: '箭塔', ic: '🎯',
         desc: l => `全队攻击 +${l * 3}%（每级 +3%）`,
     },
 ];
@@ -59,12 +59,12 @@ export function tuneGoldCost(nextLevel: number): number {
 
 // ================= 效果查询（模块级导出，照 talentVehHpMul 的约定） =================
 
-/** 装甲板耐久乘区（+4%/级，满级 ×1.4） */
+/** 城墙加固耐久乘区（+4%/级，满级 ×1.4） */
 export function tuneVehHpMul(): number {
     return 1 + VehicleTuningSystem.instance.level('armor') * 0.04;
 }
 
-/** 撞角反伤固定值（未改装为 0；战斗侧 0 短路） */
+/** 尖刺拒马反伤固定值（未改装为 0；战斗侧 0 短路） */
 export function tuneRamReflect(): number {
     const l = VehicleTuningSystem.instance.level('ram');
     return l > 0 ? 25 + 25 * l : 0;
@@ -112,7 +112,7 @@ export class VehicleTuningSystem {
         return Math.min(TUNE_MAX_LEVEL, Math.max(0, this._data.levels[slotId] ?? 0));
     }
 
-    /** 槽位等级上限 = 载具工坊建筑等级（建筑本身最高 10 级，再钳一层防意外） */
+    /** 槽位等级上限 = 城防工坊建筑等级（建筑本身最高 10 级，再钳一层防意外） */
     capOf(): number {
         return Math.min(TUNE_MAX_LEVEL, GameManager.instance.buildingLevel('workshop'));
     }
@@ -144,7 +144,7 @@ export class VehicleTuningSystem {
         }
         const cap = this.capOf();
         if (lv >= cap) {
-            return { ok: false, reason: `需载具工坊 LV.${Math.min(TUNE_MAX_LEVEL, cap + 1)}` };
+            return { ok: false, reason: `需城防工坊 LV.${Math.min(TUNE_MAX_LEVEL, cap + 1)}` };
         }
         const cost = this.nextCosts(slotId);
         if (this.blueprintCount < cost.blueprint) {

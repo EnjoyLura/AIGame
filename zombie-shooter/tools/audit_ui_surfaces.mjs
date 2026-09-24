@@ -88,7 +88,7 @@ const PROBE = `(() => {
   return JSON.stringify(out);
 })()`;
 
-const PAGES = ['商店', '英雄', '护送', '行动', '基地'];
+const PAGES = ['商店', '英雄', '出征', '行动', '基地'];
 const result = {};
 await send('Page.enable');
 await send('Runtime.enable');
@@ -117,7 +117,7 @@ for (const label of PAGES) {
   console.log(String(hit).padEnd(8), faces.length, 'faces');
 }
 // 战斗 HUD：进战后要等升级选卡走完，否则 HUD 被暂停面板盖住、量不到面
-await evalJs(`(() => { const el=[...document.querySelectorAll('#homeUi .tab')].find(e=>(e.textContent||'').indexOf('护送')>=0); el&&el.click(); return 1; })()`);
+await evalJs(`(() => { const el=[...document.querySelectorAll('#homeUi .tab')].find(e=>(e.textContent||'').indexOf('出征')>=0); el&&el.click(); return 1; })()`);
 await sleep(1200);
 await evalJs(`(() => { const el=[...document.querySelectorAll('button,[class*=btn]')].find(e=>/出战|开始|出击/.test(e.textContent||'')); el&&el.click(); return 1; })()`);
 await until(`!!document.querySelector('#domHud .hudBtn')`, 30000, 'battle hud');

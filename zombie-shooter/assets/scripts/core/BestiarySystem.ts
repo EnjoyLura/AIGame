@@ -1,8 +1,8 @@
 import { sys } from 'cc';
 
 /**
- * 怪物图鉴系统（基地页入口）：
- * - 五种基础怪型（巨石猿/疯狗/獠牙野猪/双足熊/疯鹰）+ 精英变异条目。
+ * 敌军图鉴系统（基地页入口）：
+ * - 五种基础敌军（兽人重装兵/座狼群/哥布林突袭兵/食人魔盾卫/石像鬼）+ 精英词缀条目。
  * - 击杀对应怪型自动解锁并累计击杀数；精英怪单独计数（tier=1）。
  * - 未解锁显示剪影 + 「???」，解锁后展示立绘/习性/威胁数值。
  * - 持久化在独立 localStorage 键（与广告/礼包/任务/签到/邮件同口径）。
@@ -28,33 +28,33 @@ export interface BestiaryDef {
 
 export const BESTIARY_DEFS: BestiaryDef[] = [
     {
-        id: 'stoneape', name: '巨石猿', art: 'monsters/stoneape', threat: 1, debut: '第 1 关',
-        behavior: '直线追车 · 普通型',
-        desc: '岩石与苔藓构成的巨猿，尸潮里最常见的先锋。单体威胁不大，但成群涌来时会撕开车阵的每一条缝。',
+        id: 'stoneape', name: '兽人重装兵', art: 'monsters/stoneape', threat: 1, debut: '第 1 关',
+        behavior: '直线推进 · 普通型',
+        desc: '披甲持械的兽人，敌军里最常见的先锋。单体威胁不大，但成群涌来时会撕开防线的每一条缝。',
         stats: { hp: 100, speed: 135, touchDamage: 10 },
     },
     {
-        id: 'dog', name: '疯犬群', art: 'monsters/dog', threat: 2, debut: '第 3 关',
+        id: 'dog', name: '座狼群', art: 'monsters/dog', threat: 2, debut: '第 3 关',
         behavior: '成群冲刺 · 群体型',
-        desc: '四只一组的变异疯狗，低血高速贴地狂奔。移动速度极快，技能清场慢一拍就会咬穿防线。',
+        desc: '四只一组的座狼骑手，低血高速贴地狂奔。移动速度极快，技能清场慢一拍就会咬穿防线。',
         stats: { hp: 60, speed: 248, touchDamage: 6 },
     },
     {
-        id: 'boar', name: '獠牙野猪', art: 'monsters/boar', threat: 3, debut: '第 4 关',
+        id: 'boar', name: '哥布林突袭兵', art: 'monsters/boar', threat: 3, debut: '第 4 关',
         behavior: '蓄力冲刺 · 爆发型',
-        desc: '贴近后会前蹄刨地蓄力定身（集火窗口！），随后以极高速度撞向车尾。单次啃咬伤害全图最高，优先击杀。',
+        desc: '贴近后会蓄力定身（集火窗口！），随后以极高速度撞向城墙。单次攻城伤害全图最高，优先击杀。',
         stats: { hp: 300, speed: 120, touchDamage: 32 },
     },
     {
-        id: 'bear', name: '双足熊', art: 'monsters/bear', threat: 4, debut: '第 6 关',
+        id: 'bear', name: '食人魔盾卫', art: 'monsters/bear', threat: 4, debut: '第 6 关',
         behavior: '高血肉盾 · 坦克型',
-        desc: '直立行走的变异巨熊，血量是普通怪的十倍以上、步伐极慢。检验队伍持续输出能力，集火磨血是唯一解。',
+        desc: '高大扛盾的食人魔，血量是普通敌军的十倍以上、步伐极慢。检验队伍持续输出能力，集火磨血是唯一解。',
         stats: { hp: 1200, speed: 63, touchDamage: 26 },
     },
     {
-        id: 'eagle', name: '疯鹰', art: 'monsters/eagle', threat: 3, debut: '第 5 关',
+        id: 'eagle', name: '石像鬼', art: 'monsters/eagle', threat: 3, debut: '第 5 关',
         behavior: '侧翼俯冲 · 空袭型',
-        desc: '从战场的左右两侧斜线俯冲直扑车尾，无视正面车道。飞行单位移速极快，需要留意两侧盲区。',
+        desc: '从战场的左右两侧斜线俯冲直扑城墙，无视正面防线。飞行单位移速极快，需要留意两侧盲区。',
         stats: { hp: 90, speed: 293, touchDamage: 8 },
     },
 ];

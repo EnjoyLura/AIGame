@@ -18,7 +18,7 @@ for (const m of ['_refreshBattleChests', '_openSheet', '_openResult', '_baseMapE
   'rcard', 'eqGrid', 'fcol', 'mmGo', 'dcIc', 'mnIc', 'data-entry', 'sheetGrip']) {
   ok('bundle: ' + m, s.includes(m));
 }
-for (const t of ['战斗', '玩法大厅', '局外强化', '每日任务', '指挥中心', '繁荣度', '英雄招募', '护送宝箱']) {
+for (const t of ['战斗', '玩法大厅', '局外强化', '每日任务', '指挥中心', '繁荣度', '英雄招募', '出征宝箱']) {
   ok('bundle-cjk: ' + t, any(t));
 }
 process.exit(fail ? 1 : 0);

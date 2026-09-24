@@ -52,7 +52,7 @@ export const QUEST_DEFS: QuestDef[] = [
     // ---- 成就（累计型，一次性） ----
     { id: 'a_kill100', kind: 'achv', name: '初露锋芒', goal: 'kills', target: 100, reward: { diamond: 20 }, ic: '⚔️' },
     { id: 'a_kill1000', kind: 'achv', name: '杀戮机器', goal: 'kills', target: 1000, reward: { diamond: 60 }, ic: '💀' },
-    { id: 'a_kill5000', kind: 'achv', name: '末日收割者', goal: 'kills', target: 5000, reward: { diamond: 150 }, ic: '☄️' },
+    { id: 'a_kill5000', kind: 'achv', name: '战场收割者', goal: 'kills', target: 5000, reward: { diamond: 150 }, ic: '☄️' },
     { id: 'a_stage3', kind: 'achv', name: '渐入佳境', goal: 'stage', target: 3, reward: { diamond: 30 }, ic: '🗺️' },
     { id: 'a_stage6', kind: 'achv', name: '全线突破', goal: 'stage', target: 6, reward: { diamond: 80 }, ic: '🏁' },
     { id: 'a_clear20', kind: 'achv', name: '巡逻老兵', goal: 'clears', target: 20, reward: { diamond: 40 }, ic: '🛡️' },
@@ -66,7 +66,7 @@ export const QUEST_DEFS: QuestDef[] = [
     { id: 'a_combine5', kind: 'achv', name: '合成学徒', goal: 'combines', target: 5, reward: { diamond: 25 }, ic: '🔮' },
     { id: 'a_combine20', kind: 'achv', name: '合成宗师', goal: 'combines', target: 20, reward: { diamond: 80 }, ic: '⚗️' },
     { id: 'a_salvage10', kind: 'achv', name: '回收利用', goal: 'salvages', target: 10, reward: { diamond: 20 }, ic: '♻️' },
-    { id: 'a_salvage50', kind: 'achv', name: '废土拾荒者', goal: 'salvages', target: 50, reward: { diamond: 50 }, ic: '🧹' },
+    { id: 'a_salvage50', kind: 'achv', name: '荒野拾荒者', goal: 'salvages', target: 50, reward: { diamond: 50 }, ic: '🧹' },
     { id: 'a_wave15', kind: 'achv', name: '无尽行者', goal: 'endlessWave', target: 15, reward: { diamond: 60 }, ic: '♾️' },
     { id: 'a_wave30', kind: 'achv', name: '波次支配者', goal: 'endlessWave', target: 30, reward: { diamond: 120 }, ic: '🌊' },
     { id: 'a_skill6', kind: 'achv', name: '特训教官', goal: 'skills', target: 6, reward: { diamond: 30 }, ic: '🎯' },
@@ -90,7 +90,7 @@ export const QUEST_DEFS: QuestDef[] = [
     // ---- 装备重铸 ----
     { id: 'a_reforge1', kind: 'achv', name: '初试重铸', goal: 'reforges', target: 1, reward: { diamond: 20 }, ic: '✦' },
     { id: 'a_reforge20', kind: 'achv', name: '词缀重塑师', goal: 'reforges', target: 20, reward: { diamond: 80 }, ic: '💫' },
-    // ---- 载具改装 ----
+    // ---- 城防改装 ----
     { id: 'a_tune1', kind: 'achv', name: '初次改装', goal: 'tunes', target: 1, reward: { diamond: 20 }, ic: '🔧' },
     { id: 'a_tune20', kind: 'achv', name: '改装行家', goal: 'tunes', target: 20, reward: { diamond: 80 }, ic: '🛠️' },
     // ---- BOSS 战 ----
@@ -180,7 +180,7 @@ interface QuestSave {
     skills: number;
     /** 词缀重铸次数（reforgeAffixes 成功 +1） */
     reforges: number;
-    /** 载具改装次数（VehicleTuningSystem.upgrade 成功 +1） */
+    /** 城防改装次数（VehicleTuningSystem.upgrade 成功 +1） */
     tunes: number;
     /** BOSS 击破数（BattleManager._onBossKilled +1） */
     bosses: number;
@@ -424,7 +424,7 @@ export class QuestSystem {
         this._save();
     }
 
-    /** 载具改装一次（VehicleTuningSystem.upgrade 成功后调用） */
+    /** 城防改装一次（VehicleTuningSystem.upgrade 成功后调用） */
     trackTune(): void {
         this._data.tunes++;
         this._save();

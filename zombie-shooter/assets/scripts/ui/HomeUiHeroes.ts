@@ -78,7 +78,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
     /** 背包按名字检索（四个页签共用，切页签不清） */
     protected _heroBagSearch = '';
 
-    /** 护送编队抽屉（实现在 HomeUiStage；英雄页工具行复用同一入口） */
+    /** 出战编队抽屉（实现在 HomeUiStage；英雄页工具行复用同一入口） */
     protected abstract _openSquadModal(): void;
 
 
@@ -736,7 +736,7 @@ export abstract class HomeUiHeroes extends HomeUiMall {
             return;
         }
 
-        // 大按钮（上阵/下阵）已按需求移除：编队切换统一走关卡页护送编队弹窗
+        // 大按钮（上阵/下阵）已按需求移除：编队切换统一走出征页出战编队弹窗
 
         // 背包区（布局稿）：头行（件数 + 部位筛选 + 合成）→ 滚动网格 → 底部说明行 → 页签
         const bar = document.createElement('div');

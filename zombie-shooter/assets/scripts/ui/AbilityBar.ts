@@ -8,7 +8,7 @@ import { SoundFx } from '../core/SoundFx';
 import { createUINode } from '../core/createUINode';
 
 /**
- * 英雄技能/大招图标栏（参考《向僵尸开炮》）：
+ * 英雄技能/大招图标栏（参考《王国保卫战》）：
  * 1、2 号位靠左，3、4 号位靠右；每英雄从上到下为普攻/技能/大招，组间留白。
  * 技能显示冷却秒数与扇形遮罩；大招遮罩随击杀充能从底部消退，充满显示元素亮环。
  * 未解锁技能/大招隐藏。点按弹出数值浮窗，长按 0.45 秒显示战场范围圈。
@@ -197,7 +197,7 @@ class AbilityIcon {
         this._flashNode = flashNode;
         this._flashOpacity = flashNode.addComponent(UIOpacity);
         this._flashNode.active = false;
-        // 等级角标：右下角大号白字黑描边（参考《向僵尸开炮》样式）
+        // 等级角标：右下角大号白字黑描边（参考《王国保卫战》样式）
         this._lvLabel = this._makeLabel('Lv', ICON_R - 9, -ICON_R + 15, 36);
 
         this.node.on(Node.EventType.TOUCH_START, () => this._bar.onPressStart(this), this);
@@ -851,7 +851,7 @@ export class AbilityBar extends Component {
     }
 
     update(dt: number): void {
-        // 升级三选一/护送失败结算期间隐藏技能栏：卡片面板较宽，两侧图标会与卡片重叠。
+        // 升级三选一/据点陷落结算期间隐藏技能栏：卡片面板较宽，两侧图标会与卡片重叠。
         // 注意：根节点绝不能 active=false 自隐藏——节点失活后 update 不再被调用，
         // 永远没有人再把它显示回来（图标永久消失的 bug）。改为切换各子节点可见性。
         const bm = BattleManager.instance;

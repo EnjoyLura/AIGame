@@ -54,12 +54,12 @@ export abstract class HomeUiPlay extends HomeUiStage {
     protected _achSubEl: HTMLElement | null = null;
     protected _giftSubEl: HTMLElement | null = null;
 
-    /** 挑战场两席（无尽试炼 / 无尽护送）与远征行文案 */
+    /** 挑战场两席（无尽试炼 / 无尽守卫）与远征行文案 */
     protected _trialEntryEl: HTMLElement | null = null;
     protected _endlessEntryEl: HTMLElement | null = null;
     protected _expTextEl: HTMLElement | null = null;
 
-    /** 载具改装 XL 页（实现在 HomeUiBase；行动页页脚复用入口） */
+    /** 城防改装 XL 页（实现在 HomeUiBase；行动页页脚复用入口） */
     protected abstract _openTuningModal(onBack?: () => void): void;
 
     /** 远征当前选中的任务 */
@@ -952,7 +952,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         });
     }
 
-    /** 怪物图鉴（UX 布局稿：L3·L 列表型）：完成度头部 + 怪物条目（未解锁剪影/未遭遇）+ 点条目进详情 */
+    /** 敌军图鉴（UX 布局稿：L3·L 列表型）：完成度头部 + 敌军条目（未解锁剪影/未遭遇）+ 点条目进详情 */
     protected _openBestiaryModal(): void {
         const bs = BestiarySystem.instance;
         const opt = (): PopOpts => {
@@ -960,7 +960,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
             return {
                 tier: 3,
                 size: 'L',
-                banner: '📖 怪物图鉴',
+                banner: '📖 敌军图鉴',
                 art: `已收录 ${done}/${total}`,
                 subtitle: '击杀对应怪物自动解锁 · 点条目看档案',
                 build: c => {
@@ -1288,7 +1288,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
     // ================= 玩法页（日常运营 + 玩法入口） =================
 
     /**
-     * 行动页（布局稿 R2）：标题行（今日活跃）→ 日常四快捷 → 挑战场（无尽试炼/无尽护送）
+     * 行动页（布局稿 R2）：标题行（今日活跃）→ 日常四快捷 → 挑战场（无尽试炼/无尽守卫）
      * → 资源副本四联 → 远征行 → 页脚三快捷。整页竖排，副本/远征/页脚常驻底部。
      */
     protected _buildPlayPage(root: HTMLDivElement): void {
@@ -1342,7 +1342,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         this._giftSubEl = giftBtn.querySelector('.dcSub') as HTMLElement;
         page.appendChild(daily);
 
-        // 挑战场：无尽试炼（塔层） / 无尽护送（通关全章解锁）
+        // 挑战场：无尽试炼（塔层） / 无尽守卫（通关全章解锁）
         const ground = document.createElement('div');
         ground.className = 'challenge-ground';
         const mkEntry = (ic: string, name: string, onTap?: () => void, tex?: string): HTMLButtonElement => {
@@ -1366,7 +1366,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         const trialEl = mkEntry('🗼', '无尽试炼', () => this._openTrialModal(), UiPlate.MODE_TEX.trial);
         trialEl.dataset.entry = 'trial';
         trialEl.appendChild(this._mkRed('trial'));
-        const endlessEl = mkEntry('🌀', '无尽护送', () => this._startBattle(true), UiPlate.MODE_TEX.endless);
+        const endlessEl = mkEntry('🌀', '无尽守卫', () => this._startBattle(true), UiPlate.MODE_TEX.endless);
         endlessEl.dataset.entry = 'endless';
         this._trialEntryEl = trialEl;
         this._endlessEntryEl = endlessEl;
@@ -1414,7 +1414,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         exp.className = 'expedition';
         exp.dataset.entry = 'expedition';
         exp.innerHTML = '<span class="ic">🚚</span><div class="expedition-text"><b>远征 · 物资搜寻</b><small></small></div>';
-        // 远征那枚 🚚 复用护送章节头同一件载具图（同图不同位是允许的，同位重复才禁止）
+        // 远征那枚 🚚 复用出征章节头同一件载具图（同图不同位是允许的，同位重复才禁止）
         this._tex(UiPlate.VEHICLE_TEX['🚚'], UiPlate.icon(exp.querySelector('.ic') as HTMLElement));
         const expHot = document.createElement('button');
         expHot.className = 'hot';
@@ -1430,7 +1430,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         page.appendChild(exp);
         this._expTextEl = exp.querySelector('.expedition-text small') as HTMLElement;
 
-        // 页脚四快捷：怪物图鉴 / 排行榜 / 好友 / 载具改装
+        // 页脚四快捷：敌军图鉴 / 排行榜 / 好友 / 城防改装
         const footer = document.createElement('div');
         footer.className = 'action-footer';
         const mkFoot = (ic: string, label: string, onTap: () => void, key?: string, tex?: string): HTMLButtonElement => {
@@ -1453,9 +1453,9 @@ export abstract class HomeUiPlay extends HomeUiStage {
             footer.appendChild(b);
             return b;
         };
-        mkFoot('📖', '怪物图鉴', () => this._openBestiaryModal(), 'bestiary', 'ui/shop/shop_scroll');
+        mkFoot('📖', '敌军图鉴', () => this._openBestiaryModal(), 'bestiary', 'ui/shop/shop_scroll');
         mkFoot('🏆', '排行榜', () => this._openLeaderboardModal(), 'leaderboard', 'ui/ico/ico_trophy');
-        mkFoot('🔧', '载具改装', () => this._openTuningModal(), undefined, UiPlate.MODE_TEX.vehicle_tuning);
+        mkFoot('🔧', '城防改装', () => this._openTuningModal(), undefined, UiPlate.MODE_TEX.vehicle_tuning);
         mkFoot('👥', '好友', () => this._openFriendsModal(), undefined, 'ui/ico/ico_friend');
         page.appendChild(footer);
 
@@ -1512,7 +1512,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
             const sub = this._endlessEntryEl.querySelector('small') as HTMLElement;
             sub.textContent = ok ? '波次无限 · 每 5 波里程碑' : `通关第 ${FINAL_STAGE_ID} 章解锁`;
             this._endlessEntryEl.className = 'entry' + (ok ? '' : ' locked');
-            this._endlessEntryEl.title = ok ? '无尽护送：波次无限' : `通关第 ${FINAL_STAGE_ID} 章解锁`;
+            this._endlessEntryEl.title = ok ? '无尽守卫：波次无限' : `通关第 ${FINAL_STAGE_ID} 章解锁`;
         }
         // 资源副本：每类今日剩余次数
         page.querySelectorAll<HTMLElement>('.dungeon-row .hot[data-dungeon]').forEach(el => {
@@ -1562,7 +1562,7 @@ export abstract class HomeUiPlay extends HomeUiStage {
         }
         if (id === 'bestiary') {
             const { done, total } = BestiarySystem.instance.completion();
-            return `已记录 ${done}/${total} 种变异体`;
+            return `已记录 ${done}/${total} 种敌军`;
         }
         if (id === 'leaderboard') {
             return `我的积分 ${myScore().toLocaleString()}`;

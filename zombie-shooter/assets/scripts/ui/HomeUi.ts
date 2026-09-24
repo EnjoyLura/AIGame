@@ -3,7 +3,7 @@ const { ccclass } = _decorator;
 import { HomeUiBase } from './HomeUiBase';
 
 /**
- * 主城界面（战斗外玩法入口，DOM 渲染）——一比一复刻《末日航线》原型图。
+ * 主城界面（战斗外玩法入口，DOM 渲染）——按《王国守望》世界观搭建。
  * 实现按域拆分（继承链）：
  * HomeUiCore（壳/顶栏/导航/公告/体力/广告）→ Mall（商店/礼包）
  * → Heroes（英雄页与养成弹窗）→ Stage（关卡/编队）→ Play（玩法大厅/玩法弹窗）

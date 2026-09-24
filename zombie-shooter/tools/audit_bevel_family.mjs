@@ -26,14 +26,14 @@ const FAMILIES = [
     { page: '商店', sel: '#homeUi .res', note: '资源胶囊（金/钻/体力三枚）' },
     { page: '商店', sel: '#homeUi .res::before', note: '资源胶囊的斜带本体' },
     { page: '商店', sel: '#homeUi .xpRow .expbar', note: '统帅经验槽' },
-    // —— 护送页 ——
-    { page: '护送', sel: '#homeUi .chapter-head', note: '章节条' },
-    { page: '护送', sel: '#homeUi .difficulty', note: '难度段整条' },
-    { page: '护送', sel: '#homeUi .difficulty .diffSeg', note: '难度段单格' },
-    { page: '护送', sel: '#homeUi .stage-caption', note: '关卡说明条' },
-    { page: '护送', sel: '#homeUi .milestones', note: '里程碑条' },
-    { page: '护送', sel: '#homeUi .team-strip', note: '编队条' },
-    { page: '护送', sel: '#homeUi .battle-bottom', note: '出战底栏' },
+    // —— 出征页 ——
+    { page: '出征', sel: '#homeUi .chapter-head', note: '章节条' },
+    { page: '出征', sel: '#homeUi .difficulty', note: '难度段整条' },
+    { page: '出征', sel: '#homeUi .difficulty .diffSeg', note: '难度段单格' },
+    { page: '出征', sel: '#homeUi .stage-caption', note: '关卡说明条' },
+    { page: '出征', sel: '#homeUi .milestones', note: '里程碑条' },
+    { page: '出征', sel: '#homeUi .team-strip', note: '编队条' },
+    { page: '出征', sel: '#homeUi .battle-bottom', note: '出战底栏' },
     // —— 行动页 ——
     { page: '行动', sel: '#homeUi .action-daily', note: '日常四格条' },
     { page: '行动', sel: '#homeUi .dungeon-row', note: '副本行' },

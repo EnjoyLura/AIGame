@@ -75,8 +75,8 @@ export const EXPEDITION_DEFS: ExpeditionDef[] = [
         unlockStage: 1,
     },
     {
-        id: 'escort', name: '物资护送', ic: '🚚',
-        desc: '护送补给车队穿越废土，路远且险。',
+        id: 'escort', name: '辎重护送', ic: '🚚',
+        desc: '护送补给车队穿越荒野，路远且险。',
         minutes: 15, attr: 'fire', slots: 2,
         gold: 1200, diamond: 15,
         misc: [{ id: 'mat_alloy', n: 4 }],
@@ -84,7 +84,7 @@ export const EXPEDITION_DEFS: ExpeditionDef[] = [
     },
     {
         id: 'purge', name: '深度清剿', ic: '⚔️',
-        desc: '深入尸潮腹地清剿巢穴，唯有精锐可归。',
+        desc: '深入敌潮腹地清剿巢穴，唯有精锐可归。',
         minutes: 30, attr: 'pierce', slots: 3,
         gold: 3000, diamond: 40,
         misc: [{ id: 'mat_core', n: 2 }],

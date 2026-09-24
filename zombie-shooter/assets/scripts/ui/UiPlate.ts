@@ -168,8 +168,8 @@ export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: '
     { sel: '.btn.blue.hot', key: 'ui/button/btn_cancel', spec: 'btnSm' },
     // `.diffSeg` 两行已搬去 `BEVEL_PLATE`（2026-09-22 三十七轮）：它们原先借的是按钮族的圆角板，
     // 而难度段是**条**不是**键**——斜切端头与厚度是条这一族的语言，留在按钮表里就永远并不成一档。
-    // 护送页那个「👥编队」大入口也带 squadEntry，但它属于侧栏一族（btn_side 木箱板），
-    // 英雄/护送页顶部的 4 个号位才是这里要管的方形小键
+    // 出征页那个「👥编队」大入口也带 squadEntry，但它属于侧栏一族（btn_side 木箱板），
+    // 英雄/出征页顶部的 4 个号位才是这里要管的方形小键
     { sel: '.squadEntry.on:not(.hot)', key: 'ui/button/btn_confirm', spec: 'btnSm' },
     { sel: '.squadEntry:not(.hot)', key: 'ui/button/btn_cancel', spec: 'btnSm' },
     // 章节左右翻页箭头不贴：它压在关卡实景照片上，而照片本身是深色金属调——板子上去等于把箭头
@@ -180,7 +180,7 @@ export const CITY_BUTTON_PLATE: Array<{ sel: string; key: string | null; spec: '
     { sel: '.game-button', key: 'ui/button/btn_cancel', spec: 'btn' },
     { sel: '.gBuy', key: 'ui/button/btn_small', spec: 'btnSm' },
     { sel: '.hpick', key: 'ui/button/btn_row', spec: 'btn' },
-    // 2026-09-21 用户点名撤板的三处：侧栏一列、护送页脚两枚、里程碑三档——这些位置现在自带真图，
+    // 2026-09-21 用户点名撤板的三处：侧栏一列、出征页脚两枚、里程碑三档——这些位置现在自带真图，
     // 不再需要板子托着（当初保留板的理由是"撤了会露出裸 emoji 夹杂"，图补齐之后这条理由已经不成立）。
     // 必须排在 `.hot` 之前：表是顺序优先，第一个命中的生效。
     { sel: '.side-tools .hot', key: null, spec: 'btn' },
@@ -210,7 +210,7 @@ export const SURFACE_PLATE: Array<{ sel: string; key: string | null; spec: keyof
     { sel: '.eqGrid .slot', key: 'ui/panel/eq_slot', spec: 'sq' },
     // 基地页 8 张建筑卡（这一页原先九宫格数为 0）
     { sel: '.building', key: 'ui/panel/building_card', spec: 'bigCard' },
-    // 行动页「无尽试炼 / 无尽护送」两张入口卡
+    // 行动页「无尽试炼 / 无尽守卫」两张入口卡
     { sel: '.challenge-ground .entry', key: 'ui/panel/entry_card', spec: 'bigCard' },
 ];
 
@@ -284,7 +284,7 @@ export const BUILDING_TEX: Record<string, string> = {
 /**
  * 玩法入口插画（r36 表后 8 格 + r37/r38 补出 4 格）：入口 id → 贴图 key，
  * 吃行动页四种宿主（资源副本行 55px、挑战场入口卡 205×151、远征行与页脚 42~47px）、
- * 护送页页脚两枚，以及商城那张「招募英雄」货卡的 61px 图位。
+ * 出征页页脚两枚，以及商城那张「招募英雄」货卡的 61px 图位。
  *
  * `dungeon_stone` 是补出来的：r36 那一格画成蓝色水晶矿洞，与同排 `dungeon_gem`（紫水晶）
  * 在 55px 里读成同一个东西，而这一排给玩家做的选择正是"打哪个副本"——撞形就是功能缺陷。
@@ -413,9 +413,9 @@ export function plateOf(kind?: string): string | null {
  * 底部主导航：页 key → 页签图标槽位（取代散在渲染里的三元链）。
  *
  * ⚠ **key 与玩家看到的页签名对不上，出图前必须查这张表，不要按 key 名猜画面对象**：
- * `battle` 是「护送」页（护送车队玩法，图标是卡车），`core` 才是「行动」页（作战大厅，
+ * `battle` 是「出征」页（守卫据点玩法，图标沿用卡车），`core` 才是「行动」页（作战大厅，
  * 图标是作战地图 + 电台）。2026-09-22 图标语言那一轮就是按 key 名理解，把一张标着
- * "行动"的格子切给了 `nav_battle`，结果护送页换成了地图、行动页还留着旧手柄——
+ * "行动"的格子切给了 `nav_battle`，结果出征页换成了地图、行动页还留着旧手柄——
  * 取景自测才看出来。页 key 是历史名，页签名是产品名，两者已经不同源。
  */
 export const NAV_PLATE: Record<string, string> = {
@@ -446,12 +446,12 @@ export const RES_ICON: Record<string, string> = {
 };
 
 /**
- * 章节载具：`HomeUiStage` 的 `CHAPTER_THEMES[].veh` 字形 → 图标槽位。
+ * 章节据点徽记：`HomeUiStage` 的 `CHAPTER_THEMES[].veh` 字形 → 图标槽位。
  *
- * 键用字形而不是章节序号：章节→载具的对应关系只写在那份主题表里，这里再抄一份序号表
+ * 键用字形而不是章节序号：章节→据点的对应关系只写在那份主题表里，这里再抄一份序号表
  * 就会有两处真源。整串 key 字面量列出（`'icons/vehicle_' + x` 那种拼法 `check-art-manifest`
  * 不认，会把已落盘的图判成「在库无归宿」）。
- * 浅色（手机）主题把场景里的 `.veh` 整块隐藏，章节头这一枚是手机上唯一看得见载具的地方。
+ * 浅色（手机）主题把场景里的 `.veh` 整块隐藏，章节头这一枚是手机上唯一看得见本章据点的地方。
  */
 export const VEHICLE_TEX: Record<string, string> = {
     '🚚': 'icons/vehicle_truck', '🚢': 'icons/vehicle_ship', '🚛': 'icons/vehicle_hauler',

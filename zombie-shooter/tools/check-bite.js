@@ -1,4 +1,4 @@
-// 驻留啃咬断言：怪物到车不再即死，改为驻留按各自间隔持续咬车（向僵尸开炮式）
+// 驻留啃咬断言：怪物到防线不再即死，改为驻留按各自间隔持续攻城（《王国保卫战》式）
 const fs = require('fs');
 let fail = 0;
 const ok = (name, cond) => { console.log((cond ? 'PASS' : 'FAIL') + ' ' + name); if (!cond) fail++; };

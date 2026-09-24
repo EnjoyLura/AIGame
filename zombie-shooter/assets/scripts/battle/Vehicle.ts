@@ -7,9 +7,9 @@ import { createUINode } from '../core/createUINode';
 import { BattleManager } from './BattleManager';
 
 /**
- * 运输载具（车尾视角）：只露出横贯屏幕底部的车尾条，像《向僵尸开炮》那样
- * 车尾占满宽度、英雄站在车尾上；耐久归零 = 护送失败。
- * 正式版按章节切换货车/船/飞机的尾部资源。
+ * 据点（防线视角）：只露出横贯屏幕底部的防守条，像《王国保卫战》那样
+ * 防线占满宽度、英雄站在城墙上；耐久归零 = 据点陷落。
+ * 正式版按章节切换据点/城门/要塞的防线资源。
  */
 @ccclass('Vehicle')
 export class Vehicle extends Component {
@@ -18,7 +18,7 @@ export class Vehicle extends Component {
     /** UI/世界缩放系数（部署时由 BattleManager 注入） */
     uiScale = 1;
     private _artTried = false;
-    /** 车尾立绘的 Sprite 与当前受损态：换态只换 spriteFrame，尺寸算法一行不动 */
+    /** 防线立绘的 Sprite 与当前受损态：换态只换 spriteFrame，尺寸算法一行不动 */
     private _artSprite: Sprite | null = null;
     private _damaged = false;
 
@@ -55,8 +55,8 @@ export class Vehicle extends Component {
     }
 
     /**
-     * 耐久进 danger 档就换上受损车尾：门槛 0.25 与 HUD 车尾条 `.danger` 同一个数，
-     * 让「条变红」和「车被打烂」是同一件事，而不是两套各变各的。缺图就下一帧再试。
+     * 耐久进 danger 档就换上受损防线：门槛 0.25 与 HUD 据点条 `.danger` 同一个数，
+     * 让「条变红」和「城被打烂」是同一件事，而不是两套各变各的。缺图就下一帧再试。
      */
     private _syncDamageArt(): void {
         if (!this._artSprite) {
@@ -108,17 +108,17 @@ export class Vehicle extends Component {
         eventCenter.emit(GameEvent.VEHICLE_HP_CHANGED, this.hp, this.maxHp);
     }
 
-    /** 占位绘制：占满宽度的车尾货厢 + 护栏 + 警示条纹（正式版替换为 Spine 载具尾部） */
+    /** 占位绘制：占满宽度的防线城墙 + 护栏 + 警示条纹（正式版替换为据点立绘） */
     private _drawPlaceholder(): void {
         const g = this.node.addComponent(Graphics);
         const w = Design.WIDTH + 8;
         const h = BattleConfig.VEHICLE_STRIP_HEIGHT;
 
-        // 货厢
+        // 城墙体
         g.fillColor = Palette.heroDark;
         g.rect(-w / 2, -h / 2, w, h);
         g.fill();
-        // 顶缘护栏
+        // 顶缘护栏（防守线上沿）
         g.strokeColor = Palette.hero;
         g.lineWidth = 8;
         g.moveTo(-w / 2, h / 2 - 4);
@@ -130,7 +130,7 @@ export class Vehicle extends Component {
             g.rect(x, h / 2 - 26, 40, 10);
         }
         g.fill();
-        // 尾门铆钉
+        // 城门铆钉
         g.fillColor = Palette.bg;
         for (let x = -w / 2 + 30; x < w / 2; x += 120) {
             g.circle(x, -h / 2 + 30, 6);

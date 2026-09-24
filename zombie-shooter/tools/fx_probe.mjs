@@ -190,7 +190,7 @@ for (let i = 0; i < 3; i++) {
   await sleep(1000);
 }
 console.log('  出战:', await evalJs(`(() => {
-  const el = [...document.querySelectorAll('#homeUi .game-button')].find(e => (e.textContent || '').indexOf('开始护送') >= 0);
+  const el = [...document.querySelectorAll('#homeUi .game-button')].find(e => (e.textContent || '').indexOf('开始守卫') >= 0);
   if (!el) return 'NOT FOUND';
   el.click(); return (el.textContent || '').trim();
 })()`));

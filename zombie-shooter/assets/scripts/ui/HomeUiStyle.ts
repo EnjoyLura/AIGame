@@ -59,7 +59,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   background: radial-gradient(500px 320px at 50% -60px, #1d3054 0%, transparent 70%), linear-gradient(180deg, #0e1830, #0a1220); }
 #homeUi .screen { position: absolute; inset: 0; padding: calc(24px * var(--hs,1)) calc(24px * var(--hs,1)) calc(200px * var(--hs,1)); overflow-y: auto; display: none; }
 #homeUi .screen.on { display: block; }
-/* 护送页满屏竖向骨架：章节头/难度/场景/里程碑/编队/底部 CTA，场景吃掉剩余高度 */
+/* 出征页满屏竖向骨架：章节头/难度/场景/里程碑/编队/底部 CTA，场景吃掉剩余高度 */
 #homeUi .screen.sStage.on { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 #homeUi .screen::-webkit-scrollbar { width: 4px; }
 #homeUi .screen::-webkit-scrollbar-thumb { background: var(--c-line-dk); border-radius: 4px; }
@@ -271,7 +271,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .siInfo span { font-size: calc(20px * var(--hs,1)); color: var(--c-cyan); font-weight: 700; }
 #homeUi .siFoot .btn { min-width: calc(180px * var(--hs,1)); height: calc(56px * var(--hs,1)); font-size: calc(22px * var(--hs,1)); }
 
-/* ===== 怪物图鉴（基地页入口 + 弹窗） ===== */
+/* ===== 敌军图鉴（基地页入口 + 弹窗） ===== */
 #homeUi .besEntry { position: relative; margin-left: 0; flex: none; }
 #homeUi .besGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(14px * var(--hs,1)); }
 #homeUi .besCell { padding: calc(16px * var(--hs,1)) calc(10px * var(--hs,1)); text-align: center;
@@ -591,7 +591,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .fQuick { width: 100%; margin-top: calc(6px * var(--hs,1)); }
 #homeUi .fNote { text-align: center; }
 
-/* ===== 巡逻入口（护送页底部左快捷，通关第 1 关解锁；无尽已移入右侧栏） ===== */
+/* ===== 巡逻入口（出征页底部左快捷，通关第 1 关解锁；无尽已移入右侧栏） ===== */
 #homeUi .battle-bottom .hot.patrolHot { color: #bfe0ff; }
 /* 无尽收进侧栏：与图鉴/排行/试炼同尺寸，仅保留配色以区分模式入口 */
 #homeUi .side-tools .hot.endlessHot { color: #8fd6ff; }
@@ -768,11 +768,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .chTabs button.on { background: linear-gradient(180deg, var(--c-line-hi), #243a63); color: var(--c-gold-hi); border-color: var(--c-gold-dk2);
   box-shadow: 0 0 12px rgba(240,177,62,.2); }
 #homeUi .chTabs button.lock { opacity: .45; }
-/* ===== 护送页（布局稿 R2 骨架）：章节头 / 难度段 / 场景+内侧快捷栏 / 里程碑 / 编队条 / 底部 CTA ===== */
+/* ===== 出征页（布局稿 R2 骨架）：章节头 / 难度段 / 场景+内侧快捷栏 / 里程碑 / 编队条 / 底部 CTA ===== */
 #homeUi .chapter-head { height: calc(125px * var(--hs,1)); display: flex; align-items: center; justify-content: center; gap: calc(44px * var(--hs,1)); }
 #homeUi .chapter-head h1 { font-size: calc(53px * var(--hs,1)); font-weight: 900; color: var(--c-gold-hi); letter-spacing: calc(2px * var(--hs,1)); }
 #homeUi .chapter-head small { display: block; margin-top: calc(4px * var(--hs,1)); font-size: calc(28px * var(--hs,1)); color: var(--c-text-dim); text-align: center; }
-/* 章节头载具牌：本章护送的是什么车（CHAPTER_THEMES 的 veh 字形 → UiPlate.VEHICLE_TEX）。
+/* 章节头据点牌：本章守卫的是哪个据点（CHAPTER_THEMES 的 veh 字形 → UiPlate.VEHICLE_TEX）。
    字形先占位、图到位由 icon() 摘掉，尺寸只归这里（贴图槽从不写 inline 宽高） */
 #homeUi .chapter-head .chVeh { flex: none; display: block; font-style: normal; text-align: center;
   width: calc(76px * var(--hs,1)); height: calc(76px * var(--hs,1));
@@ -866,7 +866,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   z-index: 3; display: flex; align-items: center; justify-content: space-between; pointer-events: none;
   font-size: calc(28px * var(--hs,1)); color: var(--c-text); text-shadow: 0 2px 6px rgba(0,0,0,.6); }
 #homeUi .stage-caption b { font-size: calc(33px * var(--hs,1)); color: var(--c-gold-hi); font-variant-numeric: tabular-nums; }
-/* 里程碑三档：首次通关 / 耐久过半 / 完美护送 */
+/* 里程碑三档：首次通关 / 耐久过半 / 完美守卫 */
 #homeUi .milestones { position: relative; flex: none; height: calc(172px * var(--hs,1)); margin: 0 calc(33px * var(--hs,1));
   display: flex; justify-content: space-around; }
 /* 里程碑进度轨。原先三档宝箱各背一块金属板、中间那条线只是条装饰（还有一条 border-bottom 压在下面，
@@ -911,7 +911,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   font-family: inherit; font-size: calc(28px * var(--hs,1)); font-weight: 700; cursor: pointer; }
 #homeUi .team-strip .hot .ic { font-size: calc(64px * var(--hs,1)); line-height: 1; }
 #homeUi .team-strip .hot.off, #homeUi .battle-bottom .hot.off { opacity: .45; }
-/* 底部：无尽（左）+ 开始护送（中）+ 掉落详情（右） */
+/* 底部：无尽（左）+ 开始守卫（中）+ 掉落详情（右） */
 #homeUi .battle-bottom { flex: none; height: calc(180px * var(--hs,1)); display: grid;
   grid-template-columns: calc(155px * var(--hs,1)) 1fr calc(155px * var(--hs,1)); gap: calc(33px * var(--hs,1)); align-items: center;
   padding: calc(6px * var(--hs,1)) calc(44px * var(--hs,1)) calc(22px * var(--hs,1)); }
@@ -1144,7 +1144,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .homeStamp { position: absolute; right: calc(16px * var(--hs,1)); bottom: calc(160px * var(--hs,1)); font-size: calc(16px * var(--hs,1));
   color: rgba(140,170,210,.4); z-index: 5; pointer-events: none; }
 
-/* ===== P0 布局改版：HUD 单行工具组 / 护送页章节头 / 里程碑 ===== */
+/* ===== P0 布局改版：HUD 单行工具组 / 出征页章节头 / 里程碑 ===== */
 #homeUi .hudUtil { flex: none; display: flex; align-items: center; gap: calc(10px * var(--hs,1)); }
 #homeUi .res > span:first-child { width: calc(22px * var(--hs,1)) !important; height: calc(22px * var(--hs,1)) !important; }
 
@@ -1216,7 +1216,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-roster .hpick.lock .pic { filter: grayscale(1) brightness(.55); }
 /* 编队条是横排行卡（高 34），沿用大头像条那条 translate(32,-80) 的锁徽会压在名字上。
    原先的解法是把锁徽改回随行内联排在名字之后——不遮字了，但那 27px 是从**名字头上**扣的：
-   六个字的名字（狙击手·苍鹭 / 激光手·棱镜 / 辐射枪手·芮）实测只剩 58.8px 可用、要 80px，
+   六个字的名字（神射手·苍鹭 / 火焰法师·棱镜 / 重炮手·芮）实测只剩 58.8px 可用、要 80px，
    被省略号截掉的正好是唯一能区分四个英雄的后半截人名。
    改成钉在立绘右上角：锁本来就是「这一格没解锁」的标记，挂在头像上比跟在名字后面更对语义，
    而且它不再占行内宽度，名字拿到整行余量（实测 86px）。滤镜在 .pic 上，锁跟着一起变灰，
@@ -1569,7 +1569,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 /* 整页底改贴在 #homeUi 上（HomeUiCore._applyPageBackdrop），这一层再涂一层就把那张图挡住了。
    缺图时露的是 #homeUi 自己的 --c-scene-1 底色，退化和以前一样是纯色，不会更差。 */
 #homeUi .screen { padding: calc(16px * var(--pw,2.5)) calc(14px * var(--pw,2.5)) calc(20px * var(--pw,2.5)); }
-/* 护送页通栏：章节头/场景/里程碑/编队条/底部 CTA 各自带内边距，页面本身不留走廊 */
+/* 出征页通栏：章节头/场景/里程碑/编队条/底部 CTA 各自带内边距，页面本身不留走廊 */
 /* 左右不留走廊：稿里 .stage 是通栏，两侧快捷列 left/right 3px 才是贴边的；留 10px 会让列位内缩、场景压到列上 */
 #homeUi .screen.sStage { padding: 0; }
 #homeUi .screen.on { display: block; }
@@ -1771,15 +1771,15 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .chTabs button span { font-size: calc(10px * var(--pw,2.5)); }
 #homeUi .chTabs button.on { background: #f8fbfd; border-color: #89a6b7; color: #2d5266; box-shadow: inset 0 -3px #e99a42; }
 #homeUi .chTabs button.lock { opacity: 1; color: #758994; background: #dae3e8; }
-/* --- 护送页（布局稿 R2 骨架）---
+/* --- 出征页（布局稿 R2 骨架）---
    页面底翻暗之后，这一页原先按"浅灰纸"写的字全部要回到暗底口径：
    章标题走金色（它是这一页的主标题，不是正文）、副标走弱亮字、翻页器从"浅底芯片+深字"
    翻成"暗底芯片+亮字"（它压在关卡实景照片上，浅底芯片在照片上读成一团雾）。 */
 #homeUi .chapter-head { height: calc(50px * var(--pw,2.5)); gap: calc(18px * var(--pw,2.5)); }
 #homeUi .chapter-head h1 { font-size: calc(19px * var(--pw,2.5)); color: var(--c-gold-hi); letter-spacing: 0; text-align: center; line-height: calc(23px * var(--pw,2.5)); }
 #homeUi .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); color: var(--c-text-dim); margin-top: 0; }
-/* 载具牌在手机上收进 45px 的章头条里（h1 23 + small 13 = 36，留 9 上下边）：
-   场景里那块 .veh 在浅色主题整块隐藏，这一枚是手机上唯一看得见载具的位置 */
+/* 据点牌在手机上收进 45px 的章头条里（h1 23 + small 13 = 36，留 9 上下边）：
+   场景里那块 .veh 在浅色主题整块隐藏，这一枚是手机上唯一看得见本章据点的位置 */
 #homeUi .chapter-head .chVeh { width: calc(28px * var(--pw,2.5)); height: calc(28px * var(--pw,2.5));
   font-size: calc(24px * var(--pw,2.5)); line-height: calc(28px * var(--pw,2.5)); }
 /* 翻页器在场景内侧：暗底芯片 + 亮箭头，禁用态整块更暗（原先是浅底深字，实测 1.73:1） */
@@ -2000,7 +2000,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   top: calc(-3px * var(--pw,2.5)); right: calc(-3px * var(--pw,2.5)); background: var(--c-danger-dk); box-shadow: 0 0 5px rgba(224,72,72,.8); }
 #homeUi .questBox .mbox { background: var(--c-text-ice2); }
 #homeUi .questBox .mHead h3 { color: var(--c-gold-dk3); }
-/* --- 载具改装（青瓷浅色变体，照 questBox 模式） --- */
+/* --- 城防改装（青瓷浅色变体，照 questBox 模式） --- */
 #homeUi .mbox.tuneBox { background: #eef4f0; }
 #homeUi .mbox.tuneBox .mHead h3 { color: #5e6d2f; }
 #homeUi .qSecHead { gap: calc(7px * var(--pw,2.5)); margin: calc(10px * var(--pw,2.5)) 0 calc(6px * var(--pw,2.5)); }
@@ -3249,7 +3249,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .screen.sShop .good .gName { font-size: calc(10px * var(--pw,2.5)); line-height: calc(12px * var(--pw,2.5)); }
 #homeUi .screen.sShop .good .gTag { font-size: calc(9px * var(--pw,2.5)); line-height: calc(11px * var(--pw,2.5)); margin: 0; min-height: 0; }
 #homeUi .screen.sShop .good .gBuy { min-height: calc(27px * var(--pw,2.5)); height: calc(27px * var(--pw,2.5)); font-size: calc(10px * var(--pw,2.5)); }
-/* 护送页章头条：只留章节名（45px，h1 19/23 + small 10/13），翻页箭头已移入场景 */
+/* 出征页章头条：只留章节名（45px，h1 19/23 + small 10/13），翻页箭头已移入场景 */
 #homeUi .screen.sStage .chapter-head { height: calc(45px * var(--pw,2.5)); gap: calc(16px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head h1 { font-size: calc(19px * var(--pw,2.5)); line-height: calc(23px * var(--pw,2.5)); }
 #homeUi .screen.sStage .chapter-head small { font-size: calc(10px * var(--pw,2.5)); line-height: calc(13px * var(--pw,2.5)); margin-top: 0; }
@@ -3317,7 +3317,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .game-button.major.plated { color: var(--c-navy-7); }
 /* 主 CTA 里那行小字（体力价 ⚡5）：上面那条只翻按钮自己，而青瓷层给 small 单独写过一条
    color: #dbe9ef——那是金板出现之前、主按钮还是深青底白字时写的，一直留到现在。
-   结果是"开始护送"是暗字（对）、底下的"5"是亮字压在金板上（1.74:1，几乎看不见）。
+   结果是"开始守卫"是暗字（对）、底下的"5"是亮字压在金板上（1.74:1，几乎看不见）。
    挂在 .plated 上：缺图回退成青色平涂底时，这行小字仍然该是亮的。 */
 #homeUi .game-button.major.plated small { color: var(--c-navy-7); }
 /* 紫板（btn_purple，商城"每日特惠"那颗 立即查看）是按钮族里唯一的中亮度板：实测板面 #743884，
@@ -3330,8 +3330,8 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    **只压饱和与亮度、不动色相**：试过 sepia 微暖，数值上确实更靠近世界，但预览里蓝板发灰绿、
    "蓝 = 取消/次要"这个功能色就没了（对比图见 tools/preview_plate_filter.py）。
    这一档要去掉的是"屏幕里另点了一盏冷灯"，不是把蓝改成不蓝。
-   **曾经还带过 .diffSeg:not(.on).plated**：护送页那两枚难度段当时借的就是同一张 btn_cancel，
-   只写 .blue.plated 会让同一张图在英雄页压过、在护送页没压过，两屏并排看成"两种蓝"。
+   **曾经还带过 .diffSeg:not(.on).plated**：出征页那两枚难度段当时借的就是同一张 btn_cancel，
+   只写 .blue.plated 会让同一张图在英雄页压过、在出征页没压过，两屏并排看成"两种蓝"。
    三十七轮把难度段搬进斜切条族（UiPlate.BEVEL_PLATE）之后它不再吃蓝板，这条并写也就撤了——
    留着会把一块本来中性的暗金属条往灰里再压一档。 */
 #homeUi .blue.plated { filter: saturate(.82) brightness(.90); }

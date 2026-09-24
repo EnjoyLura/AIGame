@@ -24,13 +24,13 @@ const MANIFEST = [
     'scenes/vehicle_tail', 'scenes/escort', 'scenes/recruit',
     // 主城页面底（贴在 `#homeUi` 上、不是画布件；2026-09-21 从 `.viewport` 上移，见 STYLE-SPEC §7.4）。
     // 现在由**其余四页**共用：一张场景图吃四个页签仍是刻意的——用户点第 5 条「通用性很低、页页像半成品」
-    // 的解法不是给每页画一张，而是让这几页站在同一个世界里。护送页是唯一的例外，它按章节换底，
-    // 因为那一页的中心要放得下一座立体的维修坞，营地那张的中段留不出这个位置。
+    // 的解法不是给每页画一张，而是让这几页站在同一个世界里。出征页是唯一的例外，它按章节换底，
+    // 因为那一页的中心要放得下一座立体的前哨营地，基地那张的中段留不出这个位置。
     'scenes/hub_camp',
-    // 护送页第 1 章的整页底（透视构图）。战斗侧第 1 章用的是俯视的 scenes/road，两者不是一张、
+    // 出征页第 1 章的整页底（透视构图）。战斗侧第 1 章用的是俯视的 scenes/road，两者不是一张、
     // 也不该是一张：页底要能压住从状态栏到底导的全部界面，俯视路面做不到。
     'scenes/bg_road',
-    // 护送页中心的立体船坞（r40 一张 2x2 表四件）：地面垫底 → 平台压上 → 载具停在平台里 → 碎石在最前。
+    // 出征页中心的立体前哨营地（r40 一张 2x2 表四件）：地面垫底 → 平台压上 → 守卫载具停在平台里 → 碎石在最前。
     // 这四件是**一个场景的四层**，不是四个独立图标，所以必须同表出、同表判（对标口径见 ART-PLAN 三十一轮）。
     'stage/dock_floor', 'stage/dock_bay', 'stage/dock_veh', 'stage/dock_rubble',
     // 旧版 UI 素材（2026-09-20 拍板弃用）已移出契约位 → art-spec/reference/legacy-keep/：
@@ -123,7 +123,7 @@ const MANIFEST = [
     'ui/star_on', 'ui/star_off', 'ui/lvtag', 'ui/tag_free', 'ui/tag_sale', 'ui/tag_hot',
     'ui/node_done', 'ui/node_next', 'ui/node_lock', 'ui/badge/power_badge',
     'ui/badge/medal1', 'ui/badge/medal2', 'ui/badge/medal3', 'ui/panel/row_card', 'ui/panel/panel_mini',
-    // 护送关卡卡载具
+    // 出征关卡据点徽记（载具图沿用，美术轮换据点图）
     'icons/vehicle_truck', 'icons/vehicle_ship', 'icons/vehicle_hauler',
     // 斜切条族（r44 表，一张 3列2行出 6 件，2026-09-22 三十七轮）：
     // 顶栏资源胶囊带 / 难度段两态 / 难度段轨道 / 章节标题横幅条。
@@ -151,7 +151,7 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // 2026-09-21 已出图并接线，声明移出本表：两枚弹体由 `HeroCombat` 的 visualKey 取用（缺图时回退
     // `Graphics` 画的程序化弹体）；丧犬走帧由 `Enemy._tryApplyArt` 优先取序列帧、**零代码改动**
     // （walk 默认就是 6 帧，其余四怪在 `ANIM_FRAME_COUNT` 里显式记 12——将来重出 12 帧要记得补那一行）；
-    // 车尾受损态由 `Vehicle._syncDamageArt` 在耐久进 0.25 档时与完好态互换（与 HUD 条的 .danger 同门槛）。
+    // 防线受损态由 `Vehicle._syncDamageArt` 在耐久进 0.25 档时与完好态互换（与 HUD 条的 .danger 同门槛）。
     // 下面这 5 件曾经**不是缺图，是缺表现代码**（全工程 grep 连拼 key 的地方都没有），
     // 2026-09-21 逐条把表现代码建起来后移出本表，判决与落点见 STYLE-SPEC §9「战斗表现件」：
     // laser_beam → `HeroCombat._drawBeamArt` 叠在程序化三层束之上；coin_burst → DomHud 通关结算
@@ -171,7 +171,7 @@ export const RESERVED_SLOTS: Record<string, string> = {
     'ui/button/btn_home': '小圆钮·主页（还没有主页键落点）', 'ui/button/btn_help': '小圆钮·帮助 ?（同位已有 btn_round2）', 'ui/button/btn_refresh': '小圆钮·刷新 ↻（还没有刷新动作落点）',
     // —— 二级页签 ——（tab_hero/equip/gem/mat/potion 五件 2026-09-20 已出图并接线，声明移出本表）
     // tab_core：图 2026-09-20 已出且合格（r13 表第 5 格，反应堆芯），但**这个页签还没有**——
-    // 规范原先写的宿主 `.chTabs` 是死样式（护送页早已改成「章节头 + 左右翻页箭头」，全工程无一处建 DOM），
+    // 规范原先写的宿主 `.chTabs` 是死样式（出征页早已改成「章节头 + 左右翻页箭头」，全工程无一处建 DOM），
     // 背包第四签的真实分类是「道具」而非「核心」。同轮用户拍板「核心页签功能我后面做」，所以本行与
     // MANIFEST 那行都保留；切片件存在 `art-spec/reference/stock/ico/tab_core.png`（gen-output 被 gitignore
     // 且定期可清，不能当长期存放处）。界面建好当天把 png 拷回 `assets/resources/textures/ui/ico/` 并删掉本行。
@@ -239,12 +239,12 @@ export const RESERVED_SLOTS: Record<string, string> = {
     // 图本身合格，按规矩不删：切片件在 `art-spec/reference/stock/nav/tab_plate_on.png`，
     // 若哪天导航改回"每格一块板"，拷回 `textures/ui/nav/` 并删掉本行即生效。
     'ui/nav/tab_plate_on': '导航选中板（五格已并成一块整条背板，选中态改走 CSS，图在 stock/nav/）',
-    // —— 护送关卡载具 ——（三件 2026-09-21 已出图并接章节头载具牌，声明移出本表）
+    // —— 出征关卡据点徽记 ——（三件 2026-09-21 已出图并接章节头徽记牌，声明移出本表）
     // 宿主是 HomeUiStage 章节头左端那一枚（CHAPTER_THEMES[].veh → UiPlate.VEHICLE_TEX 字形对 key）；
     // 选这里而不是场景里那块 .veh，是因为浅色（手机）主题把 .veh 连同 road/dash/mobs 一起 display:none，
-    // 手机上原本根本看不见本章护送什么车。
+    // 手机上原本根本看不见本章守卫哪个据点。
     // —— 大图标族 r36/r37/r38 ——（19 件 2026-09-21 全部出图并接线：基地 8 建筑卡 / 资源副本 4 条 /
-    // 挑战场 2 入口卡 / 远征 / 巡逻 / 商城招募英雄货卡 / 载具改装 / 编队，见 UiPlate.BUILDING_TEX 与 UiPlate.MODE_TEX。
+    // 挑战场 2 入口卡 / 远征 / 巡逻 / 商城招募英雄货卡 / 城防改装 / 编队，见 UiPlate.BUILDING_TEX 与 UiPlate.MODE_TEX。
     // 本族没有留单：r36 第 10 格「强化石副本」当时判死（模型画成蓝色水晶矿洞，与同排「晶体矿脉」
     // 在 55px 的副本行里读成同一个东西，而那一排给玩家做的选择正是"打哪个副本"），
     // 补出时把槽位名从"强化石"改成"砖石堆场"才拿对——**槽位名太抽象时，第二次要把材料说死**，

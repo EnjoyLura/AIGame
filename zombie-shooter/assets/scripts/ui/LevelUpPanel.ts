@@ -49,7 +49,7 @@ export class LevelUpPanel extends Component {
         const pauseChip = this._makeLabel('战斗已暂停 · 选卡后恢复', 0, 28, new Color('#aab4c2'));
         pauseChip.node.setPosition(0, view.getVisibleSize().height / 2 - 194);
 
-        // 标题横幅（参考《向僵尸开炮》撕纸横幅；美术就绪后显示在标题文字下层）
+        // 标题横幅（撕纸横幅；美术就绪后显示在标题文字下层）
         const banner = createUINode('Banner');
         this.node.addChild(banner);
         banner.addComponent(UITransform).setContentSize(540, 183);
@@ -134,7 +134,7 @@ export class LevelUpPanel extends Component {
             this._cardOps.push(op);
             const cardFrame = AssetLib.frame('ui/panel/panel_card');
             if (cardFrame) {
-                // 卡片底：米白纸质卡（参考《向僵尸开炮》）
+                // 卡片底：米白纸质卡
                 const bgNode = createUINode('CardBg');
                 card.addChild(bgNode);
                 bgNode.addComponent(UITransform).setContentSize(LevelUpPanel.CARD_W, LevelUpPanel.CARD_H);

@@ -13,7 +13,7 @@ function pad2(n: number): string {
 }
 
 /**
- * 战斗 HUD：计时、波次、击杀、经验条与等级、载具耐久条、波次提示、结算面板。
+ * 战斗 HUD：计时、波次、击杀、经验条与等级、据点耐久条、波次提示、结算面板。
  * 全部代码动态构建（不依赖预制体）；正式版逐步替换为九宫格图片 UI。
  */
 @ccclass('HUD')
@@ -46,7 +46,7 @@ export class HUD extends Component {
     private get _vh(): number {
         return view.getVisibleSize().height;
     }
-    /** 车尾条上沿的 HUD 坐标系 Y（与 BattleManager 部署逻辑同源） */
+    /** 据点防守条上沿的 HUD 坐标系 Y（与 BattleManager 部署逻辑同源） */
     private get _vehicleTopY(): number {
         return -this._vh / 2 + BattleConfig.VEHICLE_STRIP_HEIGHT;
     }
@@ -158,7 +158,7 @@ export class HUD extends Component {
         stamp.node.getComponent(UITransform)!.setAnchorPoint(0, 0.5);
         stamp.node.setPosition(-Design.WIDTH / 2 + 16, -this._vh / 2 + 30);
         stamp.color = new Color(195, 206, 213, 255);
-        console.log('[末日航线] build', BUILD_STAMP, buildTime);
+        console.log('[王国守望] build', BUILD_STAMP, buildTime);
         // 计时右移让位左上角 暂停/统计 按钮排
         this._timeLabel = this._makeLabel(this.node, '00:00', -Design.WIDTH / 2 + 268, this._vh / 2 - 75, 36);
         this._waveLabel = this._makeLabel(this.node, '', 0, this._vh / 2 - 75, 51);
@@ -382,7 +382,7 @@ export class HUD extends Component {
         this._xpFill = fillNode;
     }
 
-    /** 载具耐久条：悬在车尾护栏上方 */
+    /** 据点耐久条：悬在防守线上沿 */
     private _buildVehicleBar(): void {
         const barY = this._vehicleTopY + 82;
         const bg = createUINode('VehicleBarBg');
@@ -415,7 +415,7 @@ export class HUD extends Component {
         this._popupOpacity.opacity = 0;
     }
 
-    /** 护送失败结算弹窗：半屏遮罩 + 结算卡片 + 重新挑战按钮 */
+    /** 据点陷落结算弹窗：半屏遮罩 + 结算卡片 + 重新挑战按钮 */
     private _buildOverPanel(): void {
         const panel = createUINode('FailPanel');
         this.node.addChild(panel);
@@ -442,7 +442,7 @@ export class HUD extends Component {
         cg.roundRect(-cardW / 2, -cardH / 2, cardW, cardH, 16);
         cg.stroke();
 
-        this._makeLabel(card, '护送失败', 0, 225, 84);
+        this._makeLabel(card, '据点陷落', 0, 225, 84);
         this._failWaveLabel = this._makeLabel(card, '', 0, 90, 45);
         this._failKillLabel = this._makeLabel(card, '', 0, 15, 45);
         this._failLevelLabel = this._makeLabel(card, '', 0, -60, 45);

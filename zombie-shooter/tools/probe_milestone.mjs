@@ -1,4 +1,4 @@
-// 一次性探针：把护送页里程碑三格的"到底是谁在画那块深色底"问清楚。
+// 一次性探针：把出征页里程碑三格的"到底是谁在画那块深色底"问清楚。
 // 用法：node tools/probe_milestone.mjs <url>
 // 输出每个 .milestone 的计算样式关键项 + 它自己的伪元素，避免靠截图猜。
 import { spawn } from 'node:child_process';
@@ -132,7 +132,7 @@ for (let i = 0; i < 3; i++) {
   await evalJs(`document.querySelector('.popClose')?.click(); 1`);
   await sleep(900);
 }
-await evalJs(`(() => { const el=[...document.querySelectorAll('#homeUi .tab')].find(e=>(e.textContent||'').indexOf('护送')>=0); el&&el.click(); return 1; })()`);
+await evalJs(`(() => { const el=[...document.querySelectorAll('#homeUi .tab')].find(e=>(e.textContent||'').indexOf('出征')>=0); el&&el.click(); return 1; })()`);
 await sleep(2200);
 console.log(await evalJs(PROBE));
 ws.close();

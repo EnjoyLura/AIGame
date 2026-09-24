@@ -292,7 +292,7 @@ class LaserBasicAttack implements BasicAttack {
 
         // ===== 粘滞锁定（用户指定） =====
         // 锁定后直到目标被击杀/超程才换下一个（取当前推进最深的怪）；
-        // 目标活着坚决不换——即使有别的怪离车更近、即使 0.25s 周期到
+        // 目标活着坚决不换——即使有别的怪离防线更近、即使 0.25s 周期到
         for (let i = 0; i < this._slots.length; i++) {
             const slot = this._slots[i];
             if (!this._owner.battle.isEnemyHandleValid(slot.handle, this._owner.position, range)) {
@@ -700,7 +700,7 @@ class AbilityRuntime {
             const castTime = this._def.castTime ?? 0.35;
             const center = target.enemy.node.worldPosition;
             const rifleMortar = this._owner.def.id === 'rifle' && this._def.id === 'rifle-barrage' && this._def.mortar;
-            // 榴弹大招也必须明确触发抬枪/后坐与枪口闪光；弹体随后挂在 FxLayer，避免被英雄和载具遮住。
+            // 榴弹大招也必须明确触发抬枪/后坐与枪口闪光；弹体随后挂在 FxLayer，避免被英雄和城墙遮住。
             if (rifleMortar) {
                 this._owner.stats.notifyShot?.(center);
                 this._owner.battle.muzzleFlashFx(muzzle, color,

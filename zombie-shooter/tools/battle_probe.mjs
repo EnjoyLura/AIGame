@@ -2,7 +2,7 @@
 // 为什么需要它：关卡底图、传送门、暴击底纹、光柱这些是**画布节点**，DOM 里量不到（page_shot 那套
 // 读 backgroundImage 的普查对它们全废），只能靠 ① 截图 ② 代码自带的一行 [Art] 诊断 两条腿走路。
 // 换关走存档：GameManager 的 load() 每个字段都是 `data.X ?? 默认`，所以补丁档可以只写需要的几项；
-// 体力必须一起写——新档才送满体力，写了补丁档就等于"老档"，体力 0 会让「开始护送」点下去没反应。
+// 体力必须一起写——新档才送满体力，写了补丁档就等于"老档"，体力 0 会让「开始守卫」点下去没反应。
 // 用法：node tools/battle_probe.mjs <url> <outDir> <关卡 csv，如 2,3,4,5> [每关停留秒=6]
 //   需要在 127.0.0.1:7456 已起 serve.mjs（node tools/serve.mjs build/web-mobile 7456 127.0.0.1）
 import { spawn } from 'node:child_process';
@@ -121,7 +121,7 @@ for (const stage of stages) {
     await sleep(1000);
   }
   const clicked = await evalJs(`(() => {
-    const el = [...document.querySelectorAll('#homeUi .game-button')].find(e => (e.textContent || '').indexOf('开始护送') >= 0);
+    const el = [...document.querySelectorAll('#homeUi .game-button')].find(e => (e.textContent || '').indexOf('开始守卫') >= 0);
     if (!el) return 'NOT FOUND';
     el.click(); return (el.textContent || '').trim();
   })()`);

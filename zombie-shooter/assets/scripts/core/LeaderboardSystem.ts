@@ -47,11 +47,11 @@ export function myScore(): number {
         + ExpeditionSystem.instance.totalRuns * 40;
 }
 
-/** 本地机器人名池（末日风格） */
+/** 本地机器人名池（奇幻风格） */
 const BOT_NAMES: Array<[string, string]> = [
-    ['末日尖兵', '🎖️'], ['钢铁黎明', '🤖'], ['夜莺小队', '🌙'], ['破晓者', '🌅'],
-    ['血狼营', '🐺'], ['拾荒王者', '🔧'], ['方舟守望', '🏰'], ['雷霆突袭', '⚡'],
-    ['孤胆枪手', '🔫'], ['白鸽小队', '🕊️'], ['废土商人', '💼'], ['猎风者', '🌪️'],
+    ['王国老兵', '🎖️'], ['钢铁黎明', '🤖'], ['夜莺小队', '🌙'], ['破晓者', '🌅'],
+    ['血狼营', '🐺'], ['拾荒王者', '🔧'], ['圣殿守望', '🏰'], ['雷霆突袭', '⚡'],
+    ['孤胆游侠', '🔫'], ['白鸽小队', '🕊️'], ['荒野商人', '💼'], ['猎风者', '🌪️'],
 ];
 
 /**
@@ -66,7 +66,7 @@ export function loadBoard(): LbEntry[] {
         const score = Math.max(1, Math.round(base * (0.78 + Math.random() * 0.44)));
         return { name, me: false, score, ic };
     });
-    const all = [...bots, { name: '我（末日指挥官）', me: true, score: me, ic: '🎖️' }];
+    const all = [...bots, { name: '我（指挥官将军）', me: true, score: me, ic: '🎖️' }];
     all.sort((a, b) => b.score - a.score);
     return all;
 }

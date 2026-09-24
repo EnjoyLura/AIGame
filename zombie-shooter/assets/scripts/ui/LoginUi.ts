@@ -210,7 +210,7 @@ export class LoginUi extends Component {
         // 中央 LOGO
         const logo = document.createElement('div');
         logo.className = 'lgLogo';
-        logo.innerHTML = '<h1>末日航线</h1><div class="sub">DOOMSDAY ROUTE</div>';
+        logo.innerHTML = '<h1>王国守望</h1><div class="sub">KINGDOM WATCH</div>';
         root.appendChild(logo);
 
         // 底部：服务器行 + 开始游戏 + 协议勾选 + 合规文案
@@ -218,7 +218,7 @@ export class LoginUi extends Component {
         bottom.className = 'lgBottom';
         const server = document.createElement('button');
         server.className = 'lgServer';
-        server.innerHTML = '<span class="gear">⚙️</span>末日1区 · 战地18123服';
+        server.innerHTML = '<span class="gear">⚙️</span>王国1区 · 荣光18123服';
         bottom.appendChild(server);
         const start = document.createElement('button');
         start.className = 'lgStart';
@@ -411,13 +411,13 @@ export class LoginUi extends Component {
 
 /** 版号合规文案（登录页底部） */
 const LEGAL_TEXT = `
-    著作权人：末日航线工作室 &nbsp;软著登记号：2024SR000001<br/>
+    著作权人：王国守望工作室 &nbsp;软著登记号：2024SR000001<br/>
     出版单位：无（内部测试版） &nbsp;审批文号：暂无<br/>
     备案号：暂无 &nbsp;经营许可证编号：暂无<br/>
     抵制不良游戏，拒绝盗版游戏。注意自我保护，谨防受骗上当。<br/>
     适度游戏益脑，沉迷游戏伤身。合理安排时间，享受健康生活。`;
 
-const USER_AGREEMENT = `欢迎使用《末日航线》！（以下称"本游戏"）
+const USER_AGREEMENT = `欢迎使用《王国守望》！（以下称"本游戏"）
 一、账号：本游戏当前为单机试玩版，游戏进度保存在本机，删除浏览器数据可能导致进度丢失。
 二、虚拟财产：游戏内金币、钻石等均为虚拟道具，仅限本游戏内使用，不可转让或兑换法定货币。
 三、行为规范：请勿利用游戏漏洞、外挂或脚本破坏游戏公平性，一经发现有权收回异常收益。

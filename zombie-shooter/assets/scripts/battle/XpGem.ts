@@ -34,7 +34,7 @@ export class XpGem extends Component {
             this._delay -= dt;
             return;
         }
-        // 吸附目标恒为车尾 (0, vehicleTopY)：直接用标量，避免每帧每宝石走 vehiclePos 的 Vec3 分配
+        // 吸附目标恒为防线 (0, vehicleTopY)：直接用标量，避免每帧每宝石走 vehiclePos 的 Vec3 分配
         const p = this.node.position;
         const dx = -p.x;
         const dy = bm.vehicleTopY - p.y;

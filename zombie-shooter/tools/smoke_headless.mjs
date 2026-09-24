@@ -230,12 +230,12 @@ await shot('02g-friend-pop');
 await evalJs(`document.querySelector('.popClose')?.click(); 1`);
 await sleep(1200);
 
-// 3. 找护送入口进玩法页（按文本找：护送）
+// 3. 找出征入口进玩法页（按文本找：出征）
 const navDump = await evalJs(`JSON.stringify([...document.querySelectorAll('button,[class*=btn],[class*=tab],[class*=nav] i, [class*=nav] span')].map(e => (e.className + '|' + (e.textContent || '').trim().slice(0, 10))).slice(0, 60))`);
 console.log('nav candidates:', navDump);
 const clickedNav = await evalJs(`(() => {
   const els = [...document.querySelectorAll('button,[class*=btn],[class*=tab],[class*=nav] *')];
-  const el = els.find(e => /护送/.test((e.textContent || '').trim()) && e.children.length <= 3);
+  const el = els.find(e => /出征/.test((e.textContent || '').trim()) && e.children.length <= 3);
   if (!el) return 'NOT FOUND';
   const t = el.className + '|' + (el.textContent || '').trim().slice(0, 10);
   el.click(); return t;
@@ -332,7 +332,7 @@ const gmClick = (label) => evalJs(`(() => {
 let sawElite = false;
 for (let i = 0; i < 240; i++) {
   if (i % 8 === 0) {
-    await gmClick('车回满');
+    await gmClick('据点回满');
   }  const probe = await evalJs(`(() => {
     const r = document.querySelector('#domHud .afRow');
     const wave = document.querySelector('#domHud .waveChip .chipVal');
@@ -453,13 +453,13 @@ console.log('starRow:', await evalJs(`JSON.stringify([...document.querySelectorA
 }))`));
 await shot('09-bestiary-stars');
 
-// 9. Step4 资源与载具族取景：护送页章节头载具牌 + 升星弹窗的碎片说明行 + 卡面行内星。
-//    载具牌是手机上唯一看得见「本章护送什么车」的位置（场景里那块 .veh 在浅色主题整块隐藏）。
+// 9. Step4 资源与载具族取景：出征页章节头据点牌 + 升星弹窗的碎片说明行 + 卡面行内星。
+//    据点牌是手机上唯一看得见「本章守卫哪个据点」的位置（场景里那块 .veh 在浅色主题整块隐藏）。
 //    判据同 D20：bg=Y 且盒尺寸非 0（尺寸归 CSS，读不到 --pw 会量出 0×0）。
 // 图鉴详情那层弹层没有 .popClose，返回是圆钮 .popBack——两个都点一下，否则截图永远停在上一层
 await evalJs(`(() => { document.querySelector('.popClose')?.click(); document.querySelector('#homeUi .popBack')?.click(); return 1; })()`);
 await sleep(1400);
-console.log('nav ->', await gotoTab('护送'));
+console.log('nav ->', await gotoTab('出征'));
 await sleep(2600);
 console.log('chVeh:', await evalJs(`(() => {
   const e = document.querySelector('#homeUi .chapter-head .chVeh');
@@ -502,21 +502,21 @@ console.log('fragRow:', await evalJs(`JSON.stringify([...document.querySelectorA
 }))`));
 await shot('11-frag-row');
 
-// 12. Step6 画布件取景（二）：车尾受损态。这一件要把耐久打到 25% 以下才会换图，而 GM「车打空」
+// 12. Step6 画布件取景（二）：防线受损态。这一件要把耐久打到 25% 以下才会换图，而 GM「据点打空」
 //     会顺手判负——所以放在整轮最后，重开一局专门拍它，拍完就收工（不再回主城）。
 const startRun = () => evalJs(`(() => {
-  const el = [...document.querySelectorAll('#homeUi .game-button')].find(e => /开始护送/.test(e.textContent || ''));
+  const el = [...document.querySelectorAll('#homeUi .game-button')].find(e => /开始守卫/.test(e.textContent || ''));
   if (el) el.click();
   return !!el;
 })()`);
-console.log('nav ->', await gotoTab('护送'));
+console.log('nav ->', await gotoTab('出征'));
 await sleep(2400);
 await startRun();
 await sleep(2500);
 if (!(await evalJs(`!!document.querySelector('#domHud .waveChip')`))) {
   await startRun();  // 可能停在出征确认弹层，再点一次
 }
-// HUD 那行「载具 N / MAX」——车尾耐久读数的唯一可见出口
+// HUD 那行「耐久 N / MAX」——据点耐久读数的唯一可见出口
 const vehRatio = () => evalJs(`(() => {
   const bar = document.querySelector('#domHud .vehicleBar');
   if (!bar) return 'NO BAR';
@@ -536,11 +536,11 @@ await sleep(1500);
 await shot('12a-dogs-wave1');
 await sleep(2600);
 await shot('12b-dogs-later');
-// 受损态要打到 25% 以下才换，而 GM 只有「车打空」这一档、它会顺手判负并把结算面盖满屏幕。
+// 受损态要打到 25% 以下才换，而 GM 只有「据点打空」这一档、它会顺手判负并把结算面盖满屏幕。
 // 所以顺序是：先让它把耐久打到 0（换图在那一刻已经发生），再把结算面从 DOM 里摘掉，拍没被盖住的场景。
-await gmClick('车打空(失败)');
+await gmClick('据点打空(陷落)');
 await sleep(1200);
-console.log('车尾读数:', await vehRatio());
+console.log('防线读数:', await vehRatio());
 await evalJs(`(() => { document.querySelectorAll('#domHud .menuOverlay, #domHud .vignette').forEach(e => e.remove()); return 1; })()`);
 await sleep(500);
 await shot('12-tail-damaged');

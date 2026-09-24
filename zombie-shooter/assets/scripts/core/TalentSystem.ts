@@ -63,23 +63,23 @@ export const TALENT_NODES: TalentNodeDef[] = [
     // ===== 装甲 =====
     {
         id: 'armor_1', branch: 'armor', idx: 0, name: '复合装甲', ic: '🛡️', maxLevel: 3, pointCost: 1,
-        desc: l => `载具耐久 +${l * 8}%（每级 +8%）`,
+        desc: l => `据点耐久 +${l * 8}%（每级 +8%）`,
     },
     {
         id: 'armor_2', branch: 'armor', idx: 1, name: '减震结构', ic: '🔧', maxLevel: 3, pointCost: 1,
-        desc: l => `怪物啃咬伤害 −${l * 5}%（每级 −5%）`,
+        desc: l => `敌军攻城伤害 −${l * 5}%（每级 −5%）`,
     },
     {
         id: 'armor_3', branch: 'armor', idx: 2, name: '自修复层', ic: '♻️', maxLevel: 3, pointCost: 2,
-        desc: l => `载具每秒回复 ${(l * 0.4).toFixed(1)}% 耐久（每级 +0.4%）`,
+        desc: l => `据点每秒回复 ${(l * 0.4).toFixed(1)}% 耐久（每级 +0.4%）`,
     },
     {
         id: 'armor_4', branch: 'armor', idx: 3, name: '强化骨架', ic: '🦴', maxLevel: 3, pointCost: 2,
-        desc: l => `载具耐久 +${l * 10}%（每级 +10%）`,
+        desc: l => `据点耐久 +${l * 10}%（每级 +10%）`,
     },
     {
         id: 'armor_5', branch: 'armor', idx: 4, name: '方舟壁垒', ic: '🏰', maxLevel: 1, pointCost: 4,
-        desc: l => `载具耐久 +${l * 15}% 且啃咬伤害 −${l * 10}%`,
+        desc: l => `据点耐久 +${l * 15}% 且攻城伤害 −${l * 10}%`,
     },
     // ===== 后勤 =====
     {
@@ -99,7 +99,7 @@ export const TALENT_NODES: TalentNodeDef[] = [
         desc: l => `经验获取 +${l * 8}%（每级 +8%）`,
     },
     {
-        id: 'logi_5', branch: 'logistics', idx: 4, name: '末日经济', ic: '💰', maxLevel: 1, pointCost: 4,
+        id: 'logi_5', branch: 'logistics', idx: 4, name: '王国经济', ic: '💰', maxLevel: 1, pointCost: 4,
         desc: l => `金币获取 +${l * 15}% 且经验获取 +${l * 15}%`,
     },
 ];
@@ -149,17 +149,17 @@ export function talentAtkMul(): number {
     return 1 + lv('fire_1') * 0.06 + lv('fire_3') * 0.08 + lv('fire_5') * 0.12;
 }
 
-/** 载具耐久乘区（复合装甲 +8%/级、强化骨架 +10%/级、方舟壁垒 +15%） */
+/** 据点耐久乘区（复合装甲 +8%/级、强化骨架 +10%/级、方舟壁垒 +15%） */
 export function talentVehHpMul(): number {
     return 1 + lv('armor_1') * 0.08 + lv('armor_4') * 0.10 + lv('armor_5') * 0.15;
 }
 
-/** 金币获取乘区（战地补给 +6%/级、弹药回收 +8%/级、末日经济 +15%） */
+/** 金币获取乘区（战地补给 +6%/级、弹药回收 +8%/级、王国经济 +15%） */
 export function talentGoldMul(): number {
     return 1 + lv('logi_1') * 0.06 + lv('logi_3') * 0.08 + lv('logi_5') * 0.15;
 }
 
-/** 经验获取乘区（情报网络 +6%/级、极限训练 +8%/级、末日经济 +15%） */
+/** 经验获取乘区（情报网络 +6%/级、极限训练 +8%/级、王国经济 +15%） */
 export function talentXpMul(): number {
     return 1 + lv('logi_2') * 0.06 + lv('logi_4') * 0.08 + lv('logi_5') * 0.15;
 }
@@ -179,7 +179,7 @@ export function talentBiteReduce(): number {
     return Math.min(0.6, lv('armor_2') * 0.05 + lv('armor_5') * 0.10);
 }
 
-/** 载具每秒耐久回复比例（自修复层 +0.4%/级） */
+/** 据点每秒耐久回复比例（自修复层 +0.4%/级） */
 export function talentVehRegen(): number {
     return lv('armor_3') * 0.004;
 }

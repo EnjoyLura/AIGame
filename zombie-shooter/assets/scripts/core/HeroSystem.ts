@@ -236,7 +236,7 @@ export const MISC_ITEM_DEFS: MiscItemDef[] = [
     { id: 'mat_core', kind: 'mat', name: '英雄核心', ic: '⚙️', tier: 5, desc: '大招升级材料（基地·研究所使用）' },
     { id: 'mat_alloy', kind: 'mat', name: '精炼合金', ic: '🔩', tier: 4, desc: '装备强化材料（穿戴面板强化消耗）' },
     { id: 'mat_stone', kind: 'mat', name: '强化石', ic: '🧱', tier: 2, desc: '武器强化材料（分解装备/关卡产出）' },
-    { id: 'mat_blueprint', kind: 'mat', name: '改装图纸', ic: '🔧', tier: 4, desc: '载具改装图纸（基地·载具工坊使用）' },
+    { id: 'mat_blueprint', kind: 'mat', name: '改装图纸', ic: '🔧', tier: 4, desc: '城防改装图纸（基地·城防工坊使用）' },
     { id: 'gem_fire', kind: 'gem', name: '赤焰石', ic: '🔴', tier: 4, desc: '攻击宝石 · 镶嵌装备：攻击 +6%' },
     { id: 'gem_wind', kind: 'gem', name: '疾风羽', ic: '🟢', tier: 2, desc: '射速宝石 · 镶嵌装备：射速 +4%' },
     { id: 'gem_ice', kind: 'gem', name: '寒冰晶', ic: '🔵', tier: 3, desc: '射程宝石 · 镶嵌装备：射程 +5%' },

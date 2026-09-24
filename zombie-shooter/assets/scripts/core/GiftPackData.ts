@@ -63,7 +63,7 @@ export const GIFT_PACKS: GiftPackDef[] = [
     },
     {
         id: 'gift_starter',
-        name: '末日启程超值礼包',
+        name: '王国启程超值礼包',
         desc: '随机紫装 + 大量强化材料',
         ic: '🎁',
         price: { res: 'diamond', amount: 280 },

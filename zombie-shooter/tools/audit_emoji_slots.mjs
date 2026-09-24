@@ -94,7 +94,7 @@ const PROBE = `(() => {
   return JSON.stringify(out);
 })()`;
 
-const PAGES = ['home', '商店', '英雄', '护送', '行动', '基地'];
+const PAGES = ['home', '商店', '英雄', '出征', '行动', '基地'];
 await send('Page.enable');
 await send('Runtime.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: 540, height: 960, deviceScaleFactor: 2, mobile: true });
@@ -120,7 +120,7 @@ await sleep(1200);
 const WAIVED = [
     { host: 'skillEntry', glyph: '⚡', why: '用户明令「除技能外不换」，ico_skill 键已撤（STYLE-SPEC §9）' },
     { host: 'goCost', glyph: '⚡', why: '随文小符号：跟在体力数字后面走基线（§9 判据①）' },
-    { host: 'game-button.major', glyph: '⚡', why: '随文小符号：主 CTA「开始护送 ⚡5」里跟在体力数字后面走基线（§9 判据①）' },
+    { host: 'game-button.major', glyph: '⚡', why: '随文小符号：主 CTA「开始守卫 ⚡5」里跟在体力数字后面走基线（§9 判据①）' },
     { host: 'giftDot', glyph: '⏰', why: '随文小符号：与「限时特惠」四字同排同色（§9 判据①）' },
 ];
 // 匹配面放宽到父类名：技能那一枚的宿主链是 `fcol.hero-quick > btn.blue > ic`，
