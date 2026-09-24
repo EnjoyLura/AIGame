@@ -137,6 +137,40 @@ def extract(im: Image.Image, box, size, margin_pct: int, tight: bool = False) ->
     return canvas
 
 
+def flood_outside(im: Image.Image, tol: int) -> set:
+    """--flood 用：从画布四边 BFS「绿幕判定式」连通域，返回全分辨率『外景绿』坐标集。
+    绿底上摆绿色内容件（绿斗篷/绿皮怪）时，判定式会把件内绿也咬出洞（批5 技能图标踩过：
+    弓箭手绿斗篷全是洞）；绿幕在件外，只有与画布边连通的绿才是底。"""
+    from collections import deque
+    im = im.convert('RGB')
+    px = im.load()
+    w, h = im.size
+
+    def is_green(x, y):
+        r, g, b = px[x, y]
+        return g > tol and g - r > tol and g - b > tol
+
+    seen = bytearray(w * h)
+    q = deque()
+    for x in range(w):
+        for y in (0, h - 1):
+            if not seen[y * w + x] and is_green(x, y):
+                seen[y * w + x] = 1
+                q.append((x, y))
+    for y in range(h):
+        for x in (0, w - 1):
+            if not seen[y * w + x] and is_green(x, y):
+                seen[y * w + x] = 1
+                q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+            if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and is_green(nx, ny):
+                seen[ny * w + nx] = 1
+                q.append((nx, ny))
+    return {i for i, s in enumerate(seen) if s}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('sheet', help='素材表 PNG（纯绿底）')
@@ -153,9 +187,23 @@ def main() -> int:
     ap.add_argument('--colors', type=int, default=256,
                     help='落盘前压到几色索引（0=不压）。省 76~90%，而 optimize 只省 0.2%。'
                          f'{_QUANT_NOTE}')
+    ap.add_argument('--flood', action='store_true',
+                    help='外景绿泛洪保护：只把与画布边连通的绿判为底，件内绿不抠（绿内容件必开）')
     args = ap.parse_args()
 
-    im = key_green(Image.open(args.sheet), args.tol)
+    src = Image.open(args.sheet)
+    outside = flood_outside(src, args.tol) if args.flood else None
+    im = key_green(src, args.tol)
+    if outside is not None:
+        # key_green 把整幅的绿都咬了（RGB 保留、只清 alpha）——把件内的绿（不在外景集里）补回不透明
+        px = im.load()
+        w, h = im.size
+        for y in range(h):
+            for x in range(w):
+                i = y * w + x
+                if i not in outside and px[x, y][3] == 0:
+                    r, g, b, _ = px[x, y]
+                    px[x, y] = (r, g, b, 255)
     mask = im.split()[3].point(lambda a: 255 if a > 24 else 0)
     blobs = merge_close(mask_label_blobs(mask, args.dilate))
 
