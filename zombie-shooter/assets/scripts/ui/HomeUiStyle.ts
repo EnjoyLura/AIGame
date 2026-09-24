@@ -3290,11 +3290,27 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
    .plated 由 UiPlate.nineSlice 在贴图真的落到 style 上那一刻打上，所以缺图回退时这些规则整体不生效、
    旧配色照旧对——这就是为什么色写在 CSS 而不是 nineSlice 的内联 color 里（内联会盖掉回退态）。
    排在本文件最末：两层（--hs 基准 / --pw 青瓷）都在这之前，同特异性下这一条两边都赢。 */
-/* 原先这里的 .tab.plated 与 .tab.on.plated 两条已删：撤板轮把底部导航从"五格各一块板"
-   并成"整条 .tabbar 一块板"之后，.tab 元素再也不会被贴板、也就永远拿不到 .plated。
-   选中态的字色改由 #homeUi .tab.on 那条 color: var(--c-gold-hi) 管。 */
+/* 原先这里的 .tab.plated 与 .tab.on.plated 两条已删（撤板轮：整条 .tabbar 一块板，
+   .tab 自己没有板、拿不到 .plated）。r45b 起选中格经 BEVEL_PLATE 的 var 行贴 tab_raised，
+   .tab.on 又会拿到 .plated 了——但只在被点中的那一刻。 */
 #homeUi .flat-tabs > button.plated { color: var(--c-cream-1); }
-#homeUi .flat-tabs > button.on.plated { color: var(--c-gold-hi); }
+/* ---- §10.1 选中抬起（r45b）：选中的一格换成"升起来的另一块实体"，换的是形状不是颜色 ----
+   三处宿主的抬起件由 BEVEL_PLATE 贴（.tab.on 走 --tab-raised 画在伪元素上，另两处直接 border-image）。
+   这里只干三件事：整格抬起、撤掉旧的光影记号（凹下底色、金槽、金三角——抬起件自带顶沿金标头）、
+   把压回暗牌面的字翻亮。全部挂在 .plated 上：缺图回退时旧样子原样保留。
+   .tab 那条 ::before 必须 z-index:-1：绝对定位的伪元素按 positioned 后代画在行内文字之上，
+   不加负层就把页签名盖进瓷砖里（自测抓到）；负层落进 .tabbar 自己的层叠上下文，
+   仍压在整条板上、让所有格内内容画在它上面。 */
+#homeUi .tab.on.plated { transform: translateY(calc(-4px * var(--pw,1))); background: none; box-shadow: none; }
+#homeUi .tab.on.plated::after { content: none; }
+#homeUi .tab.on.plated::before { content: ''; position: absolute; z-index: -1; top: calc(-5px * var(--pw,1));
+  left: calc(-6px * var(--pw,1)); right: calc(-6px * var(--pw,1)); bottom: calc(-4px * var(--pw,1));
+  border-style: solid; border-width: calc(4px * var(--pw,1));
+  border-image-source: var(--tab-raised, none); border-image-slice: var(--tab-raised-slice, 100%);
+  border-image-width: var(--tab-raised-width, 0); border-image-repeat: stretch; }
+#homeUi .difficulty .diffSeg.on.plated { transform: translateY(calc(-3px * var(--pw,1))); color: var(--c-gold-hi); }
+#homeUi .flat-tabs > button.on.plated { transform: translateY(calc(-3px * var(--pw,1))); box-shadow: none; color: var(--c-gold-hi); }
+#homeUi .flat-tabs > button.on.plated::before { content: none; }
 #homeUi .building.plated small { color: var(--c-cream-2); }
 /* 主 CTA 那块板是金牌（btn_play），未贴板时它是弹层里的暗蓝键、白字对；贴上金牌白字只剩 2.4:1，
    所以翻亮必须挂在 .plated 上，不能直接改 .major 的白字——那条会连带改掉所有弹层里的主按钮 */

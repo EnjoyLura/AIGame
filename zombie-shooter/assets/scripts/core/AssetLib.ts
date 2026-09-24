@@ -131,6 +131,7 @@ const MANIFEST = [
     // 这一族是 ART-PLAN §4.9 第 5 条「斜切与厚度」：端头斜切、下沿一道 2.5D 厚度。
     'ui/strip/res_band', 'ui/strip/diff_off', 'ui/strip/diff_on',
     'ui/strip/diff_track', 'ui/strip/chapter_band',
+    'ui/strip/tab_raised', 'ui/strip/band_raised',
 ];
 
 /**

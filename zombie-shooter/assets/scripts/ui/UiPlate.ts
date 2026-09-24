@@ -76,7 +76,8 @@ export interface NineSpec {
  *    12÷52（源件条高）≈0.23 折算成 2px / 4px。
  */
 export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'barThin' | 'card' | 'btn' | 'btnSm' | 'chip'
-    | 'navTab' | 'sq' | 'bigCard' | 'stripCap' | 'stripThin' | 'stripWide' | 'stripTrack', NineSpec> = {
+    | 'navTab' | 'sq' | 'bigCard' | 'stripCap' | 'stripThin' | 'stripWide' | 'stripTrack'
+    | 'tabRaised' | 'bandRaised', NineSpec> = {
     panel: { slice: '12% fill', width: 'calc(16px * var(--pu,1))' },
     // 按钮板族（plate / platePw / btn / btnSm 共用同一批 r24 去字板）：切片一律**按百分比**。
     // 两件事都是实测出来的，改之前先读：
@@ -138,6 +139,12 @@ export const NINE: Record<'panel' | 'plate' | 'platePw' | 'frame' | 'bar' | 'bar
     // 纵向不能切 50%（那样槽的内壁全进角区、中段没有可拉伸的槽底），切 28% 把内壁留在角区、
     // 槽底留在中段。
     stripTrack: { slice: '28% 56 28% 56 fill', width: 'calc(6px * var(--pw,1)) calc(10px * var(--pw,1))' },
+    // 选中抬起档（§10.1，r45b）：这两件不是"板"，是"从槽位里升起来的另一块实体"，只出现在 `.on` 态。
+    // tab_raised 源 733×685、四角倒角 19，宿主 .tab.on 102×93，画在 ::before 上随宿主整体抬起；
+    // band_raised 源 1510×404、斜边 87（87×1.25≈110 进角区），宿主 .diffSeg.on 102×42 / .flat-tabs button.on
+    // 130~135×46；纵向沿用本族 50% 切法（顶沿标头 + 底沿厚度整半段等比缩放，中段不留缝）。
+    tabRaised: { slice: '28 fill', width: 'calc(4px * var(--pw,1))' },
+    bandRaised: { slice: '50% 110 50% 110 fill', width: 'calc(21px * var(--pw,1)) calc(8px * var(--pw,1))' },
 };
 
 /**
@@ -216,22 +223,34 @@ export const SURFACE_PLATE: Array<{ sel: string; key: string | null; spec: keyof
  *
  * 扫描范围要整个 `#homeUi`：`.res` 在顶栏、`.tabbar` 之外，`.viewport` 里没有它。
  *
- * ⚠ `.res` 这一行**不走 `nineSlice`**：那条斜带的本体是 `.res::before` 伪元素，
- *   inline style 上不到伪元素，所以由 `HomeUiCore._plateBevels()` 特判走 `nineSliceVar`
+ * ⚠ 带 `var` 的行**不走 `nineSlice`**：那一件的板画在伪元素上（`.res::before` 斜带、
+ *   `.tab.on::before` 抬起瓷砖），inline style 上不到伪元素，所以走 `nineSliceVar`
  *   把三件切片参数落成自定义属性，交给样式表在 `::before` 上消费。
  *   同时 CSS 里那条 `transform: skewX(-12deg)` 必须在 `.plated` 时撤掉——
  *   斜度从此由图带，CSS 再斜一次就是斜上加斜（角度翻倍，两端读成"被切掉一块"）。
  */
-export const BEVEL_PLATE: Array<{ sel: string; key: string | null; spec: 'stripCap' | 'stripThin' | 'stripWide' | 'stripTrack' }> = [
+export const BEVEL_PLATE: Array<{ sel: string; key: string | null;
+    spec: 'stripCap' | 'stripThin' | 'stripWide' | 'stripTrack' | 'tabRaised' | 'bandRaised'; var?: string }> = [
     // 顶栏资源胶囊（金/钻/体力三枚，实测 140~161×29）。原先是平涂 `--c-scene-1` + CSS skewX(-12°)。
-    { sel: '.res', key: 'ui/strip/res_band', spec: 'stripThin' },
+    // 带 var 的行走 nineSliceVar：那条斜带的本体是 `.res::before` 伪元素，inline style 上不去，
+    // 三件切片参数落成自定义属性交给样式表在 `::before` 上消费。
+    { sel: '.res', key: 'ui/strip/res_band', spec: 'stripThin', var: '--res-band' },
+    // §10.1 选中抬起三处之一（这一族的旗舰）：底部主导航被点中的那一格升起来成另一方瓷砖。
+    // 整条 .tabbar 是一块板，"五格之中哪一格换板"没地方画，抬起件只能叠在 .tab.on 的伪元素上
+    // （`.tab.on::before` 此前无人占用），随宿主整体 translateY 抬起，消费规则在样式表末段。
+    { sel: '.tab.on', key: 'ui/strip/tab_raised', spec: 'tabRaised', var: '--tab-raised' },
     // 难度段整条轨道（310×44）：三枚分段格垫在它上面，斜端把整条的收口交代掉。
     { sel: '.difficulty', key: 'ui/strip/diff_track', spec: 'stripTrack' },
-    { sel: '.difficulty .diffSeg.on', key: 'ui/strip/diff_on', spec: 'stripCap' },
+    // 难度段选中档：r44 的亮金板（diff_on）按 §10.1 裁定换成抬起档——换的是形状不是颜色。
+    // diff_on 从此不在任何契约表里（图留在库不删盘，归宿记在 STYLE-SPEC §10.1）。
+    { sel: '.difficulty .diffSeg.on', key: 'ui/strip/band_raised', spec: 'bandRaised' },
     { sel: '.difficulty .diffSeg', key: 'ui/strip/diff_off', spec: 'stripCap' },
     // 章节标题横幅条（540×62，通栏）：这一位原先**完全没有底**，标题字直接压在关卡照片上。
     { sel: '.chapter-head', key: 'ui/strip/chapter_band', spec: 'stripWide' },
-    // 二级分类页签（商城 4 签 + 背包 4 签共用；选中色仍由 CSS 高亮，不出二态板）
+    // 二级分类页签（商城 4 签 + 背包 4 签共用）：`.on` 行必须排在通用行**前面**——
+    // _plateBevels 按本表顺序取第一个命中的行，反过来选中签就永远只拿到未选中的 seg_plate。
+    { sel: '.flat-tabs > button.on', key: 'ui/strip/band_raised', spec: 'bandRaised' },
+    // 未选中签仍用斜端 seg_plate；原先选中色靠 CSS 金线+金三角，抬起件进版后由样式表末段撤掉
     { sel: '.flat-tabs > button', key: 'ui/tab/seg_plate', spec: 'stripCap' },
     // 关卡说明条实测只有 374×22：stripCap 档的上下板厚就要 16px，剩 6px 牌面必压字，显式跳过
     { sel: '.stage-caption', key: null, spec: 'stripCap' },

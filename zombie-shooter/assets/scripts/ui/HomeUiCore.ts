@@ -172,9 +172,10 @@ export abstract class HomeUiCore extends Component {
     }
 
 
-    /** 斜切条族铺板（ART-PLAN §4.9 第 5 条）。整 `#homeUi` 扫——顶栏那三枚资源胶囊不在 `.viewport` 里。
-     *  `.res` 要特判：它的斜带是 `::before` 伪元素，inline style 上不去，只能走 `nineSliceVar`
-     *  把切片参数落成自定义属性交给样式表（判据见 `UiPlate.BEVEL_PLATE` 那段注释）。
+    /** 斜切条族铺板（ART-PLAN §4.9 第 5 条；§10.1 选中抬起同表）。整 `#homeUi` 扫——
+     *  顶栏那三枚资源胶囊不在 `.viewport` 里。带 `var` 的行（.res 斜带、.tab.on 抬起瓷砖）
+     *  的板画在伪元素上，inline style 上不去，只能走 `nineSliceVar` 把切片参数落成
+     *  自定义属性交给样式表（判据见 `UiPlate.BEVEL_PLATE` 那段注释）。
      *  调用时机与 `_plateCityButtons` 同一处：页面每次重建都要重扫。 */
     protected _plateBevels(): void {
         const root = this._root;
@@ -186,8 +187,8 @@ export abstract class HomeUiCore extends Component {
             if (!hit?.key) {
                 continue;
             }
-            this._tex(hit.key, el.classList.contains('res')
-                ? UiPlate.nineSliceVar(el, hit.spec, '--res-band')
+            this._tex(hit.key, hit.var
+                ? UiPlate.nineSliceVar(el, hit.spec, hit.var)
                 : UiPlate.nineSlice(el, hit.spec));
         }
     }
