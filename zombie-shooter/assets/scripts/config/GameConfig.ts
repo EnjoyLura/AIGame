@@ -19,8 +19,6 @@ export const BattleConfig = {
     /** 据点防线：横贯屏幕底部的防守条高 */
     VEHICLE_STRIP_HEIGHT: 270,
     VEHICLE_MAX_HP: 3000,
-    /** 路面滚动速度（px/s）：世界下移=敌军逼近 */
-    ROAD_SCROLL_SPEED: 195,
     /** 路面半宽：怪物战场的横向范围 */
     ROAD_HALF_WIDTH: 420,
     /** 上阵英雄数与站位间距（横排分散在城墙上） */

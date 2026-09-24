@@ -242,14 +242,11 @@ export class BattleManager extends Component {
     private get _visW(): number { return view.getVisibleSize().width; }
     /** UI/世界统一缩放系数：可视高 / 1080 设计基准高（1920） */
     get uiScale(): number { return Math.max(0.5, Math.min(2.5, this._visH / 1920)); }
-    /** 路面滚动层（下移=敌军逼近的进迫感） */
-    private _bgScroll: Node = null!;
-    /** 美术路面滚动节点（上下两张镜像衔接，无缝循环） */
-    private _bgArtA: Node = null!;
-    private _bgArtB: Node = null!;
+    /** 占位背景层：美术底图到位前的代码虚线车道（静止） */
+    private _bgDash: Node = null!;
+    /** 战场底图节点：单张静止铺满，落位后永不位移 */
+    private _bgArt: Node = null!;
     private _bgArtApplied = false;
-    /** 美术路面单张实际高度（等比缩放后，滚动间距/回卷以此为准） */
-    private _bgArtH = 0;
 
     get isGameOver(): boolean { return this._gameOver; }
     get isPaused(): boolean { return this._paused; }
@@ -285,7 +282,7 @@ export class BattleManager extends Component {
         this._worldLayer = createUINode('WorldLayer');
         this.node.addChild(this._worldLayer);
         this._drawBackground();
-        this._initScrollBg();
+        this._initBgDash();
         this._initPools();
     }
 
@@ -388,7 +385,7 @@ export class BattleManager extends Component {
     }
 
     update(dt: number): void {
-        // 主城/结算界面期间冻结整场模拟（不刷怪、不计时不滚动）
+        // 主城/结算界面期间冻结整场模拟（不刷怪、不计时）
         if (!this._runActive || this._gameOver || this._paused) {
             return;
         }
@@ -400,7 +397,6 @@ export class BattleManager extends Component {
         if (!this._bgArtApplied) {
             this._applyRoadArt();
         }
-        this._scrollBg(dt);
         this._tickVehicleRegen(dt);
 
         // ---- 刷怪流程 ----
@@ -2061,40 +2057,17 @@ export class BattleManager extends Component {
         eventCenter.emit(GameEvent.XP_CHANGED, 0, GameManager.instance.xpToNext(1), 1);
     }
 
-    /** 路面滚动层：虚线不断下移，营造敌军步步逼近的感觉（暂停时冻结） */
-    private _initScrollBg(): void {
-        this._bgScroll = createUINode('BgScroll');
-        this._worldLayer.addChild(this._bgScroll);
-        const g = this._bgScroll.addComponent(Graphics);
+    /** 占位车道层：代码虚线车道（美术底图到位前垫底；静止战场不位移） */
+    private _initBgDash(): void {
+        this._bgDash = createUINode('BgDash');
+        this._worldLayer.addChild(this._bgDash);
+        const g = this._bgDash.addComponent(Graphics);
         g.fillColor = Palette.lane;
         const tile = 640;
         for (let y = -3 * tile; y <= 2 * tile; y += tile / 4) {
             g.rect(-8, y, 16, 80);
         }
         g.fill();
-    }
-
-    /** 路面滚动：有美术路面时滚双镜像节点（无缝循环），否则退回代码虚线层 */
-    private _scrollBg(dt: number): void {
-        const speed = BattleConfig.ROAD_SCROLL_SPEED * dt;
-        if (this._bgArtApplied) {
-            const h = this._bgArtH;
-            for (const n of [this._bgArtA, this._bgArtB]) {
-                let y = n.position.y - speed;
-                // 顶边刚离开屏幕底就回卷到上方（晚了会露出画面空档）
-                if (y <= -h) {
-                    y += h * 2;
-                }
-                n.setPosition(0, y);
-            }
-            return;
-        }
-        const tile = 640;
-        let y = this._bgScroll.position.y - speed;
-        if (y <= -tile) {
-            y += tile;
-        }
-        this._bgScroll.setPosition(0, y);
     }
 
     /** 据点持续回血：天赋「自修复层」+ 改装「工匠铺」同池累加（两者皆为 0 时直接返回） */
@@ -2115,7 +2088,7 @@ export class BattleManager extends Component {
         }
     }
 
-    /** 美术路面就绪后替换代码背景：上下两张镜像 Sprite 循环滚动，压在所有节点最底层 */
+    /** 战场底图就绪后替换代码背景：单张静止铺满屏幕，压在所有节点最底层 */
     private _applyRoadArt(): void {
         // 本关主题底图（`StageData.backdrop`）优先，取不到就回退边境古道那张。
         // 回退这条必须留着：本方法在 update 里逐帧重试直到取到图为止，只认本关 key 的话，
@@ -2135,37 +2108,27 @@ export class BattleManager extends Component {
             h = H;
             w = rect.width * (h / rect.height);
         }
-        this._bgArtH = h;
-        const mk = (y: number, flip: boolean): Node => {
-            const n = createUINode('RoadArt');
-            this.node.addChild(n);
-            n.setSiblingIndex(0);
-            n.setPosition(0, y);
-            if (flip) {
-                n.setScale(1, -1, 1);
-            }
-            const ut = n.addComponent(UITransform);
-            const sp = n.addComponent(Sprite);
-            // 先设 CUSTOM 再赋 spriteFrame：默认 TRIMMED 会在赋图时把节点尺寸重置为图片原始尺寸
-            sp.sizeMode = Sprite.SizeMode.CUSTOM;
-            sp.trim = false;
-            sp.spriteFrame = frame;
-            ut.setContentSize(w, h);
-            return n;
-        };
-        // A 占屏幕，B 在其上方垂直翻转（镜像）：接缝两侧互为镜像，无缝
-        this._bgArtA = mk(0, false);
-        this._bgArtB = mk(h, true);
+        const n = createUINode('BattleBg');
+        this.node.addChild(n);
+        n.setSiblingIndex(0);
+        const ut = n.addComponent(UITransform);
+        const sp = n.addComponent(Sprite);
+        // 先设 CUSTOM 再赋 spriteFrame：默认 TRIMMED 会在赋图时把节点尺寸重置为图片原始尺寸
+        sp.sizeMode = Sprite.SizeMode.CUSTOM;
+        sp.trim = false;
+        sp.spriteFrame = frame;
+        ut.setContentSize(w, h);
+        this._bgArt = n;
         // 诊断：画布件在 DOM 里读不到，无头自测只能靠这一行确认"本关真的换上了自己的底图"
         // （口径同 Bullet 的「[Art] 弹体正式贴图生效」）
-        console.log('[Art] 关卡底图生效:', bg ?? 'scenes/road', `${rect.width}x${rect.height} -> ${w.toFixed(0)}x${h.toFixed(0)}`);
-        // 有美术路面后关闭代码绘制的车道虚线（图里自带标线）
-        if (this._bgScroll) {
-            this._bgScroll.active = false;
+        console.log('[Art] 战场底图生效(静止):', bg ?? 'scenes/road', `${rect.width}x${rect.height} -> ${w.toFixed(0)}x${h.toFixed(0)}`);
+        // 有美术底图后关闭代码绘制的车道虚线（图里自带地面细节）
+        if (this._bgDash) {
+            this._bgDash.active = false;
         }
     }
 
-    /** 占位背景：底色（车道虚线在滚动层 _bgScroll 上，营造前进感） */
+    /** 占位背景：底色（车道虚线在 _bgDash 层上，静止） */
     private _drawBackground(): void {
         const g = this.node.addComponent(Graphics);
         g.fillColor = Palette.bg;
