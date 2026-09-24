@@ -2608,17 +2608,20 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   padding: calc(8px * var(--pu,1)) calc(48px * var(--pu,1)) calc(8px * var(--pu,1)) calc(14px * var(--pu,1));
   background: linear-gradient(90deg, rgba(200,134,47,.16), rgba(200,134,47,.04));
   border-bottom: 1px solid var(--pline); position: relative; }
-#homeUi .popBanner b { font-size: calc(16px * var(--pu,1)); color: var(--pks); letter-spacing: calc(1px * var(--pu,1)); }
+#homeUi .popBanner b { font-size: calc(17px * var(--pu,1)); color: var(--pks); letter-spacing: calc(2px * var(--pu,1)); font-weight: 800; }
 #homeUi .popBanner .art { margin-left: auto; width: calc(84px * var(--pu,1)); height: calc(34px * var(--pu,1));
   border: 1px dashed var(--pline); border-radius: calc(8px * var(--pu,1)); display: flex; align-items: center;
   justify-content: center; font-size: calc(9.5px * var(--pu,1)); color: var(--pdim2); }
 #homeUi .popTop { flex: none; position: relative; display: flex; align-items: center; justify-content: center;
   padding: calc(11px * var(--pu,1)) calc(48px * var(--pu,1)); border-bottom: 1px solid var(--pline);
   background: var(--pbg2); font-size: calc(15px * var(--pu,1)); font-weight: 700; }
+/* game-ux 稿批1：关闭/返回改圆形车轮钮并加大到 38px（半身压住标题条、可点面更大） */
 #homeUi .popClose, #homeUi .popBack { position: absolute; top: 50%; transform: translateY(-50%);
-  width: calc(30px * var(--pu,1)); height: calc(30px * var(--pu,1)); border-radius: calc(9px * var(--pu,1));
-  border: 1px solid var(--pline); background: var(--pdeep); color: var(--pdim);
-  font-size: calc(13px * var(--pu,1)); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  width: calc(38px * var(--pu,1)); height: calc(38px * var(--pu,1)); border-radius: 50%;
+  border: 2px solid var(--pline); background: var(--pdeep); color: var(--pdim);
+  font-size: calc(15px * var(--pu,1)); font-weight: 800; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 calc(2px * var(--pu,1)) 0 rgba(0,0,0,.3); }
+#homeUi .popClose:active, #homeUi .popBack:active { transform: translateY(calc(-50% + 2px * var(--pu,1))); }
 #homeUi .popClose { right: calc(8px * var(--pu,1)); }
 #homeUi .popBack { left: calc(8px * var(--pu,1)); }
 /* position:relative 必须有：✕/‹ 是绝对定位且 top:50%，若以整块 .pop 为参照
@@ -2718,11 +2721,18 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   display: flex; flex-direction: column; align-items: center; gap: calc(5px * var(--pu,1)); }
 #homeUi .popCTA .row { display: flex; gap: calc(10px * var(--pu,1)); width: 100%; }
 #homeUi .popCTA .row.justify { justify-content: center; }
-#homeUi .popBtn { height: calc(40px * var(--pu,1)); border-radius: calc(9px * var(--pu,1));
+/* game-ux 稿批1（二级浮窗游戏化）：CTA 键加高加投影带按压下沉——"游戏键"与"网页键"第一分界；
+   按压态只动 transform/阴影，板图（btn_major 等）不换图（态策略 §10）。 */
+#homeUi .popBtn { height: calc(46px * var(--pu,1)); border-radius: calc(9px * var(--pu,1));
   display: flex; align-items: center; justify-content: center; gap: calc(6px * var(--pu,1));
-  font-size: calc(15px * var(--pu,1)); font-weight: 700; cursor: pointer; position: relative;
+  font-size: calc(15px * var(--pu,1)); font-weight: 800; letter-spacing: calc(2px * var(--pu,1));
+  cursor: pointer; position: relative;
   padding: 0 calc(22px * var(--pu,1)); border: 2px solid var(--pk); color: var(--pks);
-  background: rgba(200,134,47,.12); }
+  background: rgba(200,134,47,.12);
+  box-shadow: 0 calc(4px * var(--pu,1)) 0 rgba(0,0,0,.35);
+  transition: transform .06s ease, box-shadow .06s ease; }
+#homeUi .popBtn:active { transform: translateY(calc(3px * var(--pu,1)));
+  box-shadow: 0 calc(1px * var(--pu,1)) 0 rgba(0,0,0,.35); }
 #homeUi .popBtn.green { border-color: var(--pgreen); color: var(--pine); background: rgba(47,143,99,.1); }
 #homeUi .popBtn.danger { border-color: var(--pred); color: var(--pred2); background: rgba(192,72,63,.1); }
 #homeUi .popBtn.grey { border: 1px solid var(--pline); color: var(--pdim); background: none; font-weight: 400; }
@@ -2753,10 +2763,11 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   border-radius: calc(8px * var(--pu,1)); padding: calc(2px * var(--pu,1)) calc(20px * var(--pu,1)); }
 
 /* --- 组件：列表行（图标 + 两行文本 + 状态列 + 行内动作 + 红点）--- */
+/* game-ux 稿批1：行卡热区 ≥64px、图标 44px（触摸热区红线：主内容可点面） */
 #homeUi .popRow { flex: none; display: flex; align-items: center; gap: calc(10px * var(--pu,1)); position: relative;
   border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--prow);
-  padding: calc(7px * var(--pu,1)) calc(11px * var(--pu,1)); cursor: pointer; }
-#homeUi .popRow .ic { width: calc(40px * var(--pu,1)); height: calc(40px * var(--pu,1)); flex: none;
+  padding: calc(7px * var(--pu,1)) calc(11px * var(--pu,1)); min-height: calc(64px * var(--pu,1)); cursor: pointer; }
+#homeUi .popRow .ic { width: calc(44px * var(--pu,1)); height: calc(44px * var(--pu,1)); flex: none;
   border-radius: calc(10px * var(--pu,1)); border: 1px solid var(--pline); background: var(--pdeep);
   display: flex; align-items: center; justify-content: center; font-size: calc(21px * var(--pu,1)); }
 #homeUi .popRow .m { flex: 1; min-width: 0; }
