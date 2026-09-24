@@ -1242,7 +1242,9 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .hero-figure .heroEmoji { width: 100%; height: calc(100% - calc(50px * var(--hs,1))); max-height: calc(206px * var(--hs,1)); }
 #homeUi .hero-name { position: absolute; left: calc(5px * var(--hs,1)); top: calc(1px * var(--hs,1)); z-index: 3;
   font-size: calc(13px * var(--hs,1)); font-weight: 800; color: var(--c-text-hi); }
-#homeUi .hero-name small { font-size: calc(9px * var(--hs,1)); margin-left: calc(4px * var(--hs,1)); color: var(--c-text-dim); }
+/* 副标（定位/星级）：hub_camp 换暖棕底后 --c-text-dim 压brown底只剩 3.45:1（r1 美术轮审计逮到），
+   翻奶油暖字——两层（--hs 桌面口径 / --pw 手机口径）同改 */
+#homeUi .hero-name small { font-size: calc(9px * var(--hs,1)); margin-left: calc(4px * var(--hs,1)); color: var(--c-cream-2); }
 /* 卡面行内星级（_starInline 建）：跟着 9px 副标的基线走，尺寸归这里 */
 #homeUi .hero-name small .starIn { display: inline-block; font-style: normal; vertical-align: calc(-1px * var(--hs,1));
   width: calc(11px * var(--hs,1)); height: calc(11px * var(--hs,1));
@@ -2941,7 +2943,7 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   z-index: 2; }
 #homeUi .hero-name { position: absolute; left: calc(5px * var(--pw,2.5)); top: calc(1px * var(--pw,2.5)); z-index: 3;
   font-size: calc(13px * var(--pw,2.5)); font-weight: 700; color: var(--c-text-hi); }
-#homeUi .hero-name small { font-size: calc(9px * var(--pw,2.5)); margin-left: calc(4px * var(--pw,2.5)); color: var(--c-text-dim); }
+#homeUi .hero-name small { font-size: calc(9px * var(--pw,2.5)); margin-left: calc(4px * var(--pw,2.5)); color: var(--c-cream-2); }
 /* 行内星级在青瓷层：同一条尺寸口径换成 --pw（--hs 在本层没有值，只写上面那条会退回 1 倍、星比字还小） */
 #homeUi .hero-name small .starIn { vertical-align: calc(-1px * var(--pw,2.5));
   width: calc(11px * var(--pw,2.5)); height: calc(11px * var(--pw,2.5));
