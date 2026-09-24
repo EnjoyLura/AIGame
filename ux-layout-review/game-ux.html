@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>王国守望 · 二级浮窗游戏化布局稿（game-ux）</title>
+<style>
+/* ============ 灰阶声明：本稿只做布局与交互，不做美术。所有颜色都是灰阶占位。 ============ */
+:root{
+  --ink1:#111; --ink2:#333; --ink3:#555; --ink4:#777;
+  --p1:#e8e8e8; --p2:#d6d6d6; --p3:#c0c0c0; --p4:#9a9a9a;
+  --paper:#f2f2f2; --dim:rgba(0,0,0,.55); --dim2:rgba(0,0,0,.75);
+  --line:#8a8a8a; --acc:#444; /* 选中/强调一律深灰，不引入色相 */
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#5a5a5a;font-family:"Segoe UI","Microsoft YaHei",sans-serif;color:var(--ink1);
+  padding:24px 12px 80px;display:flex;flex-direction:column;align-items:center;gap:20px}
+h1{color:#eee;font-size:20px}
+.note{color:#ddd;font-size:13px;max-width:860px;line-height:1.7}
+.note b{color:#fff}
+.phone{width:390px;height:844px;background:#2b2b2b;border:6px solid #1a1a1a;border-radius:28px;
+  position:relative;overflow:hidden;flex:none;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.ph-label{position:absolute;top:8px;left:50%;transform:translateX(-50%);color:#bbb;font-size:11px;z-index:99}
+.scene{position:absolute;inset:0;background:repeating-linear-gradient(45deg,#383838 0 14px,#333 14px 28px)}
+.scene::after{content:"【灰阶占位】战斗/主城场景底图";position:absolute;inset:0;display:flex;
+  align-items:center;justify-content:center;color:#666;font-size:12px;letter-spacing:2px}
+.tag{display:inline-block;background:#333;color:#ccc;font-size:11px;padding:2px 8px;border-radius:10px;margin-right:6px}
+/* 游戏组件语言（灰阶） */
+.gpanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:88%;
+  background:linear-gradient(180deg,var(--paper),var(--p1));border:3px solid var(--ink2);border-radius:14px;
+  box-shadow:0 8px 0 rgba(0,0,0,.35)}
+/* 绶带标题：压面板上沿、两端斜切 —— 游戏稿第一识别件 */
+.ribbon{position:absolute;left:50%;top:0;transform:translate(-50%,-55%);min-width:62%;
+  background:linear-gradient(180deg,#5a5a5a,#3d3d3d);color:#f4f4f4;font-weight:800;font-size:17px;
+  text-align:center;padding:10px 30px;border:3px solid #1e1e1e;border-radius:8px;
+  clip-path:polygon(4% 0,96% 0,100% 50%,96% 100%,4% 100%,0 50%);box-shadow:0 4px 0 rgba(0,0,0,.4);z-index:5}
+.ribbon small{display:block;font-size:10px;font-weight:400;color:#c9c9c9;letter-spacing:1px}
+.gclose{position:absolute;right:-12px;top:-14px;width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#777,#3c3c3c);border:3px solid #1e1e1e;color:#fff;
+  font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;z-index:6;
+  box-shadow:0 3px 0 rgba(0,0,0,.5)}
+.gbody{padding:34px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.gtabs{display:flex;gap:6px}
+.gtabs button{flex:1;padding:9px 4px;border:2px solid var(--ink3);border-radius:9px;background:var(--p3);
+  color:var(--ink1);font-size:12px;font-weight:700}
+.gtabs button.on{background:var(--acc);color:#fff;transform:translateY(-3px);box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.gscroll{overflow-y:auto;max-height:430px;display:flex;flex-direction:column;gap:8px;padding:2px}
+.grow{display:flex;align-items:center;gap:10px;background:var(--p2);border:2px solid var(--ink3);
+  border-radius:10px;padding:12px;min-height:64px}
+.grow .ic{width:44px;height:44px;flex:none;background:var(--p4);border:2px solid var(--ink3);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;color:#eee;font-size:10px}
+.grow .tx{flex:1;min-width:0}
+.grow .tx b{font-size:14px}
+.grow .tx small{display:block;color:var(--ink3);font-size:11px;margin-top:2px}
+.grow .act{flex:none;padding:8px 14px;border-radius:9px;border:2px solid #1e1e1e;font-weight:800;
+  background:#cfcfcf;font-size:13px}
+.grow .act.gold{background:#8f8f8f;color:#fff}
+/* 斜切大 CTA —— 底栏主角，按压下沉 */
+.cta{display:block;width:100%;padding:15px 0;text-align:center;font-size:17px;font-weight:900;letter-spacing:4px;
+  color:#fff;background:linear-gradient(180deg,#9a9a9a,#5f5f5f);border:3px solid #1e1e1e;border-radius:11px;
+  clip-path:polygon(3% 0,97% 0,100% 100%,0 100%);box-shadow:0 5px 0 rgba(0,0,0,.4)}
+.cta.sub{background:linear-gradient(180deg,#cfcfcf,#a0a0a0);color:#222}
+/* 半透无背板（L4/L5）：没有 .gpanel，全屏暗化 + 中央内容直排 */
+.overlay{position:absolute;inset:0;background:var(--dim);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;z-index:10}
+.overlay.deep{background:var(--dim2)}
+.bigword{font-size:52px;font-weight:900;color:#f6f6f6;letter-spacing:14px;text-indent:14px;
+  text-shadow:0 4px 0 #1a1a1a,0 0 0 #fff}
+.chips{display:flex;gap:10px}
+.chip{background:rgba(0,0,0,.45);border:2px solid #777;border-radius:10px;padding:8px 14px;text-align:center}
+.chip b{display:block;color:#fff;font-size:18px}
+.chip small{color:#bbb;font-size:10px}
+.loots{display:flex;gap:8px}
+.loot{width:52px;height:52px;background:rgba(0,0,0,.45);border:2px solid #888;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;color:#ccc;font-size:10px;text-align:center}
+.overlay .cta{width:64%}
+.menu-stack{display:flex;flex-direction:column;gap:12px;width:58%}
+/* 规格标注 */
+.spec{color:#eee;font-size:12px;max-width:390px;line-height:1.6;margin-top:-8px}
+.spec code{background:#222;color:#9fd49f;padding:1px 5px;border-radius:4px;font-size:11px}
+h2{color:#fff;font-size:16px;margin-top:16px;align-self:center}
+table.inv{border-collapse:collapse;color:#ddd;font-size:12px}
+table.inv td,table.inv th{border:1px solid #666;padding:4px 10px}
+table.inv th{background:#333}
+</style>
+</head>
+<body>
+<h1>王国守望 · 二级浮窗游戏化布局稿</h1>
+<p class="note"><b>灰阶声明：</b>本稿只定义布局、层级、触摸热区与交互路由；所有颜色/贴图均为灰阶占位，
+美术由 UiPlate 契约表（art-spec/STYLE-SPEC §9）落图。<b>红线沿用：</b>无死键（每个可点元素都标路由）、
+内容区唯一滚动轴、二级浮窗高度上限（S 68vh / M 64vh / L 73vh / XL 78vh）、装不下先收密度再升档。</p>
+
+<h2>§0 二级浮窗与二级界面全量归类</h2>
+<table class="inv">
+<tr><th>档</th><th>特征</th><th>游戏化口径</th><th>本稿面板</th></tr>
+<tr><td>S 确认框</td><td>一问一答，双 CTA</td><td>小绶带 + 大字问句 + 双斜切键</td><td>§1</td></tr>
+<tr><td>M 表单/详情</td><td>单列信息 + 单 CTA</td><td>绶带 + 行卡 + 底栏 CTA</td><td>§2</td></tr>
+<tr><td>L 列表/页签</td><td>页签切换长列表</td><td>icon 页签 tile + 行卡 + 底栏</td><td>§3</td></tr>
+<tr><td>XL 二级页</td><td>近全屏工作台（装备/建设/天赋）</td><td>左栏位右货架双区工作台</td><td>§4</td></tr>
+<tr><td>L4 结算/暂停</td><td>战斗内打断层</td><td><b>半透无背板</b>：全屏暗化+大字+芯片行</td><td>§5/§6</td></tr>
+<tr><td>L5 演出</td><td>章节开场/里程碑横幅</td><td>全屏无背板横幅扫过，无按钮或一键跳过</td><td>§7</td></tr>
+</table>
+<p class="note">游戏面实测清单（banner 建点 28 处）按档落位：
+<b>S</b>＝通用确认框、更新提示；<b>M</b>＝体力补给/邮箱/通关奖励/出战编队/限时礼包中心/活动详情/签到/天赋树/
+招募结果/镶嵌宝石/属性详情/升星/好友；<b>L</b>＝游戏公告/个人主页/设置/敌军图鉴/图鉴详情/任务·成就/排行榜/
+英雄招募/基地建筑升级；<b>XL</b>＝商城货柜/装备工坊/宝石镶嵌台/建设总览/英雄详情工作台。
+<b>L4</b>＝战斗暂停菜单、通关/失败结算（DomHud）；<b>L5</b>＝无尽里程碑弹幕、章节开场横幅。</p>
+
+<!-- ============ §1 S 确认框 ============ -->
+<div class="phone"><span class="ph-label">§1 S · 确认框（68vh 上限内，内容自适应）</span>
+  <div class="scene"></div>
+  <div class="overlay" style="background:var(--dim)">
+    <div class="gpanel" style="position:relative;left:auto;top:auto;transform:none;width:78%">
+      <div class="ribbon" style="min-width:52%"><small>CONFIRM</small>十连招募</div>
+      <button class="gclose" data-route="关闭弹层" aria-label="关闭">✕</button>
+      <div class="gbody">
+        <p style="text-align:center;font-size:15px;font-weight:700">消耗 1800 <tag>钻石</tag> 进行十连招募？</p>
+        <p style="text-align:center;font-size:11px;color:var(--ink3)">保底：十连必出史诗英雄</p>
+        <div style="display:flex;gap:10px;margin-top:6px">
+          <button class="cta sub" style="width:46%" data-route="取消·关层">取 消</button>
+          <button class="cta" style="width:54%" data-route="确认·执行招募">确 认</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="spec">§1 口径：S 档去底部整条 CTA 栏，<b>双键并入内容尾</b>（取消细键 + 确认粗键 46/54 分）；
+问句 ≥15px 加粗居中；右上圆钮常在。</p>
+
+<!-- ============ §2 M 表单/详情 ============ -->
+<div class="phone"><span class="ph-label">§2 M · 体力补给（64vh 上限）</span>
+  <div class="scene"></div>
+  <div class="gpanel" style="height:64vh;display:flex;flex-direction:column">
+    <div class="ribbon"><small>STAMINA</small>🍖 体力补给</div>
+    <button class="gclose" data-route="关闭弹层">✕</button>
+    <div class="gbody" style="flex:1;min-height:0">
+      <div class="grow" style="min-height:56px">
+        <div class="ic">餐/图</div>
+        <div class="tx"><b>王国盛宴</b><small>恢复 30 体力 · 每日 3 次</small></div>
+        <button class="act gold" data-route="看广告领体力">免费</button>
+      </div>
+      <div class="grow" style="min-height:56px">
+        <div class="ic">钻/图</div>
+        <div class="tx"><b>购买体力</b><small>60 钻 = 30 体力</small></div>
+        <button class="act" data-route="购买体力">购买</button>
+      </div>
+      <p style="font-size:11px;color:var(--ink3);text-align:center">体力 5 分钟回复 1 点，上限 30</p>
+    </div>
+    <div style="padding:0 14px 16px"><button class="cta" data-route="一键补满·主 CTA">一 键 补 满</button></div>
+  </div>
+</div>
+<p class="spec">§2 五段式游戏化度量：绶带压上沿（高 44px，含副题）；行卡热区 ≥56px、左 44px 图标；
+底部 CTA 区独立于滚动区，<b>斜切大键 + 4px 投影</b>，这是"游戏键"与"网页键"的第一分界。</p>
+
+<!-- ============ §3 L 页签列表 ============ -->
+<div class="phone"><span class="ph-label">§3 L · 任务·成就（73vh 上限）</span>
+  <div class="scene"></div>
+  <div class="gpanel" style="height:73vh;display:flex;flex-direction:column">
+    <div class="ribbon"><small>QUESTS</small>📋 任务 · 成就</div>
+    <button class="gclose" data-route="关闭弹层">✕</button>
+    <div class="gbody" style="flex:1;min-height:0">
+      <div class="gtabs">
+        <button class="on" data-route="页签·每日">每日</button>
+        <button data-route="页签·成就">成就</button>
+        <button data-route="页签·主线">主线</button>
+      </div>
+      <div class="gscroll">
+        <div class="grow"><div class="ic">图</div><div class="tx"><b>击退 50 名兽人</b>
+          <small>进度 32/50 · 奖励 金币×200</small></div><button class="act" data-route="前往任务">前往</button></div>
+        <div class="grow"><div class="ic">图</div><div class="tx"><b>通关第 2 章</b>
+          <small>已完成 · 奖励 钻石×30</small></div><button class="act gold" data-route="领取奖励">领取</button></div>
+        <div class="grow"><div class="ic">图</div><div class="tx"><b>把 3 名英雄升到 10 级</b>
+          <small>进度 1/3</small></div><button class="act" style="opacity:.45" data-route="未完成·禁用态示例">进行中</button></div>
+        <div class="grow"><div class="ic">图</div><div class="tx"><b>占位行</b><small>列表密度示例</small></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="spec">§3：页签 tile 选中态<b>抬起 3px + 深底白字</b>（对应贴图族 band_raised）；滚动区是
+<b>唯一</b>滚动轴；禁用键 opacity≤.45 且有 title 说明（无死键红线：禁用必须可解释）。</p>
+
+<!-- ============ §4 XL 二级页工作台 ============ -->
+<div class="phone"><span class="ph-label">§4 XL · 英雄装备工作台（78vh 上限）</span>
+  <div class="scene"></div>
+  <div class="gpanel" style="height:78vh;width:94%;display:flex;flex-direction:column">
+    <div class="ribbon"><small>EQUIP</small>⚔️ 装备工坊 · 苍鹭</div>
+    <button class="gclose" data-route="关闭弹层">✕</button>
+    <div class="gbody" style="flex:1;min-height:0;flex-direction:row;gap:10px">
+      <div style="width:38%;display:flex;flex-direction:column;gap:8px">
+        <div style="background:var(--p2);border:2px solid var(--ink3);border-radius:10px;height:190px;
+          display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:12px">
+          英雄立绘<br>【灰阶占位】</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="background:var(--p3);border:2px solid var(--ink3);border-radius:8px;height:44px;
+            display:flex;align-items:center;justify-content:center;font-size:10px">头盔槽</div>
+          <div style="background:var(--p3);border:2px solid var(--ink3);border-radius:8px;height:44px;
+            display:flex;align-items:center;justify-content:center;font-size:10px">护甲槽</div>
+          <div style="background:var(--p3);border:2px solid var(--ink3);border-radius:8px;height:44px;
+            display:flex;align-items:center;justify-content:center;font-size:10px">武器槽</div>
+          <div style="background:var(--p3);border:2px solid var(--ink3);border-radius:8px;height:44px;
+            display:flex;align-items:center;justify-content:center;font-size:10px">战靴槽</div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0">
+        <div class="gtabs"><button class="on" data-route="页签·背包">背包</button>
+          <button data-route="页签·仓库">仓库</button></div>
+        <div class="gscroll" style="max-height:none;flex:1">
+          <div class="grow" style="min-height:56px"><div class="ic">装</div><div class="tx"><b>鹰羽长弓</b>
+            <small>攻击 +18 · 稀有</small></div><button class="act gold" data-route="装备">装备</button></div>
+          <div class="grow" style="min-height:56px"><div class="ic">装</div><div class="tx"><b>皮护腕</b>
+            <small>防御 +6 · 普通</small></div><button class="act" data-route="装备">装备</button></div>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 14px 16px"><button class="cta" data-route="一键强化">一 键 强 化</button></div>
+  </div>
+</div>
+<p class="spec">§4：XL 改<b>双区工作台</b>（左立绘+槽位格，右货架），取代网页式通栏堆叠；
+宽度 94%、高 78vh；槽位格 44px 起；左右两区各自独立内容、滚动只在右货架。</p>
+
+<!-- ============ §5 L4 结算：半透无背板 ============ -->
+<div class="phone"><span class="ph-label">§5 L4 · 通关结算（半透无背板）</span>
+  <div class="scene"></div>
+  <div class="overlay deep">
+    <div class="bigword">胜 利</div>
+    <p style="color:#ddd;font-size:12px;letter-spacing:3px">第 1 章 · 边境古道  守住了据点</p>
+    <div class="chips">
+      <div class="chip"><small>击杀</small><b>87</b></div>
+      <div class="chip"><small>波次</small><b>5/5</b></div>
+      <div class="chip"><small>据点血量</small><b>82%</b></div>
+    </div>
+    <div class="loots">
+      <div class="loot">金币<br>+320</div><div class="loot">钻石<br>+10</div>
+      <div class="loot">碎片<br>+2</div><div class="loot">？</div>
+    </div>
+    <button class="cta" data-route="继续·下一关">继 续</button>
+    <div style="display:flex;gap:10px;width:64%">
+      <button class="cta sub" style="width:50%" data-route="重打本关">重 打</button>
+      <button class="cta sub" style="width:50%" data-route="看广告金币×2">金币×2</button>
+    </div>
+  </div>
+</div>
+<p class="spec">§5 <b>半透无背板</b>口径：没有 .gpanel，没有面板贴图——全屏 75% 暗化渐晕上直接排内容；
+「胜利/失败」52px 大字（+14px 字距 + 描边投影）是视觉锚；统计<b>芯片行</b>（半透黑底圆角小卡）横排；
+奖励 loot 格 52px；CTA 直接压暗化层上。背景战场冻结可见（半透的意义），营造"停在战场"的余韵。</p>
+
+<!-- ============ §6 L4 暂停 ============ -->
+<div class="phone"><span class="ph-label">§6 L4 · 暂停菜单（半透无背板）</span>
+  <div class="scene"></div>
+  <div class="overlay">
+    <p style="color:#eee;font-size:20px;font-weight:900;letter-spacing:8px">战 斗 暂 停</p>
+    <div class="menu-stack">
+      <button class="cta" data-route="继续战斗">继 续 战 斗</button>
+      <button class="cta sub" data-route="重新开始本关">重 新 开 始</button>
+      <button class="cta sub" data-route="返回据点·退出战斗">退 出 战 斗</button>
+    </div>
+    <p style="color:#aaa;font-size:11px">当前进度将保留 · 波次 3/5</p>
+  </div>
+</div>
+<p class="spec">§6 暂停同样无背板：标题 + <b>竖排三键菜单栈</b>（58% 宽）+ 进度脚注；
+50% 暗化弱于结算（战斗场景还要看得见）。现有右上暂停圆钮保持入口不变。</p>
+
+<!-- ============ §7 L5 演出 ============ -->
+<div class="phone"><span class="ph-label">§7 L5 · 章节开场横幅（演出层，自动扫过）</span>
+  <div class="scene"></div>
+  <div style="position:absolute;inset:0;z-index:10">
+    <div style="position:absolute;left:0;right:0;top:34%;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.7));
+      padding:18px 0;text-align:center">
+      <p style="color:#f4f4f4;font-size:26px;font-weight:900;letter-spacing:10px;text-indent:10px">第 二 章</p>
+      <p style="color:#ccc;font-size:13px;letter-spacing:6px;margin-top:4px">巨 石 桥</p>
+    </div>
+    <p style="position:absolute;right:16px;bottom:20%;color:#ddd;font-size:11px;
+      border:1px solid #888;border-radius:14px;padding:4px 12px" data-route="点击跳过演出">跳过 ▸</p>
+  </div>
+</div>
+<p class="spec">§7 演出层：全屏无背板、无关闭钮，横幅 1.6s 自动扫过 + <b>点击任意处跳过</b>（跳过是出路，不违反无死键）。
+无尽里程碑弹幕同层复用（顶部滑入停留 1.2s 滑出，不暂停战斗）。</p>
+
+<h2>§8 交互路由汇总（无死键对账）</h2>
+<p class="note">所有 data-route 与现网路由对应：关闭弹层＝popClose；页签＝popTabs 重建；
+CTA＝各面既有 kind 路由（gold/green/grey/danger）；跳过＝演出层整体销毁。
+实现侧五段式骨架（头部/页签/滚动区/消耗/CTA 底栏）与 DOM 结构不变，只换度量与皮肤挂点；
+S/L4/L5 三档允许脱离面板骨架（本稿 §1/§5/§6/§7），其余档位仍受高度上限约束。</p>
+</body>
+</html>
