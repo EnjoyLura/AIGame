@@ -11,12 +11,18 @@ import { BattleManager } from './BattleManager';
 const HIT_TINT = new Color(255, 70, 70, 255);
 const BASE_TINT = new Color(255, 255, 255, 255);
 
+/** 走帧序列表开关（RESKIN-R1 批4，2026-09-25）：现存 *_walk 表全是末日军怪素材，奇幻单图已落盘，
+ *  继续播会新旧混屏——临时停播，敌人走「单图 + 程序化摆动」口径（bob 逻辑独立于帧轨，不受影响）。
+ *  第二轮奇幻走帧重出后把本开关翻回 true 即恢复。 */
+const WALK_SHEET_ENABLED = false;
+
 /** 已有美术立绘的怪型（key 相对 textures/；缺图的回退 Graphics 占位） */
 const MONSTER_ART: Record<string, string> = {
     dog: 'monsters/dog',
     boar: 'monsters/boar',
     bear: 'monsters/bear',
     eagle: 'monsters/eagle',
+    stoneape: 'monsters/stoneape',
 };
 
 /**
@@ -164,7 +170,7 @@ export class Enemy extends Component {
         this.isElite = info.tier === 1;
         this._dying = false;
         this._animState = 'walk';
-        this._animFrames = AssetLib.monsterFrames(info.id, 'walk');
+        this._animFrames = WALK_SHEET_ENABLED ? AssetLib.monsterFrames(info.id, 'walk') : null;
         this._animIdx = -1;
         this._animT = 0;
         this._onAnimDone = null;
@@ -518,10 +524,10 @@ export class Enemy extends Component {
         }
     }
 
-    /** 尝试挂美术立绘：行走序列帧（6 帧）优先，回退静态整图，再回退占位 Graphics */
+    /** 尝试挂美术立绘：行走序列帧优先（WALK_SHEET_ENABLED 关闭时直接走单图），回退静态整图，再回退占位 Graphics */
     private _tryApplyArt(info: MonsterInfo): boolean {
         // 序列帧就绪：逐帧播放取代静态图（帧切换在 _updateWalkAnim 按步相推进）
-        const walk = AssetLib.monsterFrames(info.id, 'walk');
+        const walk = WALK_SHEET_ENABLED ? AssetLib.monsterFrames(info.id, 'walk') : null;
         if (walk && walk.length > 0) {
             this._animFrames = walk;
             this._animIdx = -1;
@@ -728,7 +734,7 @@ export class Enemy extends Component {
         this._animDur = frames.length / 14;
         this._onAnimDone = () => {
             this._animState = 'walk';
-            this._animFrames = AssetLib.monsterFrames(this._mid, 'walk');
+            this._animFrames = WALK_SHEET_ENABLED ? AssetLib.monsterFrames(this._mid, 'walk') : null;
             this._animIdx = -1;
         };
     }
