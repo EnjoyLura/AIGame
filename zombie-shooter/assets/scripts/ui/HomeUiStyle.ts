@@ -2600,6 +2600,13 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
   max-height: calc(68vh - var(--sab,0px)); border-radius: calc(12px * var(--pu,1)); }
 #homeUi .pop.S.center { top: 50%; margin-top: calc(-0px * var(--pu,1)); transform: translate(-50%, -50%); }
 #homeUi .pop.XL { position: absolute; inset: 0; border: 0; border-radius: 0; }
+/* game-ux 稿 §4：XL 全屏二级页是页面不是弹窗——按页面口径上暗槽底 + 亮字。
+   .plated 翻色永远够不到它（XL 不贴面板框图），所以这里无条件翻；绶带标题的暗金
+   在木带上不可读就是这一缺口的实测证据（pop-heroes-equip 截图）。 */
+#homeUi .pop.XL { --pbg:#232937; --pbg2:#252c3b; --pbg3:#1e2532; --pdeep:#1b2130; --pink:#12151d;
+  --pline:#3a4356; --pline2:#2c3342; --ptx:#dbe2ef; --pdim:#8d97ab; --pdim2:#5c6678;
+  --pk:#f0b34e; --pks:#ffd98f; --pgreen:#58c48c; --pine:#bff0d5; --pred:#e5534b; --pred2:#ff8d86;
+  --prow:#272e3d; --pshad:0 24px 60px rgba(0,0,0,.6); }
 #homeUi .pop.XL.L5 { background: #12151d; color: #dbe2ef; }
 #homeUi .pop.XL .popShow { padding-top: calc(24px * var(--pu,1)); }
 
