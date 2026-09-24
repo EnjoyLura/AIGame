@@ -498,23 +498,21 @@ export class DomHud extends Component {
     /** 结算数据：读全局 GameManager 单例 */
     private _fillGameOver(): void {
         const gm = GameManager.instance;
-        const bm = BattleManager.instance;
-        const endless = bm?.isEndless ?? false;
-        const trialFloor = bm?.isTrial ? bm.trialFloor : 0;
-        const dungeon = bm?.isDungeon ?? false;
+        const trialFloor = BattleManager.instance?.isTrial ? BattleManager.instance.trialFloor : 0;
+        const dungeon = BattleManager.instance?.isDungeon ?? false;
         if (this._failTitle) {
             // 标题按模式变体（交互稿 battle.html H4）：副本局「副本失败」、试炼局「试炼失败」
             this._failTitle.textContent = trialFloor > 0 ? '试 炼 失 败' : dungeon ? '副 本 失 败' : '据 点 陷 落';
         }
         if (this._failWave) {
-            this._failWave.textContent = trialFloor > 0 ? `试炼层数：第 ${trialFloor} 层`
-                : endless ? `无尽波数：第 ${gm.wave} 波` : `抵达波次：第 ${gm.wave} 波`;
+            // 芯片口径：label 固定「进度」，模式差异收进值文案（试炼层 / 波次）
+            this._failWave.textContent = trialFloor > 0 ? `试炼第 ${trialFloor} 层` : `第 ${gm.wave} 波`;
         }
         if (this._failKill) {
-            this._failKill.textContent = `击杀怪物：${gm.kills}`;
+            this._failKill.textContent = `${gm.kills}`;
         }
         if (this._failLevel) {
-            this._failLevel.textContent = `团队等级：Lv.${gm.level}`;
+            this._failLevel.textContent = `Lv.${gm.level}`;
         }
     }
 
@@ -1392,18 +1390,21 @@ export class DomHud extends Component {
         root.appendChild(ov);
         this._statsOverlay = ov;
 
-        // 据点陷落结算
+        // 据点陷落结算（game-ux 稿 §5：半透无背板——统计是芯片行，内容直接压在暗渐晕上）
         const fp = document.createElement('div');
-        fp.className = 'menuOverlay';
+        fp.className = 'menuOverlay failOverlay';
         fp.style.display = 'none';
         const card = document.createElement('div');
         card.className = 'failCard';
         // 标题复用（试炼局显示「试炼失败」，副本局「副本失败」，普通局「据点陷落」），_fillGameOver 按模式改文案
         this._failTitle = this._bigLabel('据 点 陷 落', 84);
         card.appendChild(this._failTitle);
-        this._failWave = this._label(card, 'failLine', '');
-        this._failKill = this._label(card, 'failLine', '');
-        this._failLevel = this._label(card, 'failLine', '');
+        const chips = document.createElement('div');
+        chips.className = 'failChips';
+        this._failWave = this._failChip(chips, '进度');
+        this._failKill = this._failChip(chips, '击杀');
+        this._failLevel = this._failChip(chips, '等级');
+        card.appendChild(chips);
         this._failGold = this._label(card, 'failGold', '');
         card.appendChild(this._menuButton('重 试 一 次', '#ffa726', () => this._restart()));
         this._failAdBtn = this._menuButton('', '#9ccc65', () => this._claimDoubleGold(this._failAdBtn));
@@ -1555,6 +1556,19 @@ export class DomHud extends Component {
         // 尺寸按设计像素标注、随画布缩放（--s），与交互稿 30px 级结算标题口径一致
         el.style.fontSize = `calc(${size.toFixed(0)}px * var(--s,1))`;
         return el;
+    }
+
+    /** 失败结算芯片（game-ux 稿 §5）：label 固定、值由 _fillGameOver 填，返回值节点 */
+    private _failChip(row: HTMLElement, label: string): HTMLDivElement {
+        const chip = document.createElement('div');
+        chip.className = 'failChip';
+        const small = document.createElement('small');
+        small.textContent = label;
+        const val = document.createElement('b') as HTMLDivElement;
+        chip.appendChild(small);
+        chip.appendChild(val);
+        row.appendChild(chip);
+        return val;
     }
 
     private _menuButton(text: string, color: string, onClick: () => void): HTMLButtonElement {
@@ -1877,22 +1891,22 @@ export class DomHud extends Component {
 #domHud .slotChip:nth-child(1) .slotDot { background: var(--c-xp); }
 #domHud .slotChip:nth-child(2) .slotDot { background: #ffb74d; }
 #domHud .slotChip:nth-child(3) .slotDot { background: #ff6b81; }
-#domHud .failCard { display: flex; flex-direction: column; align-items: center; gap: calc(30px * var(--s,1));
-  width: calc(820px * var(--s,1)); padding: calc(60px * var(--s,1)) 0; border-radius: 16px;
-  background: linear-gradient(180deg, #31414d 0%, #222d36 100%);
-  border: 3px solid var(--c-cyan-soft);
-  box-shadow: 0 0 0 calc(3px * var(--s,1)) rgba(0,0,0,.55), 0 calc(16px * var(--s,1)) calc(48px * var(--s,1)) rgba(0,0,0,.6),
-    inset 0 0 calc(80px * var(--s,1)) rgba(255,167,38,.06); }
-#domHud .failLine { font-size: calc(42px * var(--s,1)); }
+/* --- game-ux 稿 §5：结算半透无背板——卡片 chrome 全拆，内容直接压在全屏暗化渐晕上，
+   背景战场冻结可见（半透的意义，「停在战场」的余韵）；数据主角是半透黑底圆角芯片行 --- */
+#domHud .failOverlay { background: radial-gradient(ellipse at center, rgba(10,14,22,.74) 0%, rgba(0,0,0,.9) 100%); }
+#domHud .failCard { display: flex; flex-direction: column; align-items: center; gap: calc(30px * var(--s,1)); }
+#domHud .failChips { display: flex; gap: calc(18px * var(--s,1)); }
+#domHud .failChip { display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--s,1));
+  min-width: calc(210px * var(--s,1)); padding: calc(14px * var(--s,1)) calc(24px * var(--s,1));
+  border-radius: calc(16px * var(--s,1)); background: rgba(8,10,16,.55);
+  border: calc(2px * var(--s,1)) solid rgba(255,255,255,.14); }
+#domHud .failChip small { font-size: calc(24px * var(--s,1)); color: var(--c-dim-1);
+  letter-spacing: calc(2px * var(--s,1)); }
+#domHud .failChip b { font-size: calc(42px * var(--s,1)); color: #e8eef6; }
 #domHud .failGold { font-size: calc(42px * var(--s,1)); color: var(--c-gold-bright); }
-/* --- 通关结算重设计 --- */
-#domHud .clearOverlay { background: radial-gradient(ellipse at center, rgba(24,52,38,.78) 0%, rgba(0,0,0,.82) 100%); }
+/* --- 通关结算：同为无背板口径，暗渐晕只带一丝绿意（胜利情绪交给金字标题与掉落） --- */
+#domHud .clearOverlay { background: radial-gradient(ellipse at center, rgba(12,22,15,.74) 0%, rgba(0,0,0,.9) 100%); }
 #domHud .clearCard { display: flex; flex-direction: column; align-items: center; gap: calc(30px * var(--s,1));
-  width: calc(880px * var(--s,1)); padding: calc(48px * var(--s,1)) calc(30px * var(--s,1)) calc(44px * var(--s,1));
-  border-radius: calc(24px * var(--s,1)); background: linear-gradient(180deg, #2c4438 0%, #1e2f27 58%, #17241e 100%);
-  border: calc(3px * var(--s,1)) solid var(--c-ok);
-  box-shadow: 0 0 0 calc(3px * var(--s,1)) rgba(0,0,0,.55), 0 calc(16px * var(--s,1)) calc(48px * var(--s,1)) rgba(0,0,0,.6),
-    inset 0 0 calc(110px * var(--s,1)) rgba(123,220,123,.08);
   animation: clCardIn .38s cubic-bezier(.34,1.56,.64,1); }
 @keyframes clCardIn { from { opacity: 0; transform: scale(.86) translateY(calc(30px * var(--s,1))); } }
 #domHud .clTitle { font-size: calc(84px * var(--s,1)); letter-spacing: calc(12px * var(--s,1));
