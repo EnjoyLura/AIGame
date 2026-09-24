@@ -16,12 +16,19 @@ const ok = (name, cond) => {
   if (!cond) fail++;
 };
 
-/* ---------- 1. 五段骨架（固定头 / 固定说明·页签 / 唯一滚动轴 / 固定消耗·槽位 / 固定命令） ---------- */
+/* ---------- 1. 五段骨架（固定头 / 固定说明·页签 / 唯一滚动轴 / 固定消耗·槽位 / 固定命令；S 档命令并入内容尾） ---------- */
 ok('骨架按 ①头部→②说明·页签→③滚动区→④消耗→⑤命令 顺序渲染',
   /头部区（固定）/.test(core) && /内容滚动区（唯一滚动轴）/.test(core)
-  && /CTA 底栏（固定）/.test(core)
+  && /CTA 底栏（固定/.test(core)
   && core.indexOf("'popMeta'") < core.indexOf("'popScroll'")
   && core.indexOf("'popScroll'") < core.indexOf("'popCost'"));
+/* game-ux 稿 §1：S 确认框去底栏，双键（46/54）并入内容尾——命令段仍是第⑤段，只是 S 档坐进滚动区 */
+ok('S 档 CTA 并入内容尾（.popCTA.tail 双键 46/54，M/L/XL 仍固定底栏）',
+  /size === 'S' \? ' tail' : ''/.test(core)
+  && /\(size === 'S' \? scroll : pop\)\.appendChild\(cta\);/.test(core)
+  && /#homeUi \.popCTA\.tail \{ background: none; border-top: 0/.test(style)
+  && /#homeUi \.popCTA\.tail \.row:not\(\.justify\) \.popBtn\.wide:first-child \{ width: calc\(46% - 5px\); \}/.test(style)
+  && /#homeUi \.popCTA\.tail \.row:not\(\.justify\) \.popBtn\.wide:last-child \{ width: calc\(54% - 5px\); \}/.test(style));
 ok('滚动区只有一根（.popScroll 是唯一 overflow-y:auto 的弹层区）',
   /#homeUi \.popScroll \{[^}]*overflow-y: auto/.test(style)
   && !/#homeUi \.pop(Show|Tabs|Meta|Cost|CTA|Slots|Bar) \{[^}]*overflow-y/.test(style));

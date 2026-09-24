@@ -2741,6 +2741,17 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .popBtn.disabled { opacity: .5; border-color: var(--pline); color: var(--pdim); background: none; cursor: default;
   filter: grayscale(.6) brightness(.92); }
 #homeUi .popCTA .note { font-size: calc(10.5px * var(--pu,1)); color: var(--pdim2); text-align: center; }
+/* game-ux 稿 §1：S 确认框去底栏，双键并入内容尾（取消 46% + 确认 54%）——
+   尾栏不再自带底色/上边框（键就坐在内容尾，脚上没有「另一条栏」），note 跟着键走；
+   只挂 .tail 不动 M/L/XL 的固定底栏。单键行带 .justify，不吃 46/54 分。 */
+#homeUi .popCTA.tail { background: none; border-top: 0; padding: calc(3px * var(--pu,1)) 0 0; }
+#homeUi .popCTA.tail .row:not(.justify) .popBtn.wide { flex: none; box-sizing: border-box;
+  padding: 0 calc(10px * var(--pu,1)); }
+/* 宽度各扣一半键距：46%+54% 是满宽，再加上 10px gap 会把确认键顶出面板右缘（探针实测） */
+#homeUi .popCTA.tail .row:not(.justify) .popBtn.wide:first-child { width: calc(46% - 5px); }
+#homeUi .popCTA.tail .row:not(.justify) .popBtn.wide:last-child { width: calc(54% - 5px); }
+/* S 档问句：一问一答的主角是问句本身（≥15px 加粗居中），不用说明文字的弱化口径 */
+#homeUi .pop.S .popDesc { font-size: calc(15px * var(--pu,1)); font-weight: 700; color: var(--ptx); }
 #homeUi .popRed { position: absolute; right: calc(-4px * var(--pu,1)); top: calc(-4px * var(--pu,1));
   width: calc(12px * var(--pu,1)); height: calc(12px * var(--pu,1)); border-radius: 50%;
   background: var(--pred); border: 2px solid var(--pbg2); }
@@ -3368,6 +3379,20 @@ export const HOME_UI_CSS = `${UI_TOKENS_CSS}
 #homeUi .popSlots .sc.plated { color: var(--c-cream-1); }
 /* 槽名是 .sname 自己带色（两层各一条），继承改不动它——要翻亮必须点到这一层，特异性也刚好压过两层旧规则 */
 #homeUi .eqGrid .slot.plated .sname { color: var(--c-cream-1); }
+/* ---- game-ux 稿批2：框板上位后弹层内部去白纸化（令牌一处翻、全族跟着走）----
+   面板根/绶带/行卡/页签都接了木板，但 CTA 底栏、脚注条、筛选签、属性卡、消耗格这些未贴板件
+   还在用浅纸令牌画白底——「框换木了、里面还是网页白」的孤岛。翻法挂在 .plated 上
+   （缺图回退时浅纸深字照旧，同一判法见 3354 段头注释），把 :1021 深色层那组令牌原样搬来。 */
+#homeUi .pop.plated { --pbg:#232937; --pbg2:#252c3b; --pbg3:#1e2532; --pdeep:#1b2130; --pink:#12151d;
+  --pline:#3a4356; --pline2:#2c3342; --ptx:#dbe2ef; --pdim:#8d97ab; --pdim2:#5c6678;
+  --pk:#f0b34e; --pks:#ffd98f; --pgreen:#58c48c; --pine:#bff0d5; --pred:#e5534b; --pred2:#ff8d86;
+  --prow:#272e3d; --pshad:0 24px 60px rgba(0,0,0,.6); }
+/* 行卡例外：row_card 内芯是浅羊皮纸，行内深字/浅图标格是原配——本条把浅纸令牌原样要回来，
+   必须排在上一条之后（同特异性后者胜）。行内字跟着翻会洗白，实测判据见上面 ⚠ 行卡注。 */
+#homeUi .popRow.plated { --pbg:var(--c-text-ice2); --pbg2:#e2edf3; --pbg3:#dae6ee; --pdeep:#dae6ee; --pink:var(--c-white);
+  --pline:#9db9ca; --pline2:#c3d6e1; --ptx:var(--c-deep-teal2); --pdim:#5b7f92; --pdim2:#7b9aa9;
+  --pk:#c8862f; --pks:var(--c-gold-dk3); --pgreen:#2f8f63; --pine:#1d6b48; --pred:#c0483f; --pred2:#a8362e;
+  --prow:var(--c-white); }
 /* ---- emoji 图标摆正（普查里 ⚡ / 🛡️ / 🎁 三处「内容宽 > 盒宽」的同一根因）----
    .hot .ic 的盒与字号同尺寸（英雄页快捷列 26px×--pw = 36 的方盒配 36 的字），但 emoji 的字身宽窄
    由字体给：⚡ 在 36px 下实测占 49.4px。关键是 **text-align: center 治不了这个**——

@@ -711,9 +711,9 @@ export abstract class HomeUiCore extends Component {
             pop.appendChild(cr);
         }
 
-        // —— 5. CTA 底栏（固定） ——
+        // —— 5. CTA 底栏（固定；S 档按 game-ux 稿 §1 并入内容尾：双键 46/54 分，不另起固定栏） ——
         if (opts.ctas?.length || opts.note) {
-            const cta = this._el('div', 'popCTA');
+            const cta = this._el('div', `popCTA${size === 'S' ? ' tail' : ''}`);
             if (opts.ctas?.length) {
                 const multi = opts.ctas.length > 1;
                 const row = this._el('div', `row${multi ? '' : ' justify'}`);
@@ -751,7 +751,7 @@ export abstract class HomeUiCore extends Component {
             if (opts.note) {
                 cta.appendChild(this._el('div', 'note', opts.note));
             }
-            pop.appendChild(cta);
+            (size === 'S' ? scroll : pop).appendChild(cta);
         }
 
         // —— 6. 槽位条（固定） ——
